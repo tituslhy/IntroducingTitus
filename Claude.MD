@@ -214,6 +214,6 @@ Follow this sequence strictly. Do not skip ahead.
 ---
 
 ## Open Items
-- [ ] fictional-bassoon GitHub URL — confirm exact repo name: https://github.com/tituslhy/fictional-bassoon
-- [ ] Mastercard tech stack — update after onboarding (Jul 2026)
+- [ x ] fictional-bassoon GitHub URL — confirm exact repo name: https://github.com/tituslhy/fictional-bassoon
+- [ x ] Mastercard tech stack — update after onboarding (Jul 2026)
 - [ ] Headshot file — drop as `/public/headshot.jpg` before scaffolding
