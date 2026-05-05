@@ -1,5 +1,16 @@
 # CLAUDE.md — Personal Website (tituslhy)
 
+## Ralph Wiggum Protocol (READ THIS FIRST)
+Before writing ANY code:
+1. Read `requirements.md` completely
+2. Confirm understanding of requirements
+3. Ask clarifying questions if anything is ambiguous
+4. Only then write code
+
+Do not skip step 1. Do not assume. Read the paper first.
+
+---
+
 ## Who This Is For
 You are building the personal website of **Lim Hsien Yong (Titus)** — GenAI Engineer & Architect.
 Primary audience: hiring managers, technical leads, C-suite sponsors, GenAI/ML community.
@@ -11,10 +22,20 @@ This site is a professional brand presence and web-form resume. Not a blog. Not 
 - **Framework:** Next.js 14 (App Router)
 - **Styling:** Tailwind CSS
 - **Components:** shadcn/ui where needed
-- **Deployment:** Vercel
+- **Deployment:** GitHub Pages (static export)
 - **Static assets:** `/public/` directory
 
 Do not deviate from this stack unless explicitly instructed.
+
+Next.js must be configured for static export:
+```js
+// next.config.js
+const nextConfig = {
+  output: 'export',
+  images: { unoptimized: true },
+  basePath: '',
+}
+```
 
 ---
 
@@ -22,12 +43,13 @@ Do not deviate from this stack unless explicitly instructed.
 
 ### Visual
 - **Dark mode only.** No toggle. No light mode. Ever.
-- **Accent color: Electric blue** (`#3B82F6` range). One accent. Commit to it.
+- **Accent color: Warm amber** (`#F59E0B` range). One accent. Commit to it.
 - **Font pairing: DM Serif Display** (headings/name) + **IBM Plex Mono** (body/code/tags)
 - **Aesthetic:** Technical confidence. Typography-forward. Clean grid with deliberate accent moments.
 - **Animation:** Subtle scroll-triggered reveals only. No page transitions that make users wait. No autoplay. No particle backgrounds.
 - **Layout:** Single-column with anchor nav. Desktop-first. Fully responsive.
-- **No stock photos. No illustrations. No avatars.** Typography and structure carry the weight.
+- **Headshot:** Profile photo in hero section. File: `/public/headshot.jpg`
+- **No stock photos. No illustrations.** Typography, headshot, and structure carry the weight.
 
 ### What This Site Is NOT
 - NOT a purple gradient SaaS template
@@ -45,6 +67,7 @@ Mobile: hamburger menu
 
 ### Page 1 — Home
 **Hero:**
+- Headshot: `/public/headshot.jpg` — circular or slightly rounded, amber ring/glow accent
 - Name: Lim Hsien Yong (Titus)
 - Title: GenAI Engineer & Architect
 - Tagline: "I build AI systems. Then I explain them. Then I sell them."
@@ -133,6 +156,7 @@ Tech: VBA, Excel, Exponential Smoothing, Holt-Winters
 **fictional-bassoon**
 > A solo-built 54-container distributed AI platform, vibe-coded end-to-end with LLMs and audited by CodeRabbit. Features a full production stack: FastAPI, LangGraph, Celery, RabbitMQ, Redis Sentinel, Citus distributed Postgres, dual-pool PgBouncer, PostgREST, ClickHouse, Langfuse, MinIO, LGTM observability stack, and a Next.js 14 frontend behind Nginx. 90%+ test coverage. Unhinged by design.
 Tags: Python, LangGraph, Postgres, ClickHouse, Docker, Langfuse, Next.js
+GitHub: https://github.com/tituslhy/fictional-bassoon
 
 **Illumina Agentic RAG System**
 > Production-grade 16-component agentic RAG system for enterprise field service engineering. Features semantic double-merge chunking, chunk dreaming, HyDE, hybrid search, Cohere reranking, prompt compression, and an iterative multi-hop retrieval loop. Blue-green vector collection swap strategy invented from first principles.
@@ -150,10 +174,13 @@ Tags: LlamaIndex, Qdrant, AWS Bedrock, Docker+CUDA, Grafana, SonarQube
 - 50+ published technical articles
 - Featured by: Singapore Management University, Unsloth, LlamaIndex, IBM, FlowerAI
 - Link: https://medium.com/@tituslhy
-- Display: 6 hardcoded featured articles (see below — update as needed)
-
-Featured articles to hardcode (update this list as needed):
-- [Add your 6 favourite Medium article titles + URLs here before scaffolding]
+- Display: 6 hardcoded featured articles:
+  1. Agent Memory: The underrated superpower of agentic apps — https://medium.com/mitb-for-all/agent-memory-the-underrated-superpower-of-agentic-apps-1c16fb47f435
+  2. How to Train Your LLM: Low Rank Adaptation Finetuning using Unsloth! — https://medium.com/mitb-for-all/how-to-train-your-llm-teaching-toothless-to-bite-8d9f56fe4b2a
+  3. How to RAFT your LLM: Retrieval Augmented Finetuning using Unsloth! — https://medium.com/mitb-for-all/how-to-raft-your-llm-retrieval-augmented-finetuning-using-unsloth-4c3844a9a6e3
+  4. A second look at LangGraph: When "Command-Send" becomes "common sense" — https://medium.com/mitb-for-all/a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8
+  5. Helm Charts: The Multi-Server Orchestra Conductor — https://medium.com/mitb-for-all/helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1
+  6. A gentle introduction to LiteLLM — https://medium.com/mitb-for-all/a-gentle-introduction-to-litellm-649d48a0c2c7
 
 ---
 
@@ -169,23 +196,24 @@ Featured articles to hardcode (update this list as needed):
 - Title: `Titus Lim | GenAI Engineer & Architect`
 - Description: `GenAI engineer and architect with 8+ years building production AI systems. 50 technical articles. Open source contributor.`
 - OG image: Dark card with name + tagline (generate as static asset)
+- Canonical URL: https://tituslhy.github.io
 
 ---
 
 ## Build Order
 Follow this sequence strictly. Do not skip ahead.
 
-1. Scaffold Next.js 14 project with Tailwind + shadcn/ui
-2. Page 1: Home — Hero → Tech Stack → Passions → Social Links
+1. Scaffold Next.js 14 project with Tailwind + shadcn/ui (static export config)
+2. Page 1: Home — Hero (with headshot) → Tech Stack → Passions → Social Links
 3. Page 2: Experience — Timeline cards + Education
-4. Page 3: Projects + Writing
-5. Deploy to Vercel, test
+4. Page 3: Projects + Writing (6 hardcoded Medium articles)
+5. Deploy to GitHub Pages, test
 6. CodeRabbit audit after each major page
 7. Cursor for unit tests on utility functions
 
 ---
 
-## Open Items (Resolve Before Starting)
-- [ ] 6 featured Medium articles to hardcode — provide titles + URLs
-- [ ] fictional-bassoon GitHub URL — add to project card
+## Open Items
+- [ ] fictional-bassoon GitHub URL — confirm exact repo name: https://github.com/tituslhy/fictional-bassoon
 - [ ] Mastercard tech stack — update after onboarding (Jul 2026)
+- [ ] Headshot file — drop as `/public/headshot.jpg` before scaffolding
