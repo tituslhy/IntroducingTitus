@@ -1,0 +1,83 @@
+# Cursor Rules — Unit Tests (Next.js / TypeScript / Jest + RTL)
+
+## Core Philosophy
+- Test BEHAVIOR, not implementation details
+- Tests should read like documentation
+- If a test breaks on a refactor that doesn't change behavior, the test is wrong
+- No testing implementation — test what the user sees, not how the code works internally
+
+## Test Structure
+- Always use Arrange-Act-Assert with a blank line between each section
+- One behavioral concept per test — multiple asserts are fine if they describe the same thing
+- Describe blocks mirror the component/function name
+- It blocks start with "should"
+
+## Naming Convention
+- describe("ComponentName") or describe("functionName")
+- it("should [expected behavior] when [condition]")
+- Example: it("should render experience timeline in reverse chronological order")
+- Example: it("should not render family content under any condition")
+
+## React Testing Library Rules
+- NEVER use querySelector or getElementById — use RTL queries only
+- Query priority: getByRole > getByLabelText > getByText > getByTestId
+- getByTestId is last resort only
+- Never test className, style, or DOM structure
+- Always use userEvent over fireEvent
+
+## Mocking Rules
+- Mock next/router, next/image, next/link always
+- Mock external API calls — never let tests hit the network
+- Never mock your own components or utilities
+- Use jest.spyOn sparingly — prefer testing outcomes
+
+## TypeScript
+- Never use `any` in test files — if you need it, something is wrong upstream
+- Type all mock return values explicitly
+- Use `as ComponentProps<typeof X>` for partial prop mocks
+
+## Coverage
+- Aim for behavior coverage, not line coverage
+- Every component needs: renders without crashing, renders correct content, handles empty/null states
+- Interactive elements need: correct handler called, UI updates after interaction
+
+## What NOT to Test
+- Styling or CSS classes
+- Third party library internals
+- next/image optimization behavior
+- Static strings that will never change logically
+
+## File Structure
+- Test files live next to components: `Component.tsx` → `Component.test.tsx`
+- Shared test utilities in `__tests__/utils/`
+- Shared mocks in `__tests__/mocks/`
+
+## Example Pattern
+\`\`\`typescript
+describe("ExperienceCard", () => {
+  const mockProps = {
+    company: "Mastercard",
+    role: "Lead AI Engineer",
+    period: "2026 - Present"
+  }
+
+  it("should render company name", () => {
+    // Arrange
+    render(<ExperienceCard {...mockProps} />)
+    
+    // Act
+    const heading = screen.getByRole("heading", { name: /mastercard/i })
+    
+    // Assert
+    expect(heading).toBeInTheDocument()
+  })
+
+  it("should render nothing when no props provided", () => {
+    // Arrange + Act
+    const { container } = render(<ExperienceCard />)
+    
+    // Assert
+    expect(container).toBeEmptyDOMElement()
+  })
+})
+\`\`\`
