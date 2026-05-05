@@ -14,12 +14,10 @@
 
 ---
 
-## Step 0 — Read + Scaffold
-```bash
-/ralph-loop "Read CLAUDE.md and requirements.md completely, then scaffold Next.js 14 with Tailwind and shadcn/ui configured for static export. Do not write any page code yet. Confirm understanding of requirements first." --max-iterations 10 --completion-promise "DONE"
-```
-✅ Then verify `next.config.js` has `output: 'export'` and `images: { unoptimized: true }`
-
+## Step 0 — Read (NOT a ralph loop, just Claude Code startup)
+> Read CLAUDE.md and requirements.md completely. 
+> Confirm understanding. Ask clarifying questions 
+> if anything is ambiguous. Do not write code yet.
 ---
 
 ## Step 1 — Page 1: Home
