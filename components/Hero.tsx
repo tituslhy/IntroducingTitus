@@ -19,7 +19,7 @@ export default function Hero() {
                 }}
               >
                 <Image
-                  src="/headshot.jpeg"
+                  src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/headshot.jpeg`}
                   alt="Titus Lim"
                   width={208}
                   height={208}
