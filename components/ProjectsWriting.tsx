@@ -40,8 +40,8 @@ const PROJECTS: Project[] = [
     tags: ['Python', 'Autogen', 'LlamaIndex', 'Qdrant', 'Cohere', 'RAG', 'Tavily', 'Gmail'],
     github: 'https://github.com/tituslhy/TheMarginCall',
     demo: 'https://www.youtube.com/watch?v=uLtMD3J4U40',
-    isFlagship: false,
-    flagshipLabel: '',
+    isFlagship: true,
+    flagshipLabel: '6-agent investment guidance crew',
   },
 ]
 
@@ -142,7 +142,7 @@ function FlagshipProjectCard({ project }: { project: Project }) {
         }}
       >
         <div
-          className="absolute top-0 right-0 w-32 h-32 rounded-tr-lg opacity-5"
+          className="absolute top-0 right-0 w-32 h-32 rounded-tr-lg opacity-5 pointer-events-none"
           style={{ background: 'radial-gradient(circle at top right, #F59E0B, transparent 70%)' }}
         />
 
@@ -153,16 +153,28 @@ function FlagshipProjectCard({ project }: { project: Project }) {
           >
             {project.name}
           </h3>
-          {project.github && (
-            <a
-              href={project.github}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-mono text-amber-400/70 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded hover:border-amber-500/50 hover:text-amber-400 transition-colors shrink-0"
-            >
-              GitHub →
-            </a>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {project.demo && (
+              <a
+                href={project.demo}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-mono text-amber-400/70 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded hover:border-amber-500/50 hover:text-amber-400 transition-colors"
+              >
+                ▶ Demo
+              </a>
+            )}
+            {project.github && (
+              <a
+                href={project.github}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-mono text-amber-400/70 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded hover:border-amber-500/50 hover:text-amber-400 transition-colors"
+              >
+                GitHub →
+              </a>
+            )}
+          </div>
         </div>
 
         <p className="text-neutral-300 text-sm leading-relaxed mt-5 mb-5">{project.description}</p>
