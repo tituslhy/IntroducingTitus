@@ -1,0 +1,6 @@
+[LlamaIndex Prompt Compression](https://github.com/run-llama/llama_index/pull/17531#event-15980092263)
+[LlamaIndex GmMail bug fix](https://github.com/run-llama/llama_index/commit/d5c0fe12a278a332e5d007a3742902e1b36c068f)
+[Unsloth Cookbook for RAFT](https://github.com/unslothai/notebooks/pull/51)
+[LlamaIndex-Agent Communication Protocol Example](https://github.com/i-am-bee/acp/pull/176)
+[Giskard RAGET Bug Fix](https://github.com/Giskard-AI/giskard-oss/pull/2178)
+[LlamaIndex Chainlit Cookbook](https://github.com/Chainlit/cookbook/pull/138)
