@@ -22,7 +22,7 @@
 
 ## Step 1 — Page 1: Home
 ```bash
-/ralph-loop "Build Page 1 — Hero with headshot, tech stack tag grid, passions cards, and social links per CLAUDE.md. Dark mode only. Warm amber accent. DM Serif Display + IBM Plex Mono fonts." --max-iterations 10 --completion-promise "DONE"
+/ralph-loop:ralph-loop "Build Page 1 — Hero with headshot, tech stack tag grid, passions cards, and social links per CLAUDE.md. Dark mode only. Warm amber accent. DM Serif Display + IBM Plex Mono fonts. Output <promise>COMPLETE</promise> when done." --max-iterations 10 --completion-promise "COMPLETE"  
 ```
 🐇 CodeRabbit audit → Claude Code fixes → proceed only when clean
 
@@ -30,7 +30,7 @@
 
 ## Step 2 — Page 2: Experience
 ```bash
-/ralph-loop "Build Page 2 — Reverse chronological experience timeline cards and education section per CLAUDE.md. Illumina is the crown jewel — give it maximum visual real estate." --max-iterations 10 --completion-promise "DONE"
+/ralph-loop:ralph-loop "Build Page 2 — Reverse chronological experience timeline cards and education section per CLAUDE.md. Illumina is the crown jewel — give it maximum visual real estate. Output <promise>COMPLETE</promise> when done." --max-iterations 10 --completion-promise "COMPLETE"  
 ```
 🐇 CodeRabbit audit → Claude Code fixes → proceed only when clean
 
@@ -38,7 +38,7 @@
 
 ## Step 3 — Page 3: Projects + Writing
 ```bash
-/ralph-loop "Build Page 3 — Project cards for fictional-bassoon and Illumina RAG system, open source contributions list, and 6 hardcoded Medium article cards per CLAUDE.md." --max-iterations 10 --completion-promise "DONE"
+/ralph-loop "Build Page 3 — Project cards for fictional-bassoon and Illumina RAG system, open source contributions list, and 6 hardcoded Medium article cards per CLAUDE.md. Output <promise>COMPLETE</promise> when done." --max-iterations 10 --completion-promise "COMPLETE"  
 ```
 🐇 CodeRabbit audit → Claude Code fixes → proceed only when clean
 

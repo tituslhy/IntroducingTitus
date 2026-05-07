@@ -48,7 +48,7 @@ const nextConfig = {
 - **Aesthetic:** Technical confidence. Typography-forward. Clean grid with deliberate accent moments.
 - **Animation:** Subtle scroll-triggered reveals only. No page transitions that make users wait. No autoplay. No particle backgrounds.
 - **Layout:** Single-column with anchor nav. Desktop-first. Fully responsive.
-- **Headshot:** Profile photo in hero section. File: `/public/headshot.jpg`
+- **Headshot:** Profile photo in hero section. File: `/public/headshot.jpeg`
 - **No stock photos. No illustrations.** Typography, headshot, and structure carry the weight.
 
 ### What This Site Is NOT
@@ -67,7 +67,7 @@ Mobile: hamburger menu
 
 ### Page 1 — Home
 **Hero:**
-- Headshot: `/public/headshot.jpg` — circular or slightly rounded, amber ring/glow accent
+- Headshot: `/public/headshot.jpeg` — circular or slightly rounded, amber ring/glow accent
 - Name: Lim Hsien Yong (Titus)
 - Title: GenAI Engineer & Architect
 - Tagline: "I build AI systems. Then I explain them. Then I sell them."
@@ -216,4 +216,4 @@ Follow this sequence strictly. Do not skip ahead.
 ## Open Items
 - [ x ] fictional-bassoon GitHub URL — confirm exact repo name: https://github.com/tituslhy/fictional-bassoon
 - [ x ] Mastercard tech stack — update after onboarding (Jul 2026)
-- [ ] Headshot file — drop as `/public/headshot.jpg` before scaffolding
+- [ ] Headshot file — drop as `/public/headshot.jpeg` before scaffolding

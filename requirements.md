@@ -43,7 +43,7 @@ const nextConfig = {
 - **Accent color:** Warm amber (`#F59E0B` range). Decided. Committed. Non-negotiable.
 - **Animation:** Subtle scroll-triggered reveals. No page transitions that make you wait. No autoplay anything.
 - **Layout:** Single-column with anchor nav. Desktop-first. Fully responsive.
-- **Headshot:** Profile photo in hero. File: `/public/headshot.jpg`. Circular or slightly rounded with amber ring/glow.
+- **Headshot:** Profile photo in hero. File: `/public/headshot.jpeg`. Circular or slightly rounded with amber ring/glow.
 - **No stock photos. No illustrations.** Typography, headshot, and structure carry the weight.
 
 ### Navigation
@@ -58,7 +58,7 @@ const nextConfig = {
 ### Page 1 — Home (Cover + About)
 
 #### Hero Section
-- Headshot: `/public/headshot.jpg`
+- Headshot: `/public/headshot.jpeg`
 - Name: **Lim Hsien Yong (Titus)**
 - Title: **GenAI Engineer & Architect**
 - Tagline: **"I build AI systems. Then I explain them. Then I sell them."**
@@ -246,10 +246,10 @@ Revisit when ready to add OpenAI RAG chatbot on resume content.
 - [x] Copilot route: **Deferred to Phase 2**
 - [x] Domain: **tituslhy.github.io** for now
 - [x] Deployment: **GitHub Pages** (static export)
-- [x] Headshot: **Yes, in hero** → `/public/headshot.jpg`
+- [x] Headshot: **Yes, in hero** → `/public/headshot.jpeg`
 - [x] fictional-bassoon: **Public** → https://github.com/tituslhy/fictional-bassoon
 
 ## 10. Still Pending
 - [ ] Mastercard tech stack — update after onboarding (Jul 2026)
 - [ ] fictional-bassoon exact repo URL — confirm it's `tituslhy/fictional-bassoon`
-- [ ] Drop headshot as `/public/headshot.jpg` before scaffolding
+- [ ] Drop headshot as `/public/headshot.jpeg` before scaffolding
