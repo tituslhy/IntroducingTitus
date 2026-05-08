@@ -2,8 +2,7 @@ import { NextRequest } from "next/server";
 import OpenAI from "openai";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { traceable } from "langsmith/traceable";
-import { Client as LangSmithClient } from "langsmith";
+import { Client as LangSmithClient, RunTree } from "langsmith";
 
 const lsClient = new LangSmithClient({ manualFlushMode: true });
 
@@ -36,13 +35,6 @@ async function* rawCopilotStream(openai: OpenAI, input: InputMessage[]) {
   }
 }
 
-// Traced wrapper — preferred; falls back to rawCopilotStream on LangSmith errors
-const streamCopilotResponse = traceable(rawCopilotStream, {
-  name: "copilot-chat",
-  run_type: "llm",
-  metadata: { model: "gpt-5.4-nano" },
-  client: lsClient,
-});
 
 function toErrorSentinel(error: unknown): string {
   if (error instanceof OpenAI.APIError) {
@@ -81,38 +73,44 @@ export async function POST(request: NextRequest) {
   const readable = new ReadableStream({
     async start(controller) {
       let contentStreamed = false;
+      const responseChunks: string[] = [];
 
-      const drain = async (gen: AsyncIterable<string>) => {
+      const drain = async (gen: AsyncIterable<string>, collect = false) => {
         for await (const chunk of gen) {
           controller.enqueue(encoder.encode(chunk));
+          if (collect) responseChunks.push(chunk);
           contentStreamed = true;
         }
       };
 
+      const rt = new RunTree({
+        name: "copilot-chat",
+        run_type: "chain",
+        inputs: { messages },
+        client: lsClient,
+      });
+      await rt.postRun();
+
       try {
-        await drain(streamCopilotResponse(openai, input));
+        await drain(rawCopilotStream(openai, input), true);
+        rt.end({ outputs: { response: responseChunks.join("") } });
       } catch (err) {
+        rt.end({ error: String(err) });
         if (err instanceof OpenAI.APIError) {
-          // OpenAI error — surface to client via sentinel
           controller.enqueue(encoder.encode(toErrorSentinel(err)));
         } else if (!contentStreamed) {
-          // Non-OpenAI error (e.g. LangSmith rate limit) before any output —
-          // retry without tracing so the user still gets a response
-          console.warn("Traced stream failed before output, retrying untraced:", err);
           try {
             await drain(rawCopilotStream(openai, input));
           } catch (retryErr) {
-            // Both traced and untraced failed — must be an OpenAI error on retry
             controller.enqueue(encoder.encode(toErrorSentinel(retryErr)));
           }
         }
-        // If non-OpenAI error after partial content, the response is already
-        // on its way to the client — just close cleanly.
       } finally {
         try {
+          await rt.patchRun();
           await lsClient.flush();
         } catch {
-          // LangSmith flush failure must not affect the response
+          // LangSmith failure must not affect the response
         }
         controller.close();
       }
