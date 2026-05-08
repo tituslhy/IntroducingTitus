@@ -14,16 +14,17 @@ type Role = {
 }
 
 const ROLES: Role[] = [
-  {
-    company: 'Mastercard Asia/Pacific',
-    location: 'Singapore',
-    role: 'Lead AI Engineer',
-    dates: 'Jul 2026 – Present',
-    summary:
-      "Leading AI engineering for Mastercard's Asia/Pacific division as an individual contributor, with responsibility for building and growing a team. Focused on applying production AI capabilities at enterprise scale within a global payments network.",
-    tech: [],
-    techNote: 'Stack to be updated post-onboarding.',
-  },
+  // Mastercard — commented out until onboarding (Jul 2026)
+  // {
+  //   company: 'Mastercard Asia/Pacific',
+  //   location: 'Singapore',
+  //   role: 'Lead AI Engineer',
+  //   dates: 'Jul 2026 – Present',
+  //   summary:
+  //     "Leading AI engineering for Mastercard's Asia/Pacific division as an individual contributor, with responsibility for building and growing a team. Focused on applying production AI capabilities at enterprise scale within a global payments network.",
+  //   tech: [],
+  //   techNote: 'Stack to be updated post-onboarding.',
+  // },
   {
     company: 'United Overseas Bank',
     location: 'Singapore',

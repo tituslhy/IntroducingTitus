@@ -95,7 +95,7 @@ Here is the complete scope:
 
 1. Create `/app/api/chat/route.ts` — a POST API route that:
    - Accepts `{ messages: [{role, content}] }` in the request body
-   - Reads OPENAI_API_KEY from environment variables (never expose to client)
+   - Reads OPENAI_API_KEY from environment variables (never expose to client) - its in the .env.local file
    - Calls OpenAI Responses API with model gpt-4o-mini
    - Enables the web_search_preview tool
    - Uses the system prompt from copilot-system-prompt.md
