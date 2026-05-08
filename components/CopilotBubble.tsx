@@ -46,6 +46,19 @@ const ExpandIcon = () => (
   </svg>
 );
 
+const CopyIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
 const CollapseIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M4 14h6v6m10-10h-6V4M4 10h6V4m10 10h-6v6" />
@@ -59,6 +72,7 @@ export default function CopilotBubble() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const busy = isLoading || isStreaming;
@@ -79,6 +93,13 @@ export default function CopilotBubble() {
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   }, [input]);
+
+  const copyMessage = useCallback((index: number, content: string) => {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    });
+  }, []);
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || busy) return;
@@ -245,67 +266,78 @@ export default function CopilotBubble() {
           {messages.map((msg, i) => (
             <div
               key={i}
-              className={`flex items-end gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex flex-col gap-1 ${msg.role === "user" ? "items-end" : "items-start"}`}
             >
-              {msg.role === "assistant" && (
-                <img
-                  src="/headshot.jpeg"
-                  alt="Titus"
-                  className="flex-shrink-0 rounded-full object-cover"
-                  style={{
-                    width: 24,
-                    height: 24,
-                    objectPosition: "center 10%",
-                    boxShadow: "0 0 0 1.5px #F59E0B",
-                  }}
-                />
-              )}
-              <div
-                className={`rounded-lg px-3 py-2 text-xs leading-relaxed ${
-                  isExpanded ? "max-w-[80%]" : "max-w-[82%]"
-                } ${
-                  msg.role === "user"
-                    ? "border border-amber-500/30 bg-amber-500/10 text-amber-100 whitespace-pre-wrap"
-                    : "border border-neutral-700/80 bg-neutral-800/60 text-neutral-200"
-                }`}
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-              >
-                {msg.role === "user" ? msg.content : (
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                      strong: ({ children }) => <strong className="text-neutral-100 font-semibold">{children}</strong>,
-                      em: ({ children }) => <em className="text-neutral-300 italic">{children}</em>,
-                      ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
-                      ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
-                      li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-                      a: ({ href, children }) => (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline underline-offset-2 transition-colors"
-                          style={{ color: "#F59E0B" }}
-                        >
-                          {children}
-                        </a>
-                      ),
-                      code: ({ children }) => (
-                        <code className="rounded bg-neutral-900 px-1 py-0.5 text-amber-300/80">{children}</code>
-                      ),
-                      pre: ({ children }) => (
-                        <pre className="mb-2 overflow-x-auto rounded bg-neutral-900 p-2">{children}</pre>
-                      ),
-                      h1: ({ children }) => <p className="mb-1 font-semibold text-neutral-100">{children}</p>,
-                      h2: ({ children }) => <p className="mb-1 font-semibold text-neutral-100">{children}</p>,
-                      h3: ({ children }) => <p className="mb-1 font-semibold text-neutral-200">{children}</p>,
+              <div className="flex items-end gap-2">
+                {msg.role === "assistant" && (
+                  <img
+                    src="/headshot.jpeg"
+                    alt="Titus"
+                    className="flex-shrink-0 rounded-full object-cover"
+                    style={{
+                      width: 24,
+                      height: 24,
+                      objectPosition: "center 10%",
+                      boxShadow: "0 0 0 1.5px #F59E0B",
                     }}
-                  >
-                    {msg.content}
-                  </ReactMarkdown>
+                  />
                 )}
+                <div
+                  className={`rounded-lg px-3 py-2 text-xs leading-relaxed ${
+                    isExpanded ? "max-w-[80%]" : "max-w-[82%]"
+                  } ${
+                    msg.role === "user"
+                      ? "border border-amber-500/30 bg-amber-500/10 text-amber-100 whitespace-pre-wrap"
+                      : "border border-neutral-700/80 bg-neutral-800/60 text-neutral-200"
+                  }`}
+                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                >
+                  {msg.role === "user" ? msg.content : (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        strong: ({ children }) => <strong className="text-neutral-100 font-semibold">{children}</strong>,
+                        em: ({ children }) => <em className="text-neutral-300 italic">{children}</em>,
+                        ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
+                        li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                        a: ({ href, children }) => (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline underline-offset-2 transition-colors"
+                            style={{ color: "#F59E0B" }}
+                          >
+                            {children}
+                          </a>
+                        ),
+                        code: ({ children }) => (
+                          <code className="rounded bg-neutral-900 px-1 py-0.5 text-amber-300/80">{children}</code>
+                        ),
+                        pre: ({ children }) => (
+                          <pre className="mb-2 overflow-x-auto rounded bg-neutral-900 p-2">{children}</pre>
+                        ),
+                        h1: ({ children }) => <p className="mb-1 font-semibold text-neutral-100">{children}</p>,
+                        h2: ({ children }) => <p className="mb-1 font-semibold text-neutral-100">{children}</p>,
+                        h3: ({ children }) => <p className="mb-1 font-semibold text-neutral-200">{children}</p>,
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  )}
+                </div>
               </div>
+              <button
+                onClick={() => copyMessage(i, msg.content)}
+                className="flex items-center gap-1 px-1 py-0.5 text-neutral-600 transition-colors hover:text-amber-400"
+                style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px" }}
+                aria-label="Copy message"
+                title="Copy"
+              >
+                {copiedIndex === i ? <><CheckIcon /><span>copied</span></> : <><CopyIcon /><span>copy</span></>}
+              </button>
             </div>
           ))}
 

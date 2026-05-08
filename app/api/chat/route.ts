@@ -5,6 +5,8 @@ import { join } from "path";
 import { traceable } from "langsmith/traceable";
 import { Client as LangSmithClient } from "langsmith";
 
+const lsClient = new LangSmithClient({ manualFlushMode: true });
+
 let systemPrompt: string | null = null;
 
 function getSystemPrompt(): string {
@@ -39,6 +41,7 @@ const streamCopilotResponse = traceable(rawCopilotStream, {
   name: "copilot-chat",
   run_type: "llm",
   metadata: { model: "gpt-5.4-nano" },
+  client: lsClient,
 });
 
 function toErrorSentinel(error: unknown): string {
@@ -107,7 +110,7 @@ export async function POST(request: NextRequest) {
         // on its way to the client — just close cleanly.
       } finally {
         try {
-          await new LangSmithClient().awaitPendingTraceBatches();
+          await lsClient.flush();
         } catch {
           // LangSmith flush failure must not affect the response
         }
