@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import CopilotBubble from '@/components/CopilotBubble'
 
 export const metadata: Metadata = {
   title: 'Titus Lim | GenAI Engineer & Architect',
@@ -35,6 +36,7 @@ export default function RootLayout({
       </head>
       <body className="bg-[#0a0a0a] text-neutral-200 font-mono antialiased">
         {children}
+        <CopilotBubble />
       </body>
     </html>
   )
