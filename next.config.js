@@ -1,9 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
   images: { unoptimized: true },
-  basePath: '/IntroducingTitus',
-  assetPrefix: '/IntroducingTitus/',
+  basePath: '',
 }
 
 module.exports = nextConfig

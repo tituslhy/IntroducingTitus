@@ -1,7 +1,7 @@
 # Personal Website — Requirements Document
 **Owner:** Titus Lim Hsien Yong  
-**Last Updated:** 5 May 2026  
-**Build Pipeline:** Claude Code (Ralph Wiggum loop) → CodeRabbit audit → Claude Code fixes → Cursor unit tests → Deploy to GitHub Pages
+**Last Updated:** 7 May 2026  
+**Build Pipeline:** Claude Code (Ralph Wiggum loop) → CodeRabbit audit → Claude Code fixes → Deploy to Vercel
 
 ---
 
@@ -15,17 +15,16 @@ A professional portfolio website serving as a web-form resume and personal brand
 
 ## 2. Tech Stack
 
-- **Framework:** Next.js 14 (App Router, static export)
+- **Framework:** Next.js 14 (App Router)
 - **Styling:** Tailwind CSS
-- **Deployment:** GitHub Pages (`tituslhy.github.io`)
+- **Deployment:** Vercel
 - **Components:** shadcn/ui where needed
 - **Static assets:** `/public/` directory in repo
 
-Static export config required:
+Remove static export config. Vercel supports full Next.js features including API routes:
 ```js
 // next.config.js
 const nextConfig = {
-  output: 'export',
   images: { unoptimized: true },
   basePath: '',
 }
@@ -60,8 +59,7 @@ const nextConfig = {
 #### Hero Section
 - Headshot: `/public/headshot.jpeg`
 - Name: **Lim Hsien Yong (Titus)**
-- Title: **GenAI Engineer & Architect**
-- Tagline: **"I build AI systems. Then I explain them. Then I sell them."**
+- Tagline: **"I build AI systems — from architecture to the boardroom."**
 - Sub-tagline: *8+ years building production AI. 50 technical articles. Solo from zero to production.*
 - CTA buttons: `View Experience` | `Read Writing` | `GitHub` | `LinkedIn` | `Medium`
 - Resume: **"Resume available on request"** — styled as a subtle text link or badge, NOT a primary CTA
@@ -105,7 +103,7 @@ Timeline or card layout. Reverse chronological. Each role card:
 **Mastercard Asia/Pacific — Singapore**
 *Lead AI Engineer* | Jul 2026 – Present
 > Leading AI engineering for Mastercard's Asia/Pacific division as an individual contributor, with responsibility for building and growing a team. Focused on applying production AI capabilities at enterprise scale within a global payments network.
-Tech: *(to be updated post-onboarding)*
+Tech: *(to be updated post-onboarding, Jul 2026)*
 
 ---
 
@@ -193,14 +191,45 @@ Tags: LlamaIndex, Qdrant, AWS Bedrock, Docker+CUDA, Grafana, SonarQube
   2. [How to Train Your LLM: Low Rank Adaptation Finetuning using Unsloth!](https://medium.com/mitb-for-all/how-to-train-your-llm-teaching-toothless-to-bite-8d9f56fe4b2a)
   3. [How to RAFT your LLM: Retrieval Augmented Finetuning using Unsloth!](https://medium.com/mitb-for-all/how-to-raft-your-llm-retrieval-augmented-finetuning-using-unsloth-4c3844a9a6e3)
   4. [A second look at LangGraph: When "Command-Send" becomes "common sense"](https://medium.com/mitb-for-all/a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8)
-  5. [Helm Charts: The Multi-Server Orchestra Conductor](https://medium.com/mitb-for-all/helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1)
+  5. [Helm Charts: The Multi-Server Orchestra Conductor](https://medium.com/mitb-for-all/helm-charts-the-multi-server-orchestra-conductor-18dc88665mc1)
   6. [A gentle introduction to LiteLLM](https://medium.com/mitb-for-all/a-gentle-introduction-to-litellm-649d48a0c2c7)
 
 ---
 
-### Page 4 — Copilot *(Phase 2 — NOT in current build)*
-Deferred. Build Pages 1–3 and deploy to GitHub Pages first.
-Revisit when ready to add OpenAI RAG chatbot on resume content.
+### Copilot Bubble — Phase 2 ✅ NOW IN SCOPE
+
+A floating "Ask me anything" chat bubble fixed to the bottom-right of every page.
+
+#### UI Behaviour
+- Amber circular button, fixed bottom-right, all pages
+- Click → chat panel slides up/expands
+- Header: "Ask me anything about my work"
+- Input placeholder: "Ask about my experience, projects, or writing..."
+- Typing indicator (animated dots) while awaiting response
+- Close button on panel
+- Session-only memory via `useState` — no persistence, no DB
+- Mobile responsive
+
+#### API Architecture
+- **Route:** `/app/api/chat/route.ts`
+- **Method:** POST
+- **Request body:** `{ messages: [{role, content}] }`
+- **Server reads:** `OPENAI_API_KEY` from Vercel environment variables
+- **Never expose API key to browser**
+
+#### OpenAI Integration
+- **Model:** `gpt-4o-mini`
+- **API:** OpenAI Responses API
+- **Tools:** Enable `web_search_preview` tool
+- **Medium context:** Pass `https://medium.com/@tituslhy` in system prompt so model can search articles on demand
+- **System prompt:** See `copilot-system-prompt.md`
+
+#### Scope Enforcement (via system prompt)
+- Answer ONLY about Titus's work, experience, projects, skills, writing
+- Unknown answers → "I don't have that information — feel free to email Titus at tituslhy@gmail.com"
+- Never fabricate skills or experience not in context
+- Off-topic questions → politely redirect to Titus's work
+- Salary / availability / personal → redirect to email
 
 ---
 
@@ -214,7 +243,7 @@ Revisit when ready to add OpenAI RAG chatbot on resume content.
 - Title: `Titus Lim | GenAI Engineer & Architect`
 - Description: `GenAI engineer and architect with 8+ years building production AI systems. 50 technical articles. Open source contributor.`
 - OG image: Dark card with name + tagline
-- Canonical URL: https://tituslhy.github.io
+- Canonical URL: *(update after Vercel URL confirmed)*
 
 ---
 
@@ -224,32 +253,33 @@ Revisit when ready to add OpenAI RAG chatbot on resume content.
 - Not a personal diary (no family content, no personal life)
 - Not a tutorial site
 - Not a dark-mode toggle debate
-- Not a Vercel deployment (GitHub Pages only for now)
 
 ---
 
 ## 8. Build Order
-1. Scaffold Next.js 14 with Tailwind + shadcn/ui (static export config)
-2. Page 1: Home — Hero (headshot) + Stack + Passions + Links
-3. Page 2: Experience — Timeline cards + Education
-4. Page 3: Projects + Writing (6 hardcoded articles)
-5. Deploy to GitHub Pages, test at tituslhy.github.io
-6. CodeRabbit audit after each major page
-7. Cursor for unit tests on utility functions
+1. ~~Scaffold Next.js 14 with Tailwind + shadcn/ui~~ ✅ Done
+2. ~~Page 1: Home — Hero + Stack + Passions + Links~~ ✅ Done
+3. ~~Page 2: Experience — Timeline cards + Education~~ ✅ Done
+4. ~~Page 3: Projects + Writing~~ ✅ Done
+5. ~~Deploy to GitHub Pages~~ ✅ Done
+6. **Migrate to Vercel** ← Current step
+7. **Build copilot bubble** ← Next step after migration
+8. CodeRabbit audit
+9. Claude Code fixes
 
 ---
 
 ## 9. Resolved Decisions
 - [x] Accent color: **Warm amber** (`#F59E0B`)
 - [x] Font pairing: **DM Serif Display + IBM Plex Mono**
-- [x] Featured Medium articles: **6 hardcoded** (listed above)
-- [x] Copilot route: **Deferred to Phase 2**
-- [x] Domain: **tituslhy.github.io** for now
-- [x] Deployment: **GitHub Pages** (static export)
+- [x] Featured Medium articles: **6 hardcoded**
+- [x] Copilot: **Phase 2, now in scope**
+- [x] Deployment: **Vercel** (migrated from GitHub Pages)
 - [x] Headshot: **Yes, in hero** → `/public/headshot.jpeg`
 - [x] fictional-bassoon: **Public** → https://github.com/tituslhy/fictional-bassoon
+- [x] Tagline updated: **"I build AI systems — from architecture to the boardroom."**
 
 ## 10. Still Pending
 - [ ] Mastercard tech stack — update after onboarding (Jul 2026)
-- [ ] fictional-bassoon exact repo URL — confirm it's `tituslhy/fictional-bassoon`
-- [ ] Drop headshot as `/public/headshot.jpeg` before scaffolding
+- [ ] Update canonical URL after Vercel deployment confirmed
+- [ ] Add `OPENAI_API_KEY` to Vercel environment variables before copilot build
