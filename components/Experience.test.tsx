@@ -63,15 +63,13 @@ describe("Experience", () => {
     expect(techTag2.length).toBeGreaterThan(0);
   });
 
-  it("should render tech note for mastercard role when stack is pending", () => {
+  it("should not render mastercard role content before onboarding details are available", () => {
     // Arrange
     render(<Experience />);
 
-    // Act
-    const note = screen.getByText(/stack to be updated post-onboarding/i);
-
     // Assert
-    expect(note).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /mastercard/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/stack to be updated post-onboarding/i)).not.toBeInTheDocument();
   });
 
   it("should never render family content under any condition", () => {
@@ -98,5 +96,71 @@ describe("Experience", () => {
 
     // Assert
     expect(observerInstances.some((instance) => instance.unobserve.mock.calls.length > 0)).toBe(true);
+  });
+
+  it("should not reveal cards when intersection observer reports not intersecting", () => {
+    // Arrange
+    render(<Experience />);
+
+    // Act
+    act(() => {
+      observerInstances.forEach((instance) => {
+        instance.callback(
+          [{ isIntersecting: false, target: instance.target } as IntersectionObserverEntry],
+          instance as unknown as IntersectionObserver
+        );
+      });
+    });
+
+    // Assert
+    expect(observerInstances.every((instance) => instance.unobserve.mock.calls.length === 0)).toBe(true);
+  });
+
+  it("should render all role companies in correct order", () => {
+    // Arrange
+    render(<Experience />);
+
+    // Act & Assert
+    expect(screen.getByRole("heading", { name: /United Overseas Bank/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Illumina/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /CK Delta/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Energy Market Authority/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /JobTech Pte Ltd/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Toyota Tsusho Asia Pacific/i })).toBeInTheDocument();
+  });
+
+  it("should render Toyota highlight with forecast accuracy improvement", () => {
+    // Arrange
+    render(<Experience />);
+
+    // Act & Assert
+    expect(screen.getByText(/improved long-term forecast accuracy by ~25%/i)).toBeInTheDocument();
+  });
+
+  it("should render both education institutions", () => {
+    // Arrange
+    render(<Experience />);
+
+    // Act & Assert
+    expect(screen.getByRole("heading", { name: /Singapore Management University/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /National University of Singapore/i })).toBeInTheDocument();
+  });
+
+  it("should render SMU education honors", () => {
+    // Arrange
+    render(<Experience />);
+
+    // Act & Assert
+    expect(screen.getByText(/GPA 3.98 \/ 4.0/)).toBeInTheDocument();
+    expect(screen.getByText(/Dean's List/)).toBeInTheDocument();
+    expect(screen.getByText(/SMU AI Talent Development Grant/)).toBeInTheDocument();
+  });
+
+  it("should render NUS education honors", () => {
+    // Arrange
+    render(<Experience />);
+
+    // Act & Assert
+    expect(screen.getByText(/NUS Undergraduate Scholarship/)).toBeInTheDocument();
   });
 });

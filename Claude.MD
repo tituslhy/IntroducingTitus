@@ -18,6 +18,14 @@ This site is a professional brand presence and web-form resume. Not a blog. Not 
 
 ---
 
+## Sub-Agent Routing Rules
+- ALL test writing, test generation, and coverage improvement tasks → unit-test-writer agent
+- After any new component, API route, or utility function is written → unit-test-writer agent
+- Never handle test work in the main thread directly
+- Skip for pure Tailwind/styling-only changes
+
+---
+
 ## Tech Stack
 - **Framework:** Next.js 14 (App Router)
 - **Styling:** Tailwind CSS
@@ -139,6 +147,8 @@ A floating amber chat bubble fixed to the bottom-right of every page.
 - Redirect off-topic questions politely back to Titus's work
 - Redirect salary/availability/personal questions to email
 
+**Copilot system prompt file:** `/copilot-system-prompt.md` — create this file if it doesn't exist, using the scope rules defined below as the basis.
+
 ---
 
 ## Content Rules
@@ -153,11 +163,6 @@ A floating amber chat bubble fixed to the bottom-right of every page.
 - Title: `Titus Lim | GenAI Engineer & Architect`
 - Description: `GenAI engineer and architect with 8+ years building production AI systems. 50 technical articles. Open source contributor.`
 - OG image: Dark card with name + tagline (generate as static asset)
-- Canonical URL: https://tituslhy.github.io (update after Vercel URL confirmed)
+- Canonical URL: https://introducing-titus.vercel.app/
 
 ---
-
-## Open Items
-- [ ] Update canonical URL after Vercel deployment confirmed
-- [ ] Mastercard tech stack — update after onboarding (Jul 2026)
-- [ ] Add `OPENAI_API_KEY` to Vercel environment variables before invoking copilot build
