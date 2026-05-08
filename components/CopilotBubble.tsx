@@ -60,7 +60,7 @@ export default function CopilotBubble() {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const busy = isLoading || isStreaming;
 
   useEffect(() => {
@@ -72,6 +72,13 @@ export default function CopilotBubble() {
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [input]);
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || busy) return;
@@ -142,7 +149,7 @@ export default function CopilotBubble() {
     }
   }, [input, busy, messages]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -315,17 +322,17 @@ export default function CopilotBubble() {
             borderTop: "1px solid rgba(245, 158, 11, 0.15)",
           }}
         >
-          <div className="flex gap-2">
-            <input
+          <div className="flex items-end gap-2">
+            <textarea
               ref={inputRef}
-              type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask about my experience, projects, or writing..."
               disabled={busy}
-              className="flex-1 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs text-neutral-200 placeholder-neutral-600 transition-colors focus:border-amber-500/50 focus:outline-none disabled:opacity-50"
-              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              rows={1}
+              className="flex-1 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs text-neutral-200 placeholder-neutral-600 transition-colors focus:border-amber-500/50 focus:outline-none disabled:opacity-50 resize-none overflow-y-auto"
+              style={{ fontFamily: "'IBM Plex Mono', monospace", minHeight: "34px", maxHeight: "120px" }}
             />
             <button
               onClick={sendMessage}
