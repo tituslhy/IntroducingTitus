@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { traceable } from "langsmith/traceable";
+import { Client as LangSmithClient } from "langsmith";
 
 let systemPrompt: string | null = null;
 
@@ -105,6 +106,11 @@ export async function POST(request: NextRequest) {
         // If non-OpenAI error after partial content, the response is already
         // on its way to the client — just close cleanly.
       } finally {
+        try {
+          await new LangSmithClient().awaitPendingTraceBatches();
+        } catch {
+          // LangSmith flush failure must not affect the response
+        }
         controller.close();
       }
     },
