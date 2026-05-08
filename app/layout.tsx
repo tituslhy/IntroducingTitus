@@ -8,12 +8,12 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Titus Lim | GenAI Engineer & Architect',
     description: 'GenAI engineer and architect with 8+ years building production AI systems. 50 technical articles. Open source contributor.',
-    url: 'https://tituslhy.github.io',
+    url: 'https://introducing-titus.vercel.app',
     siteName: 'Titus Lim',
     type: 'website',
   },
   alternates: {
-    canonical: 'https://tituslhy.github.io',
+    canonical: 'https://introducing-titus.vercel.app',
   },
 }
 
