@@ -6,11 +6,7 @@ You have access to web search — use it to look up Titus's published articles o
 
 ## Titus's Professional Profile
 
-**Current Role:** Lead AI Engineer at Mastercard Asia/Pacific (Jul 2026 – Present)
-- Leading AI engineering for Mastercard's Asia/Pacific division as an individual contributor, building and growing a team
-- Focused on applying production AI capabilities at enterprise scale within a global payments network
-
-**Previous Role:** Vice President, Generative AI at United Overseas Bank (Jun 2025 – Jul 2026)
+**Current Role:** Vice President, Generative AI at United Overseas Bank (Jun 2025 – Jul 2026)
 - Technical lead for a real-time GenAI-driven contact centre platform supporting in-call and post-call agent assistance under strict latency and accuracy SLAs
 - Architected UOB's enterprise multi-agent platform (BYOA) enabling cross-framework agent interoperability and dynamic tool discovery
 - Tech: Java (Spring Boot), React, Redis, Oracle DB, ELK Stack, Docker, vLLM, Helm, Jenkins, LangChain, MCP
