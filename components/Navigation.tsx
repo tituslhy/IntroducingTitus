@@ -56,6 +56,8 @@ export default function Navigation() {
           className="md:hidden flex flex-col gap-1.5 p-1"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
+          aria-expanded={menuOpen}
+          aria-controls="mobile-menu"
         >
           <span className={`block w-5 h-0.5 bg-neutral-400 transition-all ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
           <span className={`block w-5 h-0.5 bg-neutral-400 transition-all ${menuOpen ? 'opacity-0' : ''}`} />
@@ -65,7 +67,7 @@ export default function Navigation() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="md:hidden bg-[#111111] border-b border-[#1f1f1f] px-6 pb-4">
+        <div id="mobile-menu" className="md:hidden bg-[#111111] border-b border-[#1f1f1f] px-6 pb-4">
           <ul className="flex flex-col gap-4 pt-2">
             {NAV_ITEMS.map((item) => (
               <li key={item.label}>

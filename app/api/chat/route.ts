@@ -6,16 +6,19 @@ import { Client as LangSmithClient, RunTree } from "langsmith";
 
 const lsClient = new LangSmithClient({ manualFlushMode: true });
 
-let systemPrompt: string | null = null;
+let systemPromptCache: string | null = null;
 
 function getSystemPrompt(): string {
-  if (!systemPrompt) {
-    systemPrompt = readFileSync(
+  if (process.env.NODE_ENV !== "production") {
+    return readFileSync(join(process.cwd(), "copilot-system-prompt.md"), "utf-8");
+  }
+  if (!systemPromptCache) {
+    systemPromptCache = readFileSync(
       join(process.cwd(), "copilot-system-prompt.md"),
       "utf-8"
     );
   }
-  return systemPrompt;
+  return systemPromptCache;
 }
 
 type InputMessage = { role: "system" | "user" | "assistant"; content: string };
@@ -58,15 +61,33 @@ export async function POST(request: NextRequest) {
     return new Response("Invalid request body", { status: 400 });
   }
 
+  const VALID_ROLES = new Set(["user", "assistant"]);
+  const MAX_MESSAGES = 20;
+  const MAX_CONTENT_LENGTH = 4000;
+
   if (!Array.isArray(messages) || messages.length === 0) {
     return new Response("Messages array is required", { status: 400 });
   }
+
+  for (const m of messages) {
+    if (!VALID_ROLES.has(m.role)) {
+      return new Response("Invalid message role", { status: 400 });
+    }
+    if (typeof m.content !== "string") {
+      return new Response("Message content must be a string", { status: 400 });
+    }
+    if (m.content.length > MAX_CONTENT_LENGTH) {
+      return new Response("Message content too long", { status: 400 });
+    }
+  }
+
+  const trimmedMessages = messages.slice(-MAX_MESSAGES);
 
   const openai = new OpenAI({ apiKey });
 
   const input: InputMessage[] = [
     { role: "system", content: getSystemPrompt() },
-    ...messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    ...trimmedMessages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
 
   const encoder = new TextEncoder();
@@ -86,7 +107,7 @@ export async function POST(request: NextRequest) {
       const rt = new RunTree({
         name: "copilot-chat",
         run_type: "chain",
-        inputs: { messages },
+        inputs: { messages: trimmedMessages },
         client: lsClient,
       });
       await rt.postRun();

@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 interface Message {
+  id: string;
   role: "user" | "assistant";
   content: string;
 }
@@ -72,9 +73,11 @@ export default function CopilotBubble() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const busy = isLoading || isStreaming;
 
   useEffect(() => {
@@ -83,7 +86,8 @@ export default function CopilotBubble() {
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 150);
+      const timer = setTimeout(() => inputRef.current?.focus(), 150);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -94,27 +98,44 @@ export default function CopilotBubble() {
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   }, [input]);
 
-  const copyMessage = useCallback((index: number, content: string) => {
+  const copyMessage = useCallback((id: string, content: string) => {
     navigator.clipboard.writeText(content).then(() => {
-      setCopiedIndex(index);
-      setTimeout(() => setCopiedIndex(null), 2000);
+      setCopiedIndex(id);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopiedIndex(null), 2000);
+    }).catch(() => {
+      // Clipboard permission denied or unavailable — fail silently
     });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      abortControllerRef.current?.abort();
+    };
   }, []);
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || busy) return;
 
-    const userMessage: Message = { role: "user", content: input.trim() };
+    const userMessage: Message = { id: crypto.randomUUID(), role: "user", content: input.trim() };
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    // Keep only the last 20 messages to avoid exceeding context limits
+    const historyToSend = updatedMessages.slice(-20).map(({ role, content }) => ({ role, content }));
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: updatedMessages }),
+        body: JSON.stringify({ messages: historyToSend }),
+        signal: controller.signal,
       });
 
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
@@ -122,6 +143,7 @@ export default function CopilotBubble() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let firstChunk = true;
+      const assistantId = crypto.randomUUID();
 
       while (true) {
         const { done, value } = await reader.read();
@@ -138,6 +160,9 @@ export default function CopilotBubble() {
           if (code === "ERR_QUOTA") {
             throw new Error("The copilot is temporarily unavailable. Feel free to email Titus at tituslhy@gmail.com");
           }
+          if (code === "ERR_AUTH") {
+            throw new Error("The copilot is currently misconfigured. Please contact Titus at tituslhy@gmail.com");
+          }
           throw new Error("Sorry, something went wrong. Feel free to email Titus directly at tituslhy@gmail.com");
         }
 
@@ -145,7 +170,7 @@ export default function CopilotBubble() {
           firstChunk = false;
           setIsLoading(false);
           setIsStreaming(true);
-          setMessages((prev) => [...prev, { role: "assistant" as const, content: chunk }]);
+          setMessages((prev) => [...prev, { id: assistantId, role: "assistant" as const, content: chunk }]);
         } else {
           setMessages((prev) => {
             const last = prev[prev.length - 1];
@@ -154,9 +179,11 @@ export default function CopilotBubble() {
         }
       }
     } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
       setMessages((prev) => [
         ...prev,
         {
+          id: crypto.randomUUID(),
           role: "assistant" as const,
           content:
             error instanceof Error
@@ -263,9 +290,9 @@ export default function CopilotBubble() {
             </p>
           )}
 
-          {messages.map((msg, i) => (
+          {messages.map((msg) => (
             <div
-              key={i}
+              key={msg.id}
               className={`flex flex-col gap-1 ${msg.role === "user" ? "items-end" : "items-start"}`}
             >
               <div className="flex items-end gap-2">
@@ -330,13 +357,13 @@ export default function CopilotBubble() {
                 </div>
               </div>
               <button
-                onClick={() => copyMessage(i, msg.content)}
+                onClick={() => copyMessage(msg.id, msg.content)}
                 className="flex items-center gap-1 px-1 py-0.5 text-neutral-600 transition-colors hover:text-amber-400"
                 style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px" }}
                 aria-label="Copy message"
                 title="Copy"
               >
-                {copiedIndex === i ? <><CheckIcon /><span>copied</span></> : <><CopyIcon /><span>copy</span></>}
+                {copiedIndex === msg.id ? <><CheckIcon /><span>copied</span></> : <><CopyIcon /><span>copy</span></>}
               </button>
             </div>
           ))}

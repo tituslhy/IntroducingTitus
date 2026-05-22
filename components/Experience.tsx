@@ -13,6 +13,13 @@ type Role = {
   highlight?: string
 }
 
+type Education = {
+  institution: string
+  degree: string
+  dates: string
+  honors: string[]
+}
+
 const ROLES: Role[] = [
   // Mastercard — commented out until onboarding (Jul 2026)
   // {
@@ -90,7 +97,7 @@ const ROLES: Role[] = [
   },
 ]
 
-const EDUCATION = [
+const EDUCATION: Education[] = [
   {
     institution: 'Singapore Management University',
     degree: 'Master of IT in Business (AI Track)',
@@ -177,7 +184,7 @@ function RoleCard({ role, delay }: { role: Role; delay: number }) {
   )
 }
 
-function EducationCard({ item, delay }: { item: typeof EDUCATION[0]; delay: number }) {
+function EducationCard({ item, delay }: { item: Education; delay: number }) {
   const ref = useReveal()
   return (
     <div

@@ -2,9 +2,21 @@
  * @jest-environment node
  */
 
-import { POST } from "./route";
+// Setup mocks BEFORE any imports, especially before importing route.ts
+jest.mock("langsmith", () => ({
+  Client: jest.fn(function (this: any, _config: any) {
+    this.postRun = jest.fn().mockResolvedValue(undefined);
+    this.flush = jest.fn().mockResolvedValue(undefined);
+    return this;
+  }),
+  RunTree: jest.fn(function (this: any, _config: any) {
+    this.postRun = jest.fn().mockResolvedValue(undefined);
+    this.patchRun = jest.fn().mockResolvedValue(undefined);
+    this.end = jest.fn();
+    return this;
+  }),
+}));
 
-// Setup mocks before any imports
 jest.mock("openai", () => {
   const _create = jest.fn();
   class APIError extends Error {
@@ -30,6 +42,9 @@ jest.mock("fs", () => ({
 jest.mock("langsmith/traceable", () => ({
   traceable: (_fn: unknown) => _fn,
 }));
+
+// Import after all mocks are set up
+import { POST } from "./route";
 
 const OpenAIMock = jest.requireMock("openai").default as any;
 const mockCreate: jest.Mock = OpenAIMock._create;
@@ -125,6 +140,126 @@ describe("POST", () => {
     // Assert
     expect(response.status).toBe(400);
     await expect(response.text()).resolves.toEqual("Messages array is required");
+  });
+
+  it("should return 400 when message has invalid role (system)", async () => {
+    // Arrange
+    const request = createPostRequest(
+      JSON.stringify({ messages: [{ role: "system", content: "Hello" }] })
+    );
+
+    // Act
+    const response = await POST(request);
+
+    // Assert
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toEqual("Invalid message role");
+  });
+
+  it("should return 400 when message has invalid role (random string)", async () => {
+    // Arrange
+    const request = createPostRequest(
+      JSON.stringify({ messages: [{ role: "custom", content: "Hello" }] })
+    );
+
+    // Act
+    const response = await POST(request);
+
+    // Assert
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toEqual("Invalid message role");
+  });
+
+  it("should return 400 when message content is not a string", async () => {
+    // Arrange
+    const request = createPostRequest(
+      JSON.stringify({ messages: [{ role: "user", content: 123 }] })
+    );
+
+    // Act
+    const response = await POST(request);
+
+    // Assert
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toEqual("Message content must be a string");
+  });
+
+  it("should return 400 when message content is an array", async () => {
+    // Arrange
+    const request = createPostRequest(
+      JSON.stringify({ messages: [{ role: "user", content: ["hello"] }] })
+    );
+
+    // Act
+    const response = await POST(request);
+
+    // Assert
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toEqual("Message content must be a string");
+  });
+
+  it("should return 400 when message content exceeds max length (4000 chars)", async () => {
+    // Arrange
+    const longContent = "a".repeat(4001);
+    const request = createPostRequest(
+      JSON.stringify({ messages: [{ role: "user", content: longContent }] })
+    );
+
+    // Act
+    const response = await POST(request);
+
+    // Assert
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toEqual("Message content too long");
+  });
+
+  it("should accept message content at max length (4000 chars)", async () => {
+    // Arrange
+    const contentAt4000 = "a".repeat(4000);
+    const request = createPostRequest(
+      JSON.stringify({ messages: [{ role: "user", content: contentAt4000 }] })
+    );
+    const events = [
+      { type: "response.output_text.delta", delta: "Response" },
+      { type: "response.done" },
+    ];
+    mockCreate.mockResolvedValue(await makeStream(events));
+
+    // Act
+    const response = await POST(request);
+    const text = await drainResponse(response);
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(text).toBe("Response");
+  });
+
+  it("should trim messages to last 20 when more than 20 are provided", async () => {
+    // Arrange
+    const messages = Array.from({ length: 25 }, (_, i) => ({
+      role: i % 2 === 0 ? "user" : "assistant",
+      content: `Message ${i}`,
+    }));
+    const request = createPostRequest(JSON.stringify({ messages }));
+    const events = [
+      { type: "response.output_text.delta", delta: "Response" },
+      { type: "response.done" },
+    ];
+    mockCreate.mockResolvedValue(await makeStream(events));
+
+    // Act
+    const response = await POST(request);
+    await drainResponse(response);
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(mockCreate).toHaveBeenCalled();
+    const callArgs = mockCreate.mock.calls[0][0];
+    // input should have system prompt + last 20 messages = 21 total
+    expect(callArgs.input.length).toBe(21);
+    expect(callArgs.input[0].role).toBe("system");
+    expect(callArgs.input[1].content).toBe("Message 5"); // first of last 20
+    expect(callArgs.input[20].content).toBe("Message 24"); // last message
   });
 
   it("should stream response with correct headers and content on success", async () => {
@@ -309,12 +444,13 @@ describe("POST", () => {
     mockCreate.mockResolvedValue(await makeStream(events));
 
     // Act
-    await POST(request);
-    await new Promise(resolve => setTimeout(resolve, 50));
+    const response = await POST(request);
+    await drainResponse(response);
 
     // Assert
     expect(mockCreate).toHaveBeenCalled();
     const callArgs = mockCreate.mock.calls[0][0];
+    expect(callArgs.model).toBe("gpt-4o-mini");
     expect(callArgs.input).toBeDefined();
     expect(callArgs.input[0]).toEqual({
       role: "system",
@@ -334,8 +470,8 @@ describe("POST", () => {
     mockCreate.mockResolvedValue(await makeStream(events));
 
     // Act
-    await POST(request);
-    await new Promise(resolve => setTimeout(resolve, 50));
+    const response = await POST(request);
+    await drainResponse(response);
 
     // Assert
     expect(mockCreate).toHaveBeenCalled();
