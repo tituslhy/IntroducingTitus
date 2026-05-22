@@ -135,11 +135,32 @@ describe("CopilotBubble", () => {
     });
   });
 
-  it("should show generic error message when api returns unknown error sentinel", async () => {
+  it("should show misconfigured message when api returns ERR_AUTH sentinel", async () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
       createStreamingResponse(["__COPILOT_ERR__:ERR_AUTH"])
+    );
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open titus's copilot/i }));
+
+    // Act
+    const input = screen.getByPlaceholderText(/ask about my experience, projects, or writing/i);
+    await user.type(input, "Hi{Enter}");
+
+    // Assert
+    await waitFor(() => {
+      expect(
+        screen.getByText(/the copilot is currently misconfigured/i)
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("should show generic error message when api returns unknown error sentinel", async () => {
+    // Arrange
+    const user = userEvent.setup();
+    (global.fetch as jest.Mock).mockResolvedValue(
+      createStreamingResponse(["__COPILOT_ERR__:ERR_UNKNOWN"])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open titus's copilot/i }));
@@ -281,5 +302,96 @@ describe("CopilotBubble", () => {
 
     // Assert
     expect(screen.getByText(/titus's copilot/i)).toBeInTheDocument();
+  });
+
+  it("should maintain message history across multiple messages", async () => {
+    // Arrange
+    const user = userEvent.setup();
+    (global.fetch as jest.Mock).mockResolvedValue(
+      createStreamingResponse(["Response"])
+    );
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open titus's copilot/i }));
+
+    // Act
+    const input = screen.getByPlaceholderText(/ask about my experience, projects, or writing/i);
+    await user.type(input, "First{Enter}");
+
+    // Assert
+    await waitFor(() => {
+      expect(screen.getByText("First")).toBeInTheDocument();
+    });
+
+    // Send another message
+    await user.type(input, "Second{Enter}");
+
+    // Assert
+    await waitFor(() => {
+      expect(screen.getByText("Second")).toBeInTheDocument();
+      expect(screen.getByText("First")).toBeInTheDocument();
+    });
+  });
+
+  it("should disable send button while loading", async () => {
+    // Arrange
+    const user = userEvent.setup();
+    let resolveResponse: () => void;
+    const responsePromise = new Promise<Response>((resolve) => {
+      resolveResponse = () => resolve(createStreamingResponse(["Response"]));
+    });
+    (global.fetch as jest.Mock).mockReturnValue(responsePromise);
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open titus's copilot/i }));
+
+    // Act
+    const input = screen.getByPlaceholderText(/ask about my experience, projects, or writing/i);
+    await user.type(input, "Hi");
+    const sendButton = screen.getByRole("button", { name: /send message/i });
+    await user.click(sendButton);
+
+    // Assert — button should be disabled while loading
+    expect(sendButton).toBeDisabled();
+
+    // Resolve the response
+    resolveResponse!();
+
+    // Wait for it to complete
+    await waitFor(() => {
+      expect(screen.getByText("Response")).toBeInTheDocument();
+    });
+  });
+
+  it("should send message with all previous messages in conversation", async () => {
+    // Arrange
+    const user = userEvent.setup();
+    (global.fetch as jest.Mock).mockResolvedValue(
+      createStreamingResponse(["Response"])
+    );
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open titus's copilot/i }));
+
+    // Act
+    const input = screen.getByPlaceholderText(/ask about my experience, projects, or writing/i);
+    await user.type(input, "First{Enter}");
+
+    // Wait for response
+    await waitFor(() => {
+      expect(screen.getByText("First")).toBeInTheDocument();
+    });
+
+    // Type second message
+    await user.type(input, "Second{Enter}");
+
+    // Assert
+    await waitFor(() => {
+      expect(screen.getByText("Second")).toBeInTheDocument();
+    });
+
+    // Verify that fetch was called with both messages
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    const secondCall = (global.fetch as jest.Mock).mock.calls[1];
+    const body = JSON.parse(secondCall[1].body);
+    expect(body.messages.length).toBe(3); // First user, First assistant, Second user
+    expect(body.messages[2].content).toBe("Second");
   });
 });

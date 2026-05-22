@@ -19,7 +19,7 @@ const PASSIONS = [
 
 export default function Passions() {
   return (
-    <section className="py-12 px-6 border-t border-[#1f1f1f]">
+    <section id="passions" className="py-12 px-6 border-t border-[#1f1f1f]">
       <div className="max-w-5xl mx-auto">
         <h2
           className="text-3xl md:text-4xl text-neutral-100 mb-2"

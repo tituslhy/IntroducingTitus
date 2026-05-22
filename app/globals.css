@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
-
 :root {
   --amber: #F59E0B;
   --amber-glow: rgba(245, 158, 11, 0.15);
@@ -53,23 +51,56 @@ body {
   }
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  to {
+
+  .fade-in-up {
+    animation: fadeInUp 0.6s ease-out forwards;
+  }
+
+  .fade-in-up-delay-1 { animation-delay: 0.1s; opacity: 0; }
+  .fade-in-up-delay-2 { animation-delay: 0.2s; opacity: 0; }
+  .fade-in-up-delay-3 { animation-delay: 0.3s; opacity: 0; }
+  .fade-in-up-delay-4 { animation-delay: 0.4s; opacity: 0; }
+  .fade-in-up-delay-5 { animation-delay: 0.5s; opacity: 0; }
+
+  @keyframes steam-rise {
+    0%   { opacity: 0; transform: translateY(0px); }
+    20%  { opacity: 1; }
+    80%  { opacity: 0.5; }
+    100% { opacity: 0; transform: translateY(-6px); }
+  }
+
+  .bmc-steam-a {
+    animation: steam-rise 2s ease-out infinite;
+    transform-box: fill-box;
+    transform-origin: bottom center;
+  }
+
+  .bmc-steam-b {
+    animation: steam-rise 2s ease-out infinite 0.7s;
+    transform-box: fill-box;
+    transform-origin: bottom center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in-up,
+  .fade-in-up-delay-1,
+  .fade-in-up-delay-2,
+  .fade-in-up-delay-3,
+  .fade-in-up-delay-4,
+  .fade-in-up-delay-5 {
     opacity: 1;
-    transform: translateY(0);
+    animation: none;
   }
 }
-
-.fade-in-up {
-  animation: fadeInUp 0.6s ease-out forwards;
-}
-
-.fade-in-up-delay-1 { animation-delay: 0.1s; opacity: 0; }
-.fade-in-up-delay-2 { animation-delay: 0.2s; opacity: 0; }
-.fade-in-up-delay-3 { animation-delay: 0.3s; opacity: 0; }
-.fade-in-up-delay-4 { animation-delay: 0.4s; opacity: 0; }
-.fade-in-up-delay-5 { animation-delay: 0.5s; opacity: 0; }
