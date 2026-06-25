@@ -9,14 +9,34 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        serif: ['DM Serif Display', 'serif'],
-        mono: ['IBM Plex Mono', 'monospace'],
+        serif: ['"Newsreader"', '"Source Serif Pro"', 'Georgia', 'serif'],
+        mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
+        // Paper / ink / rule reference the CSS custom properties in app/globals.css
+        // (single source of truth). Enables bg-paper, text-ink-soft, border-rule, etc.
+        paper: {
+          DEFAULT: 'var(--paper)',
+          deep: 'var(--paper-deep)',
+          band: 'var(--paper-band)',
+        },
+        ink: {
+          DEFAULT: 'var(--ink)',
+          soft: 'var(--ink-soft)',
+          faint: 'var(--ink-faint)',
+        },
+        rule: {
+          DEFAULT: 'var(--rule)',
+          strong: 'var(--rule-strong)',
+        },
+        indigo: 'var(--indigo)',
         amber: {
-          400: '#FBBF24',
-          500: '#F59E0B',
-          600: '#D97706',
+          DEFAULT: 'oklch(0.62 0.155 55)', // aged editorial amber — replaces #F59E0B
+          400: 'var(--amber-line)',
+          500: 'oklch(0.62 0.155 55)',
+          600: 'oklch(0.62 0.155 55)',
+          soft: 'var(--amber-soft)',
+          line: 'var(--amber-line)',
         },
       },
     },

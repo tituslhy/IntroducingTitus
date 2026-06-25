@@ -1,4 +1,10 @@
-# Cursor Rules — Unit Tests (Next.js / TypeScript / Jest + RTL)
+---
+description: Unit test conventions (Jest + RTL) for the tituslhy portfolio
+globs: ["**/*.test.ts", "**/*.test.tsx"]
+alwaysApply: false
+---
+
+# Unit Tests (Next.js / TypeScript / Jest + RTL)
 
 ## Core Philosophy
 - Test BEHAVIOR, not implementation details
@@ -47,7 +53,8 @@
 - Third party library internals
 - next/image optimization behavior
 - Static strings that will never change logically
-- Dark mode (it's always dark mode — there is no other state)
+- Theme variants — the site is light (warm cream) by default. Dark mode is an optional
+  toggle, OFF by default and not currently built, so there is no second theme state to test.
 
 ## File Structure
 - Test files live next to components: `Component.tsx` → `Component.test.tsx`
@@ -100,6 +107,6 @@ describe("ExperienceCard", () => {
 - The Illumina card is the crown jewel — always test it gets distinct treatment
 - No family content must be enforced in tests — add a test for it explicitly
 - Resume PDF must never be linked — test that only mailto: links exist for resume
-- Dark mode is the only mode — never write tests for light mode variants
-- Static export means no server components with data fetching — keep tests simple
-```
+- The site is light (warm cream) by default — never write tests for dark-mode variants
+- Deployed on Vercel: API routes (`app/api/chat/route.ts`) and server-side logic are
+  supported. The old static-export constraint no longer applies — test API routes too.

@@ -10,60 +10,80 @@ interface Message {
   content: string;
 }
 
-const TypingIndicator = () => (
-  <div className="flex justify-start">
-    <div className="rounded-lg border border-neutral-700 bg-neutral-800/80 px-3 py-2.5">
-      <div className="flex h-3 items-center gap-1">
-        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: "0ms", animationDuration: "900ms" }} />
-        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: "180ms", animationDuration: "900ms" }} />
-        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: "360ms", animationDuration: "900ms" }} />
-      </div>
-    </div>
+const STARTER_PROMPTS = [
+  "Do you think Titus is a good software engineer?",
+  "What did Titus do at Illumina?",
+  "Did Titus write any article on long-term memory?",
+];
+
+const AssistantAvatar = () => (
+  // eslint-disable-next-line @next/next/no-img-element
+  <img
+    src="/headshot.jpeg"
+    alt="Titus"
+    className="h-[22px] w-[22px] flex-shrink-0 border border-rule object-cover"
+    style={{ objectPosition: "50% 20%" }}
+  />
+);
+
+const AssistantLabel = () => (
+  <div className="flex items-center gap-2">
+    <AssistantAvatar />
+    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-amber">
+      Titus&rsquo; Assistant
+    </p>
   </div>
 );
 
-const SendIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="22" y1="2" x2="11" y2="13" />
-    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+const CopilotIcon = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+    <path d="M5 5h14v10H8.5L5 18.5V5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    <circle cx="9.5" cy="10" r="0.95" fill="currentColor" />
+    <circle cx="12" cy="10" r="0.95" fill="currentColor" />
+    <circle cx="14.5" cy="10" r="0.95" fill="currentColor" />
   </svg>
 );
 
-const ChatIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-  </svg>
-);
-
-const CloseIcon = ({ size = 18 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <path d="M18 6L6 18M6 6l12 12" />
+const CloseIcon = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+    <path d="M6 6l12 12M18 6L6 18" />
   </svg>
 );
 
 const ExpandIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
     <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
   </svg>
 );
 
+const CollapseIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 14h6v6m10-10h-6V4M4 10h6V4m10 10h-6v6" />
+  </svg>
+);
+
 const CopyIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="9" y="9" width="13" height="13" rx="1" />
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </svg>
 );
 
 const CheckIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="20 6 9 17 4 12" />
   </svg>
 );
 
-const CollapseIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 14h6v6m10-10h-6V4M4 10h6V4m10 10h-6v6" />
-  </svg>
+const TypingIndicator = () => (
+  <article className="flex flex-col gap-1.5">
+    <AssistantLabel />
+    <div className="flex h-4 items-center gap-1.5 border-l border-rule pl-3.5">
+      <span className="h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-bounce" style={{ animationDelay: "0ms", animationDuration: "900ms" }} />
+      <span className="h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-bounce" style={{ animationDelay: "180ms", animationDuration: "900ms" }} />
+      <span className="h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-bounce" style={{ animationDelay: "360ms", animationDuration: "900ms" }} />
+    </div>
+  </article>
 );
 
 export default function CopilotBubble() {
@@ -115,10 +135,11 @@ export default function CopilotBubble() {
     };
   }, []);
 
-  const sendMessage = useCallback(async () => {
-    if (!input.trim() || busy) return;
+  const sendMessage = useCallback(async (textOverride?: string) => {
+    const content = (textOverride ?? input).trim();
+    if (!content || busy) return;
 
-    const userMessage: Message = { id: crypto.randomUUID(), role: "user", content: input.trim() };
+    const userMessage: Message = { id: crypto.randomUUID(), role: "user", content };
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setInput("");
@@ -205,24 +226,20 @@ export default function CopilotBubble() {
   };
 
   const panelWidth = isExpanded
-    ? "min(700px, calc(100vw - 3rem))"
-    : "min(22rem, calc(100vw - 3rem))";
+    ? "min(680px, calc(100vw - 3rem))"
+    : "min(23rem, calc(100vw - 3rem))";
 
-  const panelHeight = isExpanded ? "min(80vh, 740px)" : "520px";
+  const panelHeight = isExpanded ? "min(80vh, 740px)" : "540px";
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
-      {/* Chat panel */}
+      {/* Drawer */}
       <div
-        className="flex flex-col overflow-hidden rounded-xl"
+        className="flex flex-col overflow-hidden border border-ink bg-paper text-ink"
         style={{
           width: panelWidth,
           height: isOpen ? panelHeight : 0,
-          background: "#141414",
-          border: "1px solid rgba(245, 158, 11, 0.35)",
-          boxShadow: isOpen
-            ? "0 0 0 1px rgba(245,158,11,0.08), 0 8px 48px rgba(245,158,11,0.18), 0 4px 16px rgba(0,0,0,0.7)"
-            : "none",
+          boxShadow: isOpen ? "0 12px 44px rgba(20,16,10,0.20), 0 2px 10px rgba(20,16,10,0.10)" : "none",
           transformOrigin: "bottom right",
           transition: [
             "width 260ms cubic-bezier(0.4,0,0.2,1)",
@@ -231,36 +248,33 @@ export default function CopilotBubble() {
             "opacity 180ms ease",
             "box-shadow 200ms ease",
           ].join(", "),
-          transform: isOpen ? "scale(1) translateY(0)" : "scale(0.88) translateY(10px)",
+          transform: isOpen ? "scale(1) translateY(0)" : "scale(0.92) translateY(12px)",
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? "auto" : "none",
         }}
         aria-hidden={!isOpen}
       >
-        {/* Amber accent strip at top */}
-        <div style={{ height: "2px", background: "linear-gradient(90deg, #F59E0B 0%, rgba(245,158,11,0.3) 100%)", flexShrink: 0 }} />
+        {/* Amber brand spine */}
+        <div className="h-0.5 flex-shrink-0 bg-amber" />
 
         {/* Header */}
-        <div
-          className="flex items-center justify-between px-4 py-3"
-          style={{
-            flexShrink: 0,
-            background: "#0f0f0f",
-            borderBottom: "1px solid rgba(245, 158, 11, 0.15)",
-          }}
-        >
+        <header className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-rule bg-paper-deep px-5 py-4">
           <div>
-            <p className="text-sm font-semibold" style={{ color: "#F59E0B", fontFamily: "'IBM Plex Mono', monospace" }}>
-              Titus&apos;s Copilot
+            <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-faint">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-[pulse-dot_2.4s_ease-in-out_infinite]" />
+              <span>Personal assistant</span>
             </p>
-            <p className="text-xs text-neutral-500" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-              Ask me anything about my work
+            <p className="mt-2 font-serif text-[22px] font-medium leading-none tracking-[-0.01em] text-ink">
+              Ask <em className="italic text-amber">Titus</em>
+            </p>
+            <p className="mt-2 max-w-[34ch] font-mono text-[11px] leading-snug text-ink-faint">
+              A small assistant trained on this page. It answers about my work.
             </p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-shrink-0 items-center gap-1">
             <button
               onClick={() => setIsExpanded((prev) => !prev)}
-              className="rounded p-1.5 text-neutral-500 transition-colors hover:text-amber-400"
+              className="p-1.5 text-ink-faint transition-colors hover:text-amber"
               aria-label={isExpanded ? "Collapse chat" : "Expand chat"}
               title={isExpanded ? "Collapse" : "Expand"}
             >
@@ -268,104 +282,109 @@ export default function CopilotBubble() {
             </button>
             <button
               onClick={() => setIsOpen(false)}
-              className="rounded p-1.5 text-neutral-500 transition-colors hover:text-neutral-300"
+              className="p-1.5 text-ink-faint transition-colors hover:text-ink"
               aria-label="Close chat"
             >
               <CloseIcon />
             </button>
           </div>
-        </div>
+        </header>
 
         {/* Messages */}
-        <div
-          className="flex-1 overflow-y-auto p-4 space-y-3"
-          style={{ minHeight: 0 }}
-        >
+        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5" style={{ minHeight: 0 }}>
           {messages.length === 0 && !busy && (
-            <p
-              className="pt-6 text-center text-xs text-neutral-600"
-              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-            >
-              Ask about Titus&apos;s experience, projects, or writing.
-            </p>
+            <div>
+              <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
+                Start with one of these
+              </p>
+              <ul className="border-b border-rule">
+                {STARTER_PROMPTS.map((p) => (
+                  <li key={p}>
+                    <button
+                      type="button"
+                      onClick={() => sendMessage(p)}
+                      disabled={busy}
+                      className="group flex w-full items-baseline gap-3 border-t border-rule py-3 text-left transition-colors hover:bg-paper-deep disabled:opacity-50"
+                    >
+                      <span className="font-mono text-[13px] text-amber transition-transform group-hover:translate-x-0.5">
+                        →
+                      </span>
+                      <span className="font-serif text-[15px] leading-snug text-ink">{p}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex flex-col gap-1 ${msg.role === "user" ? "items-end" : "items-start"}`}
-            >
-              <div className="flex items-end gap-2">
-                {msg.role === "assistant" && (
-                  <img
-                    src="/headshot.jpeg"
-                    alt="Titus"
-                    className="flex-shrink-0 rounded-full object-cover"
-                    style={{
-                      width: 24,
-                      height: 24,
-                      objectPosition: "center 10%",
-                      boxShadow: "0 0 0 1.5px #F59E0B",
-                    }}
-                  />
-                )}
-                <div
-                  className={`rounded-lg px-3 py-2 text-xs leading-relaxed ${
-                    isExpanded ? "max-w-[80%]" : "max-w-[82%]"
-                  } ${
-                    msg.role === "user"
-                      ? "border border-amber-500/30 bg-amber-500/10 text-amber-100 whitespace-pre-wrap"
-                      : "border border-neutral-700/80 bg-neutral-800/60 text-neutral-200"
-                  }`}
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                >
-                  {msg.role === "user" ? msg.content : (
+            <article key={msg.id} className="flex flex-col gap-1.5">
+              {msg.role === "user" ? (
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
+                  You
+                </p>
+              ) : (
+                <AssistantLabel />
+              )}
+              <div
+                className={`border-l pl-3.5 ${
+                  msg.role === "user" ? "border-rule-strong" : "border-amber"
+                }`}
+              >
+                {msg.role === "user" ? (
+                  <p className="whitespace-pre-wrap font-mono text-[12.5px] leading-relaxed text-ink-soft">
+                    {msg.content}
+                  </p>
+                ) : (
+                  <div className="font-serif text-[14.5px] leading-[1.62] text-ink">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                        strong: ({ children }) => <strong className="text-neutral-100 font-semibold">{children}</strong>,
-                        em: ({ children }) => <em className="text-neutral-300 italic">{children}</em>,
-                        ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
-                        ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
+                        p: ({ children }) => <p className="mb-2.5 last:mb-0">{children}</p>,
+                        strong: ({ children }) => <strong className="font-semibold text-ink">{children}</strong>,
+                        em: ({ children }) => <em className="italic">{children}</em>,
+                        ul: ({ children }) => <ul className="mb-2.5 list-disc space-y-1 pl-4">{children}</ul>,
+                        ol: ({ children }) => <ol className="mb-2.5 list-decimal space-y-1 pl-4">{children}</ol>,
                         li: ({ children }) => <li className="leading-relaxed">{children}</li>,
                         a: ({ href, children }) => (
                           <a
                             href={href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="underline underline-offset-2 transition-colors"
-                            style={{ color: "#F59E0B" }}
+                            className="text-amber underline underline-offset-2"
                           >
                             {children}
                           </a>
                         ),
                         code: ({ children }) => (
-                          <code className="rounded bg-neutral-900 px-1 py-0.5 text-amber-300/80">{children}</code>
+                          <code className="rounded-sm bg-paper-band px-1 py-0.5 font-mono text-[12px] text-ink">
+                            {children}
+                          </code>
                         ),
                         pre: ({ children }) => (
-                          <pre className="mb-2 overflow-x-auto rounded bg-neutral-900 p-2">{children}</pre>
+                          <pre className="mb-2.5 overflow-x-auto border border-rule bg-paper-band p-2.5 font-mono text-[12px]">
+                            {children}
+                          </pre>
                         ),
-                        h1: ({ children }) => <p className="mb-1 font-semibold text-neutral-100">{children}</p>,
-                        h2: ({ children }) => <p className="mb-1 font-semibold text-neutral-100">{children}</p>,
-                        h3: ({ children }) => <p className="mb-1 font-semibold text-neutral-200">{children}</p>,
+                        h1: ({ children }) => <p className="mb-1.5 font-semibold text-ink">{children}</p>,
+                        h2: ({ children }) => <p className="mb-1.5 font-semibold text-ink">{children}</p>,
+                        h3: ({ children }) => <p className="mb-1.5 font-semibold text-ink">{children}</p>,
                       }}
                     >
                       {msg.content}
                     </ReactMarkdown>
-                  )}
-                </div>
+                  </div>
+                )}
+                <button
+                  onClick={() => copyMessage(msg.id, msg.content)}
+                  className="mt-2 flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint transition-colors hover:text-amber"
+                  aria-label="Copy message"
+                  title="Copy"
+                >
+                  {copiedIndex === msg.id ? <><CheckIcon /><span>copied</span></> : <><CopyIcon /><span>copy</span></>}
+                </button>
               </div>
-              <button
-                onClick={() => copyMessage(msg.id, msg.content)}
-                className="flex items-center gap-1 px-1 py-0.5 text-neutral-600 transition-colors hover:text-amber-400"
-                style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px" }}
-                aria-label="Copy message"
-                title="Copy"
-              >
-                {copiedIndex === msg.id ? <><CheckIcon /><span>copied</span></> : <><CopyIcon /><span>copy</span></>}
-              </button>
-            </div>
+            </article>
           ))}
 
           {isLoading && <TypingIndicator />}
@@ -373,52 +392,43 @@ export default function CopilotBubble() {
         </div>
 
         {/* Input */}
-        <div
-          className="p-3"
-          style={{
-            flexShrink: 0,
-            background: "#0f0f0f",
-            borderTop: "1px solid rgba(245, 158, 11, 0.15)",
-          }}
-        >
+        <div className="flex-shrink-0 border-t border-rule bg-paper-deep px-3.5 py-3">
           <div className="flex items-end gap-2">
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about my experience, projects, or writing..."
+              placeholder="Ask about my work…"
               disabled={busy}
               rows={1}
-              className="flex-1 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs text-neutral-200 placeholder-neutral-600 transition-colors focus:border-amber-500/50 focus:outline-none disabled:opacity-50 resize-none overflow-y-auto"
-              style={{ fontFamily: "'IBM Plex Mono', monospace", minHeight: "34px", maxHeight: "120px" }}
+              className="flex-1 resize-none overflow-y-auto border border-rule bg-paper px-3 py-2 font-mono text-[12.5px] text-ink placeholder:text-ink-faint transition-colors focus:border-amber focus:outline-none disabled:opacity-50"
+              style={{ minHeight: "36px", maxHeight: "120px" }}
             />
             <button
-              onClick={sendMessage}
+              onClick={() => sendMessage()}
               disabled={busy || !input.trim()}
-              className="flex items-center justify-center rounded-lg px-3 py-2 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-              style={{ background: "#F59E0B", color: "#0a0a0a" }}
+              className="flex flex-shrink-0 items-center gap-1.5 border border-ink bg-ink px-3.5 py-2.5 font-mono text-[11px] uppercase tracking-[0.1em] text-paper transition-colors hover:border-amber hover:bg-amber disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Send message"
             >
-              <SendIcon />
+              <span>Send</span>
+              <span aria-hidden="true">→</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Floating bubble */}
+      {/* FAB — ink pill */}
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
-        style={{
-          background: "#F59E0B",
-          boxShadow: "0 4px 24px rgba(245,158,11,0.4), 0 2px 8px rgba(0,0,0,0.4)",
-          color: "#0a0a0a",
-        }}
-        aria-label={isOpen ? "Close chat" : "Open Titus's Copilot"}
+        className="flex items-center gap-2.5 rounded-full border border-ink bg-ink px-4 py-3 text-paper transition-colors hover:border-amber hover:bg-amber"
+        aria-label={isOpen ? "Close chat" : "Open Ask Titus"}
         aria-expanded={isOpen}
       >
-        {isOpen ? <CloseIcon size={20} /> : <ChatIcon />}
+        {isOpen ? <CloseIcon size={18} /> : <CopilotIcon />}
+        {!isOpen && (
+          <span className="font-mono text-[12px] uppercase tracking-[0.12em]">Ask Titus</span>
+        )}
       </button>
     </div>
   );

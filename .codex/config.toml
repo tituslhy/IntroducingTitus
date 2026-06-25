@@ -1,0 +1,9 @@
+sandbox_mode = "workspace-write"
+
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+XDG_CACHE_HOME = ".cache"
+npm_config_cache = ".cache/npm"
+PIP_CACHE_DIR = ".cache/pip"

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(node -e \"const Component = require\\('./components/CopilotBubble.tsx'\\).default; console.log\\(Component ? 'OK' : 'FAIL'\\)\")"
+    ]
+  }
+}

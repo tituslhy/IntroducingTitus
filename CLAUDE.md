@@ -50,33 +50,53 @@ Do not deviate from this stack unless explicitly instructed.
 
 ## Design Rules (Non-Negotiable)
 
+> **Source of truth:** `design_handoff_personal_site/README.md` (Editorial Redesign).
+> It supersedes any conflicting visual rule below. Decisions ratified from that
+> handoff are reflected inline.
+
 ### Visual
-- **Dark mode only.** No toggle. No light mode. Ever.
-- **Accent color: Warm amber** (`#F59E0B` range). One accent. Commit to it.
-- **Font pairing: DM Serif Display** (headings/name) + **IBM Plex Mono** (body/code/tags)
-- **Aesthetic:** Technical confidence. Typography-forward. Clean grid with deliberate accent moments.
-- **Animation:** Subtle scroll-triggered reveals only. No page transitions that make users wait. No autoplay. No particle backgrounds.
-- **Layout:** Single-column with anchor nav. Desktop-first. Fully responsive.
-- **Headshot:** Profile photo in hero section. File: `/public/headshot.jpeg`
-- **No stock photos. No illustrations.** Typography, headshot, and structure carry the weight.
+- **Light (warm cream paper) by default.** Dark mode is an optional toggle, OFF by
+  default — skip building the toggle for now unless asked.
+- **Accent color: aged amber** `oklch(0.62 0.155 55)` (≈ `#b76a23`). Replaces the
+  old `#F59E0B` everywhere — `#F59E0B` is too bright on cream.
+- **Second accent: indigo** `oklch(0.34 0.10 254)` — reserved for the Illumina
+  project only. Everything else stays on amber.
+- **Font pairing: Newsreader** (headings/name — variable serif) + **IBM Plex Mono**
+  (body/code/tags). DM Serif Display is dropped.
+- **Aesthetic:** Editorial broadsheet — typography-forward, hairline rules, folios,
+  drop-caps, pull quotes, single muted amber accent. No rounded cards, no shadows
+  on type, no glow.
+- **Animation:** Subtle scroll-triggered reveals. Sticky year rail. Quiet looping
+  micro-motion (amber pulse-dot, coffee-cup steam, typing dots) — all gated behind
+  `prefers-reduced-motion`. No page transitions that make users wait. No particle
+  backgrounds.
+- **Layout:** Single long-scroll column with sticky anchor nav. Desktop-first.
+  Fully responsive.
+- **Headshot:** Profile photo in masthead. File: `/public/headshot.jpeg` —
+  rectangular 3:4, 1px ink border, `object-position: 50% 30%`, subtle saturate/
+  contrast filter. No circle crop, no amber ring/glow.
+- **No stock photos. No illustrations. No brand/tech logos.** Typography, headshot,
+  and hairline structure carry the weight.
 
 ### What This Site Is NOT
 - NOT a purple gradient SaaS template
 - NOT a generic portfolio with skill bars (meaningless)
 - NOT Inter/Roboto/Space Grotesk (banned)
-- NOT a dark-mode toggle debate
+- NOT a glowing dark-terminal portfolio (superseded — the site is cream editorial now)
 
 ---
 
 ## Site Structure
 
-### Navigation (fixed top nav, anchor links)
-`Home` | `Experience` | `Projects` | `Writing` | `Contact`
-Mobile: hamburger menu
+### Navigation (sticky top nav, anchor links)
+`About` | `Stack` | `Experience` | `Projects` | `Writing` + `Get in touch` CTA
+- Scroll-spy underlines the active item in amber; nav hides on scroll-down,
+  reappears on scroll-up. Folio numbers prefix each item (e.g. "01 About").
+- Brand "T·L" at left scrolls to top. Mobile: horizontal scroll list.
 
 ### Page 1 — Home
-**Hero:**
-- Headshot: `/public/headshot.jpeg` — circular or slightly rounded, amber ring/glow accent
+**Hero / Masthead:**
+- Headshot: `/public/headshot.jpeg` — rectangular 3:4, 1px ink border, no ring/glow
 - Name: Lim Hsien Yong (Titus)
 - Tagline: "I build AI systems — from architecture to the boardroom."
 - Sub-tagline: *8+ years building production AI. 50 technical articles. Solo from zero to production.*
@@ -119,14 +139,16 @@ Reverse chronological timeline/card layout. Each card:
 ---
 
 ### Copilot Bubble (Floating, All Pages)
-A floating amber chat bubble fixed to the bottom-right of every page.
+An editorial "Ask Titus" FAB fixed to the bottom-right of every page (ink pill →
+drawer that opens upward). Visual shell follows the README; backend is unchanged.
 
 **Behaviour:**
-- Click bubble → opens chat panel (slide up or expand)
-- Chat panel has close button
-- "Ask me anything about my work" as placeholder/prompt
-- Typing indicator while awaiting response
+- Click FAB → drawer opens upward (translateY/scale, ~220ms)
+- Drawer has a close button; header reads "Ask **Titus**"
+- Empty state shows 3 starter prompts
+- Typing indicator (3 amber dots) while awaiting response
 - Session-only memory (useState, no persistence)
+- Markdown rendered via `react-markdown`, restyled editorial (serif, amber `<a>`)
 - Mobile responsive
 
 **API Route:**
@@ -135,16 +157,19 @@ A floating amber chat bubble fixed to the bottom-right of every page.
 - Never expose key to browser
 
 **OpenAI Integration:**
-- Model: `gpt-4o-mini`
+- Model: `gpt-5-4-nano`
 - Enable web search tool via Responses API
 - System prompt: see `copilot-system-prompt.md`
 - Medium profile URL passed as context: https://medium.com/@tituslhy
 
+**Voice:** First-person ("I built…", not "Titus built…"). Dry, precise, lightly
+warm. No emoji, no exclamation points. Two short paragraphs max unless asked.
+
 **Scope Rules (enforced via system prompt):**
 - Answer ONLY questions about Titus's work, experience, projects, skills, writing
-- If answer unknown: "I don't have that information — feel free to email Titus at tituslhy@gmail.com"
+- If answer unknown: "I don't have that on file — feel free to write to me directly at tituslhy@gmail.com"
 - Never fabricate experience or skills not in context
-- Redirect off-topic questions politely back to Titus's work
+- Redirect off-topic questions politely back to my work
 - Redirect salary/availability/personal questions to email
 
 **Copilot system prompt file:** `/copilot-system-prompt.md` — create this file if it doesn't exist, using the scope rules defined below as the basis.
@@ -162,7 +187,7 @@ A floating amber chat bubble fixed to the bottom-right of every page.
 ## SEO & Meta
 - Title: `Titus Lim | GenAI Engineer & Architect`
 - Description: `GenAI engineer and architect with 8+ years building production AI systems. 50 technical articles. Open source contributor.`
-- OG image: Dark card with name + tagline (generate as static asset)
+- OG image: Warm cream editorial card with name + tagline (generate as static asset)
 - Canonical URL: https://introducing-titus.vercel.app/
 
 ---

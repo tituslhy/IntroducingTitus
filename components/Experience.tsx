@@ -1,16 +1,15 @@
-'use client'
-
-import { useEffect, useRef } from 'react'
-
 type Role = {
+  years: string
   company: string
   location: string
   role: string
   dates: string
-  summary: string
+  deck: string
+  body?: string
   tech: string[]
   techNote?: string
-  highlight?: string
+  pullQuote?: string
+  incoming?: boolean
 }
 
 type Education = {
@@ -21,244 +20,227 @@ type Education = {
 }
 
 const ROLES: Role[] = [
-  // Mastercard — commented out until onboarding (Jul 2026)
-  // {
-  //   company: 'Mastercard Asia/Pacific',
-  //   location: 'Singapore',
-  //   role: 'Lead AI Engineer',
-  //   dates: 'Jul 2026 – Present',
-  //   summary:
-  //     "Leading AI engineering for Mastercard's Asia/Pacific division as an individual contributor, with responsibility for building and growing a team. Focused on applying production AI capabilities at enterprise scale within a global payments network.",
-  //   tech: [],
-  //   techNote: 'Stack to be updated post-onboarding.',
-  // },
   {
+    years: '2026',
+    company: 'Mastercard',
+    location: 'Singapore',
+    role: 'Lead AI Engineer',
+    dates: 'Jul 2026 — Present',
+    deck: 'Leading AI engineering for the Asia/Pacific division as an individual contributor, with responsibility for building and growing a team.',
+    body: 'Focused on applying production AI capabilities at enterprise scale within a global payments network.',
+    tech: [],
+  },
+  {
+    years: '2025',
     company: 'United Overseas Bank',
     location: 'Singapore',
     role: 'Vice President, Generative AI',
-    dates: 'Jun 2025 – Jul 2026',
-    summary:
-      "Technical lead for a real-time GenAI-driven contact centre platform supporting in-call and post-call agent assistance under strict latency and accuracy SLAs. Architected and delivered UOB's enterprise multi-agent platform (BYOA) enabling cross-framework agent interoperability and dynamic tool discovery.",
-    tech: [
-      'Java (Spring Boot)', 'React', 'Redis', 'Oracle DB', 'ELK Stack',
-      'Docker', 'vLLM', 'Helm', 'Jenkins', 'LangChain', 'MCP',
-    ],
+    dates: 'Jun 2025 — Jul 2026',
+    deck: 'Technical lead for a real-time GenAI contact-centre platform supporting in-call and post-call agent assistance under strict latency and accuracy SLAs.',
+    body: "Architected and delivered UOB's enterprise multi-agent platform (BYOA) enabling cross-framework agent interoperability and dynamic tool discovery.",
+    tech: ['Java (Spring Boot)', 'React', 'Redis', 'Oracle DB', 'ELK Stack', 'Docker', 'vLLM', 'Helm', 'Jenkins', 'LangChain', 'MCP'],
   },
   {
+    years: '2023',
     company: 'Illumina',
     location: 'Singapore',
     role: 'Senior Data Scientist',
-    dates: 'Jan 2023 – Jun 2025',
-    summary:
-      "Solo-architected, built, and delivered two production AI systems as the company's sole data scientist: an agentic document retrieval platform for global field service engineers, and a Generative BI assistant covering 800+ business metrics with human-in-the-loop design.",
-    tech: [
-      'Python', 'LlamaIndex', 'Qdrant', 'AWS Bedrock', 'RabbitMQ',
-      'Docker+CUDA', 'GitHub Actions', 'SonarQube', 'Grafana',
-      'Prometheus', 'Loki', 'Chainlit', 'DSPy', 'Giskard',
-    ],
-    highlight: 'Anticipated to save USD 9 million upon full deployment',
+    dates: 'Jan 2023 — Jun 2025',
+    deck: "Solo-architected and shipped two production AI systems as the company's sole data scientist.",
+    body: 'An agentic document-retrieval platform for global field service engineers — sixteen components: semantic chunking, HyDE, hybrid search, Cohere reranking, prompt compression, an iterative agentic retrieval loop, blue-green vector collection swap. Plus a separate Generative BI assistant covering 800+ business metrics with human-in-the-loop design.',
+    tech: ['Python', 'LlamaIndex', 'Qdrant', 'AWS Bedrock', 'RabbitMQ', 'Docker+CUDA', 'GitHub Actions', 'SonarQube', 'Grafana', 'Prometheus', 'Loki', 'Chainlit', 'DSPy', 'Giskard'],
+    pullQuote: 'Anticipated to save USD $9 million upon full deployment.',
   },
   {
+    years: '2022',
     company: 'CK Delta',
     location: 'Singapore',
     role: 'Data Scientist',
-    dates: 'Sep 2022 – Jan 2023',
-    summary:
-      'Validated and enhanced MRT station crowdedness forecasting models and tightened data engineering workflows for streaming data. Model shipped directly to the MyTransportSG app.',
-    tech: ['Python', 'ML Forecasting', 'Streaming Data Pipelines'],
+    dates: 'Sep 2022 — Jan 2023',
+    deck: 'Validated and enhanced MRT station crowdedness forecasting; tightened streaming data pipelines.',
+    body: 'Model shipped to the MyTransportSG app.',
+    tech: ['Python', 'ML Forecasting', 'Streaming Pipelines'],
   },
   {
+    years: '2018',
     company: 'Energy Market Authority',
     location: 'Singapore',
     role: 'Principal Engineer, Research & Statistics',
-    dates: 'Apr 2018 – Aug 2022',
-    summary:
-      "Developed and presented national electricity and gas demand forecast models to Ministers and Permanent Secretaries. Drove the Authority's AI and data strategy roadmap. Built ML models for power plant trip prediction and electricity spot price forecasting with external partners.",
+    dates: 'Apr 2018 — Aug 2022',
+    deck: "Developed and presented national electricity and gas demand forecasts to Ministers and Permanent Secretaries; drove the Authority's AI and data strategy roadmap.",
+    body: 'Built ML models for power-plant trip prediction and electricity spot-price forecasting with external partners.',
     tech: ['Python', 'XGBoost', 'Neural Networks', 'DataRobot', 'ARIMA'],
   },
   {
+    years: '2017',
     company: 'JobTech Pte Ltd',
     location: 'Singapore',
     role: 'Data Scientist',
-    dates: 'Apr 2017 – Aug 2017',
-    summary:
-      "Built a national-scale skill extraction algorithm using NLP to construct skills graphs from online job portals. Findings published in a national report on Indonesia's labour market.",
-    tech: ['Python', 'NLP', 'Regex-based Entity Extraction'],
+    dates: 'Apr 2017 — Aug 2017',
+    deck: 'Built a national-scale skill extraction algorithm using NLP to construct skills graphs from online job portals.',
+    body: "Findings published in a national report on Indonesia's labour market.",
+    tech: ['Python', 'NLP', 'Regex Entity Extraction'],
   },
   {
+    years: '2015',
     company: 'Toyota Tsusho Asia Pacific',
     location: 'Singapore',
     role: 'Demand & Supply Analyst',
-    dates: 'Jun 2015 – Apr 2017',
-    summary:
-      'Overhauled sales planning into a centralised automated forecasting tool using VBA and operational research techniques. Served Toyota automotive distributors across the Asia Pacific region.',
+    dates: 'Jun 2015 — Apr 2017',
+    deck: 'Overhauled sales planning into a centralised automated forecasting tool using VBA and operational research techniques.',
+    body: 'Served Toyota automotive distributors across the Asia Pacific region.',
     tech: ['VBA', 'Excel', 'Exponential Smoothing', 'Holt-Winters'],
-    highlight: 'Improved long-term forecast accuracy by ~25%',
+    pullQuote: 'Improved long-term forecast accuracy by ~25%.',
   },
 ]
 
 const EDUCATION: Education[] = [
   {
     institution: 'Singapore Management University',
-    degree: 'Master of IT in Business (AI Track)',
-    dates: '2021 – 2022',
-    honors: ["GPA 3.98 / 4.0", "Dean's List", "SMU AI Talent Development Grant"],
+    degree: 'Master of IT in Business — AI Track',
+    dates: '2021 — 2022',
+    honors: ['GPA 3.98 / 4.0', "Dean's List", 'SMU AI Talent Development Grant'],
   },
   {
     institution: 'National University of Singapore',
-    degree: 'BEng Chemical Engineering (2nd Upper Hons)',
-    dates: '2011 – 2015',
+    degree: 'BEng Chemical Engineering, 2nd Upper Honours',
+    dates: '2011 — 2015',
     honors: ['NUS Undergraduate Scholarship'],
   },
 ]
 
-function TechTag({ label }: { label: string }) {
+function RoleEntry({ role }: { role: Role }) {
   return (
-    <span className="inline-block text-xs px-2 py-0.5 bg-[#161616] border border-[#2a2a2a] text-neutral-500 rounded font-mono">
-      {label}
-    </span>
-  )
-}
+    <article className="relative grid grid-cols-[110px_1fr] gap-[clamp(20px,3vw,40px)] border-b border-rule py-[clamp(28px,4vw,44px)] max-[720px]:grid-cols-1">
+      {/* Sticky year rail */}
+      <div className="sticky top-20 flex flex-col gap-2.5 self-start max-[720px]:static max-[720px]:flex-row max-[720px]:items-baseline max-[720px]:gap-4">
+        <span className="font-serif text-[44px] font-normal italic leading-none tracking-[-0.02em] text-ink max-[720px]:text-[28px]">
+          {role.years}
+        </span>
+        <span className="inline-block h-px w-8 bg-amber max-[720px]:w-auto max-[720px]:flex-1" />
+      </div>
 
-function useReveal() {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          el.style.opacity = '1'
-          el.style.transform = 'translateY(0)'
-          obs.unobserve(el)
-        }
-      },
-      { threshold: 0.08 }
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [])
-  return ref
-}
-
-function RoleCard({ role, delay }: { role: Role; delay: number }) {
-  const ref = useReveal()
-  return (
-    <div
-      ref={ref}
-      style={{
-        opacity: 0,
-        transform: 'translateY(20px)',
-        transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`,
-      }}
-    >
-      <div className="border border-[#1f1f1f] bg-[#0f0f0f] rounded-lg p-6 hover:border-[#2d2d2d] transition-colors duration-300">
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+      {/* Body */}
+      <div>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h3 className="text-base font-semibold text-neutral-200">{role.company}</h3>
-            <p className="text-amber-400/70 text-sm font-mono mt-0.5">{role.role}</p>
-            <p className="text-neutral-600 text-xs font-mono mt-0.5">{role.location}</p>
-          </div>
-          <span className="text-xs text-neutral-600 font-mono shrink-0 mt-0.5">{role.dates}</span>
-        </div>
-
-        <p className="text-neutral-400 text-sm leading-relaxed mb-4">{role.summary}</p>
-
-        {role.highlight && (
-          <div className="border-l-2 border-amber-500/40 pl-3 mb-4">
-            <p className="text-amber-400/70 text-xs font-mono">{role.highlight}</p>
-          </div>
-        )}
-
-        {role.techNote ? (
-          <p className="text-neutral-700 text-xs font-mono italic">{role.techNote}</p>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {role.tech.map((t) => (
-              <TechTag key={t} label={t} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function EducationCard({ item, delay }: { item: Education; delay: number }) {
-  const ref = useReveal()
-  return (
-    <div
-      ref={ref}
-      style={{
-        opacity: 0,
-        transform: 'translateY(20px)',
-        transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`,
-      }}
-    >
-      <div className="border border-[#1f1f1f] bg-[#0f0f0f] rounded-lg p-6 h-full">
-        <p className="text-xs text-neutral-600 font-mono mb-2">{item.dates}</p>
-        <h3 className="text-base font-semibold text-neutral-200 mb-1">{item.institution}</h3>
-        <p className="text-amber-400/70 text-sm font-mono mb-4">{item.degree}</p>
-        <div className="flex flex-wrap gap-1.5">
-          {item.honors.map((h) => (
-            <span
-              key={h}
-              className="inline-block text-xs px-2 py-0.5 bg-[#161616] border border-[#2a2a2a] text-neutral-500 rounded font-mono"
+            <h3
+              className={`m-0 flex flex-wrap items-baseline gap-3.5 font-serif text-[clamp(24px,2.6vw,32px)] font-medium leading-[1.1] tracking-[-0.015em] ${
+                role.incoming ? 'text-ink-soft' : 'text-ink'
+              }`}
             >
-              {h}
+              {role.company}
+              {role.incoming && (
+                <span className="border border-amber px-2 py-[3px] font-mono text-[10px] uppercase tracking-[0.14em] text-amber">
+                  Incoming
+                </span>
+              )}
+            </h3>
+            <p className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-[12px] tracking-[0.04em] text-ink-soft">
+              <span>{role.role}</span>
+              <span className="inline-block h-[3px] w-[3px] rounded-full bg-ink-faint" />
+              <span>{role.location}</span>
+            </p>
+          </div>
+          <p className="m-0 whitespace-nowrap font-mono text-[11.5px] tracking-[0.08em] text-ink-faint">
+            {role.dates}
+          </p>
+        </div>
+
+        <p className="mb-3 mt-1.5 font-serif text-[19px] leading-[1.45] text-ink [text-wrap:pretty]">
+          {role.deck}
+        </p>
+        {role.body && (
+          <p className="mb-4 text-[16px] leading-[1.6] text-ink-soft [text-wrap:pretty]">
+            {role.body}
+          </p>
+        )}
+
+        {role.pullQuote && (
+          <blockquote className="my-[18px] flex gap-2.5 border-l-[3px] border-amber bg-paper-deep px-5 py-4">
+            <span aria-hidden="true" className="font-serif text-[36px] italic leading-[0.8] text-amber">
+              &ldquo;
             </span>
-          ))}
+            <p className="m-0 font-serif text-[18px] italic leading-[1.4] text-ink">
+              {role.pullQuote}
+            </p>
+          </blockquote>
+        )}
+
+        <div>
+          {role.techNote ? (
+            <p className="font-mono text-[11.5px] text-ink-faint">
+              <em className="italic">{role.techNote}</em>
+            </p>
+          ) : (
+            <ul className="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1.5 font-mono text-[11.5px] text-ink-soft">
+              {role.tech.map((t) => (
+                <li
+                  key={t}
+                  className="relative pl-3.5 before:absolute before:-top-px before:left-1 before:text-amber before:content-['·']"
+                >
+                  {t}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
-    </div>
+    </article>
   )
 }
 
 export default function Experience() {
   return (
-    <section id="experience" className="py-14 px-6">
-      <div className="max-w-5xl mx-auto">
-
-        <div className="mb-8">
-          <p className="text-xs text-amber-500 font-mono tracking-widest uppercase mb-3">Career</p>
-          <h2
-            className="text-4xl text-neutral-100"
-            style={{ fontFamily: "'DM Serif Display', serif" }}
-          >
-            Experience
+    <section id="dossier" className="text-ink">
+      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(40px,5vw,72px)] pb-[clamp(40px,5vw,72px)]">
+        {/* Section marker */}
+        <header className="mb-[clamp(28px,4vw,56px)]">
+          <div className="flex items-baseline gap-3.5 pb-[18px] font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
+            <span className="font-semibold tracking-[0.08em] text-amber">03</span>
+            <span className="font-medium text-ink">Experience</span>
+            <span className="h-px flex-1 self-center bg-rule" />
+          </div>
+          <h2 className="mt-[22px] max-w-[22ch] font-serif text-[clamp(34px,5vw,68px)] font-medium leading-[1.04] tracking-[-0.025em] [text-wrap:balance]">
+            Where I have <em className="italic text-amber">worked</em>, in reverse.
           </h2>
-          <div className="mt-4 w-12 h-px bg-amber-500/50" />
+        </header>
+
+        {/* Roles */}
+        <div className="border-t border-ink">
+          {ROLES.map((r) => (
+            <RoleEntry key={r.company} role={r} />
+          ))}
         </div>
 
-        <div className="relative">
-          <div className="hidden md:block absolute left-0 top-2 bottom-0 w-px bg-[#1f1f1f]" />
-
-          <div className="md:pl-8 flex flex-col gap-6">
-            {ROLES.map((role, i) => (
-              <RoleCard key={role.company} role={role} delay={i * 60} />
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-14">
-          <div className="mb-6">
-            <p className="text-xs text-amber-500 font-mono tracking-widest uppercase mb-3">Academic</p>
-            <h2
-              className="text-3xl text-neutral-100"
-              style={{ fontFamily: "'DM Serif Display', serif" }}
-            >
+        {/* Education */}
+        <div className="mt-[clamp(40px,5vw,64px)]">
+          <div className="mb-5 flex items-baseline gap-4">
+            <span className="font-mono text-[10.5px] font-semibold tracking-[0.08em] text-amber">03a</span>
+            <h3 className="m-0 font-serif text-[28px] font-medium tracking-[-0.015em] text-ink">
               Education
-            </h2>
-            <div className="mt-4 w-12 h-px bg-amber-500/50" />
+            </h3>
+            <span className="h-px flex-1 bg-rule" />
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {EDUCATION.map((item, i) => (
-              <EducationCard key={item.institution} item={item} delay={i * 100} />
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-[clamp(16px,2vw,28px)]">
+            {EDUCATION.map((e) => (
+              <div key={e.institution} className="border border-rule bg-paper p-[22px]">
+                <p className="mb-2 font-mono text-[11.5px] tracking-[0.06em] text-ink-faint">{e.dates}</p>
+                <h4 className="mb-1.5 font-serif text-[19px] font-semibold tracking-[-0.01em] text-ink">
+                  {e.institution}
+                </h4>
+                <p className="mb-3.5 text-[14.5px] italic text-ink-soft">{e.degree}</p>
+                <ul className="flex flex-wrap gap-x-2.5 gap-y-1.5 font-mono text-[11px] text-ink-soft">
+                  {e.honors.map((h) => (
+                    <li key={h} className="border border-rule bg-paper-deep px-2 py-[3px]">
+                      {h}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
           </div>
         </div>
-
       </div>
     </section>
   )
