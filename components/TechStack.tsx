@@ -1,80 +1,78 @@
 const STACK_GROUPS = [
   {
-    label: 'AI/GenAI Frameworks',
-    tags: ['LangChain', 'LangGraph', 'LangFlow', 'LlamaIndex', 'CrewAI', 'Autogen', 'DSPy', 'Giskard', 'MCP', 'A2A'],
+    label: 'AI / GenAI Frameworks',
+    items: ['LangChain', 'LangGraph', 'LlamaIndex', 'CrewAI', 'Autogen', 'DSPy', 'MCP', 'A2A'],
   },
   {
     label: 'Languages',
-    tags: ['Python (Expert)', 'SQL (Expert)', 'Java (Proficient)'],
+    items: ['Python ◆ Expert', 'SQL ◆ Expert', 'Java ◆ Proficient'],
   },
   {
-    label: 'DevOps',
-    tags: ['Docker', 'Kubernetes/Helm', 'GitHub Actions', 'Jenkins', 'vLLM'],
+    label: 'Infrastructure',
+    items: ['Docker', 'Kubernetes / Helm', 'GitHub Actions', 'Jenkins', 'vLLM'],
   },
   {
     label: 'Databases',
-    tags: ['PostgreSQL', 'MSSQL', 'MySQL', 'Oracle DB', 'Redis', 'MongoDB', 'Qdrant', 'Neo4j', 'TigerGraph'],
+    items: ['PostgreSQL', 'Oracle DB', 'Redis', 'MongoDB', 'Qdrant', 'Neo4j'],
   },
   {
     label: 'Observability',
-    tags: ['Grafana', 'Prometheus', 'Loki', 'Langfuse', 'Arize Phoenix', 'Elastic', 'Kibana'],
+    items: ['Grafana', 'Prometheus', 'Loki', 'Langfuse', 'Arize Phoenix', 'ELK'],
   },
   {
     label: 'Cloud',
-    tags: ['AWS', 'GCP', 'Azure', 'Snowflake', 'Cloudera'],
-  },
-  {
-    label: 'Business Intelligence',
-    tags: ['Tableau', 'KNIME'],
-  },
-  {
-    label: 'Automation & RPA',
-    tags: ['n8n', 'UiPath'],
+    items: ['AWS', 'GCP', 'Azure', 'Snowflake'],
   },
 ]
 
 export default function TechStack() {
   return (
-    <section className="pt-12 pb-12 px-6 border-t border-[#1f1f1f]">
-      <div className="max-w-5xl mx-auto">
-        <h2
-          className="text-3xl md:text-4xl text-neutral-100 mb-2"
-          style={{ fontFamily: "'DM Serif Display', serif" }}
-        >
-          What I Work With
-        </h2>
-        <p className="text-sm text-neutral-500 mb-8 tracking-wide">
-          Tools I&apos;ve shipped to production
+    <section id="stack" className="bg-paper-deep text-ink">
+      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(40px,5vw,72px)] pb-[clamp(40px,5vw,72px)]">
+        {/* Section marker */}
+        <header className="mb-[clamp(28px,4vw,56px)]">
+          <div className="flex items-baseline gap-3.5 pb-[18px] font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
+            <span className="font-semibold tracking-[0.08em] text-amber">02</span>
+            <span className="font-medium text-ink">Stack</span>
+            <span className="h-px flex-1 self-center bg-rule" />
+          </div>
+          <h2 className="mt-[22px] max-w-[22ch] font-serif text-[clamp(34px,5vw,68px)] font-medium leading-[1.04] tracking-[-0.025em] [text-wrap:balance]">
+            What I <em className="italic text-amber">work with</em>.
+          </h2>
+        </header>
+
+        <p className="mb-9 max-w-[52ch] font-serif text-[22px] italic leading-[1.35] text-ink">
+          Tools, not religions. Picked because they fit the job, replaced when they
+          don&apos;t.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {STACK_GROUPS.map((group) => (
-            <div key={group.label}>
-              <p
-                className="text-xs uppercase tracking-widest mb-3"
-                style={{ color: '#F59E0B' }}
-              >
-                {group.label}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {group.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-xs px-3 py-1.5 border border-[#2a2a2a] bg-[#111111] text-neutral-300 hover:border-[#F59E0B]/40 hover:text-neutral-100 transition-all duration-200 tracking-wide"
-                  >
-                    {tag}
-                  </span>
-                ))}
+        {/* Hairline grid of stack groups */}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] border-l border-t border-rule">
+          {STACK_GROUPS.map((g, i) => (
+            <div
+              key={g.label}
+              className="border-b border-r border-rule bg-paper px-[22px] pt-[22px] pb-7 transition-colors duration-200 hover:bg-paper-deep"
+            >
+              <div className="mb-3.5 flex items-baseline gap-2.5">
+                <span className="font-mono text-[10.5px] tracking-[0.08em] text-amber">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <h3 className="m-0 font-serif text-[18px] font-semibold tracking-[-0.01em] text-ink">
+                  {g.label}
+                </h3>
               </div>
+              <ul className="flex flex-col gap-1.5">
+                {g.items.map((it) => (
+                  <li
+                    key={it}
+                    className="py-0.5 font-mono text-[12.5px] tracking-[0.02em] text-ink"
+                  >
+                    {it}
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
-        </div>
-
-        <div className="mt-8 pt-6 border-t border-[#1f1f1f] flex items-center gap-3">
-          <span className="text-amber-500/50 font-mono text-xs shrink-0">✦</span>
-          <p className="text-xs text-neutral-600 font-mono tracking-wide">
-            Certified Scrum Master (CSM) · Scrum Alliance · 2025
-          </p>
         </div>
       </div>
     </section>

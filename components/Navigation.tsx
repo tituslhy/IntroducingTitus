@@ -3,86 +3,111 @@
 import { useState, useEffect } from 'react'
 
 const NAV_ITEMS = [
-  { label: 'Home', href: '#home' },
-  { label: 'Experience', href: '#experience' },
-  { label: 'Projects', href: '#projects' },
-  { label: 'Writing', href: '#writing' },
-  { label: 'Contact', href: '#contact' },
+  { id: 'lede', label: 'About', folio: '01' },
+  { id: 'stack', label: 'Stack', folio: '02' },
+  { id: 'dossier', label: 'Experience', folio: '03' },
+  { id: 'projects', label: 'Projects', folio: '04' },
+  { id: 'writing', label: 'Writing', folio: '05' },
 ]
 
-export default function Navigation() {
-  const [isScrolled, setIsScrolled] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
+const EMAIL = 'tituslhy@gmail.com'
 
+export default function Navigation() {
+  const [active, setActive] = useState('masthead')
+  const [hidden, setHidden] = useState(false)
+
+  // Scroll-spy: underline the active section
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) setActive(e.target.id)
+        })
+      },
+      { rootMargin: '-40% 0px -55% 0px', threshold: 0 }
+    )
+    NAV_ITEMS.forEach((n) => {
+      const el = document.getElementById(n.id)
+      if (el) obs.observe(el)
+    })
+    return () => obs.disconnect()
   }, [])
+
+  // Hide on scroll-down, reveal on scroll-up, always visible in top 80px
+  useEffect(() => {
+    let lastY = window.scrollY
+    const onScroll = () => {
+      const y = window.scrollY
+      if (y < 80) setHidden(false)
+      else if (y > lastY + 4) setHidden(true)
+      else if (y < lastY - 4) setHidden(false)
+      lastY = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    const y = el.getBoundingClientRect().top + window.scrollY - 24
+    window.scrollTo({ top: y, behavior: 'smooth' })
+  }
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled
-          ? 'bg-[#0a0a0a]/95 backdrop-blur-sm border-b border-[#1f1f1f]'
-          : 'bg-transparent'
-      }`}
+      aria-label="Section navigation"
+      style={{ transform: hidden ? 'translateY(-110%)' : 'translateY(0)' }}
+      className="sticky top-0 z-50 border-b border-rule bg-[color-mix(in_oklch,var(--paper)_88%,transparent)] backdrop-blur-[10px] backdrop-saturate-[1.4] transition-transform duration-[240ms] ease-[cubic-bezier(.4,0,.2,1)]"
     >
-      <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-        <a
-          href="#home"
-          className="font-serif text-lg text-amber-400 hover:text-amber-300 transition-colors"
-          style={{ fontFamily: "'DM Serif Display', serif" }}
+      <div className="mx-auto grid h-14 max-w-[1280px] grid-cols-[auto_1fr_auto] items-center gap-6 px-[clamp(18px,4vw,56px)]">
+        {/* Brand → back to top */}
+        <button
+          type="button"
+          onClick={() => scrollTo('masthead')}
+          aria-label="Back to top"
+          className="flex items-baseline gap-2.5"
         >
-          TL
-        </a>
+          <span className="font-serif text-[22px] font-semibold italic tracking-[-0.01em] text-ink">
+            T<span className="mx-0.5 not-italic text-amber">·</span>L
+          </span>
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-soft max-[720px]:hidden">
+            Titus Lim · Personal site
+          </span>
+        </button>
 
-        {/* Desktop nav */}
-        <ul className="hidden md:flex items-center gap-8">
-          {NAV_ITEMS.map((item) => (
-            <li key={item.label}>
-              <a
-                href={item.href}
-                className="text-sm text-neutral-400 hover:text-amber-400 transition-colors tracking-wide"
-              >
-                {item.label}
-              </a>
-            </li>
-          ))}
+        {/* Anchor list with folios + scroll-spy underline */}
+        <ul className="flex flex-nowrap justify-start gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[1080px]:justify-center">
+          {NAV_ITEMS.map((n) => {
+            const isActive = active === n.id
+            return (
+              <li key={n.id}>
+                <button
+                  type="button"
+                  onClick={() => scrollTo(n.id)}
+                  aria-current={isActive ? 'true' : undefined}
+                  className={`relative inline-flex items-baseline gap-1.5 px-3 py-2 font-mono text-[12px] tracking-[0.04em] transition-colors duration-150 ${
+                    isActive ? 'text-ink' : 'text-ink-soft hover:text-ink'
+                  }`}
+                >
+                  <span className="text-[10px] text-ink-faint max-[720px]:hidden">{n.folio}</span>
+                  <span>{n.label}</span>
+                  {isActive && <span className="absolute inset-x-3 bottom-0.5 h-0.5 bg-amber" />}
+                </button>
+              </li>
+            )
+          })}
         </ul>
 
-        {/* Mobile hamburger */}
-        <button
-          className="md:hidden flex flex-col gap-1.5 p-1"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label="Toggle menu"
-          aria-expanded={menuOpen}
-          aria-controls="mobile-menu"
+        {/* Get in touch CTA */}
+        <a
+          href={`mailto:${EMAIL}?subject=Resume Request`}
+          className="inline-flex items-center gap-2 whitespace-nowrap border border-ink px-3.5 py-[7px] font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink transition-colors duration-150 hover:bg-ink hover:text-paper"
         >
-          <span className={`block w-5 h-0.5 bg-neutral-400 transition-all ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
-          <span className={`block w-5 h-0.5 bg-neutral-400 transition-all ${menuOpen ? 'opacity-0' : ''}`} />
-          <span className={`block w-5 h-0.5 bg-neutral-400 transition-all ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
-        </button>
+          <span className="h-1.5 w-1.5 rounded-full bg-amber shadow-[0_0_0_3px_color-mix(in_oklch,var(--amber)_30%,transparent)]" />
+          <span className="max-[720px]:hidden">Get in touch</span>
+        </a>
       </div>
-
-      {/* Mobile menu */}
-      {menuOpen && (
-        <div id="mobile-menu" className="md:hidden bg-[#111111] border-b border-[#1f1f1f] px-6 pb-4">
-          <ul className="flex flex-col gap-4 pt-2">
-            {NAV_ITEMS.map((item) => (
-              <li key={item.label}>
-                <a
-                  href={item.href}
-                  className="block text-sm text-neutral-400 hover:text-amber-400 transition-colors py-1"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {item.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </nav>
   )
 }

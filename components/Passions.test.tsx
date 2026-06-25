@@ -2,91 +2,101 @@ import { render, screen } from "@testing-library/react";
 import Passions from "./Passions";
 
 describe("Passions", () => {
-  it("should render section with passions id", () => {
-    // Arrange
+  it("should render aside element", () => {
     const { container } = render(<Passions />);
-
-    // Act
-    const section = container.querySelector("section#passions");
-
-    // Assert
-    expect(section).toBeInTheDocument();
+    const aside = container.querySelector("aside");
+    expect(aside).toBeInTheDocument();
   });
 
-  it("should render section heading and supporting copy", () => {
-    // Arrange
+  it("should render section heading 'What drives me'", () => {
     render(<Passions />);
-
-    // Act
-    const heading = screen.getByRole("heading", { name: /what drives me/i });
-    const subtitle = screen.getByText(/beyond the job description/i);
-
-    // Assert
+    const heading = screen.getByText(/what drives me/i);
     expect(heading).toBeInTheDocument();
-    expect(subtitle).toBeInTheDocument();
   });
 
-  it("should render all passion cards with numbered labels", () => {
-    // Arrange
+  it("should render all passion cards with correct numbering", () => {
     render(<Passions />);
-
-    // Assert
-    expect(screen.getByText("01")).toBeInTheDocument();
-    expect(screen.getByText("02")).toBeInTheDocument();
-    expect(screen.getByText("03")).toBeInTheDocument();
-    expect(screen.getByText("04")).toBeInTheDocument();
+    expect(screen.getByText("i.")).toBeInTheDocument();
+    expect(screen.getByText("ii.")).toBeInTheDocument();
+    expect(screen.getByText("iii.")).toBeInTheDocument();
+    expect(screen.getByText("iv.")).toBeInTheDocument();
   });
 
-  it("should render all passion text content", () => {
-    // Arrange
+  it("should render first passion about production AI", () => {
     render(<Passions />);
-
-    // Assert
-    expect(screen.getByText(/shipping production ai that solves real problems/i)).toBeInTheDocument();
-    expect(screen.getByText(/writing technical content that explains complex systems/i)).toBeInTheDocument();
-    expect(screen.getByText(/open-source contributions to the frameworks/i)).toBeInTheDocument();
-    expect(screen.getByText(/closing the gap between ai research and engineering reality/i)).toBeInTheDocument();
+    const title = screen.getByRole("heading", { name: /production ai under real constraints/i });
+    expect(title).toBeInTheDocument();
+    expect(screen.getByText(/the interesting work begins after the demo/i)).toBeInTheDocument();
   });
 
-  it("should never render family content under any condition", () => {
-    // Arrange
+  it("should render second passion about writing", () => {
     render(<Passions />);
+    const title = screen.getByRole("heading", { name: /writing as external memory/i });
+    expect(title).toBeInTheDocument();
+    expect(screen.getByText(/fifty articles because future-me will forget/i)).toBeInTheDocument();
+  });
 
-    // Assert
+  it("should render third passion about open source", () => {
+    render(<Passions />);
+    const title = screen.getByRole("heading", { name: /open source as paying rent/i });
+    expect(title).toBeInTheDocument();
+    expect(screen.getByText(/contributions to LlamaIndex, Unsloth, IBM ACP, Chainlit, Giskard/i)).toBeInTheDocument();
+  });
+
+  it("should render fourth passion about AI legibility", () => {
+    render(<Passions />);
+    const title = screen.getByRole("heading", { name: /making ai legible to the people/i });
+    expect(title).toBeInTheDocument();
+    expect(screen.getByText(/most ai projects die in the gap between what the system can do/i)).toBeInTheDocument();
+  });
+
+  it("should render exactly 4 passion list items", () => {
+    const { container } = render(<Passions />);
+    const listItems = container.querySelectorAll("ol li");
+    expect(listItems).toHaveLength(4);
+  });
+
+  it("should render passion numbers in amber color", () => {
+    const { container } = render(<Passions />);
+    const numbers = container.querySelectorAll("span.text-amber");
+    expect(numbers.length).toBeGreaterThan(0);
+  });
+
+  it("should not render family content", () => {
+    render(<Passions />);
     expect(screen.queryByText(/wife|daughter|family|kids|children/i)).not.toBeInTheDocument();
   });
 
-  it("should use proper styling for passion numbers", () => {
-    // Arrange
-    render(<Passions />);
-
-    // Act
-    const numberOne = screen.getByText("01");
-
-    // Assert
-    expect(numberOne).toHaveStyle("color: #F59E0B");
+  it("should render passions in ordered list", () => {
+    const { container } = render(<Passions />);
+    const orderedList = container.querySelector("ol");
+    expect(orderedList).toBeInTheDocument();
   });
 
-  it("should render passion cards in a grid layout", () => {
-    // Arrange
+  it("should have grid layout with 38px span for numbers", () => {
     const { container } = render(<Passions />);
-
-    // Act
-    const grid = container.querySelector(".grid");
-
-    // Assert
-    expect(grid).toHaveClass("grid-cols-1");
-    expect(grid).toHaveClass("md:grid-cols-2");
+    const listItems = container.querySelectorAll("li");
+    listItems.forEach(item => {
+      expect(item).toHaveClass("grid");
+      expect(item).toHaveClass("grid-cols-[38px_1fr]");
+    });
   });
 
-  it("should render exactly 4 passion items", () => {
-    // Arrange
+  it("should render passion titles as h3 headings", () => {
     const { container } = render(<Passions />);
+    const headings = container.querySelectorAll("h3");
+    expect(headings.length).toBe(4);
+  });
 
-    // Act
-    const cards = container.querySelectorAll(".grid > div");
-
-    // Assert
-    expect(cards.length).toBe(4);
+  it("should apply border styling to passion items", () => {
+    const { container } = render(<Passions />);
+    const listItems = container.querySelectorAll("li");
+    listItems.forEach((item, index) => {
+      expect(item).toHaveClass("border-t");
+      expect(item).toHaveClass("border-rule");
+      if (index === 0) {
+        expect(item).toHaveClass("first:border-t-0");
+      }
+    });
   });
 });

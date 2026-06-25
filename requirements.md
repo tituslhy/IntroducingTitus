@@ -34,21 +34,26 @@ const nextConfig = {
 
 ## 3. Design Specification
 
+> **Source of truth:** `design_handoff_personal_site/README.md` (Editorial Redesign)
+> supersedes this section where they conflict. The spec below is updated to match.
+
 ### Visual Direction
-- **Mode:** Dark mode only. No toggle.
-- **Aesthetic:** Technical confidence. Typography-forward. Clean grid with deliberate accent moments.
-- **NOT:** Purple gradients. Generic SaaS look. Particle backgrounds. Overused fonts (Inter, Roboto, Space Grotesk).
-- **Font pairing:** DM Serif Display (headings/name) + IBM Plex Mono (body/code/tags)
-- **Accent color:** Warm amber (`#F59E0B` range). Decided. Committed. Non-negotiable.
-- **Animation:** Subtle scroll-triggered reveals. No page transitions that make you wait. No autoplay anything.
-- **Layout:** Single-column with anchor nav. Desktop-first. Fully responsive.
-- **Headshot:** Profile photo in hero. File: `/public/headshot.jpeg`. Circular or slightly rounded with amber ring/glow.
-- **No stock photos. No illustrations.** Typography, headshot, and structure carry the weight.
+- **Mode:** Light (warm cream paper) by default. Optional dark toggle, OFF by default — skip for now.
+- **Aesthetic:** Editorial broadsheet — typography-forward, hairline rules, folios, drop-caps, pull quotes. Single muted amber accent. No rounded cards, no shadows on type, no glow.
+- **NOT:** Purple gradients. Generic SaaS look. Particle backgrounds. Overused fonts (Inter, Roboto, Space Grotesk). Glowing dark-terminal look.
+- **Font pairing:** Newsreader (headings/name — variable serif) + IBM Plex Mono (body/code/tags). DM Serif Display dropped.
+- **Accent color:** Aged amber `oklch(0.62 0.155 55)` (≈ `#b76a23`). Replaces `#F59E0B` everywhere.
+- **Second accent:** Indigo `oklch(0.34 0.10 254)` — Illumina project only.
+- **Animation:** Subtle scroll-triggered reveals. Sticky year rail. Quiet looping micro-motion (pulse-dot, coffee steam, typing dots), all behind `prefers-reduced-motion`. No page transitions that make you wait. No particle backgrounds.
+- **Layout:** Single long-scroll column with sticky anchor nav. Desktop-first. Fully responsive.
+- **Headshot:** Profile photo in masthead. File: `/public/headshot.jpeg`. Rectangular 3:4, 1px ink border, `object-position: 50% 30%`, subtle saturate/contrast filter. No circle crop, no amber ring/glow.
+- **No stock photos. No illustrations. No brand/tech logos.** Typography, headshot, and hairline structure carry the weight.
 
 ### Navigation
-- Fixed top nav with anchor links
-- Nav items: Home | Experience | Projects | Writing | Contact
-- On mobile: hamburger menu
+- Sticky top nav with anchor links + scroll-spy (active item underlined amber) and scroll-hide
+- Nav items: About | Stack | Experience | Projects | Writing, plus a "Get in touch" CTA
+- Folio numbers prefix each item (e.g. "01 About"); brand "T·L" scrolls to top
+- On mobile: horizontal scroll list
 
 ---
 
@@ -56,8 +61,8 @@ const nextConfig = {
 
 ### Page 1 — Home (Cover + About)
 
-#### Hero Section
-- Headshot: `/public/headshot.jpeg`
+#### Hero / Masthead Section
+- Headshot: `/public/headshot.jpeg` — rectangular 3:4, 1px ink border, no ring/glow
 - Name: **Lim Hsien Yong (Titus)**
 - Tagline: **"I build AI systems — from architecture to the boardroom."**
 - Sub-tagline: *8+ years building production AI. 50 technical articles. Solo from zero to production.*
@@ -201,13 +206,15 @@ Tags: LlamaIndex, Qdrant, AWS Bedrock, Docker+CUDA, Grafana, SonarQube
 A floating "Ask me anything" chat bubble fixed to the bottom-right of every page.
 
 #### UI Behaviour
-- Amber circular button, fixed bottom-right, all pages
-- Click → chat panel slides up/expands
-- Header: "Ask me anything about my work"
-- Input placeholder: "Ask about my experience, projects, or writing..."
-- Typing indicator (animated dots) while awaiting response
-- Close button on panel
+- Editorial "Ask Titus" FAB (ink pill), fixed bottom-right, all pages
+- Click → drawer opens upward (translateY/scale, ~220ms)
+- Header: "Ask **Titus**" with label "Powered by GPT-4o mini"
+- Empty state: 4 starter prompts
+- Input placeholder: "Ask about my work…"
+- Typing indicator (3 amber dots) while awaiting response
+- Close button on drawer
 - Session-only memory via `useState` — no persistence, no DB
+- Markdown rendered via `react-markdown`, restyled editorial (serif, amber `<a>`)
 - Mobile responsive
 
 #### API Architecture
@@ -225,10 +232,11 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 - **System prompt:** See `copilot-system-prompt.md`
 
 #### Scope Enforcement (via system prompt)
+- **Voice:** First-person ("I built…", not "Titus built…"). Dry, precise, lightly warm. No emoji, no exclamation points. Two short paragraphs max unless asked.
 - Answer ONLY about Titus's work, experience, projects, skills, writing
-- Unknown answers → "I don't have that information — feel free to email Titus at tituslhy@gmail.com"
+- Unknown answers → "I don't have that on file — feel free to write to me directly at tituslhy@gmail.com"
 - Never fabricate skills or experience not in context
-- Off-topic questions → politely redirect to Titus's work
+- Off-topic questions → politely redirect to my work
 - Salary / availability / personal → redirect to email
 
 ---
@@ -270,8 +278,14 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 ---
 
 ## 9. Resolved Decisions
-- [x] Accent color: **Warm amber** (`#F59E0B`)
-- [x] Font pairing: **DM Serif Display + IBM Plex Mono**
+- [x] Design source of truth: **`design_handoff_personal_site/README.md`** (Editorial Redesign) — supersedes prior visual rules
+- [x] Mode: **Light (warm cream paper) default**; dark toggle optional, skipped for now
+- [x] Accent color: **aged amber** `oklch(0.62 0.155 55)` (≈ `#b76a23`), replacing `#F59E0B`
+- [x] Second accent: **indigo** `oklch(0.34 0.10 254)` — Illumina project only
+- [x] Font pairing: **Newsreader + IBM Plex Mono** (DM Serif Display dropped)
+- [x] Headshot: **rectangular 3:4, 1px ink border** (no circle/ring)
+- [x] Nav: **About | Stack | Experience | Projects | Writing + Get in touch CTA**
+- [x] Copilot: **"Powered by GPT-4o mini" label, first-person voice** (backend `/api/chat` unchanged)
 - [x] Featured Medium articles: **6 hardcoded**
 - [x] Copilot: **Phase 2, now in scope**
 - [x] Deployment: **Vercel** (migrated from GitHub Pages)

@@ -1,55 +1,48 @@
 const PASSIONS = [
   {
-    number: '01',
-    text: 'Shipping production AI that solves real problems for real people',
+    n: 'i.',
+    title: 'Production AI under real constraints',
+    body: 'The interesting work begins after the demo. Latency budgets, observability, blue-green vector swaps, prompt-injection defence — the unglamorous half of the job.',
   },
   {
-    number: '02',
-    text: 'Writing technical content that explains complex systems to humans',
+    n: 'ii.',
+    title: 'Writing as external memory',
+    body: 'Fifty articles because future-me will forget. The community reading them is a side effect I’m happy about.',
   },
   {
-    number: '03',
-    text: 'Open-source contributions to the frameworks I use',
+    n: 'iii.',
+    title: 'Open source as paying rent',
+    body: 'Contributions to LlamaIndex, Unsloth, IBM ACP, Chainlit, Giskard. Use a framework long enough and you find the bug. File the issue. Send the PR.',
   },
   {
-    number: '04',
-    text: 'Closing the gap between AI research and engineering reality',
+    n: 'iv.',
+    title: 'Making AI legible to the people',
+    body: 'Most AI projects die in the gap between what the system can do and what the organisation believes it can do. I’ve spent as much time on that gap as on the code.',
   },
 ]
 
 export default function Passions() {
   return (
-    <section id="passions" className="py-12 px-6 border-t border-[#1f1f1f]">
-      <div className="max-w-5xl mx-auto">
-        <h2
-          className="text-3xl md:text-4xl text-neutral-100 mb-2"
-          style={{ fontFamily: "'DM Serif Display', serif" }}
-        >
-          What Drives Me
-        </h2>
-        <p className="text-sm text-neutral-500 mb-8 tracking-wide">
-          Beyond the job description
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {PASSIONS.map((passion) => (
-            <div
-              key={passion.number}
-              className="p-6 border border-[#1f1f1f] bg-[#111111] hover:border-[#F59E0B]/30 transition-all duration-300 group"
-            >
-              <span
-                className="block text-xs mb-4 transition-colors group-hover:text-amber-400"
-                style={{ color: '#F59E0B', fontFamily: "'IBM Plex Mono', monospace" }}
-              >
-                {passion.number}
-              </span>
-              <p className="text-neutral-300 leading-relaxed group-hover:text-neutral-100 transition-colors">
-                {passion.text}
-              </p>
+    <aside className="border-t border-ink pt-[18px]">
+      <p className="mb-[18px] font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
+        What drives me
+      </p>
+      <ol className="flex flex-col gap-3.5">
+        {PASSIONS.map((p) => (
+          <li
+            key={p.n}
+            className="grid grid-cols-[38px_1fr] gap-3 border-t border-rule py-3.5 first:border-t-0 first:pt-0"
+          >
+            <span className="font-serif text-[18px] italic text-amber">{p.n}</span>
+            <div>
+              <h3 className="mb-1 font-serif text-[17px] font-semibold leading-[1.3] text-ink">
+                {p.title}
+              </h3>
+              <p className="text-[14.5px] leading-[1.5] text-ink-soft">{p.body}</p>
             </div>
-          ))}
-        </div>
-      </div>
-    </section>
+          </li>
+        ))}
+      </ol>
+    </aside>
   )
 }
