@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       const rt = new RunTree({
         name: "copilot-chat",
         run_type: "chain",
-        inputs: { messages: trimmedMessages },
+        inputs: { messages: input },
         client: lsClient,
       });
       await rt.postRun();
