@@ -13,22 +13,19 @@ type RevealProps = {
 
 export default function Reveal({ children, variant = 'rise', className = '' }: RevealProps) {
   const ref = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(false)
+  // Respect reduced-motion and degrade gracefully where IntersectionObserver is
+  // unavailable by computing the initial visibility synchronously, rather than
+  // setting state from an effect on mount.
+  const [visible, setVisible] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const prefersReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    return Boolean(prefersReduced) || typeof IntersectionObserver === 'undefined'
+  })
 
   useEffect(() => {
+    if (visible) return
     const node = ref.current
     if (!node) return
-
-    // Respect reduced-motion and degrade gracefully where IntersectionObserver
-    // is unavailable: show the content immediately, no animation.
-    const prefersReduced =
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-
-    if (prefersReduced || typeof IntersectionObserver === 'undefined') {
-      setVisible(true)
-      return
-    }
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -43,7 +40,7 @@ export default function Reveal({ children, variant = 'rise', className = '' }: R
 
     observer.observe(node)
     return () => observer.disconnect()
-  }, [])
+  }, [visible])
 
   const base = variant === 'fade' ? 'reveal-soft' : 'reveal'
   const classes = [base, visible ? 'is-visible' : '', className].filter(Boolean).join(' ')

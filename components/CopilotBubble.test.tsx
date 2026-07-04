@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TextEncoder, TextDecoder } from "util";
 import CopilotBubble from "./CopilotBubble";
@@ -50,7 +50,7 @@ describe("CopilotBubble", () => {
     global.fetch = jest.fn();
     global.crypto = {
       randomUUID: jest.fn(() => "test-id-" + Math.random().toString(36).substr(2, 9)),
-    } as any;
+    } as unknown as Crypto;
 
     // Mock clipboard
     const clipboardMock = {
@@ -90,20 +90,20 @@ describe("CopilotBubble", () => {
     expect(screen.getByText(/personal assistant/i)).toBeInTheDocument();
   });
 
-  it("should close chat panel when close button is clicked", async () => {
+  it("should close chat panel when FAB is clicked again while open", async () => {
     // Arrange
     const user = userEvent.setup();
     render(<CopilotBubble />);
-    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    const fab = screen.getByRole("button", { name: /open ask titus/i });
 
-    // Act
-    // Find the header close button (first one that appears when drawer is open)
-    const closeButtons = screen.getAllByRole("button", { name: /close chat/i });
-    const headerCloseButton = closeButtons[0]; // The header close button
-    await user.click(headerCloseButton);
+    // Open the drawer
+    await user.click(fab);
+    expect(fab).toHaveAttribute("aria-expanded", "true");
+
+    // Act - click FAB again to close
+    await user.click(fab);
 
     // Assert
-    const fab = screen.getByRole("button", { name: /open ask titus/i });
     expect(fab).toHaveAttribute("aria-expanded", "false");
   });
 
@@ -114,22 +114,23 @@ describe("CopilotBubble", () => {
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
 
     // Assert
-    expect(screen.getByText(/do you think titus is a good software engineer/i)).toBeInTheDocument();
-    expect(screen.getByText(/what did titus do at illumina/i)).toBeInTheDocument();
-    expect(screen.getByText(/did titus write any article on long-term memory/i)).toBeInTheDocument();
+    expect(screen.getByText(/what did you build at illumina/i)).toBeInTheDocument();
+    expect(screen.getByText(/what trade-offs shaped fictional-bassoon/i)).toBeInTheDocument();
+    expect(screen.getByText(/which article should i read first/i)).toBeInTheDocument();
+    expect(screen.getByText(/when do you use multi-agent frameworks/i)).toBeInTheDocument();
   });
 
   it("should send starter prompt when clicked", async () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["Great question"])
+      createStreamingResponse([`{"type":"delta","text":"Great question"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
 
     // Act
-    const starterPrompt = screen.getByText(/do you think titus is a good software engineer/i);
+    const starterPrompt = screen.getByText(/what did you build at illumina/i);
     await user.click(starterPrompt);
 
     // Assert
@@ -142,7 +143,7 @@ describe("CopilotBubble", () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["Response"])
+      createStreamingResponse([`{"type":"delta","text":"Response"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -153,7 +154,7 @@ describe("CopilotBubble", () => {
 
     // Assert
     await waitFor(() => {
-      expect(screen.queryByText(/do you think titus is a good software engineer/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/what did you build at illumina/i)).not.toBeInTheDocument();
     });
   });
 
@@ -162,7 +163,7 @@ describe("CopilotBubble", () => {
     const user = userEvent.setup();
     let resolveResponse: () => void;
     const responsePromise = new Promise<Response>((resolve) => {
-      resolveResponse = () => resolve(createStreamingResponse(["Response"]));
+      resolveResponse = () => resolve(createStreamingResponse([`{"type":"delta","text":"Response"}\n`]));
     });
     (global.fetch as jest.Mock).mockReturnValue(responsePromise);
     render(<CopilotBubble />);
@@ -190,7 +191,10 @@ describe("CopilotBubble", () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["Titus has ", "10+ years of AI experience."])
+      createStreamingResponse([
+        `{"type":"delta","text":"Titus has "}\n`,
+        `{"type":"delta","text":"10+ years of AI experience."}\n`,
+      ])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -216,7 +220,7 @@ describe("CopilotBubble", () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["Assistant response"])
+      createStreamingResponse([`{"type":"delta","text":"Assistant response"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -236,7 +240,7 @@ describe("CopilotBubble", () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["Response"])
+      createStreamingResponse([`{"type":"delta","text":"Response"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -267,7 +271,7 @@ describe("CopilotBubble", () => {
     const user = userEvent.setup();
     let resolveResponse: () => void;
     const responsePromise = new Promise<Response>((resolve) => {
-      resolveResponse = () => resolve(createStreamingResponse(["Response"]));
+      resolveResponse = () => resolve(createStreamingResponse([`{"type":"delta","text":"Response"}\n`]));
     });
     (global.fetch as jest.Mock).mockReturnValue(responsePromise);
     render(<CopilotBubble />);
@@ -291,11 +295,11 @@ describe("CopilotBubble", () => {
     });
   });
 
-  it("should show rate-limit error message when api returns ERR_RATE_LIMIT", async () => {
+  it("should show rate-limit error message when api returns ERR_RATE_LIMIT error event", async () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["__COPILOT_ERR__:ERR_RATE_LIMIT"])
+      createStreamingResponse([`{"type":"error","code":"ERR_RATE_LIMIT"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -312,11 +316,11 @@ describe("CopilotBubble", () => {
     });
   });
 
-  it("should show quota unavailable message when api returns ERR_QUOTA", async () => {
+  it("should show quota unavailable message when api returns ERR_QUOTA error event", async () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["__COPILOT_ERR__:ERR_QUOTA"])
+      createStreamingResponse([`{"type":"error","code":"ERR_QUOTA"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -333,11 +337,11 @@ describe("CopilotBubble", () => {
     });
   });
 
-  it("should show misconfigured message when api returns ERR_AUTH", async () => {
+  it("should show misconfigured message when api returns ERR_AUTH error event", async () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["__COPILOT_ERR__:ERR_AUTH"])
+      createStreamingResponse([`{"type":"error","code":"ERR_AUTH"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -354,11 +358,11 @@ describe("CopilotBubble", () => {
     });
   });
 
-  it("should show generic error message when api returns unknown error sentinel", async () => {
+  it("should show generic error message when api returns unknown error event", async () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["__COPILOT_ERR__:ERR_UNKNOWN"])
+      createStreamingResponse([`{"type":"error","code":"ERR_UNKNOWN"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -375,13 +379,14 @@ describe("CopilotBubble", () => {
     });
   });
 
-  it("should show error when fetch fails with non-ok status", async () => {
+  it("should show a friendly generic error when fetch fails with an unrecognized non-ok status", async () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: false,
       status: 500,
       body: null,
+      json: async () => ({}),
     });
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -390,9 +395,32 @@ describe("CopilotBubble", () => {
     const input = screen.getByPlaceholderText(/ask about my work/i);
     await user.type(input, "Hi{Enter}");
 
-    // Assert — should show HTTP error message
+    // Assert — a raw "HTTP 500" is never shown to the user; a friendly
+    // generic message with an email fallback is shown instead.
     await waitFor(() => {
-      expect(screen.getByText(/http 500/i)).toBeInTheDocument();
+      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+    });
+  });
+
+  it("should show a friendly retry-in-a-minute message when the API rate-limits the request", async () => {
+    // Arrange
+    const user = userEvent.setup();
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 429,
+      body: null,
+      json: async () => ({ error: "rate_limited", retryAfterSeconds: 42 }),
+    });
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+
+    // Act
+    const input = screen.getByPlaceholderText(/ask about my work/i);
+    await user.type(input, "Hi{Enter}");
+
+    // Assert
+    await waitFor(() => {
+      expect(screen.getByText(/try again in a minute/i)).toBeInTheDocument();
     });
   });
 
@@ -442,7 +470,7 @@ describe("CopilotBubble", () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["Response"])
+      createStreamingResponse([`{"type":"delta","text":"Response"}\n`])
     );
     render(<CopilotBubble />);
     const scrollIntoViewSpy = jest.spyOn(HTMLElement.prototype, "scrollIntoView");
@@ -462,7 +490,7 @@ describe("CopilotBubble", () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["Response"])
+      createStreamingResponse([`{"type":"delta","text":"Response"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -490,7 +518,7 @@ describe("CopilotBubble", () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["Response"])
+      createStreamingResponse([`{"type":"delta","text":"Response"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -524,7 +552,7 @@ describe("CopilotBubble", () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["Response"])
+      createStreamingResponse([`{"type":"delta","text":"Response"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -569,7 +597,7 @@ describe("CopilotBubble", () => {
       configurable: true,
     });
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["Response content"])
+      createStreamingResponse([`{"type":"delta","text":"Response content"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -597,7 +625,7 @@ describe("CopilotBubble", () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["Response content"])
+      createStreamingResponse([`{"type":"delta","text":"Response content"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -624,7 +652,7 @@ describe("CopilotBubble", () => {
 
     // Assert
     expect(
-      screen.getByText(/a small assistant trained on this page/i)
+      screen.getByText(/grounded in my public work and writing/i)
     ).toBeInTheDocument();
   });
 
@@ -632,7 +660,7 @@ describe("CopilotBubble", () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["Response"])
+      createStreamingResponse([`{"type":"delta","text":"Response"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -671,7 +699,7 @@ describe("CopilotBubble", () => {
     // Arrange
     const user = userEvent.setup();
     (global.fetch as jest.Mock).mockResolvedValue(
-      createStreamingResponse(["Response"])
+      createStreamingResponse([`{"type":"delta","text":"Response"}\n`])
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -685,6 +713,145 @@ describe("CopilotBubble", () => {
       const avatarImage = screen.getByAltText("Titus");
       expect(avatarImage).toBeInTheDocument();
       expect(avatarImage).toHaveAttribute("src", "/headshot.jpeg");
+    });
+  });
+
+  it("should have drawer with dialog role and aria-modal", async () => {
+    // Arrange
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+
+    // Act
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+
+    // Assert
+    const dialog = screen.getByRole("dialog", { name: /ask titus/i });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+  });
+
+  it("should close drawer when Escape key is pressed", async () => {
+    // Arrange
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    const fab = screen.getByRole("button", { name: /open ask titus/i });
+
+    // Act - open drawer
+    await user.click(fab);
+    expect(fab).toHaveAttribute("aria-expanded", "true");
+
+    // Act - press Escape on the input element within the drawer
+    const input = screen.getByPlaceholderText(/ask about my work/i);
+    await user.type(input, "{Escape}");
+
+    // Assert
+    expect(fab).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("should restore focus to FAB when drawer closes", async () => {
+    // Arrange
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    const fab = screen.getByRole("button", { name: /open ask titus/i });
+
+    // Act - open drawer
+    await user.click(fab);
+    expect(fab).toHaveAttribute("aria-expanded", "true");
+
+    // Act - close drawer
+    await user.click(fab);
+    expect(fab).toHaveAttribute("aria-expanded", "false");
+
+    // Assert - focus should return to FAB
+    expect(fab).toHaveFocus();
+  });
+
+  it("should display updated disclaimer text about chat history", async () => {
+    // Arrange
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+
+    // Assert
+    expect(
+      screen.getByText(/messages are sent to openai to generate a response\. this site does not save your chat history\./i)
+    ).toBeInTheDocument();
+  });
+
+  it("should have close button in drawer header that closes the drawer", async () => {
+    // Arrange
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    const fab = screen.getByRole("button", { name: /open ask titus/i });
+
+    // Act - open drawer
+    await user.click(fab);
+    expect(fab).toHaveAttribute("aria-expanded", "true");
+
+    // Assert - header close button should exist and be accessible
+    const header = screen.getByRole("banner", { hidden: true }) || screen.getByText(/ask titus/i).closest("header");
+    expect(header).toBeTruthy();
+
+    // Get the close button specifically within the header (not the FAB)
+    const allCloseButtons = screen.getAllByLabelText(/close chat/i);
+    expect(allCloseButtons.length).toBe(2); // FAB + header button
+
+    // Click the header close button (the second one, or use title="Close")
+    const headerCloseButton = allCloseButtons[1];
+    await user.click(headerCloseButton);
+
+    // Assert - drawer should be closed
+    expect(fab).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("should handle split error event across multiple read() chunks via buffer", async () => {
+    // This test verifies that an error event split across two network chunks
+    // is properly buffered and reconstructed on the client side.
+    // We simulate this by sending the first half of the error event in one chunk
+    // and the second half in another chunk.
+    const user = userEvent.setup();
+    const encoder = new TextEncoder();
+
+    // Simulate a rate limit error event split across chunks
+    const errorEvent = `{"type":"error","code":"ERR_RATE_LIMIT"}\n`;
+    const splitIndex = 20; // Split in the middle of the JSON
+
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: {
+        getReader: () => {
+          let index = 0;
+          const chunks = [
+            encoder.encode(errorEvent.slice(0, splitIndex)),
+            encoder.encode(errorEvent.slice(splitIndex)),
+          ];
+          return {
+            read: jest.fn(async () => {
+              if (index >= chunks.length) {
+                return { done: true, value: undefined };
+              }
+              const value = chunks[index];
+              index += 1;
+              return { done: false, value };
+            }),
+          };
+        },
+      },
+    } as unknown as Response);
+
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+
+    // Act
+    const input = screen.getByPlaceholderText(/ask about my work/i);
+    await user.type(input, "Hello{Enter}");
+
+    // Assert - the error should be properly handled despite being split
+    await waitFor(() => {
+      expect(
+        screen.getByText(/i'm getting a lot of questions right now/i)
+      ).toBeInTheDocument();
     });
   });
 });

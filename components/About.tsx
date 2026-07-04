@@ -1,4 +1,5 @@
 import Passions from '@/components/Passions'
+import { ARTICLE_COUNT_WORD } from '@/lib/content'
 
 export default function About() {
   return (
@@ -21,16 +22,16 @@ export default function About() {
           <div>
             <p className="mb-[18px] text-[19px] leading-[1.62] text-ink [text-wrap:pretty]">
               <span className="float-left pr-3.5 pt-2 font-serif text-[92px] font-medium italic leading-[0.82] text-amber">
-                T
+                M
               </span>
-              en years building AI systems in banking, biotech, and public sector.
-              The interesting problems aren’t just the AI models — they’re the
+              ore than eight years building AI systems in banking, biotech, and public
+              sector. The interesting problems aren’t just the AI models — they’re the
               latency budgets, the stakeholder who doesn’t trust a stochastic
               system, and the seam between research and production.
             </p>
             <p className="text-[19px] leading-[1.62] text-ink [text-wrap:pretty]">
-              I publish what I build. Fifty two articles, because if I can’t explain it
-              clearly, I don’t understand it yet.
+              I publish what I build. {ARTICLE_COUNT_WORD[0].toUpperCase() + ARTICLE_COUNT_WORD.slice(1)} articles,
+              because if I can’t explain it clearly, I don’t understand it yet.
             </p>
           </div>
 

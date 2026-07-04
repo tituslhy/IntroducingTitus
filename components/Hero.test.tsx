@@ -30,8 +30,8 @@ describe('Hero', () => {
 
   it('should render sub-tagline about production AI and articles', () => {
     render(<Hero />)
-    expect(screen.getByText(/eight years of production ai/i)).toBeInTheDocument()
-    expect(screen.getByText(/fifty published articles/i)).toBeInTheDocument()
+    expect(screen.getByText(/8\+ years of production ai/i)).toBeInTheDocument()
+    expect(screen.getByText(/50 technical articles/i)).toBeInTheDocument()
     expect(screen.getAllByText(/mastercard/i).length).toBeGreaterThan(0)
   })
 
@@ -131,8 +131,8 @@ describe('Hero', () => {
 
   it('should render three kicker lines with correct labels', () => {
     render(<Hero />)
-    expect(screen.getByText('Ten years')).toBeInTheDocument()
-    expect(screen.getByText('Fifty Two')).toBeInTheDocument()
+    expect(screen.getByText('8+ years')).toBeInTheDocument()
+    expect(screen.getByText('50 articles')).toBeInTheDocument()
     expect(screen.getByText('Currently')).toBeInTheDocument()
   })
 

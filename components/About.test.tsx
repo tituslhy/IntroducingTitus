@@ -32,16 +32,16 @@ describe("About", () => {
     expect(emElement).toHaveTextContent("work");
   });
 
-  it("should render drop cap letter T at start of body", () => {
+  it("should render drop cap letter M at start of body", () => {
     const { container } = render(<About />);
     const dropCap = container.querySelector("span.float-left");
     expect(dropCap).toBeInTheDocument();
-    expect(dropCap).toHaveTextContent("T");
+    expect(dropCap).toHaveTextContent("M");
   });
 
   it("should render main body text about experience", () => {
     render(<About />);
-    expect(screen.getByText(/en years building ai systems in banking, biotech, and public sector/i)).toBeInTheDocument();
+    expect(screen.getByText(/ore than eight years building ai systems in banking, biotech, and public sector/i)).toBeInTheDocument();
   });
 
   it("should render text about interesting problems", () => {
@@ -64,9 +64,11 @@ describe("About", () => {
     expect(screen.getByText(/i publish what i build/i)).toBeInTheDocument();
   });
 
-  it("should render text about fifty two articles", () => {
+  it("should render text about fifty articles", () => {
     render(<About />);
-    expect(screen.getByText(/fifty two articles/i)).toBeInTheDocument();
+    // Use getAllByText since "fifty articles" appears multiple times, then check length > 0
+    const fiftyArticlesElements = screen.getAllByText(/fifty articles/i);
+    expect(fiftyArticlesElements.length).toBeGreaterThan(0);
   });
 
   it("should render text about understanding concepts", () => {

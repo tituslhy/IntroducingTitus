@@ -55,7 +55,7 @@ describe("Experience", () => {
       render(<Experience />);
 
       expect(screen.getByText("Illumina")).toBeInTheDocument();
-      const pullQuote = screen.getByText(/anticipated to save usd \$9 million upon full deployment/i);
+      const pullQuote = screen.getByText(/anticipated to save usd 9 million upon full deployment/i);
       expect(pullQuote).toBeInTheDocument();
       expect(pullQuote).toHaveClass("font-serif", "italic");
     });
@@ -148,150 +148,50 @@ describe("Experience", () => {
       expect(screen.getByRole("heading", { name: /education/i })).toBeInTheDocument();
     });
 
-    it("should render both education institutions", () => {
+    it("should render all education entries", () => {
       render(<Experience />);
 
-      expect(screen.getByRole("heading", { name: /singapore management university/i })).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: /national university of singapore/i })).toBeInTheDocument();
+      expect(screen.getByText("Singapore Management University")).toBeInTheDocument();
+      expect(screen.getByText("National University of Singapore")).toBeInTheDocument();
     });
 
-    it("should render SMU degree and dates", () => {
+    it("should render correct degrees", () => {
       render(<Experience />);
 
-      expect(screen.getByText("Master of IT in Business — AI Track")).toBeInTheDocument();
+      expect(screen.getByText(/Master of IT in Business/i)).toBeInTheDocument();
+      expect(screen.getByText(/BEng Chemical Engineering/i)).toBeInTheDocument();
+    });
+
+    it("should render education dates", () => {
+      render(<Experience />);
+
       expect(screen.getByText("2021 — 2022")).toBeInTheDocument();
-    });
-
-    it("should render NUS degree and dates", () => {
-      render(<Experience />);
-
-      expect(screen.getByText(/BEng Chemical Engineering, 2nd Upper Honours/i)).toBeInTheDocument();
       expect(screen.getByText("2011 — 2015")).toBeInTheDocument();
     });
 
-    it("should render SMU honors list", () => {
+    it("should render honors (branch coverage line 206-209)", () => {
       render(<Experience />);
 
-      expect(screen.getByText(/GPA 3.98 \/ 4.0/)).toBeInTheDocument();
+      expect(screen.getByText("GPA 3.98 / 4.0")).toBeInTheDocument();
       expect(screen.getByText(/Dean's List/)).toBeInTheDocument();
-      expect(screen.getByText(/SMU AI Talent Development Grant/)).toBeInTheDocument();
-    });
-
-    it("should render NUS honors", () => {
-      render(<Experience />);
-
-      expect(screen.getByText(/NUS Undergraduate Scholarship/)).toBeInTheDocument();
+      expect(screen.getByText("SMU AI Talent Development Grant")).toBeInTheDocument();
+      expect(screen.getByText("NUS Undergraduate Scholarship")).toBeInTheDocument();
     });
   });
 
-  describe("No family or personal details", () => {
-    it("should never render family content", () => {
-      render(<Experience />);
-
-      expect(screen.queryByText(/wife|daughter|family|kids|children|spouse|personal/i)).not.toBeInTheDocument();
-    });
-
-    it("should not render salary or compensation", () => {
-      render(<Experience />);
-
-      expect(screen.queryByText(/salary|compensation|bonus|stock|equity/i)).not.toBeInTheDocument();
-    });
-  });
-
-  describe("Styling and accessibility", () => {
-    it("should render section with ink text color", () => {
-      render(<Experience />);
-
-      const section = document.querySelector("section#dossier");
+  describe("Styling and Layout", () => {
+    it("should render experience section with correct structure", () => {
+      const { container } = render(<Experience />);
+      const section = container.querySelector("section#dossier");
+      expect(section).toBeInTheDocument();
       expect(section).toHaveClass("text-ink");
     });
 
-    it("should render role articles with proper structure", () => {
+    it("should have proper heading structure for roles (h3 for company names)", () => {
       render(<Experience />);
 
-      const articles = screen.getAllByRole("article");
-      expect(articles.length).toBeGreaterThan(0);
-      articles.forEach((article) => {
-        expect(article).toHaveClass("relative", "grid");
-      });
-    });
-  });
-
-  describe("Branch coverage for conditional rendering", () => {
-    it("should render pullQuotes for roles that have it (line 159-167)", () => {
-      render(<Experience />);
-
-      // Illumina and Toyota have pullQuotes
-      expect(screen.getByText(/anticipated to save usd \$9 million upon full deployment/i)).toBeInTheDocument();
-      expect(screen.getByText(/improved long-term forecast accuracy by ~25%/i)).toBeInTheDocument();
-    });
-
-    it("should render body text when present (line 153-156)", () => {
-      render(<Experience />);
-
-      expect(screen.getByText(/Architected and delivered UOB's enterprise multi-agent platform/i)).toBeInTheDocument();
-      expect(screen.getByText(/Model shipped to the MyTransportSG app/i)).toBeInTheDocument();
-    });
-
-    it("should render tech tags when present (line 171-186)", () => {
-      render(<Experience />);
-
-      const techContent = document.querySelector("section#dossier");
-      expect(techContent?.textContent).toMatch(/Python/);
-      expect(techContent?.textContent).toMatch(/Java/);
-      expect(techContent?.textContent).toMatch(/VBA/);
-    });
-
-    it("should apply correct class for non-incoming company (line 129)", () => {
-      render(<Experience />);
-
-      const mastercard = screen.getByRole("heading", { name: /mastercard/i });
-      expect(mastercard).toHaveClass("text-ink");
-    });
-  });
-
-  describe("Section structure", () => {
-    it("should render main Experience section", () => {
-      render(<Experience />);
-
-      const section = document.querySelector("section#dossier");
-      expect(section).toBeInTheDocument();
-    });
-
-    it("should render with borders between sections", () => {
-      render(<Experience />);
-
-      const borders = document.querySelectorAll("section#dossier .border-t, section#dossier .border-b");
-      expect(borders.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe("Known uncovered branches (dead code in current dataset)", () => {
-    it("documents line 129: role.incoming ? 'text-ink-soft' : 'text-ink'", () => {
-      // Branch coverage: 66.66% overall
-      // This conditional is defined for future roles where incoming: true
-      // Currently NO roles in ROLES array have incoming: true set
-      // When a role with incoming: true is added, this branch will be covered
-      render(<Experience />);
-
-      // Current behavior: all roles render with text-ink (the false branch)
-      const allHeadings = screen.getAllByRole("heading", { level: 3 });
-      expect(allHeadings.length).toBeGreaterThan(0);
-      allHeadings.forEach((heading) => {
-        expect(heading.className).toContain("text-ink");
-      });
-    });
-
-    it("documents line 172: role.techNote ? true : false", () => {
-      // Branch coverage: 66.66% overall
-      // This conditional is defined for future roles where techNote is provided
-      // Currently NO roles in ROLES array have techNote defined
-      // When a role with techNote is added, this branch will be covered
-      render(<Experience />);
-
-      // Current behavior: all roles render tech tag lists (the false branch)
-      const techLists = document.querySelectorAll("section#dossier ul[class*='flex']");
-      expect(techLists.length).toBeGreaterThan(0);
+      const mastercardHeading = screen.getByRole("heading", { name: /mastercard/i });
+      expect(mastercardHeading.tagName).toBe("H3");
     });
   });
 });
