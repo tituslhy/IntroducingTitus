@@ -1,19 +1,65 @@
 import type { Metadata } from 'next'
+import localFont from 'next/font/local'
 import './globals.css'
 import CopilotBubble from '@/components/CopilotBubble'
+import { SITE_DESCRIPTION, SITE_URL } from '@/lib/content'
+
+// Self-hosted (not next/font/google): a font-fetch failure would otherwise be
+// a build-time or first-paint dependency on Google's servers, and typography
+// carries this site's entire design. Files in public/fonts are the Google
+// Fonts `latin`-subset WOFF2s for Newsreader (variable, upright + italic,
+// full weight range) and IBM Plex Mono (400/500/600) — the same families,
+// weights, and styles the original Google Fonts `<link>` requested.
+const newsreader = localFont({
+  src: [
+    { path: '../public/fonts/newsreader-normal-variable.woff2', style: 'normal', weight: '200 800' },
+    { path: '../public/fonts/newsreader-italic-variable.woff2', style: 'italic', weight: '200 800' },
+  ],
+  variable: '--font-newsreader',
+  display: 'swap',
+})
+
+// IBM Plex Mono is used for tags, labels, and folios at 400/500/600 (see
+// `font-normal` / `font-medium` / `font-semibold` usage on font-mono text).
+const ibmPlexMono = localFont({
+  src: [
+    { path: '../public/fonts/ibm-plex-mono-400.woff2', weight: '400', style: 'normal' },
+    { path: '../public/fonts/ibm-plex-mono-500.woff2', weight: '500', style: 'normal' },
+    { path: '../public/fonts/ibm-plex-mono-600.woff2', weight: '600', style: 'normal' },
+  ],
+  variable: '--font-ibm-plex-mono',
+  display: 'swap',
+})
+
+const TITLE = 'Titus Lim | GenAI Engineer & Architect'
 
 export const metadata: Metadata = {
-  title: 'Titus Lim | GenAI Engineer & Architect',
-  description: 'GenAI engineer and architect with 8+ years building production AI systems. 50 technical articles. Open source contributor.',
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: SITE_DESCRIPTION,
   openGraph: {
-    title: 'Titus Lim | GenAI Engineer & Architect',
-    description: 'GenAI engineer and architect with 8+ years building production AI systems. 50 technical articles. Open source contributor.',
-    url: 'https://introducing-titus.vercel.app',
+    title: TITLE,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
     siteName: 'Titus Lim',
     type: 'website',
+    images: [
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'Lim Hsien Yong (Titus) — I build AI systems, from architecture to the boardroom.',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: TITLE,
+    description: SITE_DESCRIPTION,
+    images: ['/opengraph-image'],
   },
   alternates: {
-    canonical: 'https://introducing-titus.vercel.app',
+    canonical: SITE_URL,
   },
 }
 
@@ -23,16 +69,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${newsreader.variable} ${ibmPlexMono.variable}`}>
       <head>
-        <link rel="icon" href="/headshot.jpeg" />
-        <link rel="apple-touch-icon" href="/headshot.jpeg" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
-          rel="stylesheet"
-        />
         {/* Without JS the IntersectionObserver never fires; force reveals visible. */}
         <noscript>
           <style>{`.reveal,.reveal-soft{opacity:1!important;transform:none!important}`}</style>

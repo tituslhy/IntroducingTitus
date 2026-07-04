@@ -1,8 +1,16 @@
+import { ARTICLE_COUNT_WORD, FICTIONAL_BASSOON_COVERAGE, ILLUMINA_SAVINGS_FIGURE } from '@/lib/content'
+
 const SOCIAL = {
   github: 'https://github.com/tituslhy',
   linkedin: 'https://www.linkedin.com/in/titus-lim-hsien-yong-70223254/',
   medium: 'https://medium.com/@tituslhy',
   email: 'tituslhy@gmail.com',
+}
+
+type MarginNote = {
+  constraint: string
+  decision: string
+  outcome: string
 }
 
 type Project = {
@@ -16,6 +24,7 @@ type Project = {
   github?: string | null
   demo?: string | null
   accent: 'amber' | 'blue'
+  marginNote?: MarginNote
 }
 
 const PROJECTS: Project[] = [
@@ -23,12 +32,17 @@ const PROJECTS: Project[] = [
     slug: 'fictional-bassoon',
     title: 'fictional-bassoon',
     sub: 'A fifty-four-container LLM harness, vibe-coded end-to-end',
-    body: 'A solo-built template for scalable, tool-powered LLM applications — vibe-coded end-to-end with LLMs and audited by CodeRabbit. Full production stack: FastAPI, LangGraph, Celery, RabbitMQ, Redis Sentinel, Citus distributed Postgres, dual-pool PgBouncer, PostgREST, ClickHouse, Langfuse, MinIO, LGTM observability, and a Next.js 14 frontend behind Nginx. Ninety-percent test coverage.',
+    body: `Fifty-four containers, deliberately: a full production-realistic stack — FastAPI, LangGraph, Celery, RabbitMQ, Redis Sentinel, Citus distributed Postgres, dual-pool PgBouncer, PostgREST, ClickHouse, Langfuse, MinIO, an LGTM observability stack, and a Next.js 14 frontend behind Nginx — built to exercise a realistic multi-service architecture end-to-end, not overengineering for its own sake. Solo-built and vibe-coded end-to-end with LLMs, then audited by CodeRabbit, with ${FICTIONAL_BASSOON_COVERAGE} test coverage.`,
     figure: { label: 'containers', value: '54' },
-    secondary: { label: 'test coverage', value: '90%' },
+    secondary: { label: 'test coverage', value: FICTIONAL_BASSOON_COVERAGE },
     tags: ['Python', 'LangGraph', 'Postgres', 'ClickHouse', 'Docker', 'Langfuse', 'Next.js'],
     github: 'https://github.com/tituslhy/fictional-bassoon',
     accent: 'amber',
+    marginNote: {
+      constraint: 'Solo build, no team — needed to prove real distributed-systems competency, not a toy demo.',
+      decision: 'Built the full production stack anyway: queues, caches, a distributed Postgres, an observability stack, and a proxy — one service per real-world concern.',
+      outcome: `${FICTIONAL_BASSOON_COVERAGE} test coverage, CodeRabbit-audited, public repo.`,
+    },
   },
   {
     slug: 'illumina-rag',
@@ -36,14 +50,19 @@ const PROJECTS: Project[] = [
     sub: 'A sixteen-component production retrieval platform',
     body: 'Production-grade agentic RAG for enterprise field-service engineering. Features semantic double-merge chunking, chunk dreaming, HyDE, hybrid search, Cohere reranking, prompt compression, and an iterative multi-hop retrieval loop. Blue-green vector collection swap strategy invented from first principles.',
     figure: { label: 'components', value: '16' },
-    secondary: { label: 'anticipated savings', value: '$9M' },
+    secondary: { label: 'anticipated savings', value: ILLUMINA_SAVINGS_FIGURE },
     tags: ['LlamaIndex', 'Qdrant', 'AWS Bedrock', 'Docker+CUDA', 'Grafana', 'SonarQube'],
     github: null,
     accent: 'blue',
+    marginNote: {
+      constraint: 'Sole data scientist, production SLAs, no dedicated ML team to lean on for retrieval quality.',
+      decision: 'A 16-component pipeline — semantic chunking, HyDE, hybrid search, reranking, prompt compression, iterative retrieval — plus a blue-green vector collection swap invented from first principles for safe reindexing.',
+      outcome: `Anticipated to save ${ILLUMINA_SAVINGS_FIGURE} upon full deployment.`,
+    },
   },
   {
-    slug: 'marigncall',
-    title: 'The Margin Call',
+    slug: 'margin-call',
+    title: 'TheMarginCall',
     sub: 'Six specialists arguing about your portfolio',
     body: 'A multi-agent investment guidance crew built on Autogen. Six specialists collaborate in a group chat: a statistical analyst, a technical analyst (RSI, Bollinger, Ichimoku), a fundamental analyst, a researcher that reads SEC filings via RAG, a finance professor for concepts, and a reporter that writes and emails the findings.',
     figure: { label: 'agents', value: '6' },
@@ -100,14 +119,14 @@ function ProjectFeature({ project, index }: { project: Project; index: number })
 
   return (
     <article
-      className={`grid grid-cols-1 items-start gap-[clamp(24px,4vw,56px)] border-b border-rule py-[clamp(40px,5vw,64px)] ${
+      className={`grid grid-cols-1 items-start gap-[clamp(24px,4vw,56px)] border-b border-rule py-[clamp(28px,5vw,64px)] ${
         flipped
           ? 'min-[881px]:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]'
           : 'min-[881px]:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]'
       }`}
     >
       {/* Big-number figure */}
-      <div className="relative flex aspect-[4/5] items-center justify-center overflow-hidden border border-rule bg-paper-deep p-7 before:pointer-events-none before:absolute before:inset-0 before:opacity-40 before:content-[''] before:[background-image:repeating-linear-gradient(135deg,transparent_0_22px,color-mix(in_oklch,var(--ink)_5%,transparent)_22px_23px)]">
+      <div className="relative flex aspect-[16/10] items-center justify-center overflow-hidden border border-rule bg-paper-deep p-7 before:pointer-events-none before:absolute before:inset-0 before:opacity-40 before:content-[''] before:[background-image:repeating-linear-gradient(135deg,transparent_0_22px,color-mix(in_oklch,var(--ink)_5%,transparent)_22px_23px)] min-[881px]:aspect-[4/5]">
         <div className="relative flex flex-col items-center gap-2 text-center">
           <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-soft">
             {project.figure.label}
@@ -140,6 +159,21 @@ function ProjectFeature({ project, index }: { project: Project; index: number })
         <p className="mb-[22px] max-w-[60ch] text-[16.5px] leading-[1.6] text-ink [text-wrap:pretty]">
           {project.body}
         </p>
+
+        {project.marginNote && (
+          <dl className="mb-[22px] flex max-w-[60ch] flex-col gap-2 border-l-2 border-rule-strong pl-4">
+            {(['constraint', 'decision', 'outcome'] as const).map((key) => (
+              <div key={key} className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
+                <dt className={`shrink-0 font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] sm:w-[90px] ${accentText}`}>
+                  {key}
+                </dt>
+                <dd className="m-0 font-mono text-[12.5px] leading-[1.55] text-ink-soft">
+                  {project.marginNote![key]}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
 
         <ul className="mb-[22px] flex flex-wrap gap-1.5">
           {project.tags.map((t) => (
@@ -184,7 +218,7 @@ function ProjectFeature({ project, index }: { project: Project; index: number })
 function Projects() {
   return (
     <section id="projects" className="text-ink">
-      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(40px,5vw,72px)] pb-[clamp(40px,5vw,72px)]">
+      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)]">
         <SectionMarker folio="04" kicker="Projects">
           Things I have <em className="italic text-amber">built</em>.
         </SectionMarker>
@@ -232,9 +266,9 @@ function Projects() {
 function Writing() {
   return (
     <section id="writing" className="bg-paper-deep text-ink">
-      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(40px,5vw,72px)] pb-[clamp(40px,5vw,72px)]">
+      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)]">
         <SectionMarker folio="05" kicker="Writing">
-          Six articles, of <em className="italic text-amber">fifty-two</em>.
+          Six articles, of <em className="italic text-amber">{ARTICLE_COUNT_WORD}</em>.
         </SectionMarker>
 
         <p className="mb-8 max-w-[60ch] font-serif text-[19px] italic text-ink-soft">

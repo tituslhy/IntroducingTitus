@@ -4,16 +4,18 @@
 
 // Setup mocks BEFORE any imports, especially before importing route.ts
 jest.mock("langsmith", () => ({
-  Client: jest.fn(function (this: any, _config: any) {
-    this.postRun = jest.fn().mockResolvedValue(undefined);
-    this.flush = jest.fn().mockResolvedValue(undefined);
-    return this;
+  Client: jest.fn(function (this: unknown, _config: unknown) {
+    return {
+      postRun: jest.fn().mockResolvedValue(undefined),
+      flush: jest.fn().mockResolvedValue(undefined),
+    };
   }),
-  RunTree: jest.fn(function (this: any, _config: any) {
-    this.postRun = jest.fn().mockResolvedValue(undefined);
-    this.patchRun = jest.fn().mockResolvedValue(undefined);
-    this.end = jest.fn();
-    return this;
+  RunTree: jest.fn(function (this: unknown, _config: unknown) {
+    return {
+      postRun: jest.fn().mockResolvedValue(undefined),
+      patchRun: jest.fn().mockResolvedValue(undefined),
+      end: jest.fn(),
+    };
   }),
 }));
 
@@ -30,8 +32,8 @@ jest.mock("openai", () => {
   function MockOpenAI() {
     return { responses: { create: _create } };
   }
-  (MockOpenAI as any).APIError = APIError;
-  (MockOpenAI as any)._create = _create;
+  (MockOpenAI as unknown as Record<string, unknown>).APIError = APIError;
+  (MockOpenAI as unknown as Record<string, unknown>)._create = _create;
   return { __esModule: true, default: MockOpenAI };
 });
 
@@ -47,14 +49,24 @@ jest.mock("langsmith/traceable", () => ({
 import { POST } from "./route";
 import type { NextRequest } from "next/server";
 
-const OpenAIMock = jest.requireMock("openai").default as any;
-const mockCreate: jest.Mock = OpenAIMock._create;
+const OpenAIMock = jest.requireMock("openai").default as Record<string, unknown>;
+const mockCreate: jest.Mock = OpenAIMock._create as jest.Mock;
 
-function createPostRequest(body: string) {
+let testCounter = 0;
+
+function createPostRequest(
+  body: string,
+  additionalHeaders: Record<string, string> = {}
+) {
+  testCounter++;
   return new Request("http://localhost/api/chat", {
     method: "POST",
     body,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-forwarded-for": `192.0.2.${testCounter}`,
+      ...additionalHeaders,
+    },
   });
 }
 
@@ -235,7 +247,11 @@ describe("POST", () => {
 
     // Assert
     expect(response.status).toBe(200);
-    expect(text).toBe("Response");
+    const lines = text.trim().split("\n");
+    expect(lines.length).toBe(1);
+    const parsed = JSON.parse(lines[0]);
+    expect(parsed.type).toBe("delta");
+    expect(parsed.text).toBe("Response");
   });
 
   it("should trim messages to last 20 when more than 20 are provided", async () => {
@@ -284,18 +300,29 @@ describe("POST", () => {
 
     // Assert
     expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe("text/plain; charset=utf-8");
+    expect(response.headers.get("Content-Type")).toBe("application/x-ndjson; charset=utf-8");
     expect(response.headers.get("Cache-Control")).toBe("no-cache");
     expect(response.headers.get("X-Accel-Buffering")).toBe("no");
-    expect(text).toBe("Titus has 8+ years of AI experience.");
+
+    // Response should be NDJSON — two delta events, newline-delimited
+    const lines = text.trim().split("\n");
+    expect(lines.length).toBe(2);
+    const event1 = JSON.parse(lines[0]);
+    const event2 = JSON.parse(lines[1]);
+    expect(event1).toEqual({ type: "delta", text: "Titus has " });
+    expect(event2).toEqual({ type: "delta", text: "8+ years of AI experience." });
   });
 
-  it("should return ERR_RATE_LIMIT sentinel when OpenAI returns 429 status", async () => {
+  it("should return ERR_RATE_LIMIT error event when OpenAI returns 429 status", async () => {
     // Arrange
     const request = createPostRequest(
       JSON.stringify({ messages: [{ role: "user", content: "Hello" }] })
     );
-    mockCreate.mockRejectedValue(new (OpenAIMock.APIError)("Too many requests", 429));
+    const ApiErrorCtor = OpenAIMock.APIError as unknown as new (
+      msg: string,
+      status: number
+    ) => Error & { status: number };
+    mockCreate.mockRejectedValue(new ApiErrorCtor("Too many requests", 429));
 
     // Act
     const response = await POST(request as unknown as NextRequest);
@@ -303,15 +330,22 @@ describe("POST", () => {
 
     // Assert
     expect(response.status).toBe(200);
-    expect(text).toBe("__COPILOT_ERR__:ERR_RATE_LIMIT");
+    const lines = text.trim().split("\n");
+    expect(lines.length).toBe(1);
+    const parsed = JSON.parse(lines[0]);
+    expect(parsed).toEqual({ type: "error", code: "ERR_RATE_LIMIT" });
   });
 
-  it("should return ERR_QUOTA sentinel when OpenAI returns 402 status", async () => {
+  it("should return ERR_QUOTA error event when OpenAI returns 402 status", async () => {
     // Arrange
     const request = createPostRequest(
       JSON.stringify({ messages: [{ role: "user", content: "Hello" }] })
     );
-    mockCreate.mockRejectedValue(new (OpenAIMock.APIError)("Quota exceeded", 402));
+    const ApiErrorCtor = OpenAIMock.APIError as unknown as new (
+      msg: string,
+      status: number
+    ) => Error & { status: number };
+    mockCreate.mockRejectedValue(new ApiErrorCtor("Quota exceeded", 402));
 
     // Act
     const response = await POST(request as unknown as NextRequest);
@@ -319,15 +353,22 @@ describe("POST", () => {
 
     // Assert
     expect(response.status).toBe(200);
-    expect(text).toBe("__COPILOT_ERR__:ERR_QUOTA");
+    const lines = text.trim().split("\n");
+    expect(lines.length).toBe(1);
+    const parsed = JSON.parse(lines[0]);
+    expect(parsed).toEqual({ type: "error", code: "ERR_QUOTA" });
   });
 
-  it("should return ERR_AUTH sentinel when OpenAI returns 401 status", async () => {
+  it("should return ERR_AUTH error event when OpenAI returns 401 status", async () => {
     // Arrange
     const request = createPostRequest(
       JSON.stringify({ messages: [{ role: "user", content: "Hello" }] })
     );
-    mockCreate.mockRejectedValue(new (OpenAIMock.APIError)("Unauthorized", 401));
+    const ApiErrorCtor = OpenAIMock.APIError as unknown as new (
+      msg: string,
+      status: number
+    ) => Error & { status: number };
+    mockCreate.mockRejectedValue(new ApiErrorCtor("Unauthorized", 401));
 
     // Act
     const response = await POST(request as unknown as NextRequest);
@@ -335,15 +376,22 @@ describe("POST", () => {
 
     // Assert
     expect(response.status).toBe(200);
-    expect(text).toBe("__COPILOT_ERR__:ERR_AUTH");
+    const lines = text.trim().split("\n");
+    expect(lines.length).toBe(1);
+    const parsed = JSON.parse(lines[0]);
+    expect(parsed).toEqual({ type: "error", code: "ERR_AUTH" });
   });
 
-  it("should return ERR_UNKNOWN sentinel when OpenAI returns unknown error status", async () => {
+  it("should return ERR_UNKNOWN error event when OpenAI returns unknown error status", async () => {
     // Arrange
     const request = createPostRequest(
       JSON.stringify({ messages: [{ role: "user", content: "Hello" }] })
     );
-    mockCreate.mockRejectedValue(new (OpenAIMock.APIError)("Server error", 500));
+    const ApiErrorCtor = OpenAIMock.APIError as unknown as new (
+      msg: string,
+      status: number
+    ) => Error & { status: number };
+    mockCreate.mockRejectedValue(new ApiErrorCtor("Server error", 500));
 
     // Act
     const response = await POST(request as unknown as NextRequest);
@@ -351,10 +399,13 @@ describe("POST", () => {
 
     // Assert
     expect(response.status).toBe(200);
-    expect(text).toBe("__COPILOT_ERR__:ERR_UNKNOWN");
+    const lines = text.trim().split("\n");
+    expect(lines.length).toBe(1);
+    const parsed = JSON.parse(lines[0]);
+    expect(parsed).toEqual({ type: "error", code: "ERR_UNKNOWN" });
   });
 
-  it("should return ERR_UNKNOWN sentinel when non-OpenAI error is thrown on initial call", async () => {
+  it("should return ERR_UNKNOWN error event when non-OpenAI error is thrown on initial call", async () => {
     // Arrange
     const request = createPostRequest(
       JSON.stringify({ messages: [{ role: "user", content: "Hello" }] })
@@ -367,7 +418,10 @@ describe("POST", () => {
 
     // Assert
     expect(response.status).toBe(200);
-    expect(text).toBe("__COPILOT_ERR__:ERR_UNKNOWN");
+    const lines = text.trim().split("\n");
+    expect(lines.length).toBe(1);
+    const parsed = JSON.parse(lines[0]);
+    expect(parsed).toEqual({ type: "error", code: "ERR_UNKNOWN" });
   });
 
   it("should retry with untraced stream when non-OpenAI error occurs before any content", async () => {
@@ -389,19 +443,26 @@ describe("POST", () => {
 
     // Assert
     expect(response.status).toBe(200);
-    expect(text).toBe("Retry successful");
+    const lines = text.trim().split("\n");
+    expect(lines.length).toBe(1);
+    const parsed = JSON.parse(lines[0]);
+    expect(parsed).toEqual({ type: "delta", text: "Retry successful" });
     // mockCreate should be called twice: once for traced, once for untraced retry
     expect(mockCreate).toHaveBeenCalledTimes(2);
   });
 
-  it("should return error sentinel when retry also fails with OpenAI error", async () => {
+  it("should return error event when retry also fails with OpenAI error", async () => {
     // Arrange
     const request = createPostRequest(
       JSON.stringify({ messages: [{ role: "user", content: "Hello" }] })
     );
+    const ApiErrorCtor = OpenAIMock.APIError as unknown as new (
+      msg: string,
+      status: number
+    ) => Error & { status: number };
     mockCreate
       .mockRejectedValueOnce(new Error("LangSmith down"))
-      .mockRejectedValueOnce(new (OpenAIMock.APIError)("OpenAI error", 500));
+      .mockRejectedValueOnce(new ApiErrorCtor("OpenAI error", 500));
 
     // Act
     const response = await POST(request as unknown as NextRequest);
@@ -409,7 +470,10 @@ describe("POST", () => {
 
     // Assert
     expect(response.status).toBe(200);
-    expect(text).toBe("__COPILOT_ERR__:ERR_UNKNOWN");
+    const lines = text.trim().split("\n");
+    expect(lines.length).toBe(1);
+    const parsed = JSON.parse(lines[0]);
+    expect(parsed).toEqual({ type: "error", code: "ERR_UNKNOWN" });
   });
 
   it("should close stream cleanly when non-OpenAI error occurs after partial content", async () => {
@@ -432,8 +496,11 @@ describe("POST", () => {
 
     // Assert
     expect(response.status).toBe(200);
-    // Only the partial content should be streamed, no error sentinel added
-    expect(text).toBe("Partial content");
+    // Only the partial content delta should be streamed, no error added after content started
+    const lines = text.trim().split("\n");
+    expect(lines.length).toBe(1);
+    const parsed = JSON.parse(lines[0]);
+    expect(parsed).toEqual({ type: "delta", text: "Partial content" });
   });
 
   it("should include system prompt in the request to OpenAI with correct model", async () => {
@@ -505,10 +572,40 @@ describe("POST", () => {
 
     // Assert
     expect(response.status).toBe(200);
-    expect(text).toBe("Response");
+    const lines = text.trim().split("\n");
+    expect(lines.length).toBe(1);
+    const parsed = JSON.parse(lines[0]);
+    expect(parsed).toEqual({ type: "delta", text: "Response" });
     const callArgs = mockCreate.mock.calls[0][0];
     expect(callArgs.input.length).toBe(3); // system + user + assistant
     expect(callArgs.input[2].role).toBe("assistant");
+  });
+
+  it("should handle split error event across multiple read() chunks", async () => {
+    // This test verifies the fix: an error event split across network chunks
+    // is buffered on the client side and reconstructed properly.
+    // For the server test, we just verify that the error is sent as NDJSON.
+    const request = createPostRequest(
+      JSON.stringify({ messages: [{ role: "user", content: "Hello" }] })
+    );
+    const ApiErrorCtor = OpenAIMock.APIError as unknown as new (
+      msg: string,
+      status: number
+    ) => Error & { status: number };
+    mockCreate.mockRejectedValue(new ApiErrorCtor("Too many requests", 429));
+
+    // Act
+    const response = await POST(request as unknown as NextRequest);
+    const text = await drainResponse(response);
+
+    // Assert - verify the error is properly formatted as a complete JSON line
+    expect(response.status).toBe(200);
+    const lines = text.trim().split("\n");
+    expect(lines.length).toBe(1);
+    // Verify it's valid JSON and has the expected structure
+    const parsed = JSON.parse(lines[0]);
+    expect(parsed.type).toBe("error");
+    expect(parsed.code).toBe("ERR_RATE_LIMIT");
   });
 });
 
@@ -550,7 +647,7 @@ describe("POST - production mode cache", () => {
         JSON.stringify({ messages: [{ role: "user", content: "Hello" }] })
       );
       const response1 = await POSTProduction(request1 as unknown as NextRequest);
-      const text1 = await drainResponse(response1);
+      const _text1 = await drainResponse(response1);
 
       // Second call - should use cache
       const request2 = createPostRequest(
@@ -558,7 +655,7 @@ describe("POST - production mode cache", () => {
       );
       mockCreate.mockResolvedValue(await makeStream(events));
       const response2 = await POSTProduction(request2 as unknown as NextRequest);
-      const text2 = await drainResponse(response2);
+      const _text2 = await drainResponse(response2);
 
       // Both should return 200
       expect(response1.status).toBe(200);

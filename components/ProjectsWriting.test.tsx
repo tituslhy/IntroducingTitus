@@ -46,13 +46,13 @@ describe("ProjectsWriting", () => {
       it("should render fictional-bassoon full description", () => {
         render(<ProjectsWriting />);
 
-        expect(screen.getByText(/a solo-built template for scalable, tool-powered llm applications/i)).toBeInTheDocument();
+        expect(screen.getByText(/fifty-four containers, deliberately: a full production-realistic stack/i)).toBeInTheDocument();
       });
 
-      it("should render fictional-bassoon with 90% test coverage", () => {
+      it("should render fictional-bassoon with 90%+ test coverage", () => {
         render(<ProjectsWriting />);
 
-        expect(screen.getByText("90%")).toBeInTheDocument();
+        expect(screen.getByText("90%+")).toBeInTheDocument();
       });
 
       it("should render fictional-bassoon GitHub link", () => {
@@ -202,7 +202,7 @@ describe("ProjectsWriting", () => {
     it("should render writing section header", () => {
       render(<ProjectsWriting />);
 
-      const heading = screen.getByRole("heading", { name: /six articles, of fifty-two/i });
+      const heading = screen.getByRole("heading", { name: /six articles, of fifty/i });
       expect(heading).toBeInTheDocument();
       expect(heading.querySelector("em")).toHaveClass("italic", "text-amber");
     });

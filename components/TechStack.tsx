@@ -28,7 +28,7 @@ const STACK_GROUPS = [
 export default function TechStack() {
   return (
     <section id="stack" className="bg-paper-deep text-ink">
-      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(40px,5vw,72px)] pb-[clamp(40px,5vw,72px)]">
+      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)]">
         {/* Section marker */}
         <header className="mb-[clamp(28px,4vw,56px)]">
           <div className="flex items-baseline gap-3.5 pb-[18px] font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">

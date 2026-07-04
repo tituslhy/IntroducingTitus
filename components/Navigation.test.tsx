@@ -13,12 +13,12 @@ describe("Navigation", () => {
   });
 
   describe("Rendering", () => {
-    it("should render the brand button with T·L text", () => {
+    it("should render the brand link with T·L text", () => {
       render(<Navigation />);
-      const brandButton = screen.getByRole("button", { name: /back to top/i });
-      expect(brandButton).toBeInTheDocument();
-      expect(brandButton.textContent).toContain("T");
-      expect(brandButton.textContent).toContain("L");
+      const brandLink = screen.getByRole("link", { name: /back to top/i });
+      expect(brandLink).toBeInTheDocument();
+      expect(brandLink.textContent).toContain("T");
+      expect(brandLink.textContent).toContain("L");
     });
 
     it("should render brand subtitle on larger screens", () => {
@@ -44,7 +44,7 @@ describe("Navigation", () => {
 
     it("should render Get in touch CTA link", () => {
       render(<Navigation />);
-      const cta = screen.getByRole("link", { name: /get in touch/i });
+      const cta = screen.getByRole("link", { name: /email titus/i });
       expect(cta).toBeInTheDocument();
       expect(cta).toHaveAttribute(
         "href",
@@ -54,7 +54,7 @@ describe("Navigation", () => {
 
     it("should have correct email in CTA href", () => {
       render(<Navigation />);
-      const cta = screen.getByRole("link", { name: /get in touch/i }) as HTMLAnchorElement;
+      const cta = screen.getByRole("link", { name: /email titus/i }) as HTMLAnchorElement;
       expect(cta.href).toContain("tituslhy@gmail.com");
       // URL encoding converts spaces to %20
       expect(cta.href).toContain("subject");
@@ -74,10 +74,10 @@ describe("Navigation", () => {
       expect(screen.getByRole("navigation")).toBeInTheDocument();
     });
 
-    it("should have active button with aria-current attribute when section becomes active", () => {
+    it("should have active link with aria-current attribute when section becomes active", () => {
       render(<Navigation />);
-      const navButtons = screen.getAllByText(/About|Stack|Experience|Projects|Writing/);
-      expect(navButtons.length).toBeGreaterThan(0);
+      const navLinks = screen.getAllByRole("link");
+      expect(navLinks.length).toBeGreaterThan(0);
     });
 
     it("should render underline indicator span for active nav item", () => {
@@ -98,7 +98,7 @@ describe("Navigation", () => {
         disconnect = jest.fn();
       }
 
-      global.IntersectionObserver = MockIntersectionObserver as any;
+      global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
 
       render(<Navigation />);
 
@@ -108,7 +108,7 @@ describe("Navigation", () => {
           const mockEntries = [
             {
               isIntersecting: true,
-              target: { id: "lede" } as any,
+              target: { id: "lede" } as unknown as Element,
             } as IntersectionObserverEntry,
           ];
           capturedCallback!(mockEntries, {} as IntersectionObserver);
@@ -117,8 +117,8 @@ describe("Navigation", () => {
 
       // After triggering the callback with an intersecting element,
       // the active state should be updated to "lede"
-      const aboutButton = screen.getByText("About").closest("button");
-      expect(aboutButton?.getAttribute("aria-current")).toBe("true");
+      const aboutLink = screen.getAllByText("About")[0].closest("a");
+      expect(aboutLink?.getAttribute("aria-current")).toBe("true");
     });
 
     it("should handle non-intersecting sections in observer", () => {
@@ -133,7 +133,7 @@ describe("Navigation", () => {
         disconnect = jest.fn();
       }
 
-      global.IntersectionObserver = MockIntersectionObserver as any;
+      global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
 
       render(<Navigation />);
 
@@ -143,7 +143,7 @@ describe("Navigation", () => {
           const mockEntries = [
             {
               isIntersecting: false,
-              target: { id: "stack" } as any,
+              target: { id: "stack" } as unknown as Element,
             } as IntersectionObserverEntry,
           ];
           capturedCallback!(mockEntries, {} as IntersectionObserver);
@@ -151,8 +151,8 @@ describe("Navigation", () => {
       }
 
       // State should not be updated for non-intersecting entries
-      const stackButton = screen.getByText("Stack").closest("button");
-      expect(stackButton?.getAttribute("aria-current")).not.toBe("true");
+      const stackLink = screen.getAllByText("Stack")[0].closest("a");
+      expect(stackLink?.getAttribute("aria-current")).not.toBe("true");
     });
   });
 
@@ -261,38 +261,38 @@ describe("Navigation", () => {
   });
 
   describe("Click Handlers", () => {
-    it("should call scrollTo when brand button is clicked", async () => {
+    it("should call scrollTo when brand link is clicked", async () => {
       const user = userEvent.setup();
-      const { container } = render(<Navigation />);
+      render(<Navigation />);
 
       const mockMasthead = document.createElement("div");
       mockMasthead.id = "masthead";
       document.body.appendChild(mockMasthead);
 
-      const brandButton = screen.getByRole("button", { name: /back to top/i });
+      const brandLink = screen.getByRole("link", { name: /back to top/i });
       const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
 
-      await user.click(brandButton);
+      await user.click(brandLink);
 
       expect(scrollToSpy).toHaveBeenCalled();
       scrollToSpy.mockRestore();
       mockMasthead.remove();
     });
 
-    it("should call scrollTo when About nav item button is clicked", async () => {
+    it("should call scrollTo when About nav item link is clicked", async () => {
       const user = userEvent.setup();
-      const { container } = render(<Navigation />);
+      render(<Navigation />);
 
       const mockLede = document.createElement("div");
       mockLede.id = "lede";
       document.body.appendChild(mockLede);
 
-      const navList = container.querySelector("nav ul") as HTMLElement;
-      const aboutButton = within(navList).getByText("About").closest("button");
+      const navList = document.querySelector("nav ul") as HTMLElement;
+      const aboutLink = within(navList).getAllByRole("link")[0];
 
       const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
 
-      await user.click(aboutButton!);
+      await user.click(aboutLink);
 
       expect(scrollToSpy).toHaveBeenCalled();
       scrollToSpy.mockRestore();
@@ -301,18 +301,18 @@ describe("Navigation", () => {
 
     it("should call scrollTo for Stack nav item", async () => {
       const user = userEvent.setup();
-      const { container } = render(<Navigation />);
+      render(<Navigation />);
 
       const mockStack = document.createElement("div");
       mockStack.id = "stack";
       document.body.appendChild(mockStack);
 
-      const navList = container.querySelector("nav ul") as HTMLElement;
-      const stackButton = within(navList).getByText("Stack").closest("button");
+      const navList = document.querySelector("nav ul") as HTMLElement;
+      const stackLink = within(navList).getAllByRole("link")[1];
 
       const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
 
-      await user.click(stackButton!);
+      await user.click(stackLink);
 
       expect(scrollToSpy).toHaveBeenCalled();
       scrollToSpy.mockRestore();
@@ -321,18 +321,18 @@ describe("Navigation", () => {
 
     it("should call scrollTo for Experience nav item", async () => {
       const user = userEvent.setup();
-      const { container } = render(<Navigation />);
+      render(<Navigation />);
 
       const mockDossier = document.createElement("div");
       mockDossier.id = "dossier";
       document.body.appendChild(mockDossier);
 
-      const navList = container.querySelector("nav ul") as HTMLElement;
-      const expButton = within(navList).getByText("Experience").closest("button");
+      const navList = document.querySelector("nav ul") as HTMLElement;
+      const expLink = within(navList).getAllByRole("link")[2];
 
       const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
 
-      await user.click(expButton!);
+      await user.click(expLink);
 
       expect(scrollToSpy).toHaveBeenCalled();
       scrollToSpy.mockRestore();
@@ -341,18 +341,18 @@ describe("Navigation", () => {
 
     it("should call scrollTo for Projects nav item", async () => {
       const user = userEvent.setup();
-      const { container } = render(<Navigation />);
+      render(<Navigation />);
 
       const mockProjects = document.createElement("div");
       mockProjects.id = "projects";
       document.body.appendChild(mockProjects);
 
-      const navList = container.querySelector("nav ul") as HTMLElement;
-      const projButton = within(navList).getByText("Projects").closest("button");
+      const navList = document.querySelector("nav ul") as HTMLElement;
+      const projLink = within(navList).getAllByRole("link")[3];
 
       const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
 
-      await user.click(projButton!);
+      await user.click(projLink);
 
       expect(scrollToSpy).toHaveBeenCalled();
       scrollToSpy.mockRestore();
@@ -361,18 +361,18 @@ describe("Navigation", () => {
 
     it("should call scrollTo for Writing nav item", async () => {
       const user = userEvent.setup();
-      const { container } = render(<Navigation />);
+      render(<Navigation />);
 
       const mockWriting = document.createElement("div");
       mockWriting.id = "writing";
       document.body.appendChild(mockWriting);
 
-      const navList = container.querySelector("nav ul") as HTMLElement;
-      const writeButton = within(navList).getByText("Writing").closest("button");
+      const navList = document.querySelector("nav ul") as HTMLElement;
+      const writeLink = within(navList).getAllByRole("link")[4];
 
       const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
 
-      await user.click(writeButton!);
+      await user.click(writeLink);
 
       expect(scrollToSpy).toHaveBeenCalled();
       scrollToSpy.mockRestore();
@@ -438,7 +438,7 @@ describe("Navigation", () => {
 
     it("should hide CTA text on screens smaller than 720px", () => {
       render(<Navigation />);
-      const ctaLink = screen.getByRole("link", { name: /get in touch/i });
+      const ctaLink = screen.getByRole("link", { name: /email titus/i });
       const textSpan = ctaLink.querySelector("span:nth-child(2)");
       expect(textSpan?.className).toContain("max-[720px]:hidden");
     });
@@ -451,25 +451,26 @@ describe("Navigation", () => {
   });
 
   describe("Accessibility", () => {
-    it("should have proper ARIA labels on brand button", () => {
+    it("should have proper ARIA labels on brand link", () => {
       render(<Navigation />);
-      const brandButton = screen.getByRole("button", { name: /back to top/i });
-      expect(brandButton).toHaveAttribute("aria-label", "Back to top");
+      const brandLink = screen.getByRole("link", { name: /back to top/i });
+      expect(brandLink).toHaveAttribute("aria-label", "Back to top");
     });
 
-    it("should have type=button on brand button", () => {
+    it("should have href on brand link", () => {
       render(<Navigation />);
-      const brandButton = screen.getByRole("button", { name: /back to top/i });
-      expect(brandButton).toHaveAttribute("type", "button");
+      const brandLink = screen.getByRole("link", { name: /back to top/i });
+      expect(brandLink).toHaveAttribute("href", "#masthead");
     });
 
-    it("should have type=button on all nav item buttons", () => {
+    it("should have href on all nav item links", () => {
       const { container } = render(<Navigation />);
       const navList = container.querySelector("nav ul");
-      const buttons = navList?.querySelectorAll("button");
-      expect(buttons?.length).toBe(5);
-      buttons?.forEach((button) => {
-        expect(button).toHaveAttribute("type", "button");
+      const links = navList?.querySelectorAll("a");
+      expect(links?.length).toBe(5);
+      links?.forEach((link) => {
+        expect(link).toHaveAttribute("href");
+        expect(link.getAttribute("href")).toMatch(/^#/);
       });
     });
 
@@ -490,10 +491,10 @@ describe("Navigation", () => {
 
       expect(listItems.length).toBe(5);
 
-      listItems.forEach((li, index) => {
-        const button = li.querySelector("button");
-        expect(button).toBeInTheDocument();
-        expect(button?.getAttribute("type")).toBe("button");
+      listItems.forEach((li) => {
+        const link = li.querySelector("a");
+        expect(link).toBeInTheDocument();
+        expect(link?.getAttribute("href")).toMatch(/^#/);
       });
     });
 
@@ -539,7 +540,7 @@ describe("Navigation", () => {
         disconnect = mockDisconnect;
       }
 
-      global.IntersectionObserver = MockIntersectionObserver as any;
+      global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
 
       const { unmount } = render(<Navigation />);
       unmount();
@@ -584,11 +585,11 @@ describe("Navigation", () => {
     it("should render all nav items in document order", () => {
       const { container } = render(<Navigation />);
       const navList = container.querySelector("nav ul");
-      const buttons = navList?.querySelectorAll("button");
+      const links = navList?.querySelectorAll("a");
 
       const expectedOrder = ["About", "Stack", "Experience", "Projects", "Writing"];
-      buttons?.forEach((btn, idx) => {
-        expect(btn.textContent).toContain(expectedOrder[idx]);
+      links?.forEach((link, idx) => {
+        expect(link.textContent).toContain(expectedOrder[idx]);
       });
     });
   });
@@ -636,7 +637,7 @@ describe("Navigation", () => {
   describe("CTA Link Rendering", () => {
     it("should render CTA with correct visual structure", () => {
       render(<Navigation />);
-      const cta = screen.getByRole("link", { name: /get in touch/i });
+      const cta = screen.getByRole("link", { name: /email titus/i });
 
       const amberDot = cta.querySelector("span[class*='bg-amber']");
       expect(amberDot).toBeInTheDocument();
@@ -647,7 +648,7 @@ describe("Navigation", () => {
 
     it("should have proper border styling on CTA", () => {
       render(<Navigation />);
-      const cta = screen.getByRole("link", { name: /get in touch/i });
+      const cta = screen.getByRole("link", { name: /email titus/i });
 
       expect(cta.className).toContain("border");
       expect(cta.className).toContain("border-ink");
@@ -655,23 +656,23 @@ describe("Navigation", () => {
 
     it("should have hover state styling on CTA", () => {
       render(<Navigation />);
-      const cta = screen.getByRole("link", { name: /get in touch/i });
+      const cta = screen.getByRole("link", { name: /email titus/i });
 
       expect(cta.className).toContain("hover:bg-ink");
       expect(cta.className).toContain("hover:text-paper");
     });
   });
 
-  describe("Brand Button Interactive", () => {
-    it("should have correct styling and structure on brand button", () => {
+  describe("Brand Link Interactive", () => {
+    it("should have correct styling and structure on brand link", () => {
       render(<Navigation />);
-      const brandButton = screen.getByRole("button", { name: /back to top/i });
+      const brandLink = screen.getByRole("link", { name: /back to top/i });
 
-      expect(brandButton.className).toContain("flex");
-      expect(brandButton.className).toContain("items-baseline");
-      expect(brandButton.className).toContain("gap-2.5");
+      expect(brandLink.className).toContain("flex");
+      expect(brandLink.className).toContain("items-baseline");
+      expect(brandLink.className).toContain("gap-2.5");
 
-      const serif = brandButton.querySelector(".font-serif");
+      const serif = brandLink.querySelector(".font-serif");
       expect(serif).toBeInTheDocument();
     });
   });

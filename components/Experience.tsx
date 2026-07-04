@@ -1,3 +1,5 @@
+import { ILLUMINA_SAVINGS_PROSE } from '@/lib/content'
+
 type Role = {
   years: string
   company: string
@@ -10,6 +12,8 @@ type Role = {
   techNote?: string
   pullQuote?: string
   incoming?: boolean
+  /** Lower-signal / older roles get a more compact visual footprint. */
+  compact?: boolean
 }
 
 type Education = {
@@ -26,9 +30,10 @@ const ROLES: Role[] = [
     location: 'Singapore',
     role: 'Lead AI Engineer',
     dates: 'Jul 2026 — Present',
-    deck: 'Pushing the frontiers of production AI at enterprise scale with Mastercard R&D Foundry',
+    deck: "Leading AI engineering for Mastercard's Asia/Pacific division, applying production AI capabilities at enterprise scale within a global payments network.",
     body: '',
     tech: [],
+    techNote: 'Tech stack: to be updated post-onboarding.',
   },
   {
     years: '2025',
@@ -49,7 +54,7 @@ const ROLES: Role[] = [
     deck: "Solo-architected and shipped two production AI systems as the company's sole data scientist.",
     body: 'An agentic document-retrieval platform for global field service engineers — sixteen components: semantic chunking, HyDE, hybrid search, Cohere reranking, prompt compression, an iterative agentic retrieval loop, blue-green vector collection swap. Plus a separate Generative BI assistant covering 800+ business metrics with human-in-the-loop design.',
     tech: ['Python', 'LlamaIndex', 'Qdrant', 'AWS Bedrock', 'RabbitMQ', 'Docker+CUDA', 'GitHub Actions', 'SonarQube', 'Grafana', 'Prometheus', 'Loki', 'Chainlit', 'DSPy', 'Giskard'],
-    pullQuote: 'Anticipated to save USD $9 million upon full deployment.',
+    pullQuote: `Anticipated to save ${ILLUMINA_SAVINGS_PROSE} upon full deployment.`,
   },
   {
     years: '2022',
@@ -60,6 +65,7 @@ const ROLES: Role[] = [
     deck: 'Validated and enhanced MRT station crowdedness forecasting; tightened streaming data pipelines.',
     body: 'Model shipped to the MyTransportSG app.',
     tech: ['Python', 'ML Forecasting', 'Streaming Pipelines'],
+    compact: true,
   },
   {
     years: '2018',
@@ -70,6 +76,7 @@ const ROLES: Role[] = [
     deck: "Developed and presented national electricity and gas demand forecasts to Ministers and Permanent Secretaries; drove the Authority's AI and data strategy roadmap.",
     body: 'Built ML models for power-plant trip prediction and electricity spot-price forecasting with external partners.',
     tech: ['Python', 'XGBoost', 'Neural Networks', 'DataRobot', 'ARIMA'],
+    compact: true,
   },
   {
     years: '2017',
@@ -80,6 +87,7 @@ const ROLES: Role[] = [
     deck: 'Built a national-scale skill extraction algorithm using NLP to construct skills graphs from online job portals.',
     body: "Findings published in a national report on Indonesia's labour market.",
     tech: ['Python', 'NLP', 'Regex Entity Extraction'],
+    compact: true,
   },
   {
     years: '2015',
@@ -91,6 +99,7 @@ const ROLES: Role[] = [
     body: 'Served Toyota automotive distributors across the Asia Pacific region.',
     tech: ['VBA', 'Excel', 'Exponential Smoothing', 'Holt-Winters'],
     pullQuote: 'Improved long-term forecast accuracy by ~25%.',
+    compact: true,
   },
 ]
 
@@ -110,11 +119,20 @@ const EDUCATION: Education[] = [
 ]
 
 function RoleEntry({ role }: { role: Role }) {
+  const compact = Boolean(role.compact)
   return (
-    <article className="relative grid grid-cols-[110px_1fr] gap-[clamp(20px,3vw,40px)] border-b border-rule py-[clamp(28px,4vw,44px)] max-[720px]:grid-cols-1">
+    <article
+      className={`relative grid grid-cols-[110px_1fr] gap-[clamp(20px,3vw,40px)] border-b border-rule max-[720px]:grid-cols-1 ${
+        compact ? 'py-[clamp(20px,3vw,32px)]' : 'py-[clamp(28px,4vw,44px)]'
+      }`}
+    >
       {/* Sticky year rail */}
       <div className="sticky top-20 flex flex-col gap-2.5 self-start max-[720px]:static max-[720px]:flex-row max-[720px]:items-baseline max-[720px]:gap-4">
-        <span className="font-serif text-[44px] font-normal italic leading-none tracking-[-0.02em] text-ink max-[720px]:text-[28px]">
+        <span
+          className={`font-serif font-normal italic leading-none tracking-[-0.02em] text-ink max-[720px]:text-[28px] ${
+            compact ? 'text-[32px]' : 'text-[44px]'
+          }`}
+        >
           {role.years}
         </span>
         <span className="inline-block h-px w-8 bg-amber max-[720px]:w-auto max-[720px]:flex-1" />
@@ -125,9 +143,9 @@ function RoleEntry({ role }: { role: Role }) {
         <div className="mb-3 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h3
-              className={`m-0 flex flex-wrap items-baseline gap-3.5 font-serif text-[clamp(24px,2.6vw,32px)] font-medium leading-[1.1] tracking-[-0.015em] ${
-                role.incoming ? 'text-ink-soft' : 'text-ink'
-              }`}
+              className={`m-0 flex flex-wrap items-baseline gap-3.5 font-serif font-medium leading-[1.1] tracking-[-0.015em] ${
+                compact ? 'text-[clamp(20px,2.2vw,26px)]' : 'text-[clamp(24px,2.6vw,32px)]'
+              } ${role.incoming ? 'text-ink-soft' : 'text-ink'}`}
             >
               {role.company}
               {role.incoming && (
@@ -147,7 +165,11 @@ function RoleEntry({ role }: { role: Role }) {
           </p>
         </div>
 
-        <p className="mb-3 mt-1.5 font-serif text-[19px] leading-[1.45] text-ink [text-wrap:pretty]">
+        <p
+          className={`mb-3 mt-1.5 font-serif leading-[1.45] text-ink [text-wrap:pretty] ${
+            compact ? 'text-[16.5px]' : 'text-[19px]'
+          }`}
+        >
           {role.deck}
         </p>
         {role.body && (
@@ -193,7 +215,7 @@ function RoleEntry({ role }: { role: Role }) {
 export default function Experience() {
   return (
     <section id="dossier" className="text-ink">
-      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(40px,5vw,72px)] pb-[clamp(40px,5vw,72px)]">
+      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)]">
         {/* Section marker */}
         <header className="mb-[clamp(28px,4vw,56px)]">
           <div className="flex items-baseline gap-3.5 pb-[18px] font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">

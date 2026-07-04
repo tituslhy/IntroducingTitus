@@ -2,7 +2,15 @@
 const nextConfig = {
   images: { unoptimized: true },
   basePath: '',
-  transpilePackages: ['react-markdown', 'remark-gfm', 'remark-parse', 'unified', 'bail', 'is-plain-obj', 'trough', 'vfile', 'vfile-message', 'unist-util-stringify-position', 'mdast-util-from-markdown', 'mdast-util-to-string', 'micromark', 'decode-named-character-reference', 'character-entities', 'mdast-util-gfm', 'mdast-util-gfm-autolink-literal', 'mdast-util-gfm-footnote', 'mdast-util-gfm-strikethrough', 'mdast-util-gfm-table', 'mdast-util-gfm-task-list-item', 'mdast-util-find-and-replace', 'mdast-util-to-hast', 'hast-util-whitespace', 'remark-rehype', 'rehype-react', 'hast-util-to-jsx-runtime', 'estree-util-is-identifier-name', 'html-url-attributes', 'property-information', 'space-separated-tokens', 'comma-separated-tokens', 'zwitch', 'ccount', 'escape-string-regexp', 'unist-util-visit', 'unist-util-visit-parents', 'unist-util-is', 'unist-builder', 'unist-util-position', 'unist-util-remove-position', 'micromark-core-commonmark', 'micromark-util-combine-extensions', 'micromark-util-chunked', 'micromark-util-character', 'micromark-util-encode', 'micromark-util-html-tag-name', 'micromark-util-normalize-identifier', 'micromark-util-resolve-all', 'micromark-util-sanitize-uri', 'micromark-util-subtokenize', 'micromark-util-symbol', 'micromark-util-types', 'micromark-extension-gfm', 'micromark-extension-gfm-autolink-literal', 'micromark-extension-gfm-footnote', 'micromark-extension-gfm-strikethrough', 'micromark-extension-gfm-table', 'micromark-extension-gfm-tagfilter', 'micromark-extension-gfm-task-list-item', 'devlop'],
+  // Trimmed from a ~70-entry list that enumerated react-markdown/remark-gfm's
+  // entire transitive dependency tree (micromark, mdast-util-*, unist-util-*,
+  // etc). Next.js transpiles a listed package's own dependencies automatically,
+  // so only the two packages actually imported directly (components/CopilotBubble.tsx)
+  // need to be listed here. This is a conservative trim made without a full
+  // `next build` in this session (build lockfile conflicts with concurrent
+  // agents) — verify with a clean `npm run build` before relying on it, and
+  // re-expand the list if that build reports an un-transpiled ESM package.
+  transpilePackages: ['react-markdown', 'remark-gfm'],
 }
 
 module.exports = nextConfig
