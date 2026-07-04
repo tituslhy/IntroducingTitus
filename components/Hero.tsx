@@ -17,8 +17,8 @@ const ISSUE_META = {
 
 // Kicker lines beneath the portrait (COVER_LINES[1..] from the handoff)
 const KICKERS = [
-  { kicker: 'Ten years', text: 'of production AI, shipped solo and in teams' },
-  { kicker: 'Fifty Two', text: 'technical articles, featured by IBM, LlamaIndex, Unsloth' },
+  { kicker: '8+ years', text: 'of production AI, shipped solo and in teams' },
+  { kicker: '50 articles', text: 'technical articles, featured by IBM, LlamaIndex, Unsloth' },
   { kicker: 'Currently', text: 'Lead AI Engineer at Mastercard Asia/Pacific' },
 ]
 
@@ -95,10 +95,13 @@ export default function Hero() {
       <div className="mt-[3px] h-px bg-rule-strong" />
 
       <div className="grid grid-cols-1 gap-[clamp(28px,4vw,72px)] pt-[clamp(28px,4vw,56px)] min-[880px]:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        {/* Portrait + kickers */}
-        <aside className="flex flex-col gap-7">
-          <figure className="group m-0">
-            <div className="relative aspect-[3/4] overflow-hidden border border-rule bg-paper-deep">
+        {/* Portrait + kickers — on mobile this wrapper is display:contents so its
+            children (figure, kickers list) can be reordered independently among
+            the headline content below; at min-[880px] it reverts to the original
+            flex column, restoring the desktop composition unchanged. */}
+        <aside className="contents min-[880px]:flex min-[880px]:flex-col min-[880px]:gap-7">
+          <figure className="group order-7 m-0 min-[880px]:order-none">
+            <div className="relative aspect-[4/3] overflow-hidden border border-rule bg-paper-deep min-[880px]:aspect-[3/4]">
               <Image
                 src="/headshot.jpeg"
                 alt="Portrait of Titus Lim"
@@ -111,7 +114,7 @@ export default function Hero() {
             </div>
           </figure>
 
-          <ul className="flex flex-col gap-3">
+          <ul className="order-8 flex flex-col gap-3 min-[880px]:order-none">
             {KICKERS.map((line) => (
               <li
                 key={line.kicker}
@@ -128,15 +131,18 @@ export default function Hero() {
           </ul>
         </aside>
 
-        {/* Name, headline, standfirst */}
-        <div className="flex flex-col">
-          <p className="mb-6 flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-soft">
+        {/* Name, headline, standfirst — on mobile this wrapper is display:contents
+            so name/tagline/CTA content can be interleaved (via order) ahead of
+            the portrait and kickers above; at min-[880px] it reverts to the
+            original flex column, restoring the desktop composition unchanged. */}
+        <div className="contents min-[880px]:flex min-[880px]:flex-col">
+          <p className="order-1 flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-soft min-[880px]:order-none min-[880px]:mb-6">
             <span className="inline-block h-px w-9 bg-amber" />
             <span>{ISSUE_META.role}</span>
           </p>
 
           <h1
-            className="m-0 font-serif font-medium not-italic leading-[0.9] tracking-[-0.035em] text-[clamp(44px,7vw,116px)] text-ink"
+            className="order-2 m-0 font-serif font-medium not-italic leading-[0.9] tracking-[-0.035em] text-[clamp(44px,7vw,116px)] text-ink min-[880px]:order-none"
             aria-label="Lim Hsien Yong, also known as Titus"
           >
             <span className="block">Lim</span>
@@ -146,9 +152,9 @@ export default function Hero() {
             </span>
           </h1>
 
-          <div className="mt-7 h-px bg-rule-strong" />
+          <div className="order-3 h-px bg-rule-strong min-[880px]:order-none min-[880px]:mt-7" />
 
-          <p className="mt-7 font-serif text-[clamp(26px,3.2vw,38px)] leading-[1.18] tracking-[-0.012em] text-ink [text-wrap:pretty]">
+          <p className="order-4 font-serif text-[clamp(26px,3.2vw,38px)] leading-[1.18] tracking-[-0.012em] text-ink [text-wrap:pretty] min-[880px]:order-none min-[880px]:mt-7">
             <span className="float-left pr-[18px] pt-1.5 font-serif text-[clamp(56px,7.4vw,92px)] font-medium italic leading-[0.82] text-amber">
               I
             </span>
@@ -157,13 +163,13 @@ export default function Hero() {
             <span className="italic text-amber">from architecture to the boardroom.</span>
           </p>
 
-          <p className="mt-[22px] max-w-[56ch] text-[17px] leading-[1.55] text-ink-soft [text-wrap:pretty]">
-            Eight years of production AI. Fifty published articles. Currently leading
+          <p className="order-5 max-w-[56ch] text-[17px] leading-[1.55] text-ink-soft [text-wrap:pretty] min-[880px]:order-none min-[880px]:mt-[22px]">
+            8+ years of production AI. 50 technical articles. Currently leading
             AI engineering for Mastercard&apos;s Asia/Pacific division.
           </p>
 
           {/* CTA row */}
-          <div className="mt-[30px] flex flex-wrap items-center gap-3.5">
+          <div className="order-6 flex flex-wrap items-center gap-3.5 min-[880px]:order-none min-[880px]:mt-[30px]">
             <a
               href="#dossier"
               className="group inline-flex items-center gap-2.5 border border-ink bg-ink px-[18px] py-[11px] font-mono text-[12px] uppercase tracking-[0.12em] text-paper transition-colors duration-200 hover:border-amber hover:bg-amber hover:text-paper"
@@ -187,7 +193,7 @@ export default function Hero() {
           </div>
 
           {/* Social row */}
-          <div className="mt-[26px] flex flex-wrap items-center gap-1 font-mono text-[11.5px] tracking-[0.06em] text-ink-soft">
+          <div className="order-9 flex flex-wrap items-center gap-1 font-mono text-[11.5px] tracking-[0.06em] text-ink-soft min-[880px]:order-none min-[880px]:mt-[26px]">
             <a href={SOCIAL.github} target="_blank" rel="noopener noreferrer" className={socialLinkClass}>
               <IconGithub /><span>github</span>
             </a>

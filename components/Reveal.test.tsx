@@ -120,7 +120,7 @@ describe('Reveal', () => {
     it('should immediately show content when IntersectionObserver is undefined', async () => {
       // Temporarily remove IntersectionObserver
       const originalIO = global.IntersectionObserver
-      delete (global as any).IntersectionObserver
+      delete (global as unknown as Record<string, unknown>).IntersectionObserver
 
       // Ensure matchMedia returns false so it doesn't interfere
       Object.defineProperty(window, 'matchMedia', {

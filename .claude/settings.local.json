@@ -1,8 +1,19 @@
 {
+  "env": {
+    "TRACE_TO_LANGSMITH": "true",
+    "CC_LANGSMITH_API_KEY": "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",
+    "CC_LANGSMITH_PROJECT": "PianoApp"
+  },
   "permissions": {
     "allow": [
       "Bash(node -e ' *)",
-      "Bash(node -e \"const Component = require\\('./components/CopilotBubble.tsx'\\).default; console.log\\(Component ? 'OK' : 'FAIL'\\)\")"
+      "Bash(node -e \"const Component = require\\('./components/CopilotBubble.tsx'\\).default; console.log\\(Component ? 'OK' : 'FAIL'\\)\")",
+      "Bash(NODE_USE_ENV_PROXY=1 npx next build --webpack)",
+      "Bash(curl -sS -A 'Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0 Safari/537.36' 'https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap' -o __TRACKED_VAR__/fonts/newsreader.css)",
+      "Bash(grep -B6 U+0000-00FF __TRACKED_VAR__/fonts/newsreader.css)",
+      "Bash(echo \"lint exit: $?\")",
+      "Bash(echo \"tsc exit: $?\")",
+      "Bash(npm audit *)"
     ]
   }
 }

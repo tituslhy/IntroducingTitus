@@ -11,9 +11,10 @@ interface Message {
 }
 
 const STARTER_PROMPTS = [
-  "Do you think Titus is a good software engineer?",
-  "What did Titus do at Illumina?",
-  "Did Titus write any article on long-term memory?",
+  "What did you build at Illumina?",
+  "What trade-offs shaped fictional-bassoon?",
+  "Which article should I read first?",
+  "When do you use multi-agent frameworks?",
 ];
 
 const AssistantAvatar = () => (
@@ -30,7 +31,7 @@ const AssistantLabel = () => (
   <div className="flex items-center gap-2">
     <AssistantAvatar />
     <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-amber">
-      Titus&rsquo; Assistant
+      Titus
     </p>
   </div>
 );
@@ -86,6 +87,25 @@ const TypingIndicator = () => (
   </article>
 );
 
+function usePrefersReducedMotion() {
+  // Computed synchronously in the lazy initializer (guarded for SSR, where
+  // `window` doesn't exist) rather than set from an effect on mount, so the
+  // first client render is already correct and there's no extra re-render.
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  });
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const handleChange = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  return prefersReducedMotion;
+}
+
 export default function CopilotBubble() {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -94,11 +114,16 @@ export default function CopilotBubble() {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
+  const [liveMessage, setLiveMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const fabRef = useRef<HTMLButtonElement>(null);
+  const wasOpenRef = useRef(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const busy = isLoading || isStreaming;
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -109,6 +134,14 @@ export default function CopilotBubble() {
       const timer = setTimeout(() => inputRef.current?.focus(), 150);
       return () => clearTimeout(timer);
     }
+  }, [isOpen]);
+
+  // Restore focus to the FAB whenever the drawer transitions from open to closed
+  useEffect(() => {
+    if (wasOpenRef.current && !isOpen) {
+      fabRef.current?.focus();
+    }
+    wasOpenRef.current = isOpen;
   }, [isOpen]);
 
   useEffect(() => {
@@ -144,6 +177,7 @@ export default function CopilotBubble() {
     setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
+    setLiveMessage("Titus is thinking…");
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -159,48 +193,91 @@ export default function CopilotBubble() {
         signal: controller.signal,
       });
 
-      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // Rate-limit/origin/size checks return a plain JSON error before any
+        // streaming starts (not a __COPILOT_ERR__ sentinel), so handle them
+        // here with the same friendly-message treatment as the streamed ones.
+        let code: string | undefined;
+        try {
+          ({ error: code } = await res.json());
+        } catch {
+          // Non-JSON or empty body — fall through to the generic message below.
+        }
+        if (res.status === 429 || code === "rate_limited") {
+          throw new Error("I'm getting a lot of questions right now — please try again in a minute.");
+        }
+        if (code === "origin_forbidden") {
+          throw new Error("Sorry, this request couldn't be verified. Feel free to email Titus at tituslhy@gmail.com");
+        }
+        if (code === "conversation_too_long" || code === "request_too_large") {
+          throw new Error("That conversation has gotten a bit long for me to follow — try starting a fresh one.");
+        }
+        throw new Error("Sorry, something went wrong. Feel free to email Titus directly at tituslhy@gmail.com");
+      }
+      if (!res.body) throw new Error("Sorry, something went wrong. Feel free to email Titus directly at tituslhy@gmail.com");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let firstChunk = true;
+      let buffer = "";
       const assistantId = crypto.randomUUID();
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-
-        // Detect typed error sentinels sent by the API route
-        if (chunk.startsWith("__COPILOT_ERR__:")) {
-          const code = chunk.slice("__COPILOT_ERR__:".length);
-          if (code === "ERR_RATE_LIMIT") {
-            throw new Error("I'm getting a lot of questions right now — please try again in a moment.");
-          }
-          if (code === "ERR_QUOTA") {
-            throw new Error("The copilot is temporarily unavailable. Feel free to email Titus at tituslhy@gmail.com");
-          }
-          if (code === "ERR_AUTH") {
-            throw new Error("The copilot is currently misconfigured. Please contact Titus at tituslhy@gmail.com");
-          }
-          throw new Error("Sorry, something went wrong. Feel free to email Titus directly at tituslhy@gmail.com");
-        }
-
+      const appendDelta = (text: string) => {
         if (firstChunk) {
           firstChunk = false;
           setIsLoading(false);
           setIsStreaming(true);
-          setMessages((prev) => [...prev, { id: assistantId, role: "assistant" as const, content: chunk }]);
+          setMessages((prev) => [...prev, { id: assistantId, role: "assistant" as const, content: text }]);
         } else {
           setMessages((prev) => {
             const last = prev[prev.length - 1];
-            return [...prev.slice(0, -1), { ...last, content: last.content + chunk }];
+            return [...prev.slice(0, -1), { ...last, content: last.content + text }];
           });
+        }
+      };
+
+      const handleErrorCode = (code: string) => {
+        if (code === "ERR_RATE_LIMIT") {
+          throw new Error("I'm getting a lot of questions right now — please try again in a moment.");
+        }
+        if (code === "ERR_QUOTA") {
+          throw new Error("The copilot is temporarily unavailable. Feel free to email Titus at tituslhy@gmail.com");
+        }
+        if (code === "ERR_AUTH") {
+          throw new Error("The copilot is currently misconfigured. Please contact Titus at tituslhy@gmail.com");
+        }
+        throw new Error("Sorry, something went wrong. Feel free to email Titus directly at tituslhy@gmail.com");
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          setLiveMessage("New reply received");
+          break;
+        }
+
+        // Server sends newline-delimited JSON events, so a marker split
+        // across two network chunks is buffered here until a full line
+        // arrives, rather than being read as raw (possibly truncated) text.
+        buffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+          const line = buffer.slice(0, newlineIndex);
+          buffer = buffer.slice(newlineIndex + 1);
+          if (!line) continue;
+
+          const event = JSON.parse(line) as { type: "delta"; text: string } | { type: "error"; code: string };
+          if (event.type === "error") {
+            handleErrorCode(event.code);
+          } else {
+            appendDelta(event.text);
+          }
         }
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") return;
+      setLiveMessage("Reply failed");
       setMessages((prev) => [
         ...prev,
         {
@@ -225,6 +302,35 @@ export default function CopilotBubble() {
     }
   };
 
+  const handleDrawerKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setIsOpen(false);
+      return;
+    }
+
+    if (e.key !== "Tab") return;
+
+    const drawer = drawerRef.current;
+    if (!drawer) return;
+
+    const focusable = drawer.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), textarea:not([disabled]), [href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
   const panelWidth = isExpanded
     ? "min(680px, calc(100vw - 3rem))"
     : "min(23rem, calc(100vw - 3rem))";
@@ -235,24 +341,35 @@ export default function CopilotBubble() {
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
       {/* Drawer */}
       <div
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="copilot-heading"
+        inert={!isOpen}
+        onKeyDown={handleDrawerKeyDown}
         className="flex flex-col overflow-hidden border border-ink bg-paper text-ink"
         style={{
           width: panelWidth,
           height: isOpen ? panelHeight : 0,
           boxShadow: isOpen ? "0 12px 44px rgba(20,16,10,0.20), 0 2px 10px rgba(20,16,10,0.10)" : "none",
           transformOrigin: "bottom right",
-          transition: [
-            "width 260ms cubic-bezier(0.4,0,0.2,1)",
-            "height 260ms cubic-bezier(0.4,0,0.2,1)",
-            "transform 220ms cubic-bezier(0.34,1.56,0.64,1)",
-            "opacity 180ms ease",
-            "box-shadow 200ms ease",
-          ].join(", "),
-          transform: isOpen ? "scale(1) translateY(0)" : "scale(0.92) translateY(12px)",
+          transition: prefersReducedMotion
+            ? "height 0ms, opacity 0ms, box-shadow 0ms"
+            : [
+                "width 260ms cubic-bezier(0.4,0,0.2,1)",
+                "height 260ms cubic-bezier(0.4,0,0.2,1)",
+                "transform 220ms cubic-bezier(0.34,1.56,0.64,1)",
+                "opacity 180ms ease",
+                "box-shadow 200ms ease",
+              ].join(", "),
+          transform: prefersReducedMotion
+            ? "none"
+            : isOpen
+              ? "scale(1) translateY(0)"
+              : "scale(0.92) translateY(12px)",
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? "auto" : "none",
         }}
-        aria-hidden={!isOpen}
       >
         {/* Amber brand spine */}
         <div className="h-0.5 flex-shrink-0 bg-amber" />
@@ -264,11 +381,11 @@ export default function CopilotBubble() {
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-[pulse-dot_2.4s_ease-in-out_infinite]" />
               <span>Personal assistant</span>
             </p>
-            <p className="mt-2 font-serif text-[22px] font-medium leading-none tracking-[-0.01em] text-ink">
+            <p id="copilot-heading" className="mt-2 font-serif text-[22px] font-medium leading-none tracking-[-0.01em] text-ink">
               Ask <em className="italic text-amber">Titus</em>
             </p>
             <p className="mt-2 max-w-[34ch] font-mono text-[11px] leading-snug text-ink-faint">
-              A small assistant trained on this page. It answers about my work.
+              Grounded in my public work and writing. It answers about my work.
             </p>
           </div>
           <div className="flex flex-shrink-0 items-center gap-1">
@@ -282,13 +399,18 @@ export default function CopilotBubble() {
             </button>
             <button
               onClick={() => setIsOpen(false)}
-              className="p-1.5 text-ink-faint transition-colors hover:text-ink"
+              className="p-1.5 text-ink-faint transition-colors hover:text-amber"
               aria-label="Close chat"
+              title="Close"
             >
-              <CloseIcon />
+              <CloseIcon size={16} />
             </button>
           </div>
         </header>
+
+        <span className="sr-only" aria-live="polite" aria-atomic="true">
+          {liveMessage}
+        </span>
 
         {/* Messages */}
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5" style={{ minHeight: 0 }}>
@@ -415,11 +537,15 @@ export default function CopilotBubble() {
               <span aria-hidden="true">→</span>
             </button>
           </div>
+          <p className="mt-2 font-mono text-[10px] leading-snug text-ink-faint">
+            Messages are sent to OpenAI to generate a response. This site does not save your chat history.
+          </p>
         </div>
       </div>
 
       {/* FAB — ink pill */}
       <button
+        ref={fabRef}
         onClick={() => setIsOpen((prev) => !prev)}
         className="flex items-center gap-2.5 rounded-full border border-ink bg-ink px-4 py-3 text-paper transition-colors hover:border-amber hover:bg-amber"
         aria-label={isOpen ? "Close chat" : "Open Ask Titus"}

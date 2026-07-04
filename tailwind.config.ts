@@ -9,8 +9,11 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        serif: ['"Newsreader"', '"Source Serif Pro"', 'Georgia', 'serif'],
-        mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        // Fonts are loaded via next/font/google in app/layout.tsx, which exposes
+        // them as CSS variables (--font-newsreader / --font-ibm-plex-mono) on
+        // the <html> element rather than literal family-name strings.
+        serif: ['var(--font-newsreader)', '"Source Serif Pro"', 'Georgia', 'serif'],
+        mono: ['var(--font-ibm-plex-mono)', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
         // Paper / ink / rule reference the CSS custom properties in app/globals.css

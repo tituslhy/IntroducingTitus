@@ -46,3 +46,23 @@ global.IntersectionObserver = IntersectionObserverMock as unknown as typeof Inte
 if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = jest.fn();
 }
+
+// jsdom doesn't implement window.matchMedia; usePrefersReducedMotion hook calls it.
+// Guarded so the node test environment (where window is undefined) is unaffected.
+if (typeof window !== "undefined") {
+  class MediaQueryListMock implements MediaQueryList {
+    matches = false;
+    media = "";
+    onchange: ((this: MediaQueryList, ev: MediaQueryListEvent) => unknown) | null = null;
+    addListener = jest.fn();
+    removeListener = jest.fn();
+    addEventListener = jest.fn();
+    removeEventListener = jest.fn();
+    dispatchEvent = jest.fn(() => true);
+  }
+
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: jest.fn((_query: string) => new MediaQueryListMock()),
+  });
+}
