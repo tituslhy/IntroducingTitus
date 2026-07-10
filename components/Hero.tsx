@@ -18,7 +18,7 @@ const ISSUE_META = {
 // Kicker lines beneath the portrait (COVER_LINES[1..] from the handoff)
 const KICKERS = [
   { kicker: '8+ years', text: 'of production AI, shipped solo and in teams' },
-  { kicker: '50 articles', text: 'technical articles, featured by IBM, LlamaIndex, Unsloth' },
+  { kicker: '54 articles', text: 'technical articles, featured by IBM, LlamaIndex, Unsloth' },
   { kicker: 'Currently', text: 'Lead AI Engineer at Mastercard Asia/Pacific' },
 ]
 
@@ -164,8 +164,7 @@ export default function Hero() {
           </p>
 
           <p className="order-5 max-w-[56ch] text-[17px] leading-[1.55] text-ink-soft [text-wrap:pretty] min-[880px]:order-none min-[880px]:mt-[22px]">
-            8+ years of production AI. 50 technical articles. Currently leading
-            AI engineering for Mastercard&apos;s Asia/Pacific division.
+            8+ years of production AI. 54 technical articles. Currently Lead AI Engineer at Mastercard&apos;s R&D Foundry.
           </p>
 
           {/* CTA row */}

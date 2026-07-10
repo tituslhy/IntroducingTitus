@@ -12,7 +12,7 @@
 export const YEARS_EXPERIENCE = '8+ years'
 
 /** Canonical article count (requirements.md: "50+ published technical articles"). */
-export const ARTICLE_COUNT_NUMBER = 50
+export const ARTICLE_COUNT_NUMBER = 54
 
 /** Short numeral form, e.g. for taglines/metadata: "50 technical articles". */
 export const ARTICLE_COUNT_SHORT = `${ARTICLE_COUNT_NUMBER} technical articles`
@@ -21,7 +21,7 @@ export const ARTICLE_COUNT_SHORT = `${ARTICLE_COUNT_NUMBER} technical articles`
 export const ARTICLE_COUNT_PROSE = `${ARTICLE_COUNT_NUMBER}+ published technical articles`
 
 /** Word form for editorial copy (e.g. "Six articles, of fifty."). */
-export const ARTICLE_COUNT_WORD = 'fifty'
+export const ARTICLE_COUNT_WORD = 'fifty four'
 
 /** fictional-bassoon test coverage (requirements.md line 168: "90%+ test coverage"). */
 export const FICTIONAL_BASSOON_COVERAGE = '90%+'

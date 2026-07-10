@@ -30,10 +30,10 @@ const ROLES: Role[] = [
     location: 'Singapore',
     role: 'Lead AI Engineer',
     dates: 'Jul 2026 — Present',
-    deck: "Leading AI engineering for Mastercard's Asia/Pacific division, applying production AI capabilities at enterprise scale within a global payments network.",
+    deck: "Developing AI capabilities at Mastercard's R&D Foundry",
     body: '',
     tech: [],
-    techNote: 'Tech stack: to be updated post-onboarding.',
+    techNote: '',
   },
   {
     years: '2025',
@@ -42,7 +42,7 @@ const ROLES: Role[] = [
     role: 'Vice President, Generative AI',
     dates: 'Jun 2025 — Jul 2026',
     deck: 'Technical lead for a real-time GenAI contact-centre platform supporting in-call and post-call agent assistance under strict latency and accuracy SLAs.',
-    body: "Architected and delivered UOB's enterprise multi-agent platform (BYOA) enabling cross-framework agent interoperability and dynamic tool discovery.",
+    body: "Developed UOB's enterprise multi-agent GenAI platform, enabling teams to build, deploy, and orchestrate agents with cross-framework interoperability and dynamic tool/agent discovery.",
     tech: ['Java (Spring Boot)', 'React', 'Redis', 'Oracle DB', 'ELK Stack', 'Docker', 'vLLM', 'Helm Charts', 'Apache Jenkins', 'LangChain', 'MCP'],
   },
   {
