@@ -238,7 +238,7 @@ export default function Experience() {
         {/* Education */}
         <div className="mt-[clamp(40px,5vw,64px)]">
           <div className="mb-5 flex items-baseline gap-4">
-            <span className="font-mono text-[10.5px] font-semibold tracking-[0.08em] text-amber">03a</span>
+            <span className="font-mono text-[10.5px] font-semibold tracking-[0.08em] text-amber">04</span>
             <h3 className="m-0 font-serif text-[28px] font-medium tracking-[-0.015em] text-ink">
               Education
             </h3>

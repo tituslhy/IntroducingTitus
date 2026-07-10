@@ -6,8 +6,8 @@ const NAV_ITEMS = [
   { id: 'lede', label: 'About', folio: '01' },
   { id: 'stack', label: 'Stack', folio: '02' },
   { id: 'dossier', label: 'Experience', folio: '03' },
-  { id: 'projects', label: 'Projects', folio: '04' },
-  { id: 'writing', label: 'Writing', folio: '05' },
+  { id: 'projects', label: 'Projects', folio: '05' },
+  { id: 'writing', label: 'Writing', folio: '07' },
 ]
 
 const EMAIL = 'tituslhy@gmail.com'
