@@ -17,7 +17,7 @@ describe("ProjectsWriting", () => {
       render(<ProjectsWriting />);
 
       const projectsSection = document.querySelector("section#projects");
-      expect(projectsSection?.textContent).toMatch(/04/);
+      expect(projectsSection?.textContent).toMatch(/05/);
       expect(projectsSection?.textContent).toMatch(/Projects/);
     });
 
@@ -153,7 +153,7 @@ describe("ProjectsWriting", () => {
         render(<ProjectsWriting />);
 
         const projectsSection = document.querySelector("section#projects");
-        expect(projectsSection?.textContent).toMatch(/04a/);
+        expect(projectsSection?.textContent).toMatch(/06/);
         expect(projectsSection?.textContent).toMatch(/open-source contributions/i);
       });
 
@@ -211,7 +211,7 @@ describe("ProjectsWriting", () => {
       render(<ProjectsWriting />);
 
       const writingSection = document.querySelector("section#writing");
-      expect(writingSection?.textContent).toMatch(/05/);
+      expect(writingSection?.textContent).toMatch(/07/);
       expect(writingSection?.textContent).toMatch(/Writing/);
     });
 
