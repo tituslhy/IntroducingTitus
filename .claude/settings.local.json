@@ -13,7 +13,9 @@
       "Bash(grep -B6 U+0000-00FF __TRACKED_VAR__/fonts/newsreader.css)",
       "Bash(echo \"lint exit: $?\")",
       "Bash(echo \"tsc exit: $?\")",
-      "Bash(npm audit *)"
+      "Bash(npm audit *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

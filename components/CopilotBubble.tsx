@@ -338,7 +338,7 @@ export default function CopilotBubble() {
   const panelHeight = isExpanded ? "min(80vh, 740px)" : "540px";
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
       {/* Drawer */}
       <div
         ref={drawerRef}
@@ -543,17 +543,18 @@ export default function CopilotBubble() {
         </div>
       </div>
 
-      {/* FAB — ink pill */}
+      {/* FAB — icon-only circle on mobile (avoids colliding with nearby CTAs
+          and body copy at narrow widths); full "Ask Titus" pill from sm up. */}
       <button
         ref={fabRef}
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-2.5 rounded-full border border-ink bg-ink px-4 py-3 text-paper transition-colors hover:border-amber hover:bg-amber"
+        className="flex items-center gap-2.5 rounded-full border border-ink bg-ink p-3.5 text-paper transition-colors hover:border-amber hover:bg-amber sm:px-4 sm:py-3"
         aria-label={isOpen ? "Close chat" : "Open Ask Titus"}
         aria-expanded={isOpen}
       >
         {isOpen ? <CloseIcon size={18} /> : <CopilotIcon />}
         {!isOpen && (
-          <span className="font-mono text-[12px] uppercase tracking-[0.12em]">Ask Titus</span>
+          <span className="hidden font-mono text-[12px] uppercase tracking-[0.12em] sm:inline">Ask Titus</span>
         )}
       </button>
     </div>
