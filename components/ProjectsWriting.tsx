@@ -219,7 +219,7 @@ function Projects() {
   return (
     <section id="projects" className="text-ink">
       <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
-        <SectionMarker folio="04" kicker="Projects">
+        <SectionMarker folio="05" kicker="Projects">
           Things I have <em className="italic text-amber">built</em>.
         </SectionMarker>
 
@@ -232,7 +232,7 @@ function Projects() {
         {/* Open-source contributions */}
         <div className="mt-[clamp(40px,5vw,64px)]">
           <div className="mb-[18px] flex items-baseline gap-4">
-            <span className="font-mono text-[10.5px] font-semibold tracking-[0.08em] text-amber">04a</span>
+            <span className="font-mono text-[10.5px] font-semibold tracking-[0.08em] text-amber">06</span>
             <h3 className="m-0 font-serif text-[28px] font-medium tracking-[-0.015em] text-ink">
               Open-source contributions
             </h3>
@@ -267,7 +267,7 @@ function Writing() {
   return (
     <section id="writing" className="bg-paper-deep text-ink">
       <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
-        <SectionMarker folio="05" kicker="Writing">
+        <SectionMarker folio="07" kicker="Writing">
           Six articles, of <em className="italic text-amber">{ARTICLE_COUNT_WORD}</em>.
         </SectionMarker>
 
