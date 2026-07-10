@@ -218,7 +218,7 @@ function ProjectFeature({ project, index }: { project: Project; index: number })
 function Projects() {
   return (
     <section id="projects" className="text-ink">
-      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0">
+      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
         <SectionMarker folio="04" kicker="Projects">
           Things I have <em className="italic text-amber">built</em>.
         </SectionMarker>
@@ -266,7 +266,7 @@ function Projects() {
 function Writing() {
   return (
     <section id="writing" className="bg-paper-deep text-ink">
-      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0">
+      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
         <SectionMarker folio="05" kicker="Writing">
           Six articles, of <em className="italic text-amber">{ARTICLE_COUNT_WORD}</em>.
         </SectionMarker>
