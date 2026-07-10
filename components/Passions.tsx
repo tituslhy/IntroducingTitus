@@ -1,13 +1,13 @@
 const PASSIONS = [
   {
     n: 'i.',
-    title: 'Production AI under real constraints',
-    body: 'The interesting work begins after the demo. Latency budgets, observability, blue-green vector swaps, prompt-injection defence — the unglamorous half of the job.',
+    title: 'AI that meets felt needs',
+    body: 'Demos answer whether you can build the concept. Production answers whether the app meets the need. I straddle my time across both sides of the coin.',
   },
   {
     n: 'ii.',
     title: 'Writing as external memory',
-    body: 'Fifty articles because future-me will forget. The community reading them is a side effect I’m happy about.',
+    body: "Fifty four articles because future-me will forget. That others find them useful is a side effect I’m glad about",
   },
   {
     n: 'iii.',
@@ -17,7 +17,7 @@ const PASSIONS = [
   {
     n: 'iv.',
     title: 'Making AI legible to the people',
-    body: 'Most AI projects die in the gap between what the system can do and what the organisation believes it can do. I’ve spent as much time on that gap as on the code.',
+    body: "Most AI projects die in the gap between what the system can do and what the organisation believes it can do. I’ve spent as much time on that gap as on the code.",
   },
 ]
 
