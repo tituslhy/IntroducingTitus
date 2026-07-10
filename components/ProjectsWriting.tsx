@@ -223,7 +223,7 @@ function Projects() {
           Things I have <em className="italic text-amber">built</em>.
         </SectionMarker>
 
-        <div className="border-t border-ink">
+        <div>
           {PROJECTS.map((p, i) => (
             <ProjectFeature key={p.slug} project={p} index={i} />
           ))}
