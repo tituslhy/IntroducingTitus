@@ -114,11 +114,11 @@ export default function Hero() {
             </div>
           </figure>
 
-          <ul className="order-8 flex flex-col gap-3 min-[880px]:order-none">
+          <ul className="order-8 flex flex-col gap-3 border-t border-rule min-[880px]:order-none">
             {KICKERS.map((line) => (
               <li
                 key={line.kicker}
-                className="grid grid-cols-[100px_1fr] items-baseline gap-4 border-t border-rule py-2.5 last:border-b"
+                className="grid grid-cols-[100px_1fr] items-baseline gap-4 border-rule py-2.5 last:border-b"
               >
                 <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-amber">
                   {line.kicker}
@@ -147,7 +147,7 @@ export default function Hero() {
           >
             <span className="block">Lim</span>
             <span className="block pl-[0.6em] max-[1100px]:pl-0">Hsien&nbsp;Yong</span>
-            <span className="flex items-baseline justify-end gap-[0.4em] text-[0.78em] font-normal italic text-ink-soft">
+            <span className="flex items-baseline justify-start gap-[0.4em] text-[0.78em] font-normal italic text-ink-soft min-[1100px]:justify-end">
               <em className="italic text-amber">(Titus)</em>
             </span>
           </h1>

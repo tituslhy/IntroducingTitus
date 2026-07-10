@@ -122,7 +122,7 @@ function RoleEntry({ role }: { role: Role }) {
   const compact = Boolean(role.compact)
   return (
     <article
-      className={`relative grid grid-cols-[110px_1fr] gap-[clamp(20px,3vw,40px)] border-b border-rule max-[720px]:grid-cols-1 ${
+      className={`relative grid grid-cols-[110px_1fr] gap-[clamp(20px,3vw,40px)] max-[720px]:grid-cols-1 ${
         compact ? 'py-[clamp(20px,3vw,32px)]' : 'py-[clamp(28px,4vw,44px)]'
       }`}
     >
@@ -135,7 +135,7 @@ function RoleEntry({ role }: { role: Role }) {
         >
           {role.years}
         </span>
-        <span className="inline-block h-px w-8 bg-amber max-[720px]:w-auto max-[720px]:flex-1" />
+        <span className="inline-block h-px w-8 bg-amber" />
       </div>
 
       {/* Body */}
@@ -215,7 +215,7 @@ function RoleEntry({ role }: { role: Role }) {
 export default function Experience() {
   return (
     <section id="dossier" className="text-ink">
-      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)]">
+      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
         {/* Section marker */}
         <header className="mb-[clamp(28px,4vw,56px)]">
           <div className="flex items-baseline gap-3.5 pb-[18px] font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
@@ -229,7 +229,7 @@ export default function Experience() {
         </header>
 
         {/* Roles */}
-        <div className="border-t border-ink">
+        <div>
           {ROLES.map((r) => (
             <RoleEntry key={r.company} role={r} />
           ))}
