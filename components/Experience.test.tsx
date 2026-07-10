@@ -144,7 +144,7 @@ describe("Experience", () => {
     it("should render education section header", () => {
       render(<Experience />);
 
-      expect(screen.getByText("03a")).toBeInTheDocument();
+      expect(screen.getByText("04")).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: /education/i })).toBeInTheDocument();
     });
 

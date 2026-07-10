@@ -36,7 +36,7 @@ describe("Navigation", () => {
 
     it("should render folio numbers for each nav item", () => {
       render(<Navigation />);
-      const folios = ["01", "02", "03", "04", "05"];
+      const folios = ["01", "02", "03", "05", "07"];
       folios.forEach((folio) => {
         expect(screen.getByText(folio)).toBeInTheDocument();
       });
@@ -502,7 +502,7 @@ describe("Navigation", () => {
       const { container } = render(<Navigation />);
       const listItems = container.querySelectorAll("nav ul li");
 
-      const expectedFolios = ["01", "02", "03", "04", "05"];
+      const expectedFolios = ["01", "02", "03", "05", "07"];
       const expectedLabels = ["About", "Stack", "Experience", "Projects", "Writing"];
 
       listItems.forEach((li, index) => {
