@@ -135,7 +135,7 @@ function RoleEntry({ role }: { role: Role }) {
         >
           {role.years}
         </span>
-        <span className="inline-block h-px w-8 bg-amber max-[720px]:w-auto max-[720px]:flex-1" />
+        <span className="inline-block h-px w-8 bg-amber" />
       </div>
 
       {/* Body */}
