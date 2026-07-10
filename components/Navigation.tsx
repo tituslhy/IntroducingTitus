@@ -63,7 +63,7 @@ export default function Navigation() {
     <nav
       aria-label="Section navigation"
       style={{ transform: hidden ? 'translateY(-110%)' : 'translateY(0)' }}
-      className="sticky top-0 z-50 border-b border-rule bg-[color-mix(in_oklch,var(--paper)_88%,transparent)] backdrop-blur-[10px] backdrop-saturate-[1.4] transition-transform duration-[240ms] ease-[cubic-bezier(.4,0,.2,1)]"
+      className="sticky top-0 z-50 border-b border-rule bg-[color-mix(in_oklch,var(--paper)_88%,transparent)] backdrop-blur-[10px] backdrop-saturate-[1.4] transition-transform duration-[240ms] ease-[cubic-bezier(.4,0,.2,1)] max-[880px]:border-b-0"
     >
       <div className="mx-auto grid h-14 max-w-[1280px] grid-cols-[auto_1fr_auto] items-center gap-6 px-[clamp(18px,4vw,56px)]">
         {/* Brand → back to top */}
