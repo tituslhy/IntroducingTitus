@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { ARTICLE_COUNT_SHORT } from '@/lib/content'
 import RootLayout, { metadata } from './layout'
 
 describe('RootLayout metadata', () => {
@@ -9,7 +10,7 @@ describe('RootLayout metadata', () => {
   it('should export correct page description', () => {
     expect(metadata.description).toContain('GenAI engineer and architect')
     expect(metadata.description).toContain('8+ years building production AI systems')
-    expect(metadata.description).toContain('50 technical articles')
+    expect(metadata.description).toContain(ARTICLE_COUNT_SHORT)
   })
 
   it('should export OpenGraph metadata with correct title', () => {

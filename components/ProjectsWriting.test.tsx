@@ -202,7 +202,7 @@ describe("ProjectsWriting", () => {
     it("should render writing section header", () => {
       render(<ProjectsWriting />);
 
-      const heading = screen.getByRole("heading", { name: /six articles, of fifty/i });
+      const heading = screen.getByRole("heading", { name: /six articles, of sixty one/i });
       expect(heading).toBeInTheDocument();
       expect(heading.querySelector("em")).toHaveClass("italic", "text-amber");
     });

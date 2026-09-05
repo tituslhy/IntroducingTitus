@@ -54,7 +54,7 @@ describe('Home', () => {
     render(<Home />)
     // Writing section displays article content
     const writingHeading = screen.getByRole('heading', {
-      name: /six articles.*fifty/i,
+      name: /six articles.*sixty one/i,
     })
     expect(writingHeading).toBeInTheDocument()
   })

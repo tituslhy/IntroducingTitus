@@ -24,16 +24,16 @@ describe("Passions", () => {
 
   it("should render first passion about production AI", () => {
     render(<Passions />);
-    const title = screen.getByRole("heading", { name: /production ai under real constraints/i });
+    const title = screen.getByRole("heading", { name: /ai that meets felt needs/i });
     expect(title).toBeInTheDocument();
-    expect(screen.getByText(/the interesting work begins after the demo/i)).toBeInTheDocument();
+    expect(screen.getByText(/demos answer whether you can build the concept/i)).toBeInTheDocument();
   });
 
   it("should render second passion about writing", () => {
     render(<Passions />);
     const title = screen.getByRole("heading", { name: /writing as external memory/i });
     expect(title).toBeInTheDocument();
-    expect(screen.getByText(/fifty articles because future-me will forget/i)).toBeInTheDocument();
+    expect(screen.getByText(/sixty one articles because future-me will forget/i)).toBeInTheDocument();
   });
 
   it("should render third passion about open source", () => {
