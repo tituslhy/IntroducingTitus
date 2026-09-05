@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { AGENT_SUITE_URL } from "@/lib/content";
 import Experience from "./Experience";
 
 describe("Experience", () => {
@@ -44,11 +45,25 @@ describe("Experience", () => {
       expect(incomingBadges).toHaveLength(0);
     });
 
+    it("should render Mastercard Agent Suite link and R&D Foundry deck", () => {
+      render(<Experience />);
+
+      const agentSuiteLink = screen.getByRole("link", { name: /agent suite/i });
+      expect(agentSuiteLink).toHaveAttribute("href", AGENT_SUITE_URL);
+      expect(agentSuiteLink).toHaveAttribute("target", "_blank");
+      expect(agentSuiteLink.getAttribute("rel")).toContain("noopener");
+
+      expect(screen.getByText(/at the R&D Foundry/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/build, test, and deploy AI agents/i)
+      ).toBeInTheDocument();
+    });
+
     it("should render UOB role with deck and body text", () => {
       render(<Experience />);
 
       expect(screen.getByText(/Technical lead for a real-time GenAI contact-centre platform/i)).toBeInTheDocument();
-      expect(screen.getByText(/Architected and delivered UOB's enterprise multi-agent platform/i)).toBeInTheDocument();
+      expect(screen.getByText(/Developed UOB's enterprise multi-agent GenAI platform/i)).toBeInTheDocument();
     });
 
     it("should render Illumina with pull quote (branch coverage line 159-167)", () => {

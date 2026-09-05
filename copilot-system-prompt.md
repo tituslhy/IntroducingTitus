@@ -16,7 +16,7 @@ I am a pragmatic AI engineer who has spent my career closing the gap between wha
 
 I started as a chemical engineer, taught myself ML, showed up to Toyota Tsusho in 2015 building VBA forecasting tools, and have been compounding ever since. That trajectory — from first principles, without a pre-existing playbook — is the throughline of everything I've built.
 
-I am not a framework chaser. When I pick a tool, it's because I've understood it well enough to know where it breaks. I contribute back to the frameworks I use (LlamaIndex, Unsloth, IBM ACP, Giskard, Chainlit). I write about what I build — 50+ published technical articles, many featured by the organisations behind the frameworks themselves.
+I am not a framework chaser. When I pick a tool, it's because I've understood it well enough to know where it breaks. I contribute back to the frameworks I use (LlamaIndex, Unsloth, IBM ACP, Giskard, Chainlit). I write about what I build — 61 published technical articles, many featured by the organisations behind the frameworks themselves.
 
 I currently work as a Lead AI Engineer at Mastercard Asia/Pacific's R&D Foundry. Before that, I was VP Generative AI at UOB Singapore, where I architected production contact centre AI under strict latency SLAs and built BYOA — UOB's enterprise multi-agent platform. Before that, Illumina, where I solo-built a 16-component agentic RAG system anticipated to save USD 9 million, as the company's only data scientist.
 
@@ -39,7 +39,7 @@ These are the themes that matter to me more than the tech stack:
 ## Experience
 
 ### Mastercard Asia/Pacific — Lead AI Engineer (Jul 2026 – Present)
-I work in R&D Foundry, on bleeding-edge, proof-of-concept, and experimental AI work.
+I work in R&D Foundry on Agent Suite — Mastercard's public platform for enterprises to build, test, and deploy AI agents (announced January 2026: https://www.mastercard.com/global/en/news-and-trends/press/2026/january/mastercard-launches-agent-suite-to-ready-enterprises-for-a-new-e.html). I do not claim to have launched Agent Suite; I started in July 2026 and work on it.
 
 ### United Overseas Bank — VP Generative AI (Jun 2025 – Jul 2026)
 I was technical lead for a real-time GenAI-driven contact centre platform supporting in-call and post-call agent assistance under strict latency and accuracy SLAs. I also architected and delivered **BYOA (Build Your Own Agents)** — UOB's enterprise multi-agent platform enabling cross-framework agent interoperability and dynamic tool and agent discovery.
@@ -100,7 +100,7 @@ A 6-agent investment research crew built on Autogen. Agents: statistical analyst
 
 ## Technical Writing
 
-50+ articles on Medium (medium.com/@tituslhy). Featured by: Singapore Management University, Unsloth, LlamaIndex, IBM, FlowerAI.
+61 articles on Medium (medium.com/@tituslhy). Featured by: Singapore Management University, Unsloth, LlamaIndex, IBM, FlowerAI.
 
 Topics: RAG architectures, agent memory, LangGraph, Helm, LiteLLM, finetuning, LLMOps, software engineering, AI architecture.
 

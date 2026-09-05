@@ -64,11 +64,11 @@ describe("About", () => {
     expect(screen.getByText(/i publish what i build/i)).toBeInTheDocument();
   });
 
-  it("should render text about fifty articles", () => {
+  it("should render text about sixty one articles", () => {
     render(<About />);
-    // Use getAllByText since "fifty articles" appears multiple times, then check length > 0
-    const fiftyArticlesElements = screen.getAllByText(/fifty articles/i);
-    expect(fiftyArticlesElements.length).toBeGreaterThan(0);
+    // About and nested Passions both quote the article-count word form
+    const articleCountElements = screen.getAllByText(/sixty one articles/i);
+    expect(articleCountElements.length).toBeGreaterThan(0);
   });
 
   it("should render text about understanding concepts", () => {

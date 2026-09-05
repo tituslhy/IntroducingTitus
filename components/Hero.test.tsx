@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { ARTICLE_COUNT_NUMBER, ARTICLE_COUNT_SHORT } from '@/lib/content'
 import Hero from './Hero'
 
 describe('Hero', () => {
@@ -31,7 +32,7 @@ describe('Hero', () => {
   it('should render sub-tagline about production AI and articles', () => {
     render(<Hero />)
     expect(screen.getByText(/8\+ years of production ai/i)).toBeInTheDocument()
-    expect(screen.getByText(/50 technical articles/i)).toBeInTheDocument()
+    expect(screen.getByText(new RegExp(ARTICLE_COUNT_SHORT, 'i'))).toBeInTheDocument()
     expect(screen.getAllByText(/mastercard/i).length).toBeGreaterThan(0)
   })
 
@@ -132,7 +133,7 @@ describe('Hero', () => {
   it('should render three kicker lines with correct labels', () => {
     render(<Hero />)
     expect(screen.getByText('8+ years')).toBeInTheDocument()
-    expect(screen.getByText('50 articles')).toBeInTheDocument()
+    expect(screen.getByText(`${ARTICLE_COUNT_NUMBER} articles`)).toBeInTheDocument()
     expect(screen.getByText('Currently')).toBeInTheDocument()
   })
 

@@ -11,17 +11,21 @@
 /** Years of professional experience, as used in taglines and metadata. */
 export const YEARS_EXPERIENCE = '8+ years'
 
-/** Canonical article count (requirements.md: "50+ published technical articles"). */
-export const ARTICLE_COUNT_NUMBER = 54
+/** Canonical article count. */
+export const ARTICLE_COUNT_NUMBER = 61
 
-/** Short numeral form, e.g. for taglines/metadata: "50 technical articles". */
+/** Short numeral form, e.g. for taglines/metadata: "61 technical articles". */
 export const ARTICLE_COUNT_SHORT = `${ARTICLE_COUNT_NUMBER} technical articles`
 
-/** Longer prose form used in detailed bios, matching requirements.md's "50+ published technical articles". */
+/** Longer prose form used in detailed bios. */
 export const ARTICLE_COUNT_PROSE = `${ARTICLE_COUNT_NUMBER}+ published technical articles`
 
-/** Word form for editorial copy (e.g. "Six articles, of fifty."). */
-export const ARTICLE_COUNT_WORD = 'fifty four'
+/** Word form for editorial copy (e.g. "Six articles, of sixty one."). */
+export const ARTICLE_COUNT_WORD = 'sixty one'
+
+/** Public Mastercard Agent Suite announcement. */
+export const AGENT_SUITE_URL =
+  'https://www.mastercard.com/global/en/news-and-trends/press/2026/january/mastercard-launches-agent-suite-to-ready-enterprises-for-a-new-e.html'
 
 /** fictional-bassoon test coverage (requirements.md line 168: "90%+ test coverage"). */
 export const FICTIONAL_BASSOON_COVERAGE = '90%+'

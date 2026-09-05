@@ -1,3 +1,7 @@
+import { ARTICLE_COUNT_WORD } from '@/lib/content'
+
+const articleCountTitle = ARTICLE_COUNT_WORD[0].toUpperCase() + ARTICLE_COUNT_WORD.slice(1)
+
 const PASSIONS = [
   {
     n: 'i.',
@@ -7,7 +11,7 @@ const PASSIONS = [
   {
     n: 'ii.',
     title: 'Writing as external memory',
-    body: "Fifty four articles because future-me will forget. That others find them useful is a side effect I’m glad about",
+    body: `${articleCountTitle} articles because future-me will forget. That others find them useful is a side effect I’m glad about`,
   },
   {
     n: 'iii.',

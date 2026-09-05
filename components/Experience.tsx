@@ -1,4 +1,5 @@
-import { ILLUMINA_SAVINGS_PROSE } from '@/lib/content'
+import type { ReactNode } from 'react'
+import { AGENT_SUITE_URL, ILLUMINA_SAVINGS_PROSE } from '@/lib/content'
 
 type Role = {
   years: string
@@ -6,7 +7,7 @@ type Role = {
   location: string
   role: string
   dates: string
-  deck: string
+  deck: ReactNode
   body?: string
   tech: string[]
   techNote?: string
@@ -30,7 +31,22 @@ const ROLES: Role[] = [
     location: 'Singapore',
     role: 'Lead AI Engineer',
     dates: 'Jul 2026 — Present',
-    deck: "Developing AI capabilities at Mastercard's R&D Foundry",
+    deck: (
+      <>
+        Working on{' '}
+        <a
+          href={AGENT_SUITE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-amber underline underline-offset-2 transition-colors hover:text-ink"
+        >
+          Agent Suite
+          <span aria-hidden="true"> ↗</span>
+        </a>{' '}
+        at the R&D Foundry — Mastercard&apos;s platform for enterprises to build, test, and
+        deploy AI agents.
+      </>
+    ),
     body: '',
     tech: [],
     techNote: '',
