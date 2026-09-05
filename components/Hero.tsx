@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { ARTICLE_COUNT_NUMBER, ARTICLE_COUNT_SHORT } from '@/lib/content'
 
 const SOCIAL = {
   github: 'https://github.com/tituslhy',
@@ -18,7 +19,7 @@ const ISSUE_META = {
 // Kicker lines beneath the portrait (COVER_LINES[1..] from the handoff)
 const KICKERS = [
   { kicker: '8+ years', text: 'of production AI, shipped solo and in teams' },
-  { kicker: '54 articles', text: 'technical articles, featured by IBM, LlamaIndex, Unsloth' },
+  { kicker: `${ARTICLE_COUNT_NUMBER} articles`, text: 'technical articles, featured by IBM, LlamaIndex, Unsloth' },
   { kicker: 'Currently', text: 'Lead AI Engineer at Mastercard Asia/Pacific' },
 ]
 
@@ -164,7 +165,7 @@ export default function Hero() {
           </p>
 
           <p className="order-6 max-w-[56ch] text-[17px] leading-[1.55] text-ink-soft [text-wrap:pretty] min-[880px]:order-none min-[880px]:mt-[22px]">
-            8+ years of production AI. 54 technical articles. Currently Lead AI Engineer at Mastercard&apos;s R&D Foundry.
+            8+ years of production AI. {ARTICLE_COUNT_SHORT}. Currently Lead AI Engineer at Mastercard&apos;s R&D Foundry.
           </p>
 
           {/* CTA row */}
