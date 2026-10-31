@@ -33,7 +33,7 @@ describe("Passions", () => {
     render(<Passions />);
     const title = screen.getByRole("heading", { name: /writing as external memory/i });
     expect(title).toBeInTheDocument();
-    expect(screen.getByText(/sixty one articles because future-me will forget/i)).toBeInTheDocument();
+    expect(screen.getByText(/sixty five articles because future-me will forget/i)).toBeInTheDocument();
   });
 
   it("should render third passion about open source", () => {

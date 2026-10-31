@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { AGENT_SUITE_URL } from "@/lib/content";
 import Experience from "./Experience";
 
@@ -57,6 +57,30 @@ describe("Experience", () => {
       expect(
         screen.getByText(/build, test, and deploy AI agents/i)
       ).toBeInTheDocument();
+    });
+
+    it("should render Mastercard body describing the core SDK and CLI", () => {
+      render(<Experience />);
+
+      expect(screen.getByText(/built the core SDK and CLI for Agent Suite/i)).toBeInTheDocument();
+      expect(screen.getByText(/declare agents in YAML/i)).toBeInTheDocument();
+    });
+
+    it("should render Mastercard tech tags", () => {
+      render(<Experience />);
+
+      const section = screen.getByRole("heading", { name: /mastercard/i }).closest("article");
+      expect(section).not.toBeNull();
+      for (const tag of ["Python", "LangChain", "Typer", "ASGI", "YAML"]) {
+        expect(within(section as HTMLElement).getByText(tag)).toBeInTheDocument();
+      }
+    });
+
+    it("should not leak internal compliance specifics on the Mastercard card", () => {
+      render(<Experience />);
+
+      const section = screen.getByRole("heading", { name: /mastercard/i }).closest("article");
+      expect(section?.textContent).not.toMatch(/audit hold|retention|purge|guardrail/i);
     });
 
     it("should render UOB role with deck and body text", () => {
