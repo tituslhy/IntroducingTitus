@@ -9,7 +9,7 @@ description: |
   - A bug was fixed and regression tests are needed
   - User asks to audit existing tests for completeness
   Do NOT handle test-related requests in the main thread. Always delegate here.
-model: claude-haiku-4-5-20251001
+model: claude-haiku-5-5
 tools:
   - Read
   - Write

@@ -108,7 +108,8 @@ Timeline or card layout. Reverse chronological. Each role card:
 **Mastercard Asia/Pacific — Singapore**
 *Lead AI Engineer* | Jul 2026 – Present
 > Leading AI engineering for Mastercard's Asia/Pacific division as an individual contributor, with responsibility for building and growing a team. Focused on applying production AI capabilities at enterprise scale within a global payments network.
-Tech: *(to be updated post-onboarding, Jul 2026)*
+Architected and built the core SDK and CLI for Agent Suite: a shared foundation that replaces one-off agent builds with a common, governed standard. Teams declare agents in YAML, then chat with them in the terminal or serve them as an API. Assistant skills ship inside the packages, and contributor tooling keeps both codebases consistent.
+Tech: Python, LangChain, Typer, ASGI, YAML
 
 ---
 
@@ -188,16 +189,17 @@ Tags: LlamaIndex, Qdrant, AWS Bedrock, Docker+CUDA, Grafana, SonarQube
 ---
 
 **Writing — Medium**
-- 50+ published technical articles
+- 65 published technical articles (8 on blockchain)
 - Featured by: Singapore Management University, Unsloth, LlamaIndex, IBM, FlowerAI
 - Link: https://medium.com/@tituslhy
-- Display: 6 hardcoded featured articles:
+- Display: 7 hardcoded featured articles:
   1. [Agent Memory: The underrated superpower of agentic apps](https://medium.com/mitb-for-all/agent-memory-the-underrated-superpower-of-agentic-apps-1c16fb47f435)
   2. [How to Train Your LLM: Low Rank Adaptation Finetuning using Unsloth!](https://medium.com/mitb-for-all/how-to-train-your-llm-teaching-toothless-to-bite-8d9f56fe4b2a)
   3. [How to RAFT your LLM: Retrieval Augmented Finetuning using Unsloth!](https://medium.com/mitb-for-all/how-to-raft-your-llm-retrieval-augmented-finetuning-using-unsloth-4c3844a9a6e3)
   4. [A second look at LangGraph: When "Command-Send" becomes "common sense"](https://medium.com/mitb-for-all/a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8)
   5. [Helm Charts: The Multi-Server Orchestra Conductor](https://medium.com/mitb-for-all/helm-charts-the-multi-server-orchestra-conductor-18dc88665mc1)
   6. [A gentle introduction to LiteLLM](https://medium.com/mitb-for-all/a-gentle-introduction-to-litellm-649d48a0c2c7)
+  7. [Your agent needs a bouncer](https://medium.com/mitb-for-all/your-ai-agent-needs-a-bouncer-f115d5ddac55)
 
 ---
 
@@ -286,7 +288,7 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 - [x] Headshot: **rectangular 3:4, 1px ink border** (no circle/ring)
 - [x] Nav: **About | Stack | Experience | Projects | Writing + Get in touch CTA**
 - [x] Copilot: **"Powered by GPT-4o mini" label, first-person voice** (backend `/api/chat` unchanged)
-- [x] Featured Medium articles: **6 hardcoded**
+- [x] Featured Medium articles: **7 hardcoded**
 - [x] Copilot: **Phase 2, now in scope**
 - [x] Deployment: **Vercel** (migrated from GitHub Pages)
 - [x] Headshot: **Yes, in hero** → `/public/headshot.jpeg`

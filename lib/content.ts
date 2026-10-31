@@ -12,16 +12,19 @@
 export const YEARS_EXPERIENCE = '8+ years'
 
 /** Canonical article count. */
-export const ARTICLE_COUNT_NUMBER = 61
+export const ARTICLE_COUNT_NUMBER = 65
 
-/** Short numeral form, e.g. for taglines/metadata: "61 technical articles". */
+/** Of the canonical article count, how many are on blockchain topics. */
+export const BLOCKCHAIN_ARTICLE_COUNT = 8
+
+/** Short numeral form, e.g. for taglines/metadata: "65 technical articles". */
 export const ARTICLE_COUNT_SHORT = `${ARTICLE_COUNT_NUMBER} technical articles`
 
 /** Longer prose form used in detailed bios. */
 export const ARTICLE_COUNT_PROSE = `${ARTICLE_COUNT_NUMBER}+ published technical articles`
 
-/** Word form for editorial copy (e.g. "Six articles, of sixty one."). */
-export const ARTICLE_COUNT_WORD = 'sixty one'
+/** Word form for editorial copy (e.g. "Seven articles, of sixty five."). */
+export const ARTICLE_COUNT_WORD = 'sixty five'
 
 /** Public Mastercard Agent Suite announcement. */
 export const AGENT_SUITE_URL =

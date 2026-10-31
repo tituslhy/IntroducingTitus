@@ -18,7 +18,7 @@ runnable unit tests and execute them to confirm they pass.
 
 1. **Explore** — Read the target source file(s) to understand:
    - Function signatures, types, return values
-   - Edge cases: empty input, None/null, boundary values, exceptions
+   - Edge cases: empty input, None/null, boundayup ry values, exceptions
    - Existing test files (check `tests/`, `__tests__/`, `*.test.*`, `*.spec.*`)
 
 2. **Infer the test framework** — detect from:

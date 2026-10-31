@@ -202,7 +202,7 @@ describe("ProjectsWriting", () => {
     it("should render writing section header", () => {
       render(<ProjectsWriting />);
 
-      const heading = screen.getByRole("heading", { name: /six articles, of sixty one/i });
+      const heading = screen.getByRole("heading", { name: /seven articles, of sixty five/i });
       expect(heading).toBeInTheDocument();
       expect(heading.querySelector("em")).toHaveClass("italic", "text-amber");
     });
@@ -233,8 +233,15 @@ describe("ProjectsWriting", () => {
       expect(writingSection?.textContent).toMatch(/the full archive lives on medium/i);
     });
 
+    it("should reference 8 blockchain articles in archive", () => {
+      render(<ProjectsWriting />);
+
+      const writingSection = document.querySelector("section#writing");
+      expect(writingSection?.textContent).toMatch(/including 8 on blockchain/i);
+    });
+
     describe("Featured Articles", () => {
-      it("should render all six featured articles", () => {
+      it("should render all seven featured articles", () => {
         render(<ProjectsWriting />);
 
         expect(screen.getByText(/agent memory: the underrated superpower of agentic apps/i)).toBeInTheDocument();
@@ -243,6 +250,27 @@ describe("ProjectsWriting", () => {
         expect(screen.getByText(/a second look at langgraph:/i)).toBeInTheDocument();
         expect(screen.getByText(/helm charts: the multi-server orchestra conductor/i)).toBeInTheDocument();
         expect(screen.getByText(/a gentle introduction to litellm/i)).toBeInTheDocument();
+        expect(screen.getByText(/your agent needs a bouncer/i)).toBeInTheDocument();
+      });
+
+      it("should render 7th featured article with correct title and venue", () => {
+        render(<ProjectsWriting />);
+
+        const seventhArticle = screen.getByText(/your agent needs a bouncer/i);
+        expect(seventhArticle).toBeInTheDocument();
+        const writingSection = document.querySelector("section#writing");
+        expect(writingSection?.textContent).toMatch(/your agent needs a bouncer/i);
+        expect(writingSection?.textContent).toMatch(/13 min/);
+      });
+
+      it("should render 7th article with correct link to MITB for All", () => {
+        render(<ProjectsWriting />);
+
+        const seventhArticleLink = screen.getByRole("link", { name: /your agent needs a bouncer/i });
+        expect(seventhArticleLink).toHaveAttribute(
+          "href",
+          "https://medium.com/mitb-for-all/your-ai-agent-needs-a-bouncer-f115d5ddac55"
+        );
       });
 
       it("should render article venue and read times", () => {
@@ -254,6 +282,7 @@ describe("ProjectsWriting", () => {
         expect(writingSection?.textContent).toMatch(/11 min/);
         expect(writingSection?.textContent).toMatch(/14 min/);
         expect(writingSection?.textContent).toMatch(/9 min/);
+        expect(writingSection?.textContent).toMatch(/13 min/);
       });
 
       it("should render article links pointing to Medium", () => {
@@ -261,7 +290,7 @@ describe("ProjectsWriting", () => {
 
         const writingSection = document.querySelector("section#writing");
         const articleLinks = writingSection?.querySelectorAll("a[href*='medium.com']");
-        expect((articleLinks?.length || 0) >= 6).toBe(true);
+        expect((articleLinks?.length || 0) >= 7).toBe(true);
       });
 
       it("should have correct href for Agent Memory article", () => {

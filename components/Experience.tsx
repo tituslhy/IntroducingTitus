@@ -47,9 +47,8 @@ const ROLES: Role[] = [
         deploy AI agents.
       </>
     ),
-    body: '',
-    tech: [],
-    techNote: '',
+    body: 'Architected and built the core SDK and CLI for Agent Suite: a shared foundation that replaces one-off agent builds with a common, governed standard. Teams declare agents in YAML, then chat with them in the terminal or serve them as an API. Assistant skills ship inside the packages, and contributor tooling keeps both codebases consistent.',
+    tech: ['Python', 'LangChain', 'Typer', 'ASGI', 'YAML'],
   },
   {
     years: '2025',

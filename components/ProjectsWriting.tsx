@@ -1,4 +1,4 @@
-import { ARTICLE_COUNT_WORD, FICTIONAL_BASSOON_COVERAGE, ILLUMINA_SAVINGS_FIGURE } from '@/lib/content'
+import { ARTICLE_COUNT_WORD, BLOCKCHAIN_ARTICLE_COUNT, FICTIONAL_BASSOON_COVERAGE, ILLUMINA_SAVINGS_FIGURE } from '@/lib/content'
 
 const SOCIAL = {
   github: 'https://github.com/tituslhy',
@@ -90,6 +90,7 @@ const ARTICLES = [
   { n: 4, title: 'A second look at LangGraph: When “Command-Send” becomes “common sense”', venue: 'MITB for All', read: '9 min', href: 'https://medium.com/mitb-for-all/a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8' },
   { n: 5, title: 'Helm Charts: The Multi-Server Orchestra Conductor', venue: 'MITB for All', read: '10 min', href: 'https://medium.com/mitb-for-all/helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1' },
   { n: 6, title: 'A gentle introduction to LiteLLM', venue: 'MITB for All', read: '7 min', href: 'https://medium.com/mitb-for-all/a-gentle-introduction-to-litellm-649d48a0c2c7' },
+  { n: 7, title: 'Your agent needs a bouncer', venue: 'MITB for All', read: '13 min', href: 'https://medium.com/mitb-for-all/your-ai-agent-needs-a-bouncer-f115d5ddac55' },
 ]
 
 const FEATURED_BY = ['Singapore Management University', 'Unsloth', 'LlamaIndex', 'IBM', 'FlowerAI']
@@ -268,7 +269,7 @@ function Writing() {
     <section id="writing" className="bg-paper-deep text-ink">
       <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
         <SectionMarker folio="07" kicker="Writing">
-          Six articles, of <em className="italic text-amber">{ARTICLE_COUNT_WORD}</em>.
+          Seven articles, of<em className="italic text-amber">{ARTICLE_COUNT_WORD}</em>.
         </SectionMarker>
 
         <p className="mb-8 max-w-[60ch] font-serif text-[19px] italic text-ink-soft">
@@ -279,7 +280,7 @@ function Writing() {
               {i < FEATURED_BY.length - 1 ? ', ' : '.'}
             </span>
           ))}{' '}
-          The full archive lives on Medium.
+          The full archive lives on Medium, including {BLOCKCHAIN_ARTICLE_COUNT} on blockchain.
         </p>
 
         <ol className="border-t border-ink">
