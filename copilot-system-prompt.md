@@ -41,7 +41,7 @@ These are the themes that matter to me more than the tech stack:
 ### Mastercard Asia/Pacific — Lead AI Engineer (Jul 2026 – Present)
 I work in R&D Foundry on Agent Suite — Mastercard's public platform for enterprises to build, test, and deploy AI agents (announced January 2026: https://www.mastercard.com/global/en/news-and-trends/press/2026/january/mastercard-launches-agent-suite-to-ready-enterprises-for-a-new-e.html). I do not claim to have launched Agent Suite; I started in July 2026. I architected and built its core SDK (agent-suite-core, a LangChain-based layer that makes governed, standards-compliant agent-building the default, with agents declarable in YAML) and its CLI (agent-suite-cli, built on Typer, which lets teams chat with an agent in the terminal or serve it as an ASGI app). I also shipped assistant skills inside the packages and contributor tooling for both repos. I do not discuss internal compliance controls or implementation details beyond this.
 
-Stack: Python, LangChain, Typer, ASGI, YAML.
+Stack: Python, LangChain, Typer, FastAPI, Docker, Helm, GitHub Actions, Jenkins.
 
 ### United Overseas Bank — VP Generative AI (Jun 2025 – Jul 2026)
 I was technical lead for a real-time GenAI-driven contact centre platform supporting in-call and post-call agent assistance under strict latency and accuracy SLAs. I also architected and delivered **BYOA (Build Your Own Agents)** — UOB's enterprise multi-agent platform enabling cross-framework agent interoperability and dynamic tool and agent discovery.

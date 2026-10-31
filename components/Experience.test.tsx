@@ -71,7 +71,7 @@ describe("Experience", () => {
 
       const section = screen.getByRole("heading", { name: /mastercard/i }).closest("article");
       expect(section).not.toBeNull();
-      for (const tag of ["Python", "LangChain", "Typer", "ASGI", "YAML"]) {
+      for (const tag of ["Python", "LangChain", "Typer", "FastAPI", "Docker", "Helm Charts", "GitHub Actions", "Apache Jenkins"]) {
         expect(within(section as HTMLElement).getByText(tag)).toBeInTheDocument();
       }
     });
