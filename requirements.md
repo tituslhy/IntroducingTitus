@@ -109,7 +109,7 @@ Timeline or card layout. Reverse chronological. Each role card:
 *Lead AI Engineer* | Jul 2026 – Present
 > Leading AI engineering for Mastercard's Asia/Pacific division as an individual contributor, with responsibility for building and growing a team. Focused on applying production AI capabilities at enterprise scale within a global payments network.
 Architected and built the core SDK and CLI for Agent Suite: a shared foundation that replaces one-off agent builds with a common, governed standard. Teams declare agents in YAML, then chat with them in the terminal or serve them as an API. Assistant skills ship inside the packages, and contributor tooling keeps both codebases consistent.
-Tech: Python, LangChain, Typer, ASGI, YAML
+Tech: Python, LangChain, Typer, FastAPI, Docker, Helm Charts, GitHub Actions, Apache Jenkins
 
 ---
 
