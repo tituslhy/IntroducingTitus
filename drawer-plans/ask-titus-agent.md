@@ -545,9 +545,12 @@ convenience only).
 - **Budget per reply:** ~5k system-prompt tokens (cached) + ≤3k history + ≤6k
   article text on the answering call; ≤4 rounds; ≤2 searches; ≤1 page
   action; ~2s Jev deadline. Fail open: retrieval problems never break chat.
-- **Privacy:** tracing stays opt-in and hash-only; no article text, arguments
-  or visitor text in logs; job descriptions stay `store: false` (`/api/fit`,
-  unchanged).
+- **Privacy:** *Decided 2 Nov 2026:* tracing is **on by default** whenever a
+  LangSmith API key is set (`COPILOT_TRACING_ENABLED=false` turns it off), and
+  LangSmith traces are **full text** (visitor messages,
+  queries, article text, answers) for debugging; see `lib/copilot-tracing.ts`.
+  Console logs stay text-free. `/api/fit` is never traced; job descriptions
+  stay `store: false`.
 - **Server-only secrets and data:** `OPENAI_API_KEY`, `TYPESAFE_API_KEY` and
   `content/articles.json` never reach the client bundle.
 - **Voice:** first person, dry, no emoji or exclamation points, per

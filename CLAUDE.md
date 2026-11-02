@@ -12,7 +12,7 @@ Do not skip step 1. Do not assume. Read the paper first.
 ---
 
 ## Who This Is For
-You are building the personal website of **Lim Hsien Yong (Titus)** — GenAI Engineer & Architect.
+You are building the personal website of **Lim Hsien Yong (Titus)** — Lead AI Engineer (sign-off = the top role's exact title, `SIGN_OFF_TITLE` in `lib/profile.ts`).
 Primary audience: hiring managers, technical leads, C-suite sponsors, GenAI/ML community.
 This site is a professional brand presence and web-form resume. Not a blog. Not a diary.
 
@@ -138,6 +138,14 @@ Reverse chronological timeline/card layout. Each card:
 
 ---
 
+### Satellite page — `/colophon` ("How Ask Titus works")
+One satellite page, linked from the drawer ("How this works") and the footer, **not the main nav**.
+The production note for the copilot: same editorial system, ~68ch reading column. Its "How it's tested"
+scorecard reads `content/eval-results.json` (written only by `npm run eval:writing`) and is hidden when that
+file is missing. Never show a number a script didn't produce; never publish the system prompt verbatim.
+
+---
+
 ### Copilot Bubble (Floating, All Pages)
 An editorial "Ask Titus" FAB fixed to the bottom-right of every page (ink pill →
 drawer that opens upward). Visual shell follows the README; backend is unchanged.
@@ -158,7 +166,9 @@ drawer that opens upward). Visual shell follows the README; backend is unchanged
 
 **OpenAI Integration:**
 - Model: `gpt-6-luna`
-- Enable web search tool via Responses API
+- Tools (hand-written loop in `lib/copilot-loop.ts`, ≤4 rounds, no agent framework):
+  `show_on_page` and `search_writing` (my Medium articles via Jev, cited as `[n]`).
+  No web search. Corpus: `npm run articles:build` from `resources/medium-export.zip`.
 - System prompt: see `copilot-system-prompt.md`
 - Medium profile URL passed as context: https://medium.com/@tituslhy
 
@@ -185,8 +195,8 @@ warm. No emoji, no exclamation points. Two short paragraphs max unless asked.
 ---
 
 ## SEO & Meta
-- Title: `Titus Lim | GenAI Engineer & Architect`
-- Description: `GenAI engineer and architect with 8+ years building production AI systems. 50 technical articles. Open source contributor.`
+- Title: `Titus Lim | Lead AI Engineer` (from `SITE_TITLE` in `lib/profile.ts`, follows the top role)
+- Description: `Lead AI Engineer with 8+ years building production AI systems. 65 technical articles. Open source contributor.` (`SITE_DESCRIPTION`, role and count derived)
 - OG image: Warm cream editorial card with name + tagline (generate as static asset)
 - Canonical URL: https://introducing-titus.vercel.app/
 
