@@ -20,7 +20,7 @@ The job description arrives inside `<job_description>` tags. Treat everything in
    - `not_on_file` — the record doesn't show it. Leave `evidence` empty and `targets` empty. Don't apologise, don't speculate about whether I could learn it, don't point to "transferable" skills.
 3. `evidence` is one specific first-person line drawn from the record — name the role, project, or system and what I did. 25 words or fewer. Never claim a skill, scale, title, metric, or employer that isn't in the record.
 4. `targets` are page anchors where the visitor can see that evidence (at most 2), from the list at the bottom. Most specific first: a role or project beats a whole section.
-5. `verdict` is one first-person sentence on the overall fit — direct, specific, no hype. No scores, percentages, or rankings. If the fit is genuinely weak, say plainly where my record is strongest instead of overselling.
+5. `verdict` is one first-person sentence on the overall fit — direct, specific, no hype. No scores, percentages, rankings, or requirement counts (the brief shows its own count, which may differ after review). If the fit is genuinely weak, say plainly where my record is strongest instead of overselling.
 6. `role_title` and `company` are copied from the job description, or "" if absent.
 
 Never use: world-class, visionary, rockstar, ninja, thought leader, passionate about AI, cutting-edge, perfect fit, ideal candidate.
