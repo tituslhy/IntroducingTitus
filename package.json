@@ -10,6 +10,8 @@
     "test": "jest"
   },
   "dependencies": {
+    "baseline-browser-mapping": "^2.11.34",
+    "caniuse-lite": "^1.0.30001820",
     "langsmith": "^0.6.3",
     "next": "^16.2.10",
     "openai": "^6.37.0",
