@@ -2,7 +2,7 @@
 
 **Status:** planned, not started · **Owner:** Titus (building locally)
 **Replaces:** the open-web `web_search_preview` tool in `/api/chat`
-**Depends on:** [`agent-runtime.md`](./agent-runtime.md), the copilot as a LangChain agent
+**Depends on:** [`agent-runtime.md`](./agent-runtime.md), the copilot's general tool loop
 **See also:** [`about-this-bot.md`](./about-this-bot.md), the page that shows this off
 
 ---
@@ -18,8 +18,8 @@ answer reflects what I actually wrote).
 
 ## The idea: an agent tool backed by a System One pipeline
 
-No embeddings, no vector store. The copilot becomes an agent (see
-`agent-runtime.md`) with a tool, **`search_writing(query)`**. When a question
+No embeddings, no vector store. The copilot's general tool loop (see
+`agent-runtime.md`) gets a second tool, **`search_writing(query)`**. When a question
 touches my writing, the agent calls it with a standalone query, and inside the
 tool Jev does the retrieval:
 
@@ -78,9 +78,9 @@ Medium export (zip)                         ┐
        ├─ content/articles.json             │ (committed)
        └─ summaries: LLM draft → I edit     ┘
 
-/api/chat → LangChain agent (agent-runtime.md)
+/api/chat → tool loop, ≤4 rounds (agent-runtime.md)
   model_request ── GPT decides ──▶ tool calls (can be parallel)
-     │                              ├─ show_on_page(target)  → writer {type:"action"}
+     │                              ├─ show_on_page(target)  → emit {type:"action"}
      │                              └─ search_writing(query)
      │                                   1. filter  jev.systemOne({ state: { query },
      │                                                questions: { [slug]: noul(…) × 65 } })
@@ -89,7 +89,7 @@ Medium export (zip)                         ┐
      │                                                questions: { [slug]: score(0–3) × shortlist } })
      │                                              (skipped if ≤ 1) → top 2 with score ≥ 2
      │                                   3. read    → { articles: [{ n, title, url, body }] }
-     │                                              → writer {type:"source", n, title, url, relevance, score}
+     │                                              → emit {type:"source", n, title, url, relevance, score}
      ◀────────────── tool results ──────┘
   model_request ── answers in my voice with [n] footnotes
   stream: delta / action / source / error  (NDJSON, unchanged protocol)
@@ -154,10 +154,10 @@ type FoundArticle = {
 async function searchMyWriting(query: string, signal?: AbortSignal): Promise<FoundArticle[]> // ≤ 2, may be []
 ```
 
-A plain function, with no LangChain inside it, so it's unit-testable and
-reusable by the golden-set script. The `search_writing` tool in
-`lib/copilot-agent.ts` is a thin wrapper: it numbers the results, emits
-`source` events with `runtime.writer`, and passes `runtime.signal` through.
+A plain function, so it's unit-testable and reusable by the golden-set
+script. The `search_writing` tool in `lib/copilot-tools.ts` is a thin
+wrapper: it numbers the results, emits `source` events with `ctx.emit`, and
+passes `ctx.signal` through.
 
 #### The Jev API (verified from the official JS SDK, `@typesafe-ai/sdk` 0.7.0)
 
@@ -320,7 +320,7 @@ const chosen = shortlist
   or `{ articles: [], note: "No article of mine covers this." }`. Footnote
   numbers keep counting across a reply if the agent searches twice.
 - **Events** (what the drawer sees): one `source` event per article via
-  `runtime.writer`, emitted as soon as the tool returns, while the model
+  `ctx.emit`, emitted as soon as the tool returns, while the model
   is still writing.
 - **Prompt** (`copilot-system-prompt.md`): replace the web-search paragraph in
   "Technical Writing" with a "Searching My Writing" section. Call
@@ -358,7 +358,7 @@ pre-route design is in this file's git history.)
 - **Budget:** ~5k (prompt, cached) + ≤3k (history) + ≤6k (articles) ≈ 14k
   GPT tokens worst case on the answering call, plus up to two Jev calls
   (~5k + ~3k input tokens) inside a ~2s deadline. At most 2 searches per reply
-  (`toolCallLimitMiddleware`).
+  (`maxCallsPerReply`).
 - **New dependency:** Jev via AI Gateway is a second model provider. Keep its
   key/config server-side only, log its latency and errors separately, and keep
   the fail-open path tested.
@@ -405,7 +405,7 @@ about-this-bot page reads them.
 - [ ] Get a TypeSafe key (early access/waitlist at time of writing); add `TYPESAFE_API_KEY` to Vercel; confirm the pinned model id with `client.models.list()`; confirm the Vercel project runs Node ≥ 22
 - [ ] Prerequisite: the agent runtime (`agent-runtime.md`)
 - [ ] `lib/writing-search.ts`: stage 1 (`noul` × catalog → shortlist), stage 2 (`score` × shortlist → top 2), read, shared ~2s deadline, both fallbacks
-- [ ] `search_writing` tool in `lib/copilot-agent.ts`: numbering, `source` events via `runtime.writer`, `runtime.signal` pass-through
+- [ ] `search_writing` tool in `lib/copilot-tools.ts`: numbering, `source` events via `ctx.emit`, `ctx.signal` pass-through, `maxCallsPerReply: 2`
 - [ ] Build script: `outline` + `intro` per article for stage 2
 - [ ] Remove `web_search_preview`; NDJSON adapter forwards `source` events
 - [ ] Prompt: writing section rewrite (cite, abstain, never invent)
