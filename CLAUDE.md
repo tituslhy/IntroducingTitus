@@ -157,7 +157,7 @@ drawer that opens upward). Visual shell follows the README; backend is unchanged
 - Never expose key to browser
 
 **OpenAI Integration:**
-- Model: `gpt-5-4-nano`
+- Model: `gpt-6-luna`
 - Enable web search tool via Responses API
 - System prompt: see `copilot-system-prompt.md`
 - Medium profile URL passed as context: https://medium.com/@tituslhy

@@ -37,7 +37,7 @@ const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 10;
 
 // Rough, approximate cost estimate for structured logging only. Update these
-// per-1K-char rates if OpenAI's published pricing for gpt-5.4-nano changes;
+// per-1K-char rates if OpenAI's published pricing for gpt-6-luna changes;
 // this is intentionally not token-exact.
 const ESTIMATED_INPUT_COST_PER_1K_CHARS = 0.000025;
 const ESTIMATED_OUTPUT_COST_PER_1K_CHARS = 0.0001;
@@ -180,7 +180,7 @@ async function* rawCopilotStream(
 ) {
   const stream = await openai.responses.create(
     {
-      model: "gpt-5.4-nano",
+      model: "gpt-6-luna",
       tools: [{ type: "web_search_preview" }],
       stream: true,
       input,

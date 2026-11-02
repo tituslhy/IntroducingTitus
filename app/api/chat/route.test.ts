@@ -521,7 +521,7 @@ describe("POST", () => {
     // Assert
     expect(mockCreate).toHaveBeenCalled();
     const callArgs = mockCreate.mock.calls[0][0];
-    expect(callArgs.model).toBe("gpt-5.4-nano");
+    expect(callArgs.model).toBe("gpt-6-luna");
     expect(callArgs.input).toBeDefined();
     expect(callArgs.input[0]).toEqual({
       role: "system",
