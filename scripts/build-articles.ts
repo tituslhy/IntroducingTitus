@@ -99,7 +99,7 @@ function locatePosts(): string {
 
 function decodeEntities(s: string): string {
   return s
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(Number.parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
     .replace(/&quot;/g, '"')
     .replace(/&apos;|&#39;/g, "'")
@@ -109,7 +109,8 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/g, "&");
 }
 
-const stripTags = (html: string) => decodeEntities(html.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
+// "[^<>]" (not "[^>]") keeps an unclosed "<" from rescanning the rest of the string.
+const stripTags = (html: string) => decodeEntities(html.replace(/<[^<>]*>/g, "")).replace(/\s+/g, " ").trim();
 
 const turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced", bulletListMarker: "-" });
 // Keep headings and code; drop images and embeds.
@@ -120,7 +121,7 @@ turndown.addRule("mediumPre", {
   replacement: (_content, node) => {
     const el = node as HTMLElement;
     const lang = el.getAttribute("data-code-block-lang") ?? "";
-    const code = (el.textContent ?? "").replace(/\n+$/, "");
+    const code = (el.textContent ?? "").trimEnd();
     return `\n\n\`\`\`${lang}\n${code}\n\`\`\`\n\n`;
   },
 });
@@ -128,7 +129,7 @@ turndown.addRule("mediumPre", {
 /** Markdown → plain text for the outline and intro (the ranking inputs). */
 const plainText = (md: string) =>
   md
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // [text](url) → text
+    .replace(/\[([^[\]]*)\]\([^()]*\)/g, "$1") // [text](url) → text; brackets can't nest, so no rescans
     .replace(/\*\*|__|`/g, "")
     .replace(/\\([\\`*_{}[\]()#+\-.!])/g, "$1") // turndown's escapes
     .trim();
@@ -136,6 +137,9 @@ const plainText = (md: string) =>
 /** Drops Medium's ?source=… tracking parameters from links. */
 const stripTracking = (md: string) =>
   md.replace(/(\]\(https?:\/\/[^)\s?]*)\?source=[^)\s]*/g, "$1");
+
+/** "* * *", "---", "___": turndown's <hr>. Spaces removed first, so the pattern has nothing to backtrack over. */
+const isSectionBreak = (line: string) => /^([*_-])\1{2,}$/.test(line.replace(/\s/g, ""));
 
 /** Lines outside fenced code blocks. */
 function proseLines(markdown: string): string[] {
@@ -162,14 +166,14 @@ function assemble(meta: Meta, bodyHtml: string): Parsed | { skip: string } {
   if (words < MIN_WORDS) return { skip: "short (response or stub)" };
 
   const outline = prose
-    .map((l) => l.match(/^#{1,6}\s+(.+)$/)?.[1])
+    .map((l) => l.match(/^#{1,6}\s(.*)$/)?.[1]) // one \s, then .*: no overlap to backtrack over
     .filter((h): h is string => !!h)
     .map(plainText)
     .filter(Boolean);
   const introText = plainText(
     prose
       // Skip headings and section breaks (turndown writes <hr> as "* * *").
-      .filter((l) => l.trim() && !/^#{1,6}\s/.test(l) && !/^\s*([*_-])(\s*\1){2,}\s*$/.test(l))
+      .filter((l) => l.trim() && !/^#{1,6}\s/.test(l) && !isSectionBreak(l))
       .join(" ")
       .replace(/\s+/g, " ")
   );

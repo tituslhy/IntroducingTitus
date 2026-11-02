@@ -84,9 +84,10 @@ export async function* copilotStream(
   input: InputMessage[],
   tools: CopilotTool[],
   signal: AbortSignal,
-  stats: LoopStats = { rounds: 0, toolCalls: 0 },
+  statsIn?: LoopStats,
   observer?: LoopObserver
 ): AsyncGenerator<CopilotChunk> {
+  const stats = statsIn ?? { rounds: 0, toolCalls: 0 };
   const byName = new Map(tools.map((t) => [t.definition.name, t]));
   const used = new Map<string, number>();
   const events: CopilotEvent[] = [];
