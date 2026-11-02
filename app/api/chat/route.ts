@@ -4,6 +4,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { createHash } from "crypto";
 import { Client as LangSmithClient, RunTree } from "langsmith";
+import { buildSystemPrompt } from "@/lib/copilot-prompt";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -54,15 +55,19 @@ if (process.env.VERCEL_URL) {
 let systemPromptCache: string | null = null;
 let requestCounter = 0;
 
+// The markdown file is a template: facts come from lib/profile.ts and
+// lib/content.ts (the same data the page renders) via buildSystemPrompt.
+function renderSystemPrompt(): string {
+  const template = readFileSync(join(process.cwd(), "copilot-system-prompt.md"), "utf-8");
+  return buildSystemPrompt(template);
+}
+
 function getSystemPrompt(): string {
   if (process.env.NODE_ENV !== "production") {
-    return readFileSync(join(process.cwd(), "copilot-system-prompt.md"), "utf-8");
+    return renderSystemPrompt();
   }
   if (!systemPromptCache) {
-    systemPromptCache = readFileSync(
-      join(process.cwd(), "copilot-system-prompt.md"),
-      "utf-8"
-    );
+    systemPromptCache = renderSystemPrompt();
   }
   return systemPromptCache;
 }

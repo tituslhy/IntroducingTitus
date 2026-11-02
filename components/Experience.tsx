@@ -1,137 +1,26 @@
-import type { ReactNode } from 'react'
-import { AGENT_SUITE_URL, ILLUMINA_SAVINGS_PROSE } from '@/lib/content'
+import { EDUCATION, ROLES, type Role } from '@/lib/profile'
 
-type Role = {
-  years: string
-  company: string
-  location: string
-  role: string
-  dates: string
-  deck: ReactNode
-  body?: string
-  tech: string[]
-  techNote?: string
-  pullQuote?: string
-  incoming?: boolean
-  /** Lower-signal / older roles get a more compact visual footprint. */
-  compact?: boolean
+/** Renders a role's deck, turning `deckLink.text` (first occurrence) into a link. */
+function Deck({ role }: { role: Role }) {
+  const link = role.deckLink
+  const at = link ? role.deck.indexOf(link.text) : -1
+  if (!link || at === -1) return <>{role.deck}</>
+  return (
+    <>
+      {role.deck.slice(0, at)}
+      <a
+        href={link.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-amber underline underline-offset-2 transition-colors hover:text-ink"
+      >
+        {link.text}
+        <span aria-hidden="true"> ↗</span>
+      </a>
+      {role.deck.slice(at + link.text.length)}
+    </>
+  )
 }
-
-type Education = {
-  institution: string
-  degree: string
-  dates: string
-  honors: string[]
-}
-
-const ROLES: Role[] = [
-  {
-    years: '2026',
-    company: 'Mastercard',
-    location: 'Singapore',
-    role: 'Lead AI Engineer',
-    dates: 'Jul 2026 — Present',
-    deck: (
-      <>
-        Working on{' '}
-        <a
-          href={AGENT_SUITE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-amber underline underline-offset-2 transition-colors hover:text-ink"
-        >
-          Agent Suite
-          <span aria-hidden="true"> ↗</span>
-        </a>{' '}
-        at the R&D Foundry — Mastercard&apos;s platform for enterprises to build, test, and
-        deploy AI agents.
-      </>
-    ),
-    body: 'Architected and built the core SDK and CLI for Agent Suite: a shared foundation that replaces one-off agent builds with a common, governed standard. Teams declare agents in YAML, then chat with them in the terminal or serve them as an API. Assistant skills ship inside the packages, and contributor tooling keeps both codebases consistent.',
-    tech: ['Python', 'LangChain', 'Typer', 'FastAPI', 'Docker', 'Helm Charts', 'GitHub Actions', 'Apache Jenkins'],
-  },
-  {
-    years: '2025',
-    company: 'United Overseas Bank',
-    location: 'Singapore',
-    role: 'Vice President, Generative AI',
-    dates: 'Jun 2025 — Jul 2026',
-    deck: 'Technical lead for a real-time GenAI contact-centre platform supporting in-call and post-call agent assistance under strict latency and accuracy SLAs.',
-    body: "Developed UOB's enterprise multi-agent GenAI platform, enabling teams to build, deploy, and orchestrate agents with cross-framework interoperability and dynamic tool/agent discovery.",
-    tech: ['Java (Spring Boot)', 'React', 'Redis', 'Oracle DB', 'ELK Stack', 'Docker', 'vLLM', 'Helm Charts', 'Apache Jenkins', 'LangChain', 'MCP'],
-  },
-  {
-    years: '2023',
-    company: 'Illumina',
-    location: 'Singapore',
-    role: 'Senior Data Scientist',
-    dates: 'Jan 2023 — Jun 2025',
-    deck: "Solo-architected and shipped two production AI systems as the company's sole data scientist.",
-    body: 'An agentic document-retrieval platform for global field service engineers — sixteen components: semantic chunking, HyDE, hybrid search, Cohere reranking, prompt compression, an iterative agentic retrieval loop, blue-green vector collection swap. Plus a separate Generative BI assistant covering 800+ business metrics with human-in-the-loop design.',
-    tech: ['Python', 'LlamaIndex', 'Qdrant', 'AWS Bedrock', 'RabbitMQ', 'Docker+CUDA', 'GitHub Actions', 'SonarQube', 'Grafana', 'Prometheus', 'Loki', 'Chainlit', 'DSPy', 'Giskard'],
-    pullQuote: `Anticipated to save ${ILLUMINA_SAVINGS_PROSE} upon full deployment.`,
-  },
-  {
-    years: '2022',
-    company: 'CK Delta',
-    location: 'Singapore',
-    role: 'Data Scientist',
-    dates: 'Sep 2022 — Jan 2023',
-    deck: 'Validated and enhanced MRT station crowdedness forecasting; tightened streaming data pipelines.',
-    body: 'Model shipped to the MyTransportSG app.',
-    tech: ['Python', 'ML Forecasting', 'Streaming Pipelines'],
-    compact: true,
-  },
-  {
-    years: '2018',
-    company: 'Energy Market Authority',
-    location: 'Singapore',
-    role: 'Principal Engineer, Research & Statistics',
-    dates: 'Apr 2018 — Aug 2022',
-    deck: "Developed and presented national electricity and gas demand forecasts to Ministers and Permanent Secretaries; drove the Authority's AI and data strategy roadmap.",
-    body: 'Built ML models for power-plant trip prediction and electricity spot-price forecasting with external partners.',
-    tech: ['Python', 'XGBoost', 'Neural Networks', 'DataRobot', 'ARIMA'],
-    compact: true,
-  },
-  {
-    years: '2017',
-    company: 'JobTech Pte Ltd',
-    location: 'Singapore',
-    role: 'Data Scientist',
-    dates: 'Apr 2017 — Aug 2017',
-    deck: 'Built a national-scale skill extraction algorithm using NLP to construct skills graphs from online job portals.',
-    body: "Findings published in a national report on Indonesia's labour market.",
-    tech: ['Python', 'NLP', 'Regex Entity Extraction'],
-    compact: true,
-  },
-  {
-    years: '2015',
-    company: 'Toyota Tsusho Asia Pacific',
-    location: 'Singapore',
-    role: 'Demand & Supply Analyst',
-    dates: 'Jun 2015 — Apr 2017',
-    deck: 'Overhauled sales planning into a centralised automated forecasting tool using VBA and operational research techniques.',
-    body: 'Served Toyota automotive distributors across the Asia Pacific region.',
-    tech: ['VBA', 'Excel', 'Exponential Smoothing', 'Holt-Winters'],
-    pullQuote: 'Improved long-term forecast accuracy by ~25%.',
-    compact: true,
-  },
-]
-
-const EDUCATION: Education[] = [
-  {
-    institution: 'Singapore Management University',
-    degree: 'Master of IT in Business — AI Track',
-    dates: '2021 — 2022',
-    honors: ['GPA 3.98 / 4.0', "Dean's List", 'SMU AI Talent Development Grant'],
-  },
-  {
-    institution: 'National University of Singapore',
-    degree: 'BEng Chemical Engineering, 2nd Upper Honours',
-    dates: '2011 — 2015',
-    honors: ['NUS Undergraduate Scholarship'],
-  },
-]
 
 function RoleEntry({ role }: { role: Role }) {
   const compact = Boolean(role.compact)
@@ -185,7 +74,7 @@ function RoleEntry({ role }: { role: Role }) {
             compact ? 'text-[16.5px]' : 'text-[19px]'
           }`}
         >
-          {role.deck}
+          <Deck role={role} />
         </p>
         {role.body && (
           <p className="mb-4 text-[16px] leading-[1.6] text-ink-soft [text-wrap:pretty]">
