@@ -55,9 +55,9 @@ hairline style. One horizontal request path in amber; it stacks vertically on
 mobile.
 
 ```
-visitor ─▶ guards ─▶ Jev (System One) ─▶ GPT (System Two) ─▶ checks ─▶ drawer
-           origin     which articles?      answers in my voice   valid anchors   text · footnotes
-           rate limit  p ≥ threshold       + show_on_page        valid sources   · page moves
+visitor ─▶ guards ─▶ Jev filter ─▶ Jev rank ─▶ GPT (System Two) ─▶ checks ─▶ drawer
+           origin     noul × 65      score × ≤5   answers in my voice   valid anchors   text · footnotes
+           rate limit  relevant?      how well?    + show_on_page        valid sources   · page moves
 ```
 
 Under it, a numbered walkthrough of one real question ("What have you written
@@ -74,7 +74,7 @@ prevents*.
 | Guardrail | Prevents |
 |---|---|
 | Page anchors validated server-side | the bot pointing at things that don't exist |
-| Article routing: known slugs, probability threshold, max 2 | irrelevant or invented sources |
+| Article routing: relevance filter, graded rerank, known slugs only, max 2 | irrelevant or invented sources |
 | "Not on file" instead of reframing | overselling in recruiter mode |
 | Job descriptions wrapped as data, not stored upstream | prompt injection; retaining confidential postings |
 | Fit briefs re-validated after the model | a "strong" claim with no evidence |
@@ -107,11 +107,11 @@ The live version of this page. A small toggle in the drawer footer reveals,
 under each reply, the decisions behind it, all from events already streamed:
 
 ```
-ROUTED   Your agent needs a bouncer · p 0.91   (Jev)
+ROUTED   Your agent needs a bouncer · relevant 0.93 · score 2.7/3   (Jev)
 SHOWN    Illumina, 2023                        (show_on_page)
 ```
 
-Needs `p` added to `source` events. A hiring manager poking the bot sees the
+Uses the `relevance` and `score` already on `source` events. A hiring manager poking the bot sees the
 architecture *working*, not just described. Off by default; remembered per
 visitor in `localStorage` (a convenience, so wrapped in try/catch).
 
@@ -132,6 +132,6 @@ visitor in `localStorage` (a convenience, so wrapped in try/catch).
 - [ ] Inline SVG anatomy diagram (desktop row, mobile column; theme tokens only)
 - [ ] Entry points: drawer header link, footer link, "About me, the bot" prompt paragraph
 - [ ] Section 06 from `content/eval-results.json` *(after writing route)*
-- [ ] Stretch: "Show your work" toggle + `p` on source events
+- [ ] Stretch: "Show your work" toggle (reads `relevance`/`score` from source events)
 - [ ] Tests: page renders; scorecard hidden when results missing; links present
 - [ ] Check at 390px width: diagram stacks, no horizontal scroll
