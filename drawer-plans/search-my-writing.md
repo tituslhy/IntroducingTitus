@@ -62,8 +62,9 @@ Medium export (zip)                         ┐
        └─ summaries: LLM draft → I edit     ┘
 
 /api/chat
-  1. route   Jev(message + last 2 turns, catalog) → [{slug, p}]
-             keep p ≥ THRESHOLD, max 2   ──────────────▶ NDJSON {type:"source", n, title, url}
+  1. route   jev.systemOne({ state, questions: { article: choice(catalog + none) } })
+             → probabilities per slug
+             selection rule, max 2   ──────────────────▶ NDJSON {type:"source", n, title, url}
   2. answer  GPT(system prompt, history, <articles>…</articles>)
              tools: show_on_page            (web search removed)
   stream:    action / source / delta / error
@@ -119,19 +120,91 @@ type Route = { slug: string; p: number }
 async function routeToArticles(message: string, recent: Turn[]): Promise<Route[]>
 ```
 
-- **Input to Jev:** the latest user message + the last ~2 turns (so "tell me
-  more about that one" resolves), and the catalog: `slug`, title, summary,
-  keywords. Never article bodies.
-- **Decision type:** a choice over the catalog's slugs (plus an explicit
-  `none`), with per-option probabilities.
-  ⚠️ *I haven't verified Jev's request/response schema. Check TypeSafe's docs
-  and SDK for how choice sets and probabilities are expressed, and which
-  model id the AI Gateway uses (current version is reported as `jev-1.13`).
-  Don't confuse it with the unaffiliated open-source "RSI-Jev".*
-- **Post-processing (server, never trust the model):** keep known slugs only,
-  `p ≥ THRESHOLD` (start ~0.5, tune on the golden set), sort by `p`, cap at 2.
-- **Fail open:** if Jev errors or times out (budget ~1.5s), continue with
-  *no* articles. The chat model falls back to the featured list and my Medium
+#### The Jev API (verified from the official JS SDK, `@typesafe-ai/sdk` 0.7.0)
+
+Source: the package README and its type definitions (`dist/index.d.mts`).
+The docs site itself is at docs.typesafe.ai.
+
+- **Install:** `npm install @typesafe-ai/sdk`. Requires **Node ≥ 22**
+  (check the Vercel project's Node version). Pin the exact version; it's pre-1.0.
+- **Call:** `client.systemOne({ state, questions, model? }, { signal, timeout, retry })`,
+  which is `POST https://api.typesafe.ai/v1/systemone` under the hood.
+- **Env:** `TYPESAFE_API_KEY` (required), optional `TYPESAFE_BASE_URL`,
+  `TYPESAFE_DEFAULT_MODEL`. Server-only: the client refuses browser use
+  unless `dangerouslyAllowBrowser` is set. Never set it.
+- **Models:** default `jev-latest`; `jev-preview` is the next build; pinned
+  builds like `jev-1.13` exist. **Pin a version** so golden-set results stay
+  comparable; list what the key can use with `client.models.list()`.
+- **`state`:** text, a JSON object/array, or an image.
+- **Question types**, built with helpers `choice()`, `noul()`, `score()`, `box()`:
+
+| Type | Ask | Answer |
+|---|---|---|
+| `choice(instructions, { label: description \| null, … })` | pick one label | `{ choice, confidence, probabilities: { [label]: p } }` |
+| `noul(instructions)` | yes/no | `{ noul: p }` (probability of yes) |
+| `score(instructions, [rubric0, rubric1, …])` | ordered rubric | `{ score, confidence, legend, probabilities }` |
+| `box(instructions)` | locate in an image | `{ box: {top,bottom,left,right}, confidence }` |
+
+- **Response:** `{ model, answers: { [questionName]: … }, usage: { input_tokens, output_tokens } }`,
+  with answer types inferred from the questions.
+- **Defaults to override:** a 10s timeout per attempt, with retries and no total
+  budget. For a fail-open router, pass `{ timeout: 1500, retry: { maxRetries: 0 }, signal }`.
+- **Errors:** `TypeSafeError` (bad request, thrown before sending),
+  `APIError` (non-2xx), `APIConnectionError` (incl. timeout), `APIUserAbortError`.
+- **Testing:** the client takes a `fetch` option, so tests inject a fake.
+- Don't confuse it with the unaffiliated open-source "RSI-Jev".
+
+#### The routing call
+
+One `choice` question whose labels *are* the catalog, plus an explicit `none`:
+
+```ts
+import { choice, TypeSafeClient } from "@typesafe-ai/sdk";
+
+const jev = new TypeSafeClient({ defaultModel: "jev-1.13" }); // pinned
+
+const { answers } = await jev.systemOne(
+  {
+    state: { question: latestUserMessage, recentConversation: lastTwoTurns },
+    questions: {
+      article: choice(
+        "Which of my articles is most relevant to answering this question? " +
+          "Choose `none` if the question isn't about something I've written.",
+        {
+          ...Object.fromEntries(
+            catalog.map((a) => [a.slug, `${a.title} — ${a.summary} [${a.keywords.join(", ")}]`])
+          ),
+          none: "None of these articles is relevant, or the question isn't about my writing.",
+        }
+      ),
+    },
+  },
+  { timeout: 1500, retry: { maxRetries: 0 }, signal }
+);
+
+// answers.article.probabilities → { "your-agent-needs-a-bouncer": 0.82, …, none: 0.04 }
+```
+
+**Why `choice` and not one `noul` per article:** one question, an explicit
+`none` (abstaining is built in), and `probabilities` covers *every* label, so
+the top two come out of the same answer. The caveat: a single choice spreads
+probability across labels, so a question that genuinely needs two articles
+splits the mass between them (e.g. 0.45 / 0.40). Hence the selection rule below.
+If the golden set shows multi-article questions under-picking, switch to one
+`noul("Is <article> relevant to this question?")` per article. That gives 65
+independent yes-probabilities in one request: easier thresholds, more input
+tokens. Community sources list a 255-option cap per `choice`, which is
+**unverified**. 65 labels is well under it either way.
+
+- **Input:** the latest user message + the last ~2 turns (so "tell me more
+  about that one" resolves), and the catalog as choice labels and descriptions.
+  Never article bodies.
+- **Selection rule (server, never trust the model):** drop `none` and unknown
+  labels; sort by probability; keep the top label if `p ≥ MIN_TOP` and
+  `p > p(none)`; keep a second label if `p ≥ MIN_SECOND`. Start around
+  `MIN_TOP = 0.35`, `MIN_SECOND = 0.20` and tune both on the golden set.
+- **Fail open:** on any error or timeout (budget ~1.5s), continue with *no*
+  articles. The chat model falls back to the featured list and my Medium
   link. Routing must never break chat.
 - **Cost guard:** skip routing for obviously unrelated turns (empty, or a
   conversation already marked out of scope) only if latency demands it.
@@ -165,9 +238,22 @@ async function routeToArticles(message: string, recent: Turn[]): Promise<Route[]
 ### Stretch: Jev also picks `show_on_page`
 
 `show_on_page` is a typed choice over `PAGE_TARGET_IDS`, which is exactly Jev's
-shape. Jev could choose the page target in the same routing step, removing the
-chat model's tool round trip entirely (one GPT call per turn, always). Do this
-after the writing route proves itself on the golden set.
+shape. `questions` takes several named questions per request, so the **same
+`systemOne` call** can answer both:
+
+```ts
+questions: {
+  article: choice("Which of my articles…", { …catalog, none: "…" }),
+  section: choice("Which part of my site is this question about?", {
+    ...Object.fromEntries(PAGE_TARGETS.map((t) => [t.id, t.about])),
+    none: "No specific part of the site.",
+  }),
+}
+```
+
+That removes the chat model's tool round trip entirely: one Jev call plus one
+GPT call per turn, always. Do this after the writing route proves itself on
+the golden set.
 
 ---
 
@@ -201,7 +287,7 @@ after the writing route proves itself on the golden set.
 
 Score **routing hit rate**, **abstain accuracy** (the "none" rows), and
 **no-invention** (zero made-up titles/URLs in answers). Use it to tune
-`THRESHOLD`. Commit the results as `content/eval-results.json`; the
+`MIN_TOP` / `MIN_SECOND`. Commit the results as `content/eval-results.json`; the
 about-this-bot page reads them.
 
 ---
@@ -212,11 +298,12 @@ about-this-bot page reads them.
 - [ ] `scripts/build-articles.ts` → `content/articles.json`
 - [ ] Draft + hand-review summaries/keywords → `content/article-notes.json`
 - [ ] Derive article counts from the corpus
-- [ ] Verify Jev API shape + AI Gateway model id; add server-side config
-- [ ] `lib/writing-router.ts`: route, threshold, cap, fail-open with timeout
+- [x] Verify Jev API shape (done: `client.systemOne`, see §3)
+- [ ] Get a TypeSafe key (early access/waitlist at time of writing); add `TYPESAFE_API_KEY` to Vercel; confirm the pinned model id with `client.models.list()`; confirm the Vercel project runs Node ≥ 22
+- [ ] `lib/writing-router.ts`: `systemOne` choice call, selection rule, cap, fail-open (1.5s, no retries)
 - [ ] Inject `<articles>` + `source` events in `/api/chat`; remove `web_search_preview`
 - [ ] Prompt: writing section rewrite (cite, abstain, never invent)
 - [ ] Footnotes + Sources row in `CopilotBubble`
 - [ ] Golden set script → `content/eval-results.json`; tune threshold
-- [ ] Tests: router post-processing (unknown slugs, threshold, cap, fail-open), route injection + source events, bubble sources rendering
+- [ ] Tests (inject a fake `fetch` into `TypeSafeClient`): selection rule (none wins, unknown labels, split probabilities, cap), fail-open on `APIError`/timeout, route injection + source events, bubble sources rendering
 - [ ] Vercel preview; run the golden set against the real models
