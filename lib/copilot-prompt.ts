@@ -11,6 +11,7 @@
 import {
   ARTICLE_COUNT_NUMBER,
   BLOCKCHAIN_ARTICLE_COUNT,
+  COLOPHON_PATH,
   FICTIONAL_BASSOON_COVERAGE,
   ILLUMINA_SAVINGS_PROSE,
   SITE_URL,
@@ -122,6 +123,7 @@ export function promptTokens(): Record<string, string> {
     EMAIL,
     MEDIUM_URL: SOCIAL.medium,
     SITE_HOST: new URL(SITE_URL).host,
+    COLOPHON_URL: `${SITE_URL}${COLOPHON_PATH}`,
     EXPERIENCE: ROLES.map(renderRole).join('\n\n'),
     PROJECTS: renderProjects(),
     EDUCATION: renderEducation(),

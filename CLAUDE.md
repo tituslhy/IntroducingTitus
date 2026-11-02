@@ -138,6 +138,14 @@ Reverse chronological timeline/card layout. Each card:
 
 ---
 
+### Satellite page — `/colophon` ("How Ask Titus works")
+One satellite page, linked from the drawer ("How this works") and the footer, **not the main nav**.
+The production note for the copilot: same editorial system, ~68ch reading column. Its "How it's tested"
+scorecard reads `content/eval-results.json` (written only by `npm run eval:writing`) and is hidden when that
+file is missing. Never show a number a script didn't produce; never publish the system prompt verbatim.
+
+---
+
 ### Copilot Bubble (Floating, All Pages)
 An editorial "Ask Titus" FAB fixed to the bottom-right of every page (ink pill →
 drawer that opens upward). Visual shell follows the README; backend is unchanged.
@@ -158,7 +166,9 @@ drawer that opens upward). Visual shell follows the README; backend is unchanged
 
 **OpenAI Integration:**
 - Model: `gpt-6-luna`
-- Enable web search tool via Responses API
+- Tools (hand-written loop in `lib/copilot-loop.ts`, ≤4 rounds, no agent framework):
+  `show_on_page` and `search_writing` (my Medium articles via Jev, cited as `[n]`).
+  No web search. Corpus: `npm run articles:build` from `resources/medium-export.zip`.
 - System prompt: see `copilot-system-prompt.md`
 - Medium profile URL passed as context: https://medium.com/@tituslhy
 

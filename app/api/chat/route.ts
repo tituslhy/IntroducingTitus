@@ -1,11 +1,12 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import OpenAI from "openai";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { createHash } from "crypto";
-import { Client as LangSmithClient, RunTree } from "langsmith";
+import { Client as LangSmithClient } from "langsmith";
 import { buildSystemPrompt } from "@/lib/copilot-prompt";
-import { PAGE_TARGET_IDS } from "@/lib/profile";
+import { createCopilotTools, type CopilotEvent } from "@/lib/copilot-tools";
+import { copilotStream, type CopilotChunk, type InputMessage, type LoopStats } from "@/lib/copilot-loop";
+import { ChatTrace } from "@/lib/copilot-tracing";
 import { checkOrigin, createRateLimiter, getClientIp, jsonError } from "@/lib/api-guards";
 
 // ---------------------------------------------------------------------------
@@ -66,14 +67,26 @@ function getSystemPrompt(): string {
   return systemPromptCache;
 }
 
-type InputMessage = { role: "system" | "user" | "assistant"; content: string };
+// Drawer-side cap on distinct page actions, deduped across the initial
+// attempt and any retry. show_on_page's own per-reply limit is stricter.
+const MAX_ACTIONS_PER_REPLY = 3;
 
 // ---------------------------------------------------------------------------
-// LangSmith tracing — opt-in only, default OFF, never allowed to break chat
+// LangSmith tracing — ON by default (needs a LangSmith key), never allowed to break chat.
+// When on, traces are FULL TEXT (see lib/copilot-tracing.ts). /api/fit is
+// never traced: job descriptions can be confidential.
 // ---------------------------------------------------------------------------
 
-function isTracingEnabled(): boolean {
-  return process.env.COPILOT_TRACING_ENABLED === "true";
+/**
+ * On by default, like os.environ.get("COPILOT_TRACING_ENABLED", "true"): only
+ * an explicit false/0/no/off turns it off. Without a LangSmith API key there
+ * is nowhere to send traces, so it stays quietly off rather than failing
+ * (and warning) on every request.
+ */
+export function isTracingEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = (env.COPILOT_TRACING_ENABLED ?? "true").trim().toLowerCase();
+  if (["false", "0", "no", "off"].includes(flag)) return false;
+  return Boolean(env.LANGSMITH_API_KEY || env.LANGCHAIN_API_KEY);
 }
 
 let lsClientSingleton: LangSmithClient | null = null;
@@ -92,112 +105,26 @@ function getLangSmithClient(): LangSmithClient | null {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Tools
-// ---------------------------------------------------------------------------
 
-const MODEL = "gpt-6-luna";
+// Trace uploads happen after the reply has closed, bounded so a slow
+// LangSmith can't keep the function alive for long.
+const TRACE_UPLOAD_TIMEOUT_MS = 5_000;
 
-const WEB_SEARCH_TOOL = { type: "web_search_preview" as const };
-
-// Client-side action: the route never touches the DOM, it relays a validated
-// target to the browser, which scrolls to and highlights that anchor. The
-// enum is generated from lib/profile.ts, so the model can only name anchors
-// that actually exist on the page.
-const SHOW_ON_PAGE_TOOL = {
-  type: "function" as const,
-  name: "show_on_page",
-  description:
-    "Scroll the visitor's page to the entry your answer is about and briefly highlight it. Call at most once per answer, before writing the answer.",
-  strict: true,
-  parameters: {
-    type: "object",
-    properties: {
-      target: {
-        type: "string",
-        enum: PAGE_TARGET_IDS,
-        description: "Anchor id from the Targets list in the system prompt.",
-      },
-    },
-    required: ["target"],
-    additionalProperties: false,
-  },
-};
-
-const PAGE_TARGET_SET = new Set<string>(PAGE_TARGET_IDS);
-const MAX_ACTIONS_PER_REPLY = 3;
-
-/** Returns the validated target of a show_on_page call, or null. Never trusts model output. */
-function parseShowOnPageTarget(item: { name: string; arguments: string }): string | null {
-  if (item.name !== SHOW_ON_PAGE_TOOL.name) return null;
+/** Runs `task` once the response has finished (Next's after()), never blocking or failing the reply. */
+function afterResponse(task: () => Promise<void>): void {
+  const bounded = () => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const cap = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, TRACE_UPLOAD_TIMEOUT_MS);
+    });
+    return Promise.race([task(), cap])
+      .catch(() => {})
+      .finally(() => clearTimeout(timer));
+  };
   try {
-    const { target } = JSON.parse(item.arguments) as { target?: unknown };
-    return typeof target === "string" && PAGE_TARGET_SET.has(target) ? target : null;
+    after(bounded);
   } catch {
-    return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// OpenAI streaming — a bounded, two-round agent loop
-// ---------------------------------------------------------------------------
-
-type CopilotChunk = { kind: "text"; text: string } | { kind: "action"; target: string };
-
-async function* rawCopilotStream(
-  openai: OpenAI,
-  input: InputMessage[],
-  signal: AbortSignal
-): AsyncGenerator<CopilotChunk> {
-  const stream = await openai.responses.create(
-    {
-      model: MODEL,
-      tools: [WEB_SEARCH_TOOL, SHOW_ON_PAGE_TOOL],
-      stream: true,
-      input,
-    },
-    { signal }
-  );
-
-  let responseId: string | null = null;
-  const toolOutputs: { type: "function_call_output"; call_id: string; output: string }[] = [];
-
-  for await (const event of stream) {
-    if (event.type === "response.output_text.delta") {
-      yield { kind: "text", text: event.delta };
-    } else if (event.type === "response.created") {
-      responseId = event.response.id;
-    } else if (event.type === "response.output_item.done" && event.item.type === "function_call") {
-      // Relay the action the moment the call completes, so the page starts
-      // moving while the answer is still being written.
-      const target = parseShowOnPageTarget(event.item);
-      if (target) yield { kind: "action", target };
-      toolOutputs.push({
-        type: "function_call_output",
-        call_id: event.item.call_id,
-        output: JSON.stringify(target ? { shown: target } : { error: "unknown target" }),
-      });
-    }
-  }
-
-  if (toolOutputs.length === 0 || !responseId) return;
-
-  // Second and final round: return the tool results and stream the answer.
-  // show_on_page is withheld here, so the loop can never run a third round.
-  const followUp = await openai.responses.create(
-    {
-      model: MODEL,
-      tools: [WEB_SEARCH_TOOL],
-      stream: true,
-      previous_response_id: responseId,
-      input: toolOutputs,
-    },
-    { signal }
-  );
-  for await (const event of followUp) {
-    if (event.type === "response.output_text.delta") {
-      yield { kind: "text", text: event.delta };
-    }
+    void bounded(); // outside a request scope (tests, scripts): just run it
   }
 }
 
@@ -225,7 +152,7 @@ function errorCode(error: unknown): string {
 // chunking can split across two `reader.read()` calls.
 type StreamEvent =
   | { type: "delta"; text: string }
-  | { type: "action"; target: string }
+  | CopilotEvent
   | { type: "error"; code: string };
 
 function encodeEvent(encoder: TextEncoder, event: StreamEvent): Uint8Array {
@@ -318,17 +245,25 @@ export async function POST(request: NextRequest) {
       const responseChunks: string[] = [];
       // Deduped across the initial attempt and any retry.
       const actionsShown = new Set<string>();
+      const sourcesSent: { n: number; title: string; url: string }[] = [];
+      let traceError: string | undefined;
+      const stats: LoopStats = { rounds: 0, toolCalls: 0 };
+      // One tool set per request, shared by the attempt and any retry, so source
+      // numbers already streamed to the drawer keep pointing at the same articles.
+      const tools = createCopilotTools();
 
-      const drain = async (
-        gen: AsyncIterable<CopilotChunk>,
-        abortController: AbortController,
-        collect = false
-      ) => {
+      const drain = async (gen: AsyncIterable<CopilotChunk>, abortController: AbortController) => {
         for await (const item of gen) {
-          if (item.kind === "action") {
-            if (!actionsShown.has(item.target) && actionsShown.size < MAX_ACTIONS_PER_REPLY) {
-              actionsShown.add(item.target);
-              streamController.enqueue(encodeEvent(encoder, { type: "action", target: item.target }));
+          if (item.kind === "event") {
+            const { event } = item;
+            if (event.type === "action") {
+              if (!actionsShown.has(event.target) && actionsShown.size < MAX_ACTIONS_PER_REPLY) {
+                actionsShown.add(event.target);
+                streamController.enqueue(encodeEvent(encoder, event));
+              }
+            } else {
+              if (event.type === "source") sourcesSent.push({ n: event.n, title: event.title, url: event.url });
+              streamController.enqueue(encodeEvent(encoder, event));
             }
             continue;
           }
@@ -341,7 +276,7 @@ export async function POST(request: NextRequest) {
           const toSend = chunk.length > remaining ? chunk.slice(0, remaining) : chunk;
           streamController.enqueue(encodeEvent(encoder, { type: "delta", text: toSend }));
           totalOutputChars += toSend.length;
-          if (collect) responseChunks.push(toSend);
+          responseChunks.push(toSend);
           contentStreamed = true;
           if (totalOutputChars >= MAX_OUTPUT_CHARS) {
             abortController.abort();
@@ -351,64 +286,27 @@ export async function POST(request: NextRequest) {
       };
 
       // Tracing is opt-in and fully isolated from the chat response: any
-      // failure here (init, postRun, patchRun, flush) is caught and never
-      // allowed to affect what the visitor sees.
-      let rt: RunTree | null = null;
+      // failure in it is caught and never allowed to affect what the visitor sees.
+      let trace: ChatTrace | null = null;
       if (isTracingEnabled()) {
-        try {
-          const client = getLangSmithClient();
-          if (client) {
-            rt = new RunTree({
-              name: "copilot-chat",
-              run_type: "chain",
-              inputs: {
-                messageCount: input.length,
-                messageLengths: input.map((m) => m.content.length),
-                // Traceability without storing raw visitor/system text.
-                contentHash: createHash("sha256")
-                  .update(input.map((m) => m.content).join("\n"))
-                  .digest("hex"),
-              },
-              client,
-            });
-            await rt.postRun();
+        const client = getLangSmithClient();
+        if (client) {
+          try {
+            trace = await ChatTrace.start(client, input);
+          } catch {
+            trace = null; // tracing must never affect the reply
           }
-        } catch (err) {
-          console.warn(
-            "copilot tracing: postRun failed:",
-            err instanceof Error ? err.message : String(err)
-          );
-          rt = null;
         }
       }
 
       const initialAttempt = createTimeoutController(OPENAI_TIMEOUT_MS);
       try {
         await drain(
-          rawCopilotStream(openai, input, initialAttempt.controller.signal),
-          initialAttempt.controller,
-          true
+          copilotStream(openai, input, tools, initialAttempt.controller.signal, stats, trace?.observer()),
+          initialAttempt.controller
         );
-        if (rt) {
-          try {
-            rt.end({
-              outputs: {
-                responseLength: responseChunks.join("").length,
-                actionsShown: Array.from(actionsShown),
-              },
-            });
-          } catch {
-            // tracing failure must never affect the response
-          }
-        }
       } catch (err) {
-        if (rt) {
-          try {
-            rt.end({ error: String(err) });
-          } catch {
-            // tracing failure must never affect the response
-          }
-        }
+        traceError = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
         if (err instanceof OpenAI.APIError) {
           console.error(
             JSON.stringify({ event: "copilot_chat_error", status: err.status, message: err.message })
@@ -424,10 +322,12 @@ export async function POST(request: NextRequest) {
           const retryAttempt = createTimeoutController(OPENAI_TIMEOUT_MS);
           try {
             await drain(
-              rawCopilotStream(openai, input, retryAttempt.controller.signal),
+              copilotStream(openai, input, tools, retryAttempt.controller.signal, stats, trace?.observer()),
               retryAttempt.controller
             );
+            traceError = `${traceError} (recovered on retry)`;
           } catch (retryErr) {
+            traceError = `${traceError}; retry: ${retryErr instanceof Error ? `${retryErr.name}: ${retryErr.message}` : String(retryErr)}`;
             console.error(
               JSON.stringify({
                 event: "copilot_chat_error",
@@ -441,15 +341,6 @@ export async function POST(request: NextRequest) {
         }
       } finally {
         initialAttempt.clear();
-        if (rt) {
-          try {
-            await rt.patchRun();
-            await getLangSmithClient()?.flush();
-          } catch {
-            // LangSmith failure must not affect the response
-          }
-        }
-
         const latencyMs = Date.now() - startedAt;
         const estimatedCostUsd =
           (systemPrompt.length / 1000) * ESTIMATED_INPUT_COST_PER_1K_CHARS +
@@ -465,10 +356,32 @@ export async function POST(request: NextRequest) {
             inputChars: totalContentLength,
             outputChars: totalOutputChars,
             actionsShown: actionsShown.size,
+            rounds: stats.rounds,
+            toolCalls: stats.toolCalls,
           })
         );
 
         streamController.close();
+
+        // The visitor's stream is closed; the trace uploads afterwards.
+        if (trace) {
+          const finishing = trace;
+          const recovered = traceError?.endsWith("(recovered on retry)");
+          const outputs = {
+            answer: responseChunks.join(""),
+            truncated: totalOutputChars >= MAX_OUTPUT_CHARS,
+            actionsShown: Array.from(actionsShown),
+            sources: sourcesSent,
+            rounds: stats.rounds,
+            toolCalls: stats.toolCalls,
+            ...(recovered && { recoveredError: traceError }),
+          };
+          const error = recovered ? undefined : traceError;
+          afterResponse(async () => {
+            await finishing.finish(outputs, error);
+            await getLangSmithClient()?.flush();
+          });
+        }
       }
     },
   });

@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { ARTICLE_COUNT_NUMBER, BLOCKCHAIN_ARTICLE_COUNT } from './content'
+import { ARTICLE_COUNT_NUMBER, BLOCKCHAIN_ARTICLE_COUNT, SITE_URL } from './content'
 import {
   EDUCATION,
   EMAIL,
@@ -126,6 +126,30 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
     expect(rendered).toContain(`${ARTICLE_COUNT_NUMBER} published technical articles`)
     expect(rendered).toContain(`${ARTICLE_COUNT_NUMBER} articles on Medium`)
     expect(rendered).toContain(`${BLOCKCHAIN_ARTICLE_COUNT} of them on blockchain`)
+  })
+
+  it('has a Searching My Writing section that names the search_writing tool', () => {
+    expect(rendered).toContain('## Searching My Writing')
+    expect(rendered).toContain('search_writing')
+    expect(rendered).toContain('[n]')
+  })
+
+  it('tells the assistant to credit co-authors on joint articles', () => {
+    expect(rendered).toContain('An article with `coAuthors` is a joint piece')
+    expect(rendered).toContain('co-wrote it with them')
+  })
+
+  it('no longer mentions web search anywhere in the prompt', () => {
+    expect(rendered).not.toMatch(/web[ -]search/i)
+  })
+
+  it('has an About Me, the Assistant section that links the colophon', () => {
+    expect(rendered).toContain('## About Me, the Assistant')
+    expect(rendered).toContain(`${SITE_URL}/colophon`)
+  })
+
+  it('exposes COLOPHON_URL as the site URL plus /colophon', () => {
+    expect(promptTokens().COLOPHON_URL).toBe(`${SITE_URL}/colophon`)
   })
 
   it('does not contain stale article counts', () => {

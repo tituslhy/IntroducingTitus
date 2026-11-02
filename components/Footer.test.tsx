@@ -155,3 +155,11 @@ describe("Footer", () => {
     expect(metaDiv).toHaveClass("border-rule");
   });
 });
+
+describe("Footer colophon link", () => {
+  it("links How the assistant works to /colophon", () => {
+    render(<Footer />);
+
+    expect(screen.getByRole("link", { name: /how the assistant works/i })).toHaveAttribute("href", "/colophon");
+  });
+});

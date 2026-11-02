@@ -11,6 +11,15 @@ import {
   fitBriefToText,
   type FitBrief,
 } from "@/lib/fit-brief";
+import {
+  citationUrlTransform,
+  linkCitations,
+  sourceForHref,
+  toSource,
+  type Source,
+} from "@/lib/citations";
+import { COPILOT_OPEN_EVENT, type CopilotOpenDetail } from "@/lib/copilot-events";
+import { COLOPHON_PATH } from "@/lib/content";
 
 interface Message {
   id: string;
@@ -18,6 +27,8 @@ interface Message {
   content: string;
   /** Page anchors the copilot pointed at while answering. */
   targets?: string[];
+  /** My articles the reply cites as [n] (from search_writing). */
+  sources?: Source[];
   /** Recruiter mode result; `content` then holds its plain-text form. */
   brief?: FitBrief;
 }
@@ -54,7 +65,7 @@ const STARTER_PROMPTS = [
   "What did you build at Illumina?",
   "What trade-offs shaped fictional-bassoon?",
   "Which article should I read first?",
-  "When do you use multi-agent frameworks?",
+  "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?",
 ];
 
 const AssistantAvatar = () => (
@@ -327,6 +338,8 @@ export default function CopilotBubble({
       // Targets can arrive before the first text delta (the model is told to
       // call show_on_page first), so they're held here until the message exists.
       const replyTargets: string[] = [];
+      // Same for article sources: search_writing runs before the answer is written.
+      const replySources: Source[] = [];
       let pageMoved = false;
 
       const appendDelta = (text: string) => {
@@ -341,6 +354,7 @@ export default function CopilotBubble({
               role: "assistant" as const,
               content: text,
               ...(replyTargets.length > 0 && { targets: [...replyTargets] }),
+              ...(replySources.length > 0 && { sources: [...replySources] }),
             },
           ]);
         } else {
@@ -367,6 +381,18 @@ export default function CopilotBubble({
             setTurningTo(label);
             setLiveMessage(`Showing ${label} on the page`);
           }
+        }
+      };
+
+      const handleSource = (raw: { n?: unknown; title?: unknown; url?: unknown }) => {
+        const source = toSource(raw);
+        if (!source || replySources.some((s) => s.n === source.n)) return;
+        replySources.push(source);
+        replySources.sort((a, b) => a.n - b.n);
+        if (!firstChunk) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantId ? { ...m, sources: [...replySources] } : m))
+          );
         }
       };
 
@@ -404,12 +430,15 @@ export default function CopilotBubble({
           const event = JSON.parse(line) as
             | { type: "delta"; text: string }
             | { type: "action"; target: string }
+            | { type: "source"; n?: unknown; title?: unknown; url?: unknown }
             | { type: "error"; code: string };
           if (event.type === "error") {
             handleErrorCode(event.code);
           } else if (event.type === "action") {
             handleAction(event.target);
-          } else {
+          } else if (event.type === "source") {
+            handleSource(event);
+          } else if (event.type === "delta") {
             appendDelta(event.text);
           }
         }
@@ -441,6 +470,17 @@ export default function CopilotBubble({
     setIsExpanded(true);
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
+
+  // Other pages (e.g. /colophon) open the drawer via openCopilot().
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const mode = (e as CustomEvent<CopilotOpenDetail>).detail?.mode;
+      setIsOpen(true);
+      if (mode === "fit") enterFitMode();
+    };
+    window.addEventListener(COPILOT_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(COPILOT_OPEN_EVENT, onOpen);
+  }, [enterFitMode]);
 
   const leaveFitMode = useCallback(() => {
     setMode("chat");
@@ -619,8 +659,15 @@ export default function CopilotBubble({
               Ask <em className="italic text-amber">Titus</em>
             </p>
             <p className="mt-2 max-w-[34ch] font-mono text-[11px] leading-snug text-ink-faint">
-              Grounded in my public work and writing. It answers about my work.
+              Grounded in my public work and writing. It answers about my work. Chats are logged so I can
+              improve it.
             </p>
+            <a
+              href={COLOPHON_PATH}
+              className="mt-1.5 inline-block font-mono text-[10.5px] tracking-[0.04em] text-ink-faint underline decoration-dotted underline-offset-[3px] transition-colors hover:text-amber"
+            >
+              How this works <span aria-hidden="true">↗</span>
+            </a>
           </div>
           <div className="flex flex-shrink-0 items-center gap-1">
             <button
@@ -718,6 +765,7 @@ export default function CopilotBubble({
                   <div className="font-serif text-[14.5px] leading-[1.62] text-ink">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
+                      urlTransform={citationUrlTransform}
                       components={{
                         p: ({ children }) => <p className="mb-2.5 last:mb-0">{children}</p>,
                         strong: ({ children }) => <strong className="font-semibold text-ink">{children}</strong>,
@@ -725,16 +773,37 @@ export default function CopilotBubble({
                         ul: ({ children }) => <ul className="mb-2.5 list-disc space-y-1 pl-4">{children}</ul>,
                         ol: ({ children }) => <ol className="mb-2.5 list-decimal space-y-1 pl-4">{children}</ol>,
                         li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-                        a: ({ href, children }) => (
-                          <a
-                            href={href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-amber underline underline-offset-2"
-                          >
-                            {children}
-                          </a>
-                        ),
+                        a: ({ href, children }) => {
+                          if (href?.startsWith("cite:")) {
+                            const source = sourceForHref(href, msg.sources);
+                            // A number the server never sent stays plain text.
+                            if (!source) return <>[{children}]</>;
+                            return (
+                              <sup className="ml-px font-mono text-[9.5px] leading-none">
+                                <a
+                                  href={source.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  aria-label={`Source ${source.n}: ${source.title}`}
+                                  title={source.title}
+                                  className="text-amber no-underline hover:underline"
+                                >
+                                  {source.n}
+                                </a>
+                              </sup>
+                            );
+                          }
+                          return (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-amber underline underline-offset-2"
+                            >
+                              {children}
+                            </a>
+                          );
+                        },
                         code: ({ children }) => (
                           <code className="rounded-sm bg-paper-band px-1 py-0.5 font-mono text-[12px] text-ink">
                             {children}
@@ -750,7 +819,7 @@ export default function CopilotBubble({
                         h3: ({ children }) => <p className="mb-1.5 font-semibold text-ink">{children}</p>,
                       }}
                     >
-                      {msg.content}
+                      {msg.sources?.length ? linkCitations(msg.content) : msg.content}
                     </ReactMarkdown>
                   </div>
                 )}
@@ -769,6 +838,25 @@ export default function CopilotBubble({
                         <span aria-hidden="true">↓ </span>
                         {targetLabels.get(t) ?? t}
                       </button>
+                    ))}
+                  </div>
+                )}
+                {msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
+                      Sources
+                    </span>
+                    {msg.sources.map((s) => (
+                      <a
+                        key={s.n}
+                        href={s.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-[11px] text-amber underline decoration-dotted underline-offset-[3px] transition-colors hover:text-ink"
+                      >
+                        {s.n} · {s.title}
+                        <span aria-hidden="true"> ↗</span>
+                      </a>
                     ))}
                   </div>
                 )}

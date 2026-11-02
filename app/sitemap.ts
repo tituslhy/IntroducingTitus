@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { SITE_URL } from '@/lib/content'
+import { COLOPHON_PATH, SITE_URL } from '@/lib/content'
 
 // Single long-scroll page with anchor sections (see components/Navigation.tsx
 // NAV_ITEMS) — list the home page plus each in-page anchor as a distinct entry.
@@ -14,5 +14,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${SITE_URL}/#${anchor}`,
       lastModified,
     })),
+    { url: `${SITE_URL}${COLOPHON_PATH}`, lastModified },
   ]
 }
