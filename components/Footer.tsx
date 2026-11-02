@@ -1,11 +1,5 @@
-const EMAIL = 'tituslhy@gmail.com'
+import { EMAIL, SOCIAL } from '@/lib/profile'
 
-const SOCIAL = {
-  github: 'https://github.com/tituslhy',
-  linkedin: 'https://www.linkedin.com/in/titus-lim-hsien-yong-70223254/',
-  medium: 'https://medium.com/@tituslhy',
-  coffee: 'https://buymeacoffee.com/tituslhy',
-}
 
 function IconGithub() {
   return (
