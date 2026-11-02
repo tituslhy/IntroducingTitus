@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import './globals.css'
 import CopilotBubble from '@/components/CopilotBubble'
-import { PAGE_TARGETS } from '@/lib/profile'
+import { EMAIL, PAGE_TARGETS } from '@/lib/profile'
 import { SITE_DESCRIPTION, SITE_URL } from '@/lib/content'
 
 // Self-hosted (not next/font/google): a font-fetch failure would otherwise be
@@ -80,7 +80,7 @@ export default function RootLayout({
       <body className="bg-paper text-ink font-serif antialiased">
         {children}
         {/* Only id + label cross to the client; copilot-only narrative stays server-side. */}
-        <CopilotBubble targets={PAGE_TARGETS.map(({ id, label }) => ({ id, label }))} />
+        <CopilotBubble targets={PAGE_TARGETS.map(({ id, label }) => ({ id, label }))} email={EMAIL} />
       </body>
     </html>
   )
