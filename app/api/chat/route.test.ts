@@ -47,6 +47,7 @@ jest.mock("langsmith/traceable", () => ({
 
 // Import after all mocks are set up
 import { POST } from "./route";
+import { PAGE_TARGET_IDS } from "@/lib/profile";
 import type { NextRequest } from "next/server";
 
 const OpenAIMock = jest.requireMock("openai").default as Record<string, unknown>;
@@ -70,7 +71,7 @@ function createPostRequest(
   });
 }
 
-async function makeStream(events: Array<{ type: string; delta?: string }>) {
+async function makeStream(events: Array<{ type: string; delta?: string; [key: string]: unknown }>) {
   async function* generator() {
     for (const event of events) {
       yield event;
@@ -547,7 +548,67 @@ describe("POST", () => {
     // Assert
     expect(mockCreate).toHaveBeenCalled();
     const callArgs = mockCreate.mock.calls[0][0];
-    expect(callArgs.tools).toEqual([{ type: "web_search_preview" }]);
+    expect(callArgs.tools).toContainEqual({ type: "web_search_preview" });
+  });
+
+  it("should offer show_on_page with exactly the page's anchor ids as targets", async () => {
+    const request = createPostRequest(
+      JSON.stringify({ messages: [{ role: "user", content: "Hello" }] })
+    );
+    mockCreate.mockResolvedValue(
+      await makeStream([{ type: "response.output_text.delta", delta: "Hi" }, { type: "response.done" }])
+    );
+
+    const response = await POST(request as unknown as NextRequest);
+    await drainResponse(response);
+
+    const tool = mockCreate.mock.calls[0][0].tools.find(
+      (t: { name?: string }) => t.name === "show_on_page"
+    );
+    expect(tool).toMatchObject({ type: "function", strict: true });
+    expect(tool.parameters.properties.target.enum).toEqual(PAGE_TARGET_IDS);
+    // No function call happened, so there is no second round.
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("should relay a valid show_on_page target before the answer and drop invalid ones", async () => {
+    const request = createPostRequest(
+      JSON.stringify({ messages: [{ role: "user", content: "What did you build at Illumina?" }] })
+    );
+    mockCreate
+      .mockResolvedValueOnce(
+        await makeStream([
+          { type: "response.created", response: { id: "resp_1" } },
+          {
+            type: "response.output_item.done",
+            item: { type: "function_call", name: "show_on_page", arguments: '{"target":"role-illumina"}', call_id: "call_1" },
+          },
+          {
+            type: "response.output_item.done",
+            item: { type: "function_call", name: "show_on_page", arguments: '{"target":"role-nasa"}', call_id: "call_2" },
+          },
+          { type: "response.done" },
+        ])
+      )
+      .mockResolvedValueOnce(
+        await makeStream([{ type: "response.output_text.delta", delta: "Solo, sixteen components." }, { type: "response.done" }])
+      );
+
+    const response = await POST(request as unknown as NextRequest);
+    const lines = (await drainResponse(response)).split("\n").filter(Boolean).map((l) => JSON.parse(l));
+
+    expect(lines[0]).toEqual({ type: "action", target: "role-illumina" });
+    expect(lines.filter((l) => l.type === "action")).toHaveLength(1);
+    expect(lines[1]).toEqual({ type: "delta", text: "Solo, sixteen components." });
+
+    // Round two: tool results go back by previous_response_id, show_on_page withheld.
+    const followUp = mockCreate.mock.calls[1][0];
+    expect(followUp.previous_response_id).toBe("resp_1");
+    expect(followUp.tools).toEqual([{ type: "web_search_preview" }]);
+    expect(followUp.input).toEqual([
+      { type: "function_call_output", call_id: "call_1", output: JSON.stringify({ shown: "role-illumina" }) },
+      { type: "function_call_output", call_id: "call_2", output: JSON.stringify({ error: "unknown target" }) },
+    ]);
   });
 
   it("should handle messages with assistant role in input", async () => {
