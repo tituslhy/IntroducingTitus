@@ -1,4 +1,5 @@
 import { EMAIL, SOCIAL } from '@/lib/profile'
+import { COLOPHON_PATH } from '@/lib/content'
 
 
 function IconGithub() {
@@ -113,6 +114,10 @@ export default function Footer() {
         <span>© 2026 Lim Hsien Yong (Titus)</span>
         <span className="mx-2 inline-block h-[3px] w-[3px] rounded-full bg-ink-faint align-middle" />
         <span>Singapore</span>
+        <span className="mx-2 inline-block h-[3px] w-[3px] rounded-full bg-ink-faint align-middle" />
+        <a href={COLOPHON_PATH} className="transition-colors hover:text-amber">
+          How the assistant works <span aria-hidden="true">→</span>
+        </a>
       </div>
     </footer>
   )

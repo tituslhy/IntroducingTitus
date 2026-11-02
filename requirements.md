@@ -229,8 +229,8 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 #### OpenAI Integration
 - **Model:** `gpt-4o-mini`
 - **API:** OpenAI Responses API
-- **Tools:** Enable `web_search_preview` tool
-- **Medium context:** Pass `https://medium.com/@tituslhy` in system prompt so model can search articles on demand
+- **Tools:** `show_on_page` and `search_writing` (answers from my own Medium articles via Jev, with `[n]` footnotes). `web_search_preview` removed. See `drawer-plans/ask-titus-agent.md`.
+- **Medium context:** `https://medium.com/@tituslhy` stays in the system prompt as the fallback pointer when no article covers a question
 - **System prompt:** See `copilot-system-prompt.md`
 
 #### Scope Enforcement (via system prompt)
@@ -240,6 +240,13 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 - Never fabricate skills or experience not in context
 - Off-topic questions → politely redirect to my work
 - Salary / availability / personal → redirect to email
+
+---
+
+### Satellite page — `/colophon` (How Ask Titus works)
+- One satellite page, linked from the drawer and footer, **not the main nav**
+- Sections: the short version, anatomy of a reply, one source of truth, guardrails, recruiter mode, how it's tested (hidden until `content/eval-results.json` exists), what it won't do, stack
+- Spec: `drawer-plans/ask-titus-agent.md` (Phase 3)
 
 ---
 
@@ -291,6 +298,7 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 - [x] Featured Medium articles: **7 hardcoded**
 - [x] Copilot: **Phase 2, now in scope**
 - [x] Deployment: **Vercel** (migrated from GitHub Pages)
+- [x] `/colophon`: **one satellite page, linked from the drawer and footer, not the main nav**
 - [x] Headshot: **Yes, in hero** → `/public/headshot.jpeg`
 - [x] fictional-bassoon: **Public** → https://github.com/tituslhy/fictional-bassoon
 - [x] Tagline updated: **"I build AI systems — from architecture to the boardroom."**
