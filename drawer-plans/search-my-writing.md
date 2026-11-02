@@ -19,11 +19,14 @@ answer reflects what I actually wrote).
 
 No embeddings, no vector store. Split the work the way the two models are built:
 
-1. **Route (Jev, System One).** Before the chat model runs, Jev reads the
-   visitor's message (plus a little recent context) and an **article catalog**,
-   and returns a *typed decision*: which articles (if any) are relevant, each
-   with a probability.
-2. **Read + write (GPT, System Two).** The server injects the chosen articles
+1. **Filter (Jev, `noul`).** Before the chat model runs, Jev asks one
+   yes/no question per article: *"Is this article relevant to the visitor's
+   question?"* It answers all of them in one request, each as an independent
+   probability. Several can be relevant at once, and none is a valid answer.
+2. **Rank (Jev, `score`).** The shortlist from step 1 (if more than one) is
+   graded against a relevance rubric, using a richer view of each article.
+   The top two go forward.
+3. **Read + write (GPT, System Two).** The server injects the chosen articles
    into the chat model's input, and it answers from them in my voice, citing
    them as footnotes.
 
@@ -36,10 +39,10 @@ model harnesses). It's available through Vercel's AI Gateway.
 
 | | **Pre-route** (recommended) | Tool the chat model calls |
 |---|---|---|
-| Flow | Jev → GPT (1 call) | GPT → tool → Jev → GPT (2 calls) |
-| Latency | One fast hop | A full extra chat-model round trip |
+| Flow | Jev filter → Jev rank → GPT (1 GPT call) | GPT → tool → Jev → GPT (2 GPT calls) |
+| Latency | Two fast Jev hops under a ~2s deadline | A full extra chat-model round trip |
 | Who decides "is this about my writing?" | Jev, every turn (cheap) | GPT, and only if it remembers to |
-| Abstaining | Probability threshold → "nothing fits" is a number, not a vibe | Model judgement |
+| Abstaining | Empty shortlist → "nothing fits" is a number, not a vibe | Model judgement |
 
 Pre-routing also keeps the chat model's job simple: it never sees a catalog or
 picks anything. It gets either relevant articles or none.
@@ -62,10 +65,12 @@ Medium export (zip)                         ┐
        └─ summaries: LLM draft → I edit     ┘
 
 /api/chat
-  1. route   jev.systemOne({ state, questions: { article: choice(catalog + none) } })
-             → probabilities per slug
-             selection rule, max 2   ──────────────────▶ NDJSON {type:"source", n, title, url}
-  2. answer  GPT(system prompt, history, <articles>…</articles>)
+  1. filter  jev.systemOne({ state, questions: { [slug]: noul("Is … relevant?") × 65 } })
+             → independent p(relevant) per article → shortlist (p ≥ 0.5, max 5)
+  2. rank    jev.systemOne({ state, questions: { [slug]: score(rubric 0–3) × shortlist } })
+             (skipped if shortlist ≤ 1) → top 2 with score ≥ 2
+                                         ──────────────▶ NDJSON {type:"source", n, title, url}
+  3. answer  GPT(system prompt, history, <articles>…</articles>)
              tools: show_on_page            (web search removed)
   stream:    action / source / delta / error
 
@@ -90,6 +95,8 @@ type Article = {
   publication?: string    // "MITB for All"
   summary: string         // one plain sentence: what it's actually about
   keywords: string[]      // 3–6: "guardrails", "LLM security", "Llama Guard"
+  outline: string[]       // h2/h3 headings, in order (stage-2 ranking input)
+  intro: string           // first ~800 chars of body (stage-2 ranking input)
   body: string            // full text as Markdown
   words: number
 }
@@ -110,14 +117,17 @@ type Article = {
    the script never overwrites my edits. This file *is* the routing index.
 5. **New posts:** RSS (`medium.com/feed/@tituslhy`) only has the latest ~10,
    so it's a top-up. Re-export the zip every few months.
-6. **Count drift:** derive `ARTICLE_COUNT_NUMBER` (and the blockchain count,
+6. **Ranking view:** extract `outline` (h2/h3 headings) and `intro` (first
+   ~800 chars) per article. Stage 2 grades on these, so it sees more than the
+   one-line card stage 1 filtered on.
+7. **Count drift:** derive `ARTICLE_COUNT_NUMBER` (and the blockchain count,
    from keywords) in `lib/content.ts` from the corpus instead of hand-typing it.
 
 ### 3. Router: `lib/writing-router.ts`
 
 ```ts
-type Route = { slug: string; p: number }
-async function routeToArticles(message: string, recent: Turn[]): Promise<Route[]>
+type Routed = { slug: string; relevance: number; score: number | null }
+async function routeToArticles(message: string, recent: Turn[], signal: AbortSignal): Promise<Routed[]>
 ```
 
 #### The Jev API (verified from the official JS SDK, `@typesafe-ai/sdk` 0.7.0)
@@ -154,61 +164,126 @@ The docs site itself is at docs.typesafe.ai.
 - **Testing:** the client takes a `fetch` option, so tests inject a fake.
 - Don't confuse it with the unaffiliated open-source "RSI-Jev".
 
-#### The routing call
+#### Pick the primitive by the shape of the decision
 
-One `choice` question whose labels *are* the catalog, plus an explicit `none`:
+| Decision | Shape | Primitive |
+|---|---|---|
+| Is this article relevant? (×65) | independent yes/no; any number can be yes | **`noul`** |
+| How well does it answer the question? | graded, ordered | **`score`** |
+| Which page section to show? | exactly one wins | `choice` (see Stretch) |
+
+`choice` is the wrong tool for relevance. It picks one label and its
+probabilities sum to 1 across labels, so two genuinely relevant articles end
+up splitting the mass (0.45 / 0.40) and look unsure. `noul` asks each article
+its own question and gives an independent probability.
+
+#### Stage 1: filter (`noul` per article, one request)
 
 ```ts
-import { choice, TypeSafeClient } from "@typesafe-ai/sdk";
+import { noul, score, TypeSafeClient } from "@typesafe-ai/sdk";
 
 const jev = new TypeSafeClient({ defaultModel: "jev-1.13" }); // pinned
 
-const { answers } = await jev.systemOne(
+const state = { question: latestUserMessage, recentConversation: lastTwoTurns };
+
+const filter = await jev.systemOne(
   {
-    state: { question: latestUserMessage, recentConversation: lastTwoTurns },
-    questions: {
-      article: choice(
-        "Which of my articles is most relevant to answering this question? " +
-          "Choose `none` if the question isn't about something I've written.",
-        {
-          ...Object.fromEntries(
-            catalog.map((a) => [a.slug, `${a.title} — ${a.summary} [${a.keywords.join(", ")}]`])
-          ),
-          none: "None of these articles is relevant, or the question isn't about my writing.",
-        }
-      ),
-    },
+    state,
+    questions: Object.fromEntries(
+      catalog.map((a) => [
+        a.slug,
+        noul({
+          task: "Is this article of mine relevant to answering the visitor's question?",
+          article: { title: a.title, summary: a.summary, keywords: a.keywords },
+        }),
+      ])
+    ),
   },
-  { timeout: 1500, retry: { maxRetries: 0 }, signal }
+  { timeout: 1000, retry: { maxRetries: 0 }, signal }
 );
 
-// answers.article.probabilities → { "your-agent-needs-a-bouncer": 0.82, …, none: 0.04 }
+// filter.answers["your-agent-needs-a-bouncer"].noul → 0.93
+const shortlist = catalog
+  .map((a) => ({ slug: a.slug, relevance: filter.answers[a.slug]?.noul ?? 0 }))
+  .filter((r) => r.relevance >= RELEVANT) // start 0.5
+  .sort((x, y) => y.relevance - x.relevance)
+  .slice(0, SHORTLIST_MAX); // 5
 ```
 
-**Why `choice` and not one `noul` per article:** one question, an explicit
-`none` (abstaining is built in), and `probabilities` covers *every* label, so
-the top two come out of the same answer. The caveat: a single choice spreads
-probability across labels, so a question that genuinely needs two articles
-splits the mass between them (e.g. 0.45 / 0.40). Hence the selection rule below.
-If the golden set shows multi-article questions under-picking, switch to one
-`noul("Is <article> relevant to this question?")` per article. That gives 65
-independent yes-probabilities in one request: easier thresholds, more input
-tokens. Community sources list a 255-option cap per `choice`, which is
-**unverified**. 65 labels is well under it either way.
+- One request, 65 named questions. Question names are the slugs, so the
+  answers come back keyed by slug. Instructions can be a JSON object, so each
+  card goes in as structured data rather than a formatted string.
+- **Abstaining is free:** if nothing clears `RELEVANT`, the shortlist is empty
+  and GPT gets no articles. No `none` label needed.
+- Tune `RELEVANT` for **recall**: stage 1's job is not to miss the right
+  article. Stage 2 cleans up.
+- Input size: ~65 short cards ≈ 4–5k tokens per turn. Jev bills input
+  tokens. A community wiki lists $0.042 per 1M input tokens and free output
+  (**unverified**), which would make this a rounding error. Check real
+  pricing before launch.
 
-- **Input:** the latest user message + the last ~2 turns (so "tell me more
-  about that one" resolves), and the catalog as choice labels and descriptions.
-  Never article bodies.
-- **Selection rule (server, never trust the model):** drop `none` and unknown
-  labels; sort by probability; keep the top label if `p ≥ MIN_TOP` and
-  `p > p(none)`; keep a second label if `p ≥ MIN_SECOND`. Start around
-  `MIN_TOP = 0.35`, `MIN_SECOND = 0.20` and tune both on the golden set.
-- **Fail open:** on any error or timeout (budget ~1.5s), continue with *no*
-  articles. The chat model falls back to the featured list and my Medium
-  link. Routing must never break chat.
-- **Cost guard:** skip routing for obviously unrelated turns (empty, or a
-  conversation already marked out of scope) only if latency demands it.
-  Measure first.
+#### Stage 2: rank (`score` per shortlisted article, one request)
+
+Skip it when the shortlist has 0 or 1 articles: nothing to rank.
+
+```ts
+const RUBRIC = [
+  "Doesn't help answer the question.",
+  "Touches the topic in passing.",
+  "Covers the topic substantially.",
+  "Directly answers the question.",
+] as const;
+
+const rank = await jev.systemOne(
+  {
+    state,
+    questions: Object.fromEntries(
+      shortlist.map(({ slug }) => {
+        const a = bySlug[slug];
+        return [
+          slug,
+          score(
+            {
+              task: "How well does this article of mine answer the visitor's question?",
+              article: { title: a.title, summary: a.summary, outline: a.outline, intro: a.intro },
+            },
+            RUBRIC
+          ),
+        ];
+      })
+    ),
+  },
+  { timeout: remainingBudget(), retry: { maxRetries: 0 }, signal }
+);
+
+// rank.answers[slug].score → expected score, e.g. 2.7 (may fall between levels)
+const chosen = shortlist
+  .map((r) => ({ ...r, score: rank.answers[r.slug]?.score ?? null }))
+  .filter((r) => r.score !== null && r.score >= MIN_SCORE) // start 2.0
+  .sort((x, y) => y.score! - x.score!)
+  .slice(0, 2);
+```
+
+- **Stage 2 sees more than stage 1:** headings and intro, not just the
+  one-line card. That's what makes a second pass worth its latency. Re-asking
+  the same question on the same card would add little.
+- `score` returns an *expected* score (e.g. 2.7) plus per-level
+  probabilities, so "substantially covers" vs "directly answers" sorts
+  cleanly between close candidates.
+- Tune `MIN_SCORE` for **precision**: only articles that actually help
+  reach GPT's context.
+
+#### Budget and failure (server, never trust the model)
+
+- **One shared deadline**, ~2s for both stages (e.g. stage 1 ≤ 1s,
+  stage 2 gets what's left), no retries.
+- **Stage 2 fails or times out** → fall back to stage-1 order: top 2 by
+  `relevance`.
+- **Stage 1 fails or times out** → no articles. The chat model falls back to
+  the featured list and my Medium link. Routing must never break chat.
+- Ignore answers for unknown slugs; never trust a key the request didn't ask.
+- Emit `source` events with both numbers (`relevance`, `score`). The
+  colophon's "Show your work" toggle displays them.
 
 ### 4. Inject into the chat call
 
@@ -243,7 +318,7 @@ shape. `questions` takes several named questions per request, so the **same
 
 ```ts
 questions: {
-  article: choice("Which of my articles…", { …catalog, none: "…" }),
+  ...relevanceQuestions, // the 65 nouls from stage 1
   section: choice("Which part of my site is this question about?", {
     ...Object.fromEntries(PAGE_TARGETS.map((t) => [t.id, t.about])),
     none: "No specific part of the site.",
@@ -251,7 +326,9 @@ questions: {
 }
 ```
 
-That removes the chat model's tool round trip entirely: one Jev call plus one
+Since stage 1 runs every turn anyway, add the `section` question there. It's
+a genuine single answer, so `choice` is the right primitive for it. That
+removes the chat model's tool round trip entirely: Jev (1–2 calls) plus one
 GPT call per turn, always. Do this after the writing route proves itself on
 the golden set.
 
@@ -262,7 +339,8 @@ the golden set.
 - **Article text is data:** my own words, but injected text is still wrapped
   and labelled as data, not instructions.
 - **Budget:** ~5k (prompt, cached) + ≤3k (history) + ≤6k (articles) ≈ 14k
-  tokens worst case, plus one small Jev call.
+  GPT tokens worst case, plus up to two Jev calls (~5k + ~3k input tokens)
+  inside a ~2s deadline.
 - **New dependency:** Jev via AI Gateway is a second model provider. Keep its
   key/config server-side only, log its latency and errors separately, and keep
   the fail-open path tested.
@@ -285,9 +363,13 @@ the golden set.
 | Have you written about Rust? | **none**: routes to nothing, no invented title |
 | What did you build at Illumina? | **none**: a record question, not a writing one |
 
-Score **routing hit rate**, **abstain accuracy** (the "none" rows), and
-**no-invention** (zero made-up titles/URLs in answers). Use it to tune
-`MIN_TOP` / `MIN_SECOND`. Commit the results as `content/eval-results.json`; the
+Score each stage on its own job:
+
+- **Stage 1 recall:** is the expected article in the shortlist? Tune `RELEVANT`.
+- **Stage 2 precision@2:** are the chosen articles expected ones? Tune `MIN_SCORE`.
+- **Abstain accuracy:** do the "none" rows reach GPT with no articles?
+- **No-invention:** zero made-up titles/URLs in final answers.
+- **Latency:** p50/p95 of the routing deadline, and how often each fallback fires. Commit the results as `content/eval-results.json`; the
 about-this-bot page reads them.
 
 ---
@@ -300,10 +382,11 @@ about-this-bot page reads them.
 - [ ] Derive article counts from the corpus
 - [x] Verify Jev API shape (done: `client.systemOne`, see §3)
 - [ ] Get a TypeSafe key (early access/waitlist at time of writing); add `TYPESAFE_API_KEY` to Vercel; confirm the pinned model id with `client.models.list()`; confirm the Vercel project runs Node ≥ 22
-- [ ] `lib/writing-router.ts`: `systemOne` choice call, selection rule, cap, fail-open (1.5s, no retries)
+- [ ] `lib/writing-router.ts`: stage 1 (`noul` × catalog → shortlist), stage 2 (`score` × shortlist → top 2), shared ~2s deadline, both fallbacks
+- [ ] Build script: `outline` + `intro` per article for stage 2
 - [ ] Inject `<articles>` + `source` events in `/api/chat`; remove `web_search_preview`
 - [ ] Prompt: writing section rewrite (cite, abstain, never invent)
 - [ ] Footnotes + Sources row in `CopilotBubble`
 - [ ] Golden set script → `content/eval-results.json`; tune threshold
-- [ ] Tests (inject a fake `fetch` into `TypeSafeClient`): selection rule (none wins, unknown labels, split probabilities, cap), fail-open on `APIError`/timeout, route injection + source events, bubble sources rendering
+- [ ] Tests (inject a fake `fetch` into `TypeSafeClient`): shortlist threshold + cap, empty shortlist → no stage 2, single → no stage 2, ranking + `MIN_SCORE`, unknown slugs ignored, stage-2 failure → stage-1 order, stage-1 failure → no articles, route injection + source events, bubble sources rendering
 - [ ] Vercel preview; run the golden set against the real models
