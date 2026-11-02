@@ -37,6 +37,8 @@ export const SOCIAL = {
 // ---------------------------------------------------------------------------
 
 export type Role = {
+  /** Stable id: the page anchor is `role-${slug}`. */
+  slug: string
   years: string
   company: string
   location: string
@@ -59,6 +61,7 @@ export type Role = {
 
 export const ROLES: Role[] = [
   {
+    slug: 'mastercard',
     years: '2026',
     company: 'Mastercard',
     location: 'Singapore',
@@ -71,6 +74,7 @@ export const ROLES: Role[] = [
     copilot: `Agent Suite was publicly announced in January 2026. I do not claim to have launched it; I started in July 2026. The SDK is agent-suite-core, a LangChain-based layer that makes governed, standards-compliant agent-building the default. The CLI is agent-suite-cli, built on Typer, which serves an agent as an ASGI app. I do not discuss internal compliance controls or implementation details beyond this.`,
   },
   {
+    slug: 'uob',
     years: '2025',
     company: 'United Overseas Bank',
     location: 'Singapore',
@@ -82,6 +86,7 @@ export const ROLES: Role[] = [
     copilot: 'The multi-agent platform is called BYOA (Build Your Own Agents).',
   },
   {
+    slug: 'illumina',
     years: '2023',
     company: 'Illumina',
     location: 'Singapore',
@@ -99,6 +104,7 @@ export const ROLES: Role[] = [
     ].join('\n\n'),
   },
   {
+    slug: 'ck-delta',
     years: '2022',
     company: 'CK Delta',
     location: 'Singapore',
@@ -110,6 +116,7 @@ export const ROLES: Role[] = [
     compact: true,
   },
   {
+    slug: 'ema',
     years: '2018',
     company: 'Energy Market Authority',
     location: 'Singapore',
@@ -122,17 +129,19 @@ export const ROLES: Role[] = [
     copilot: "Those national demand forecasts informed Singapore's climate change policy decisions.",
   },
   {
+    slug: 'jobtech',
     years: '2017',
     company: 'JobTech Pte Ltd',
     location: 'Singapore',
     role: 'Data Scientist',
     dates: 'Apr 2017 — Aug 2017',
     deck: 'Built a national-scale skill extraction algorithm using NLP to construct skills graphs from online job portals.',
-    body: "Findings published in a national report on Indonesia's labour market.",
+    body: "Findings published in a Business Insider report on Indonesia's labour market.",
     tech: ['Python', 'NLP', 'Regex Entity Extraction'],
     compact: true,
   },
   {
+    slug: 'toyota-tsusho',
     years: '2015',
     company: 'Toyota Tsusho Asia Pacific',
     location: 'Singapore',
@@ -356,3 +365,38 @@ export const WRITING_TOPICS = [
   'software engineering',
   'AI architecture',
 ]
+
+// ---------------------------------------------------------------------------
+// Page targets — what the copilot's show_on_page tool may point at
+// ---------------------------------------------------------------------------
+
+export type PageTarget = {
+  /** DOM id on the page. */
+  id: string
+  /** Short label for the "See on page" control, e.g. "Illumina, 2023". */
+  label: string
+  /** What lives there, for the model. */
+  about: string
+}
+
+/**
+ * Every anchor the copilot may scroll to. Generated from the same arrays the
+ * page renders, so a new role or project is targetable the moment it exists.
+ */
+export const PAGE_TARGETS: PageTarget[] = [
+  { id: 'lede', label: 'About', about: 'my short bio and how I work' },
+  { id: 'stack', label: 'Stack', about: 'the tools, languages, and platforms I work with' },
+  { id: 'dossier', label: 'Experience', about: 'my full career timeline' },
+  ...ROLES.map((r) => ({
+    id: `role-${r.slug}`,
+    label: `${r.company}, ${r.years}`,
+    about: `my ${r.role} role at ${r.company} (${r.dates})`,
+  })),
+  { id: 'education', label: 'Education', about: 'my degrees and honours' },
+  { id: 'projects', label: 'Projects', about: 'the things I have built on my own' },
+  ...PROJECTS.map((p) => ({ id: `project-${p.slug}`, label: p.title, about: `${p.title}: ${p.sub}` })),
+  { id: 'open-source', label: 'Open source', about: 'my open-source contributions' },
+  { id: 'writing', label: 'Writing', about: 'my featured Medium articles' },
+]
+
+export const PAGE_TARGET_IDS = PAGE_TARGETS.map((t) => t.id)
