@@ -64,9 +64,6 @@ export const ILLUMINA_SAVINGS_PROSE = `USD ${ILLUMINA_SAVINGS_MILLIONS} million`
 /** Compact figure-panel form: "$9M". */
 export const ILLUMINA_SAVINGS_FIGURE = `$${ILLUMINA_SAVINGS_MILLIONS}M`
 
-/** Canonical SEO description, shared by app/layout.tsx metadata (title, OG, Twitter). */
-export const SITE_DESCRIPTION = `GenAI engineer and architect with ${YEARS_EXPERIENCE} building production AI systems. ${ARTICLE_COUNT_SHORT}. Open source contributor.`
-
 /** The satellite page explaining how Ask Titus works (linked from the drawer and footer, not the nav). */
 export const COLOPHON_PATH = '/colophon'
 

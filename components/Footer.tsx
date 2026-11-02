@@ -1,4 +1,4 @@
-import { EMAIL, SOCIAL } from '@/lib/profile'
+import { EMAIL, SIGN_OFF_TITLE, SOCIAL } from '@/lib/profile'
 import { COLOPHON_PATH } from '@/lib/content'
 
 
@@ -65,7 +65,7 @@ export default function Footer() {
             Titus Lim
           </p>
           <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-soft">
-            GenAI Engineer &amp; Architect
+            {SIGN_OFF_TITLE}
           </p>
         </div>
 

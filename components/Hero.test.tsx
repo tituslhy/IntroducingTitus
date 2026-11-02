@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { ARTICLE_COUNT_NUMBER, ARTICLE_COUNT_SHORT } from '@/lib/content'
+import { SIGN_OFF_TITLE } from '@/lib/profile'
 import Hero from './Hero'
 
 describe('Hero', () => {
@@ -155,9 +156,10 @@ describe('Hero', () => {
     expect(elements.length).toBeGreaterThan(0)
   })
 
-  it('should render role label "GenAI Engineer & Architect"', () => {
+  it('should render the role label from the current role, "Lead AI Engineer" today', () => {
     render(<Hero />)
-    expect(screen.getByText(/genai engineer & architect/i)).toBeInTheDocument()
+    expect(screen.getByText(SIGN_OFF_TITLE)).toBeInTheDocument()
+    expect(SIGN_OFF_TITLE).toBe('Lead AI Engineer')
   })
 
   it('should have proper heading hierarchy with h1 for name', () => {

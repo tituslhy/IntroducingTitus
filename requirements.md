@@ -257,8 +257,8 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 ---
 
 ## 6. SEO & Meta
-- Title: `Titus Lim | GenAI Engineer & Architect`
-- Description: `GenAI engineer and architect with 8+ years building production AI systems. 50 technical articles. Open source contributor.`
+- Title: `Titus Lim | Lead AI Engineer` (follows the top role's exact title)
+- Description: `Lead AI Engineer with 8+ years building production AI systems. 65 technical articles. Open source contributor.`
 - OG image: Dark card with name + tagline
 - Canonical URL: *(update after Vercel URL confirmed)*
 

@@ -1,6 +1,6 @@
 # IntroducingTitus
 
-Personal website of **Lim Hsien Yong (Titus)** — GenAI Engineer & Architect.  
+Personal website of **Lim Hsien Yong (Titus)** — Lead AI Engineer.  
 Live at: **https://introducing-titus.vercel.app/**
 
 Built with Next.js 14 (App Router) + Tailwind CSS. Deployed to Vercel.
