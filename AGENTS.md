@@ -12,7 +12,7 @@ Do not skip step 1. Do not assume. Read the paper first.
 ---
 
 ## Who This Is For
-You are building the personal website of **Lim Hsien Yong (Titus)** — GenAI Engineer & Architect.
+You are building the personal website of **Lim Hsien Yong (Titus)** — Lead AI Engineer (sign-off = the top role's exact title, `SIGN_OFF_TITLE` in `lib/profile.ts`).
 Primary audience: hiring managers, technical leads, C-suite sponsors, GenAI/ML community.
 This site is a professional brand presence and web-form resume. Not a blog. Not a diary.
 
@@ -195,8 +195,8 @@ warm. No emoji, no exclamation points. Two short paragraphs max unless asked.
 ---
 
 ## SEO & Meta
-- Title: `Titus Lim | GenAI Engineer & Architect`
-- Description: `GenAI engineer and architect with 8+ years building production AI systems. 50 technical articles. Open source contributor.`
+- Title: `Titus Lim | Lead AI Engineer` (from `SITE_TITLE` in `lib/profile.ts`, follows the top role)
+- Description: `Lead AI Engineer with 8+ years building production AI systems. 65 technical articles. Open source contributor.` (`SITE_DESCRIPTION`, role and count derived)
 - OG image: Warm cream editorial card with name + tagline (generate as static asset)
 - Canonical URL: https://introducing-titus.vercel.app/
 

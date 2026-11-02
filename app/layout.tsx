@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import './globals.css'
 import CopilotBubble from '@/components/CopilotBubble'
-import { EMAIL, PAGE_TARGETS } from '@/lib/profile'
-import { SITE_DESCRIPTION, SITE_URL } from '@/lib/content'
+import { EMAIL, PAGE_TARGETS, SITE_DESCRIPTION, SITE_TITLE } from '@/lib/profile'
+import { SITE_URL } from '@/lib/content'
 
 // Self-hosted (not next/font/google): a font-fetch failure would otherwise be
 // a build-time or first-paint dependency on Google's servers, and typography
@@ -32,7 +32,7 @@ const ibmPlexMono = localFont({
   display: 'swap',
 })
 
-const TITLE = 'Titus Lim | GenAI Engineer & Architect'
+const TITLE = SITE_TITLE
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

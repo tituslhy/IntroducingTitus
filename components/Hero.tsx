@@ -1,10 +1,10 @@
 import Image from 'next/image'
 import { ARTICLE_COUNT_NUMBER, ARTICLE_COUNT_SHORT } from '@/lib/content'
-import { SOCIAL } from '@/lib/profile'
+import { SIGN_OFF_TITLE, SOCIAL } from '@/lib/profile'
 
 
 const ISSUE_META = {
-  role: 'GenAI Engineer & Architect',
+  role: SIGN_OFF_TITLE,
   location: 'Singapore',
   status: 'Lead AI Engineer, Mastercard Asia/Pacific',
   year: '2026',

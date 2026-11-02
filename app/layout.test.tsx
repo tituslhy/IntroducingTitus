@@ -1,24 +1,29 @@
 import { render, screen } from '@testing-library/react'
 import { ARTICLE_COUNT_SHORT } from '@/lib/content'
+import { SIGN_OFF_TITLE, SITE_DESCRIPTION, SITE_TITLE } from '@/lib/profile'
 import RootLayout, { metadata } from './layout'
 
 describe('RootLayout metadata', () => {
   it('should export correct page title', () => {
-    expect(metadata.title).toBe('Titus Lim | GenAI Engineer & Architect')
+    expect(metadata.title).toBe(SITE_TITLE)
+    expect(metadata.title).toBe(`Titus Lim | ${SIGN_OFF_TITLE}`)
+    expect(SIGN_OFF_TITLE).toBe('Lead AI Engineer')
   })
 
   it('should export correct page description', () => {
-    expect(metadata.description).toContain('GenAI engineer and architect')
+    expect(metadata.description).toBe(SITE_DESCRIPTION)
+    expect(metadata.description).toContain(SIGN_OFF_TITLE)
     expect(metadata.description).toContain('8+ years building production AI systems')
     expect(metadata.description).toContain(ARTICLE_COUNT_SHORT)
   })
 
   it('should export OpenGraph metadata with correct title', () => {
-    expect(metadata.openGraph?.title).toBe('Titus Lim | GenAI Engineer & Architect')
+    expect(metadata.openGraph?.title).toBe(SITE_TITLE)
   })
 
   it('should export OpenGraph metadata with correct description', () => {
-    expect(metadata.openGraph?.description).toContain('GenAI engineer and architect')
+    expect(metadata.openGraph?.description).toBe(SITE_DESCRIPTION)
+    expect(metadata.openGraph?.description).toContain(SIGN_OFF_TITLE)
     expect(metadata.openGraph?.description).toContain('8+ years building production AI systems')
   })
 
