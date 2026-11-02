@@ -103,7 +103,12 @@ async function runAgent(openai: OpenAI, systemPrompt: string, question: string):
 }
 
 const URL_RE = /https?:\/\/[^\s)\]>"'`]+/g;
-const trimUrl = (u: string) => u.replace(/[.,;:!?]+$/, "");
+/** Drops trailing sentence punctuation from a matched URL (a loop, not a "+$" regex, to stay linear). */
+function trimUrl(u: string): string {
+  let end = u.length;
+  while (end > 0 && ".,;:!?".includes(u[end - 1])) end--;
+  return u.slice(0, end);
+}
 
 function percentile(values: number[], p: number): number | null {
   if (values.length === 0) return null;
