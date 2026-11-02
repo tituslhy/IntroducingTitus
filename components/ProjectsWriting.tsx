@@ -26,7 +26,8 @@ function ProjectFeature({ project, index }: { project: Project; index: number })
 
   return (
     <article
-      className={`grid grid-cols-1 items-start gap-[clamp(24px,4vw,56px)] border-b border-rule py-[clamp(28px,5vw,64px)] ${
+      id={`project-${project.slug}`}
+      className={`relative scroll-mt-24 grid grid-cols-1 items-start gap-[clamp(24px,4vw,56px)] border-b border-rule py-[clamp(28px,5vw,64px)] ${
         flipped
           ? 'min-[881px]:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]'
           : 'min-[881px]:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]'
@@ -137,7 +138,7 @@ function Projects() {
         </div>
 
         {/* Open-source contributions */}
-        <div className="mt-[clamp(40px,5vw,64px)]">
+        <div id="open-source" className="relative mt-[clamp(40px,5vw,64px)] scroll-mt-24">
           <div className="mb-[18px] flex items-baseline gap-4">
             <span className="font-mono text-[10.5px] font-semibold tracking-[0.08em] text-amber">06</span>
             <h3 className="m-0 font-serif text-[28px] font-medium tracking-[-0.015em] text-ink">

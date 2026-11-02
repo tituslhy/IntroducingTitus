@@ -5,6 +5,7 @@ import { join } from "path";
 import { createHash } from "crypto";
 import { Client as LangSmithClient, RunTree } from "langsmith";
 import { buildSystemPrompt } from "@/lib/copilot-prompt";
+import { PAGE_TARGET_IDS } from "@/lib/profile";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -175,26 +176,110 @@ function getLangSmithClient(): LangSmithClient | null {
 }
 
 // ---------------------------------------------------------------------------
-// OpenAI streaming
+// Tools
 // ---------------------------------------------------------------------------
+
+const MODEL = "gpt-6-luna";
+
+const WEB_SEARCH_TOOL = { type: "web_search_preview" as const };
+
+// Client-side action: the route never touches the DOM, it relays a validated
+// target to the browser, which scrolls to and highlights that anchor. The
+// enum is generated from lib/profile.ts, so the model can only name anchors
+// that actually exist on the page.
+const SHOW_ON_PAGE_TOOL = {
+  type: "function" as const,
+  name: "show_on_page",
+  description:
+    "Scroll the visitor's page to the entry your answer is about and briefly highlight it. Call at most once per answer, before writing the answer.",
+  strict: true,
+  parameters: {
+    type: "object",
+    properties: {
+      target: {
+        type: "string",
+        enum: PAGE_TARGET_IDS,
+        description: "Anchor id from the Targets list in the system prompt.",
+      },
+    },
+    required: ["target"],
+    additionalProperties: false,
+  },
+};
+
+const PAGE_TARGET_SET = new Set<string>(PAGE_TARGET_IDS);
+const MAX_ACTIONS_PER_REPLY = 3;
+
+/** Returns the validated target of a show_on_page call, or null. Never trusts model output. */
+function parseShowOnPageTarget(item: { name: string; arguments: string }): string | null {
+  if (item.name !== SHOW_ON_PAGE_TOOL.name) return null;
+  try {
+    const { target } = JSON.parse(item.arguments) as { target?: unknown };
+    return typeof target === "string" && PAGE_TARGET_SET.has(target) ? target : null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// OpenAI streaming — a bounded, two-round agent loop
+// ---------------------------------------------------------------------------
+
+type CopilotChunk = { kind: "text"; text: string } | { kind: "action"; target: string };
 
 async function* rawCopilotStream(
   openai: OpenAI,
   input: InputMessage[],
   signal: AbortSignal
-) {
+): AsyncGenerator<CopilotChunk> {
   const stream = await openai.responses.create(
     {
-      model: "gpt-6-luna",
-      tools: [{ type: "web_search_preview" }],
+      model: MODEL,
+      tools: [WEB_SEARCH_TOOL, SHOW_ON_PAGE_TOOL],
       stream: true,
       input,
     },
     { signal }
   );
+
+  let responseId: string | null = null;
+  const toolOutputs: { type: "function_call_output"; call_id: string; output: string }[] = [];
+
   for await (const event of stream) {
     if (event.type === "response.output_text.delta") {
-      yield event.delta;
+      yield { kind: "text", text: event.delta };
+    } else if (event.type === "response.created") {
+      responseId = event.response.id;
+    } else if (event.type === "response.output_item.done" && event.item.type === "function_call") {
+      // Relay the action the moment the call completes, so the page starts
+      // moving while the answer is still being written.
+      const target = parseShowOnPageTarget(event.item);
+      if (target) yield { kind: "action", target };
+      toolOutputs.push({
+        type: "function_call_output",
+        call_id: event.item.call_id,
+        output: JSON.stringify(target ? { shown: target } : { error: "unknown target" }),
+      });
+    }
+  }
+
+  if (toolOutputs.length === 0 || !responseId) return;
+
+  // Second and final round: return the tool results and stream the answer.
+  // show_on_page is withheld here, so the loop can never run a third round.
+  const followUp = await openai.responses.create(
+    {
+      model: MODEL,
+      tools: [WEB_SEARCH_TOOL],
+      stream: true,
+      previous_response_id: responseId,
+      input: toolOutputs,
+    },
+    { signal }
+  );
+  for await (const event of followUp) {
+    if (event.type === "response.output_text.delta") {
+      yield { kind: "text", text: event.delta };
     }
   }
 }
@@ -221,7 +306,10 @@ function errorCode(error: unknown): string {
 // client can buffer on "\n" and never has to guess whether a marker like an
 // error sentinel arrived intact — unlike a bare-text sentinel, which network
 // chunking can split across two `reader.read()` calls.
-type StreamEvent = { type: "delta"; text: string } | { type: "error"; code: string };
+type StreamEvent =
+  | { type: "delta"; text: string }
+  | { type: "action"; target: string }
+  | { type: "error"; code: string };
 
 function encodeEvent(encoder: TextEncoder, event: StreamEvent): Uint8Array {
   return encoder.encode(JSON.stringify(event) + "\n");
@@ -318,13 +406,23 @@ export async function POST(request: NextRequest) {
       let contentStreamed = false;
       let totalOutputChars = 0;
       const responseChunks: string[] = [];
+      // Deduped across the initial attempt and any retry.
+      const actionsShown = new Set<string>();
 
       const drain = async (
-        gen: AsyncIterable<string>,
+        gen: AsyncIterable<CopilotChunk>,
         abortController: AbortController,
         collect = false
       ) => {
-        for await (const chunk of gen) {
+        for await (const item of gen) {
+          if (item.kind === "action") {
+            if (!actionsShown.has(item.target) && actionsShown.size < MAX_ACTIONS_PER_REPLY) {
+              actionsShown.add(item.target);
+              streamController.enqueue(encodeEvent(encoder, { type: "action", target: item.target }));
+            }
+            continue;
+          }
+          const chunk = item.text;
           if (totalOutputChars >= MAX_OUTPUT_CHARS) {
             abortController.abort();
             break;
@@ -383,7 +481,12 @@ export async function POST(request: NextRequest) {
         );
         if (rt) {
           try {
-            rt.end({ outputs: { responseLength: responseChunks.join("").length } });
+            rt.end({
+              outputs: {
+                responseLength: responseChunks.join("").length,
+                actionsShown: Array.from(actionsShown),
+              },
+            });
           } catch {
             // tracing failure must never affect the response
           }
@@ -451,6 +554,7 @@ export async function POST(request: NextRequest) {
             estimatedCostUsd: Number(estimatedCostUsd.toFixed(6)),
             inputChars: totalContentLength,
             outputChars: totalOutputChars,
+            actionsShown: actionsShown.size,
           })
         );
 
