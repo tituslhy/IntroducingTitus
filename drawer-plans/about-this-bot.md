@@ -99,8 +99,9 @@ number. Plus one line on the unit/drift tests.
 talk. No speculating about my weaknesses. No inventing projects or articles.
 No memory between visits: chat lives in the tab and isn't saved.
 
-**08 · Stack.** One mono line: Next.js · LangChain (`createAgent`) · OpenAI (GPT) · Jev (TypeSafe AI) ·
-Vercel. Link the source on GitHub
+**08 · Stack.** One mono line: Next.js · a ~70-line tool loop on the OpenAI Responses API (GPT) · Jev
+(TypeSafe AI) · Vercel. Worth one sentence on *why no agent framework*:
+two tools and a bounded loop don't need one. Link the source on GitHub
 **only if the repo is public**.
 
 ## Stretch: "Show your work" in the drawer
