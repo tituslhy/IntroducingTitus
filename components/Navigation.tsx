@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { EMAIL } from '@/lib/profile'
 
 const NAV_ITEMS = [
   { id: 'lede', label: 'About', folio: '01' },
@@ -9,8 +10,6 @@ const NAV_ITEMS = [
   { id: 'projects', label: 'Projects', folio: '05' },
   { id: 'writing', label: 'Writing', folio: '07' },
 ]
-
-const EMAIL = 'tituslhy@gmail.com'
 
 export default function Navigation() {
   const [active, setActive] = useState('masthead')
