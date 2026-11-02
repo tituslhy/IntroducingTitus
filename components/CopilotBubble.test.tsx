@@ -1,11 +1,27 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TextEncoder, TextDecoder } from "util";
 import CopilotBubble from "./CopilotBubble";
 
+// Renders plain text, except [text](href) which goes through the drawer's own
+// `a` renderer, so citation links can be exercised without the ESM markdown stack.
 jest.mock("react-markdown", () => ({
   __esModule: true,
-  default: ({ children }: { children: string }) => <>{children}</>,
+  default: ({ children, components }: { children: string; components?: { a?: React.ElementType } }) => {
+    const React = jest.requireActual<typeof import("react")>("react");
+    const A = components?.a;
+    const link = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+    const parts: React.ReactNode[] = [];
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = link.exec(children)) !== null) {
+      parts.push(children.slice(last, m.index));
+      parts.push(A ? React.createElement(A, { href: m[2], key: m.index }, m[1]) : m[1]);
+      last = link.lastIndex;
+    }
+    parts.push(children.slice(last));
+    return React.createElement(React.Fragment, null, ...parts);
+  },
 }));
 
 jest.mock("remark-gfm", () => ({
@@ -90,6 +106,15 @@ describe("CopilotBubble", () => {
     expect(screen.getByText(/personal assistant/i)).toBeInTheDocument();
   });
 
+  it("should disclose in the drawer header that chats are logged", async () => {
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+
+    const dialog = screen.getByRole("dialog", { name: /ask titus/i });
+    expect(within(dialog).getByText(/chats are logged so i can/i)).toBeInTheDocument();
+  });
+
   it("should close chat panel when FAB is clicked again while open", async () => {
     // Arrange
     const user = userEvent.setup();
@@ -117,7 +142,7 @@ describe("CopilotBubble", () => {
     expect(screen.getByText(/what did you build at illumina/i)).toBeInTheDocument();
     expect(screen.getByText(/what trade-offs shaped fictional-bassoon/i)).toBeInTheDocument();
     expect(screen.getByText(/which article should i read first/i)).toBeInTheDocument();
-    expect(screen.getByText(/when do you use multi-agent frameworks/i)).toBeInTheDocument();
+    expect(screen.getByText(/lora, raft or grpo/i)).toBeInTheDocument();
   });
 
   it("should send starter prompt when clicked", async () => {
@@ -854,6 +879,116 @@ describe("CopilotBubble", () => {
       ).toBeInTheDocument();
     });
   });
+  describe("opening from other pages", () => {
+    const fab = () => screen.getByRole("button", { name: /open ask titus/i });
+
+    it("opens the drawer on a copilot:open event", async () => {
+      render(<CopilotBubble />);
+
+      act(() => {
+        window.dispatchEvent(new CustomEvent("copilot:open", { detail: { mode: "chat" } }));
+      });
+
+      expect(await screen.findByRole("dialog", { name: /ask titus/i })).toBeInTheDocument();
+    });
+
+    it("enters recruiter mode for a copilot:open event with mode fit", async () => {
+      render(<CopilotBubble />);
+
+      act(() => {
+        window.dispatchEvent(new CustomEvent("copilot:open", { detail: { mode: "fit" } }));
+      });
+
+      expect(await screen.findByRole("textbox", { name: "Job description" })).toBeInTheDocument();
+    });
+
+    it("shows a How this works link to /colophon in the drawer header", async () => {
+      const user = userEvent.setup();
+      render(<CopilotBubble />);
+      await user.click(fab());
+
+      expect(screen.getByRole("link", { name: /how this works/i })).toHaveAttribute("href", "/colophon");
+    });
+  });
+
+  describe("sources and citations", () => {
+    const GUARDRAILS = "https://medium.com/@tituslhy/guardrails";
+
+    async function askAndWait(chunks: string[], question = "What have you written about guardrails?") {
+      const user = userEvent.setup();
+      (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse(chunks));
+      render(<CopilotBubble />);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      await user.type(screen.getByPlaceholderText(/ask about my work/i), `${question}{Enter}`);
+    }
+
+    const source = (n: number, title: string, url = GUARDRAILS) =>
+      `${JSON.stringify({ type: "source", n, title, url, relevance: 0.9, score: 2.6 })}\n`;
+    const delta = (text: string) => `${JSON.stringify({ type: "delta", text })}\n`;
+
+    it("renders a Sources row with one link per article the reply drew on", async () => {
+      await askAndWait([source(1, "Your agent needs a bouncer"), source(2, "Teaching Toothless to Bite", "https://medium.com/@tituslhy/lora"), delta("Two pieces cover it.")]);
+
+      await waitFor(() => expect(screen.getByText("Sources")).toBeInTheDocument());
+      expect(screen.getByRole("link", { name: "1 · Your agent needs a bouncer" })).toHaveAttribute("href", GUARDRAILS);
+      expect(screen.getByRole("link", { name: "2 · Teaching Toothless to Bite" })).toHaveAttribute(
+        "href",
+        "https://medium.com/@tituslhy/lora"
+      );
+    });
+
+    it("turns [n] markers into superscript links to the matching source", async () => {
+      await askAndWait([source(1, "Your agent needs a bouncer"), delta("Solo, sixteen components [1].")]);
+
+      const link = await screen.findByRole("link", { name: "Source 1: Your agent needs a bouncer" });
+      expect(link).toHaveAttribute("href", GUARDRAILS);
+      expect(link.closest("sup")).not.toBeNull();
+      expect(screen.queryByText(/\[1\]/)).not.toBeInTheDocument();
+    });
+
+    it("keeps an [n] marker plain when the server never sent that source", async () => {
+      await askAndWait([source(1, "Your agent needs a bouncer"), delta("See [7] and [1].")]);
+
+      await screen.findByRole("link", { name: "Source 1: Your agent needs a bouncer" });
+      expect(screen.getByText(/See \[7\] and/)).toBeInTheDocument();
+    });
+
+    it("attaches sources that arrive before the first text delta to that reply", async () => {
+      await askAndWait([source(1, "Your agent needs a bouncer"), delta("Answer from my writing [1].")]);
+
+      await waitFor(() => expect(screen.getByText(/Answer from my writing/)).toBeInTheDocument());
+      expect(screen.getByRole("link", { name: "1 · Your agent needs a bouncer" })).toBeInTheDocument();
+    });
+
+    it("de-duplicates sources by n, keeping the first", async () => {
+      await askAndWait([source(1, "First title"), source(1, "Second title"), delta("Reply.")]);
+
+      await waitFor(() => expect(screen.getByText("Sources")).toBeInTheDocument());
+      expect(screen.getByRole("link", { name: "1 · First title" })).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "1 · Second title" })).not.toBeInTheDocument();
+    });
+
+    it("drops source events that fail validation, so no Sources row or link appears", async () => {
+      await askAndWait([
+        source(1, "Bad scheme", "javascript:alert(1)"),
+        source(1.5, "Fractional"),
+        delta("Hi [1]."),
+      ]);
+
+      await waitFor(() => expect(screen.getByText(/Hi \[1\]\./)).toBeInTheDocument());
+      expect(screen.queryByText("Sources")).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: /Bad scheme/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: /Fractional/ })).not.toBeInTheDocument();
+    });
+
+    it("ignores unknown event types instead of rendering them as text", async () => {
+      await askAndWait([`${JSON.stringify({ type: "mystery", text: "SHOULD-NOT-APPEAR" })}\n`, delta("Visible answer.")]);
+
+      await waitFor(() => expect(screen.getByText("Visible answer.")).toBeInTheDocument());
+      expect(screen.queryByText(/SHOULD-NOT-APPEAR/)).not.toBeInTheDocument();
+    });
+  });
+
   describe("recruiter mode", () => {
     const JD =
       "Staff GenAI Engineer at Acme. Build production RAG and multi-agent platforms on Kubernetes. Rust a plus. Lead a small team.";

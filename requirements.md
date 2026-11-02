@@ -229,8 +229,8 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 #### OpenAI Integration
 - **Model:** `gpt-4o-mini`
 - **API:** OpenAI Responses API
-- **Tools:** Enable `web_search_preview` tool
-- **Medium context:** Pass `https://medium.com/@tituslhy` in system prompt so model can search articles on demand
+- **Tools:** `show_on_page` and `search_writing` (answers from my own Medium articles via Jev, with `[n]` footnotes). `web_search_preview` removed. See `drawer-plans/ask-titus-agent.md`.
+- **Medium context:** `https://medium.com/@tituslhy` stays in the system prompt as the fallback pointer when no article covers a question
 - **System prompt:** See `copilot-system-prompt.md`
 
 #### Scope Enforcement (via system prompt)
@@ -243,6 +243,13 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 
 ---
 
+### Satellite page — `/colophon` (How Ask Titus works)
+- One satellite page, linked from the drawer and footer, **not the main nav**
+- Sections: the short version, anatomy of a reply, one source of truth, guardrails, recruiter mode, how it's tested (hidden until `content/eval-results.json` exists), what it won't do, stack
+- Spec: `drawer-plans/ask-titus-agent.md` (Phase 3)
+
+---
+
 ## 5. Resume Availability
 - No PDF hosted publicly
 - All pages: *"Resume available on request"* → mailto:tituslhy@gmail.com
@@ -250,8 +257,8 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 ---
 
 ## 6. SEO & Meta
-- Title: `Titus Lim | GenAI Engineer & Architect`
-- Description: `GenAI engineer and architect with 8+ years building production AI systems. 50 technical articles. Open source contributor.`
+- Title: `Titus Lim | Lead AI Engineer` (follows the top role's exact title)
+- Description: `Lead AI Engineer with 8+ years building production AI systems. 65 technical articles. Open source contributor.`
 - OG image: Dark card with name + tagline
 - Canonical URL: *(update after Vercel URL confirmed)*
 
@@ -291,6 +298,7 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 - [x] Featured Medium articles: **7 hardcoded**
 - [x] Copilot: **Phase 2, now in scope**
 - [x] Deployment: **Vercel** (migrated from GitHub Pages)
+- [x] `/colophon`: **one satellite page, linked from the drawer and footer, not the main nav**
 - [x] Headshot: **Yes, in hero** → `/public/headshot.jpeg`
 - [x] fictional-bassoon: **Public** → https://github.com/tituslhy/fictional-bassoon
 - [x] Tagline updated: **"I build AI systems — from architecture to the boardroom."**

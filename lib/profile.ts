@@ -13,9 +13,11 @@
  */
 import {
   AGENT_SUITE_URL,
+  ARTICLE_COUNT_SHORT,
   FICTIONAL_BASSOON_COVERAGE,
   ILLUMINA_SAVINGS_FIGURE,
   ILLUMINA_SAVINGS_PROSE,
+  YEARS_EXPERIENCE,
 } from './content'
 
 // ---------------------------------------------------------------------------
@@ -158,6 +160,18 @@ export const ROLES: Role[] = [
 
 /** The role the copilot introduces as "currently". */
 export const CURRENT_ROLE = ROLES[0]
+
+/**
+ * My sign-off everywhere (hero label, footer, page title, OG card): the exact
+ * title at the top of my experience list, so it changes when my role does.
+ */
+export const SIGN_OFF_TITLE = CURRENT_ROLE.role
+
+/** Canonical page title, shared by app/layout.tsx metadata (title, OG, Twitter). */
+export const SITE_TITLE = `Titus Lim | ${SIGN_OFF_TITLE}`
+
+/** Canonical SEO description, shared by app/layout.tsx metadata (title, OG, Twitter). */
+export const SITE_DESCRIPTION = `${SIGN_OFF_TITLE} with ${YEARS_EXPERIENCE} building production AI systems. ${ARTICLE_COUNT_SHORT}. Open source contributor.`
 
 // ---------------------------------------------------------------------------
 // Education & credentials

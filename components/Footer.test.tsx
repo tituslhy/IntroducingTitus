@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import Footer from "./Footer";
+import { SIGN_OFF_TITLE } from "@/lib/profile";
 
 describe("Footer", () => {
   it("should render footer with colophon id", () => {
@@ -15,7 +16,8 @@ describe("Footer", () => {
 
   it("should render brand tagline", () => {
     render(<Footer />);
-    expect(screen.getByText("GenAI Engineer & Architect")).toBeInTheDocument();
+    expect(screen.getByText(SIGN_OFF_TITLE)).toBeInTheDocument();
+    expect(SIGN_OFF_TITLE).toBe("Lead AI Engineer");
   });
 
   it("should render GitHub social link with correct href", () => {
@@ -153,5 +155,13 @@ describe("Footer", () => {
     const metaDiv = container.querySelector("footer > div:last-child");
     expect(metaDiv).toHaveClass("border-t");
     expect(metaDiv).toHaveClass("border-rule");
+  });
+});
+
+describe("Footer colophon link", () => {
+  it("links How the assistant works to /colophon", () => {
+    render(<Footer />);
+
+    expect(screen.getByRole("link", { name: /how the assistant works/i })).toHaveAttribute("href", "/colophon");
   });
 });

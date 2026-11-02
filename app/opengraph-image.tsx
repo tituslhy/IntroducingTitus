@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og'
+import { SIGN_OFF_TITLE } from '@/lib/profile'
 
 export const size = {
   width: 1200,
@@ -48,7 +49,7 @@ export default function OpengraphImage() {
               background: '#b76a23',
             }}
           />
-          GenAI Engineer &amp; Architect
+          {SIGN_OFF_TITLE}
         </div>
 
         <div

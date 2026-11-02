@@ -1,0 +1,763 @@
+{
+  "a-crash-course-in-asynchronous-python-12e0cc523033": {
+    "summary": "Explains Python synchronous and asynchronous functions, using asyncio for I/O concurrency and threads or process pools for CPU parallelism.",
+    "keywords": [
+      "python",
+      "asyncio",
+      "concurrency",
+      "threading",
+      "process pool",
+      "gil"
+    ],
+    "reviewed": true
+  },
+  "a-field-guide-to-multi-agent-architectures-f6f8c689c406": {
+    "summary": "The article explains five multi-agent architectures—hierarchical, workflow, swarm, blackboard, and actor-critic—and compares their coordination mechanisms and use cases with LangChain and LangGraph examples.",
+    "keywords": [
+      "multi-agent systems",
+      "langchain",
+      "langgraph",
+      "agent architectures",
+      "workflow orchestration"
+    ],
+    "reviewed": true
+  },
+  "a-gentle-introduction-to-litellm-649d48a0c2c7": {
+    "summary": "The article explains using LiteLLM’s SDK and Kubernetes proxy to unify LLM provider APIs, deploy and manage models, track usage, and integrate with agent frameworks.",
+    "keywords": [
+      "litellm",
+      "llm api",
+      "kubernetes",
+      "helm",
+      "model proxy",
+      "usage monitoring"
+    ],
+    "reviewed": true
+  },
+  "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-2-autogen-5401a0075d75": {
+    "summary": "The article introduces Microsoft AutoGen’s multi-agent framework by building an Illumina stock-analysis report with group chats and tool-calling agents.",
+    "keywords": [
+      "autogen",
+      "multi-agent systems",
+      "groupchat",
+      "tool calling",
+      "stock analysis"
+    ],
+    "reviewed": true
+  },
+  "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3a-llamaindex-workflows-c0f614c15b88": {
+    "summary": "Demonstrates LlamaIndex event-driven workflows for coordinating multi-agent LLM systems, combining an investment definitions agent with an Apple SEC-report RAG agent backed by Qdrant.",
+    "keywords": [
+      "llamaindex",
+      "event-driven workflows",
+      "multi-agent systems",
+      "retrieval-augmented generation",
+      "qdrant",
+      "hybrid search"
+    ],
+    "reviewed": true
+  },
+  "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3b-deploying-llamaindex-workflows-df18381d36b9": {
+    "summary": "Demonstrates user authentication and feedback in LlamaIndex workflows, then explains deploying and scaling multi-agent workflows with llama-deploy.",
+    "keywords": [
+      "llamaindex",
+      "llama-deploy",
+      "human-in-the-loop",
+      "multi-agent workflows",
+      "workflow deployment",
+      "authentication"
+    ],
+    "reviewed": true
+  },
+  "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-4-crewai-147ada6db54c": {
+    "summary": "A tutorial builds CrewAI multi-agent workflows for job search, resume analysis, and interview preparation, then compares orchestration frameworks and discusses deployment.",
+    "keywords": [
+      "crewai",
+      "multi-agent orchestration",
+      "resume parsing",
+      "job search",
+      "llm workflows",
+      "litellm"
+    ],
+    "reviewed": true
+  },
+  "a-gentle-introduction-to-the-llm-multi-agents-multiverse-part-1-langgraph-2ac56f1b5b3c": {
+    "summary": "A tutorial builds a stateful LangGraph personal assistant by coordinating manager, web-search, and coding agents in a directed workflow.",
+    "keywords": [
+      "langgraph",
+      "multi-agent systems",
+      "agent supervisor",
+      "stateful workflows",
+      "web search",
+      "python repl"
+    ],
+    "reviewed": true
+  },
+  "a-gentle-introduction-to-the-llm-multiverse-part-1-langchain-023a899d294e": {
+    "summary": "Introduces LangChain through examples of invoking LLMs, structured prediction, tool calling, retrieval-augmented generation, and building a basic agent.",
+    "keywords": [
+      "langchain",
+      "llm orchestration",
+      "structured prediction",
+      "tool calling",
+      "rag",
+      "agents"
+    ],
+    "reviewed": true
+  },
+  "a-gentle-introduction-to-the-llm-multiverse-part-2-haystack-c6af2548df04": {
+    "summary": "A tutorial demonstrates using Haystack to orchestrate LLMs for structured prediction, prompt pipelines, classification routing, tool calling, retrieval-augmented generation, and agents.",
+    "keywords": [
+      "haystack",
+      "llm orchestration",
+      "pipelines",
+      "structured prediction",
+      "rag",
+      "tool calling"
+    ],
+    "reviewed": true
+  },
+  "a-gentle-introduction-to-the-llm-multiverse-part-3-llamaindex-798344050c49": {
+    "summary": "The article demonstrates LlamaIndex for LLM chat, structured prediction, routing, tool calling, RAG, and agents, then compares its developer experience and capabilities with LangChain and Haystack.",
+    "keywords": [
+      "llamaindex",
+      "rag",
+      "llm orchestration",
+      "langchain",
+      "haystack",
+      "tool calling"
+    ],
+    "reviewed": true
+  },
+  "a-guide-to-code-testing-rag-agents-without-real-llms-or-vector-dbs-51154ad920be": {
+    "summary": "Demonstrates unit-testing a LlamaIndex RAG agent with Pytest and mocks, replacing document readers, LLMs, and vector databases to test setup, execution, and streaming without external calls.",
+    "keywords": [
+      "llamaindex",
+      "rag",
+      "pytest",
+      "mocking",
+      "agent testing"
+    ],
+    "reviewed": true
+  },
+  "a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8": {
+    "summary": "Shows how LangGraph’s Command and Send primitives simplify building an edgeless investment-analysis workflow with planning, human feedback, and specialized stock-analysis agents.",
+    "keywords": [
+      "langgraph",
+      "command",
+      "send",
+      "multi-agent workflows",
+      "human-in-the-loop",
+      "investment analysis"
+    ],
+    "reviewed": true
+  },
+  "a-second-note-on-claude-code-c521245ffc35": {
+    "summary": "The article explains how to configure Claude Code with modular and path-scoped instructions, event hooks, offline workflows, tracing, and plugins to customize coding assistance.",
+    "keywords": [
+      "claude code",
+      "path-scoped rules",
+      "hooks",
+      "plugins",
+      "observability",
+      "langsmith tracing"
+    ],
+    "reviewed": true
+  },
+  "a-very-simple-introduction-to-grpc-6a666a039c03": {
+    "summary": "Walks through building a Python gRPC to-do backend with Protocol Buffers and SQL, then connecting it to FastAPI for REST endpoints and asynchronous batch operations.",
+    "keywords": [
+      "grpc",
+      "protobuf",
+      "fastapi",
+      "python",
+      "asyncio"
+    ],
+    "reviewed": true
+  },
+  "agent-memory-the-underrated-superpower-of-agentic-apps-1c16fb47f435": {
+    "summary": "The article explains persistent agent memory as retrieval-augmented context, compares LangMem and LlamaIndex approaches, and demonstrates integrating Mem0 into an agent app.",
+    "keywords": [
+      "agent memory",
+      "mem0",
+      "rag",
+      "langmem",
+      "llamaindex"
+    ],
+    "reviewed": true
+  },
+  "agent-to-agent-protocols-a-story-still-being-written-e7e1ffbf3e80": {
+    "summary": "Explains the early A2A protocol through code for deploying a currency exchange agent that uses an MCP tool, LlamaIndex, and a custom task manager.",
+    "keywords": [
+      "agent-to-agent protocol",
+      "a2a",
+      "model context protocol",
+      "llamaindex",
+      "fastmcp",
+      "multi-agent systems"
+    ],
+    "reviewed": true
+  },
+  "building-prompt-free-generative-ai-applications-with-dspy-cdda61dcc861": {
+    "summary": "The article demonstrates using DSPy signatures and workflows with local GPT-OSS to handle document summarization and question answering, then explores automated prompt optimization and evaluation.",
+    "keywords": [
+      "dspy",
+      "prompt optimization",
+      "gpt-oss",
+      "ollama",
+      "llm workflows",
+      "document question answering"
+    ],
+    "reviewed": true
+  },
+  "building-skilled-agents-835597b38be4": {
+    "summary": "Explains how to implement agent skills as progressively disclosed instructions in a LangChain agent, comparing file-based, remote, and tool-free setups and debugging execution with logging.",
+    "keywords": [
+      "agent skills",
+      "langchain",
+      "progressive disclosure",
+      "tool use",
+      "agent logging"
+    ],
+    "reviewed": true
+  },
+  "building-your-first-multi-agent-system-with-n8n-0c959d7139a1": {
+    "summary": "The article shows how to build an n8n multi-agent workflow with Llama Guard safety checks, structured task routing, specialist agents, and consolidated responses.",
+    "keywords": [
+      "n8n",
+      "multi-agent systems",
+      "llama guard",
+      "structured output parsing",
+      "workflow automation"
+    ],
+    "reviewed": true
+  },
+  "building-your-first-no-code-agent-with-n8n-e9e9ea0c23d1": {
+    "summary": "The article demonstrates building a no-code AI agent in n8n by connecting an LLM, memory, and Google Calendar, then exposing and reusing the workflow.",
+    "keywords": [
+      "n8n",
+      "ai agents",
+      "workflow automation",
+      "llm",
+      "google calendar",
+      "no-code"
+    ],
+    "reviewed": true
+  },
+  "chain-reaction-how-to-create-an-observable-workflow-using-llamaindex-and-chainlit-2b668fb1cee9": {
+    "summary": "The article builds a Chainlit-visible, event-driven LlamaIndex workflow that compares Tavily-powered web-search answers with answers generated without search, then selects or combines them.",
+    "keywords": [
+      "llamaindex",
+      "chainlit",
+      "event-driven workflows",
+      "tavily search",
+      "llm observability"
+    ],
+    "reviewed": true
+  },
+  "flash-loan-attacks-on-smart-contracts-cb08c72408bd": {
+    "summary": "Demonstrates in code how flash loans can manipulate thin AMM spot prices to trigger unfair lending liquidations, and motivates oracle defenses using independent price reports.",
+    "keywords": [
+      "flash loans",
+      "smart contract security",
+      "automated market maker",
+      "price oracle",
+      "liquidation"
+    ],
+    "reviewed": true
+  },
+  "graphrag-for-the-win-c19d580debd7": {
+    "summary": "Demonstrates a LangChain and Neo4j GraphRAG pipeline that crawls articles, builds a knowledge graph, combines vector and entity search, and examines practical drawbacks.",
+    "keywords": [
+      "graphrag",
+      "neo4j",
+      "langchain",
+      "hybrid retrieval",
+      "vector search",
+      "knowledge graphs"
+    ],
+    "reviewed": true
+  },
+  "ground-control-to-antigravity-7056a6d58d0a": {
+    "summary": "The author evaluates Google Antigravity’s CLI, IDE, and orchestration tools as coding-agent alternatives to Claude Code by building a responsive jigsaw puzzle app and examining workflows, usage limits, and integrations.",
+    "keywords": [
+      "antigravity",
+      "coding agents",
+      "claude code",
+      "gemini",
+      "token limits",
+      "jigsaw puzzle"
+    ],
+    "reviewed": true
+  },
+  "helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1": {
+    "summary": "The article converts a Docker Compose application into a Helm chart and deploys it on Kubernetes with services, ingress, autoscaling, upgrades, and rollback.",
+    "keywords": [
+      "kubernetes",
+      "helm charts",
+      "minikube",
+      "nginx ingress",
+      "autoscaling",
+      "deployment"
+    ],
+    "reviewed": true
+  },
+  "how-i-became-a-data-scientist-2d8831531a4c": {
+    "summary": "A chemical engineer describes moving from manual spreadsheet work to coding, automating reports and forecasts with VBA before learning Python, SQL, and R for data science.",
+    "keywords": [
+      "vba",
+      "spreadsheet automation",
+      "holt-winters forecasting",
+      "python",
+      "sql",
+      "data science"
+    ],
+    "reviewed": true
+  },
+  "how-i-use-claude-code-3b1fd852305b": {
+    "summary": "The article explains using Claude Code with context management, skills, permissions, and specialized agents to build a full-stack stock-analysis MCP service with interactive dashboards.",
+    "keywords": [
+      "claude code",
+      "mcp",
+      "agentic coding",
+      "context management",
+      "multi-agent systems",
+      "vibe coding"
+    ],
+    "reviewed": true
+  },
+  "how-to-be-a-data-scientist-in-2026-and-beyond-9b0b322c8e5a": {
+    "summary": "The article examines how generative AI is reshaping data science roles and recommends practical skills such as systems thinking, shipping software, communicating ideas, and learning TypeScript.",
+    "keywords": [
+      "generative ai",
+      "data science careers",
+      "systems thinking",
+      "agentic applications",
+      "typescript"
+    ],
+    "reviewed": true
+  },
+  "how-to-build-your-own-change-data-capture-pipeline-using-apache-airflow-e485fbef82c7": {
+    "summary": "Builds an Apache Airflow change-data-capture pipeline that tracks document updates and incrementally ingests new or changed files into a Qdrant vector database for RAG.",
+    "keywords": [
+      "apache airflow",
+      "change data capture",
+      "qdrant",
+      "rag",
+      "incremental ingestion",
+      "llamaindex"
+    ],
+    "reviewed": true
+  },
+  "how-to-deploy-almost-any-langchain-runnable-in-one-line-70e7ec1240d1": {
+    "summary": "The article demonstrates deploying a LangChain runnable as a REST API with LangServe, using a Llama Guard text-moderation chain and discussing its playground and framework integrations.",
+    "keywords": [
+      "langserve",
+      "langchain",
+      "fastapi",
+      "rest api",
+      "llama guard",
+      "runnables"
+    ],
+    "reviewed": true
+  },
+  "how-to-raft-your-llm-retrieval-augmented-finetuning-using-unsloth-4c3844a9a6e3": {
+    "summary": "The article demonstrates using Unsloth to fine-tune a Llama 3.2 1B model with retrieval-augmented training examples containing relevant and distracting context, then evaluate it in RAG mode.",
+    "keywords": [
+      "raft",
+      "unsloth",
+      "llama 3.2",
+      "retrieval augmented generation",
+      "fine-tuning",
+      "rag evaluation"
+    ],
+    "reviewed": true
+  },
+  "how-to-train-your-llm-simultaneously-with-10-different-teachers-ba556d4ed2c1": {
+    "summary": "Demonstrates federated supervised fine-tuning of an LLM with Flower, keeping datasets local while clients train model updates that a server aggregates across rounds.",
+    "keywords": [
+      "flower ai",
+      "federated learning",
+      "supervised fine-tuning",
+      "large language models",
+      "fedavg",
+      "differential privacy"
+    ],
+    "reviewed": true
+  },
+  "how-to-train-your-llm-teaching-toothless-to-bite-8d9f56fe4b2a": {
+    "summary": "The article demonstrates supervised fine-tuning of a language model on custom data with LoRA and Unsloth, covering dataset preparation, evaluation, and local deployment with Ollama.",
+    "keywords": [
+      "llm fine-tuning",
+      "lora",
+      "unsloth",
+      "supervised learning",
+      "ollama"
+    ],
+    "reviewed": true
+  },
+  "how-to-train-your-llm-to-reason-grpo-reinforcement-learning-using-unsloth-64af5e82ac3c": {
+    "summary": "The article explains GRPO and uses Unsloth with custom reward functions to fine-tune a Llama 3.2 1B model for reasoning, then tests its reasoning and RAG performance.",
+    "keywords": [
+      "grpo",
+      "unsloth",
+      "reinforcement learning",
+      "custom reward functions",
+      "llama fine-tuning",
+      "rag"
+    ],
+    "reviewed": true
+  },
+  "hyde-and-seek-when-hallucination-leads-the-way-17a9800734fe": {
+    "summary": "Demonstrates a LlamaIndex RAG application that uses HyDE-generated hypothetical answers to improve document retrieval and discusses optimizing LLM prompts with DSPy.",
+    "keywords": [
+      "hyde",
+      "rag",
+      "llamaindex",
+      "dspy",
+      "vector search",
+      "prompt optimization"
+    ],
+    "reviewed": true
+  },
+  "inside-opencerts-how-merkle-trees-verify-singapores-digital-diplomas-61f60d13700e": {
+    "summary": "The article explains how OpenCerts uses Merkle trees and Ethereum anchoring to verify individual digital diplomas without publishing the credentials or storing them on-chain.",
+    "keywords": [
+      "opencerts",
+      "merkle trees",
+      "ethereum",
+      "merkle proofs",
+      "digital credentials",
+      "document verification"
+    ],
+    "reviewed": true
+  },
+  "introducing-liquibase-how-to-version-control-your-db-d5a08f764c09": {
+    "summary": "Demonstrates using Liquibase changelogs to version, apply, and roll back database schema migrations, including PostgreSQL setup and SQL, XML, YAML, and JSON formats.",
+    "keywords": [
+      "liquibase",
+      "database migrations",
+      "schema versioning",
+      "postgresql",
+      "changelogs",
+      "rollback"
+    ],
+    "reviewed": true
+  },
+  "introducing-mempools-the-one-time-gossip-pays-off-9fbc92701f70": {
+    "summary": "Explains how public blockchains use node-local mempools and probabilistic transaction gossip to form block proposals, and how slots and attestations help resolve competing views caused by propagation delays.",
+    "keywords": [
+      "mempools",
+      "gossip protocols",
+      "block proposals",
+      "blockchain consensus",
+      "attestations",
+      "network propagation"
+    ],
+    "reviewed": true
+  },
+  "introducing-permissioned-chains-1d8a71f5b09a": {
+    "summary": "The article builds a Hyperledger Fabric-inspired permissioned blockchain with registered organizations, versioned key-value state, transaction endorsements, ordering, and validation for handling concurrent updates.",
+    "keywords": [
+      "permissioned blockchain",
+      "hyperledger fabric",
+      "transaction endorsement",
+      "versioned world state",
+      "concurrency control"
+    ],
+    "reviewed": true
+  },
+  "introducing-smart-contracts-340c20cbe672": {
+    "summary": "Explains how deterministic smart contracts execute transactions on a blockchain, demonstrates swap and lending contracts, and uses oracles to supply off-chain data.",
+    "keywords": [
+      "smart contracts",
+      "blockchain",
+      "automated market makers",
+      "oracles",
+      "price feeds",
+      "median aggregation"
+    ],
+    "reviewed": true
+  },
+  "introducing-stablecoins-2b3e63e6c5f1": {
+    "summary": "Explains how fiat-backed and crypto-collateralized stablecoins attempt to maintain dollar pegs, illustrating issuance, redemption, market pricing, and failure risks with a blockchain implementation.",
+    "keywords": [
+      "stablecoins",
+      "fiat-backed reserves",
+      "peg mechanisms",
+      "algorithmic stablecoins",
+      "blockchain ledger",
+      "depegging"
+    ],
+    "reviewed": true
+  },
+  "introducing-the-agent-communication-protocol-acp-abd882114139": {
+    "summary": "The article builds and deploys a retrieval-augmented generation agent with IBM’s Agent Communication Protocol, then explores agent discovery and interoperability through BeeAI and related protocols.",
+    "keywords": [
+      "agent communication protocol",
+      "retrieval augmented generation",
+      "llamaindex",
+      "beeai",
+      "agent interoperability"
+    ],
+    "reviewed": true
+  },
+  "investing-with-llms-does-it-make-cents-496ed6c87458": {
+    "summary": "A tutorial builds a LlamaIndex multi-agent investment analysis system with Python tools for financial statements, stock trends, company filings, research, and data analysis.",
+    "keywords": [
+      "llamaindex",
+      "investment analysis",
+      "multi-agent systems",
+      "yfinance",
+      "financial ratios",
+      "stock analysis"
+    ],
+    "reviewed": true
+  },
+  "its-2025-start-using-chainlit-for-your-llm-apps-558db1a46315": {
+    "summary": "A hands-on guide to building LLM chat applications with Chainlit, covering streaming responses, chat lifecycle features, user login, settings, profiles, and custom canvas integration.",
+    "keywords": [
+      "chainlit",
+      "llm chat applications",
+      "streaming responses",
+      "chat lifecycle",
+      "user authentication",
+      "llamaindex"
+    ],
+    "reviewed": true
+  },
+  "its-2025-take-your-llm-apps-to-the-next-level-with-chainlit-00036c8db1ba": {
+    "summary": "A tutorial extends a Chainlit LLM chat app with DALL·E image generation, audio transcription and speech, file-based AutoRAG, MCP tool connections, and deployment options.",
+    "keywords": [
+      "chainlit",
+      "llm apps",
+      "image generation",
+      "speech-to-text",
+      "rag",
+      "model context protocol"
+    ],
+    "reviewed": true
+  },
+  "langchain-a-second-look-6ed720e27fec": {
+    "summary": "The article explains LangChain 1.0’s middleware-based context engineering and updated APIs for building agents and multi-agent systems, with examples of model invocation and middleware components.",
+    "keywords": [
+      "langchain",
+      "middleware",
+      "context engineering",
+      "llm agents",
+      "multi-agent systems"
+    ],
+    "reviewed": true
+  },
+  "langchain4j-building-generative-ai-applications-in-java-670ec3d6167d": {
+    "summary": "The article demonstrates using LangChain4j in Java for LLM chat, streaming, structured output, and document-based retrieval-augmented generation, with setup guidance and comparison to Python LangChain.",
+    "keywords": [
+      "langchain4j",
+      "java",
+      "large language models",
+      "structured output",
+      "retrieval-augmented generation",
+      "maven"
+    ],
+    "reviewed": true
+  },
+  "living-with-imposter-syndrome-193adff0a825": {
+    "summary": "The author explains practical ways to manage imposter syndrome through small actions, selective feedback, self-compassion, and celebrating progress, illustrated with software and AI project experiences.",
+    "keywords": [
+      "imposter syndrome",
+      "software engineering",
+      "feedback",
+      "generative ai",
+      "api development"
+    ],
+    "reviewed": true
+  },
+  "model-context-protocol-hype-or-necessity-998874d95bc6": {
+    "summary": "Explains how to build and deploy Model Context Protocol servers with FastMCP, integrate them with FastAPI and AI applications, and assess MCP’s role in standardizing tool access.",
+    "keywords": [
+      "model context protocol",
+      "fastmcp",
+      "fastapi",
+      "ai agents",
+      "tool integration"
+    ],
+    "reviewed": true
+  },
+  "nginx-the-single-server-swiss-army-knife-3445197f8f86": {
+    "summary": "Explains deploying a Chainlit app with Docker Compose and configuring Nginx as a reverse proxy and load balancer for multiple replicas, including WebSocket support.",
+    "keywords": [
+      "nginx",
+      "docker compose",
+      "reverse proxy",
+      "load balancing",
+      "websockets",
+      "chainlit"
+    ],
+    "reviewed": true
+  },
+  "practice-vs-theory-software-development-at-the-workplace-a73e676e58c8": {
+    "summary": "Compares classroom Agile and DevSecOps practices with workplace software development, explaining how lean teams handle project planning, Git workflows, testing, CI/CD, and code review differently.",
+    "keywords": [
+      "agile",
+      "devsecops",
+      "git workflows",
+      "test-driven development",
+      "ci/cd",
+      "code review"
+    ],
+    "reviewed": true
+  },
+  "proof-of-stake-the-mining-free-blockchain-ddae684ffec5": {
+    "summary": "The article builds a toy proof-of-stake blockchain in Python, using stake-weighted validator selection, rewards, and slashing instead of mining to deter cheating.",
+    "keywords": [
+      "proof of stake",
+      "blockchain",
+      "validators",
+      "stake-weighted selection",
+      "slashing",
+      "python"
+    ],
+    "reviewed": true
+  },
+  "service-please-3-ways-to-serve-an-llm-ca5ead2547e6": {
+    "summary": "Compares Ollama, Docker Model Runner, and vLLM for hosting open-source LLMs behind OpenAI-compatible APIs, covering setup, tradeoffs, and a Colab deployment.",
+    "keywords": [
+      "llm serving",
+      "ollama",
+      "docker model runner",
+      "vllm",
+      "openai compatible api",
+      "pagedattention"
+    ],
+    "reviewed": true
+  },
+  "so-you-want-a-personal-ai-assistant-4c6226e88017": {
+    "summary": "The article introduces Hermes Agent, an open-source self-hosted AI framework, and explains installing it with local or cloud models for persistent assistance, coding, messaging, and automation.",
+    "keywords": [
+      "hermes agent",
+      "ai agents",
+      "ollama",
+      "persistent memory",
+      "agentic coding"
+    ],
+    "reviewed": true
+  },
+  "text-to-sql-just-got-easier-meet-vanna-ai-your-rag-powered-sql-sidekick-e781c3ffb2c5": {
+    "summary": "Demonstrates building a natural-language-to-SQL application over Yahoo Finance stock data using Vanna AI, vector-based retrieval-augmented generation, and a Chainlit interface.",
+    "keywords": [
+      "text-to-sql",
+      "retrieval augmented generation",
+      "vanna ai",
+      "chainlit",
+      "sqlite",
+      "chromadb"
+    ],
+    "reviewed": true
+  },
+  "think-your-rag-app-is-safe-giskard-might-prove-you-wrong-6c88b08c5f7a": {
+    "summary": "The article evaluates a LlamaIndex RAG system with quality metrics and Giskard red-team tests, examining robustness limits, score tradeoffs, and layered defenses against attacks.",
+    "keywords": [
+      "rag evaluation",
+      "giskard",
+      "red teaming",
+      "llamaindex",
+      "prompt injection",
+      "llm robustness"
+    ],
+    "reviewed": true
+  },
+  "towards-general-discoverability-introducing-nacos-registry-60fa2e1a8731": {
+    "summary": "The article demonstrates using Alibaba Nacos for service discovery, health checks, routing, and monitoring of MCP and ACP agent services, including a Docker Compose setup with Prometheus and Grafana.",
+    "keywords": [
+      "nacos",
+      "service discovery",
+      "mcp",
+      "agent communication protocol",
+      "prometheus",
+      "grafana"
+    ],
+    "reviewed": true
+  },
+  "understanding-blockchains-from-scratch-f14c454af32f": {
+    "summary": "Builds a toy Python blockchain with SHA-256 hash chaining and proof-of-work mining to show how tampering is detected and competing transaction histories are resolved.",
+    "keywords": [
+      "blockchain",
+      "python",
+      "sha-256",
+      "hash chaining",
+      "proof of work",
+      "double spending"
+    ],
+    "reviewed": true
+  },
+  "video-killed-the-radio-star-a-use-case-for-multimodal-rag-cdb7d5ff3062": {
+    "summary": "Builds a multimodal RAG system for video lectures by indexing sampled frames and audio transcriptions with LlamaIndex and LanceDB for question answering.",
+    "keywords": [
+      "multimodal rag",
+      "llamaindex",
+      "lancedb",
+      "clip embeddings",
+      "video transcription"
+    ],
+    "reviewed": true
+  },
+  "would-you-like-an-agent-with-that-introducing-the-deep-agents-sdk-c4e0670440ea": {
+    "summary": "Demonstrates building and comparing LangChain Deep Agents with planning and filesystem tools and subagents, using a ReAct agent as a baseline for research reports.",
+    "keywords": [
+      "langchain",
+      "deep agents",
+      "agentic ai",
+      "subagents",
+      "react agents",
+      "tool calling"
+    ],
+    "reviewed": true
+  },
+  "would-you-like-an-app-with-that-introducing-the-adk-framework-aead05a8b9cd": {
+    "summary": "The article demonstrates building and deploying full-stack GenAI chat applications with Google ADK, covering agents, tracing, audio, model choices, A2A interoperability, and Cloud Run.",
+    "keywords": [
+      "google adk",
+      "genai agents",
+      "agent tracing",
+      "a2a protocol",
+      "cloud run",
+      "multimodal chat"
+    ],
+    "reviewed": true
+  },
+  "would-you-like-an-llm-with-that-a-bento-cloud-drive-thru-7e70f77277d2": {
+    "summary": "The article demonstrates deploying a Qwen3 vLLM model as a BentoML service on Bento Cloud, using replicas and autoscaling to serve scalable GenAI applications.",
+    "keywords": [
+      "bentoml",
+      "bento cloud",
+      "vllm",
+      "llm deployment",
+      "autoscaling",
+      "replicas"
+    ],
+    "reviewed": true
+  },
+  "would-you-like-context-with-that-a-rag-as-a-service-drive-thru-2e5a2867102a": {
+    "summary": "Builds an advanced retrieval-augmented generation application using Llama Cloud for document indexing and Qdrant Cloud for vector search, then connects and deploys it with Python.",
+    "keywords": [
+      "rag",
+      "llamaindex",
+      "llama cloud",
+      "qdrant",
+      "vector search",
+      "composite retrieval"
+    ],
+    "reviewed": true
+  },
+  "your-ai-agent-needs-a-bouncer-f115d5ddac55": {
+    "summary": "The article experiments with using Jev, a fast decision model, to classify messy user queries and route them through a multi-agent workflow for clarification, decomposition, or rewriting.",
+    "keywords": [
+      "jev",
+      "query classification",
+      "multi-agent systems",
+      "model routing",
+      "agent orchestration"
+    ],
+    "reviewed": true
+  }
+}
