@@ -55,9 +55,11 @@ hairline style. One horizontal request path in amber; it stacks vertically on
 mobile.
 
 ```
-visitor ─▶ guards ─▶ Jev filter ─▶ Jev rank ─▶ GPT (System Two) ─▶ checks ─▶ drawer
-           origin     noul × 65      score × ≤5   answers in my voice   valid anchors   text · footnotes
-           rate limit  relevant?      how well?    + show_on_page        valid sources   · page moves
+visitor ─▶ guards ─▶ agent (GPT, System Two) ─▶ checks ─▶ drawer
+           origin        │  ▲                       valid anchors   text · footnotes
+           rate limit    ▼  │ tools                 valid sources   · page moves
+                 show_on_page · search_writing
+                                  └─ Jev filter (noul × 65) ─▶ Jev rank (score × ≤5) ─▶ read
 ```
 
 Under it, a numbered walkthrough of one real question ("What have you written
@@ -97,8 +99,8 @@ number. Plus one line on the unit/drift tests.
 talk. No speculating about my weaknesses. No inventing projects or articles.
 No memory between visits: chat lives in the tab and isn't saved.
 
-**08 · Stack.** One mono line: Next.js · OpenAI Responses API (GPT) · Jev
-(TypeSafe AI) via Vercel AI Gateway · Vercel. Link the source on GitHub
+**08 · Stack.** One mono line: Next.js · LangChain (`createAgent`) · OpenAI (GPT) · Jev (TypeSafe AI) ·
+Vercel. Link the source on GitHub
 **only if the repo is public**.
 
 ## Stretch: "Show your work" in the drawer
