@@ -90,3 +90,30 @@ body {
     opacity: 1;
   }
 }
+
+/* Copilot "show on page" highlight — a highlighter wash plus an amber rule
+   on the left edge, like a sub-editor marking up a galley proof. The base
+   rule is static (what reduced-motion visitors get); the copilot removes the
+   class after a few seconds either way. */
+.copilot-spotlight::after {
+  content: '';
+  position: absolute;
+  inset: -6px -10px;
+  pointer-events: none;
+  border-left: 2px solid var(--amber);
+  background: color-mix(in oklch, var(--amber-soft) 45%, transparent);
+  mix-blend-mode: multiply;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes copilot-spotlight {
+    0%   { opacity: 0; clip-path: inset(0 100% 0 0); }
+    18%  { opacity: 1; clip-path: inset(0 0 0 0); }
+    70%  { opacity: 1; }
+    100% { opacity: 0; clip-path: inset(0 0 0 0); }
+  }
+
+  .copilot-spotlight::after {
+    animation: copilot-spotlight 2600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+}

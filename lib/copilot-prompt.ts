@@ -24,6 +24,7 @@ import {
   FEATURED_BY,
   OPEN_SOURCE,
   OTHER_CREDENTIALS,
+  PAGE_TARGETS,
   PROFICIENCY_SEPARATOR,
   PROJECTS,
   ROLES,
@@ -101,7 +102,12 @@ function renderLinks(): string {
     `- LinkedIn: ${SOCIAL.linkedin}`,
     `- Medium: ${SOCIAL.medium}`,
     `- Email: ${EMAIL}`,
+    `- Buy me a coffee: ${SOCIAL.coffee}`,
   ].join('\n')
+}
+
+function renderPageTargets(): string {
+  return PAGE_TARGETS.map((t) => `- \`${t.id}\` — ${t.about}`).join('\n')
 }
 
 /** Every token the template may use, mapped to its rendered value. */
@@ -126,6 +132,7 @@ export function promptTokens(): Record<string, string> {
     FEATURED_BY: FEATURED_BY.join(', '),
     WRITING_TOPICS: WRITING_TOPICS.join(', '),
     LINKS: renderLinks(),
+    PAGE_TARGETS: renderPageTargets(),
   }
 }
 

@@ -26,7 +26,8 @@ function RoleEntry({ role }: { role: Role }) {
   const compact = Boolean(role.compact)
   return (
     <article
-      className={`relative grid grid-cols-[110px_1fr] gap-[clamp(20px,3vw,40px)] max-[720px]:grid-cols-1 ${
+      id={`role-${role.slug}`}
+      className={`relative scroll-mt-24 grid grid-cols-[110px_1fr] gap-[clamp(20px,3vw,40px)] max-[720px]:grid-cols-1 ${
         compact ? 'py-[clamp(20px,3vw,32px)]' : 'py-[clamp(28px,4vw,44px)]'
       }`}
     >
@@ -135,12 +136,12 @@ export default function Experience() {
         {/* Roles */}
         <div>
           {ROLES.map((r) => (
-            <RoleEntry key={r.company} role={r} />
+            <RoleEntry key={r.slug} role={r} />
           ))}
         </div>
 
         {/* Education */}
-        <div className="mt-[clamp(40px,5vw,64px)]">
+        <div id="education" className="relative mt-[clamp(40px,5vw,64px)] scroll-mt-24">
           <div className="mb-5 flex items-baseline gap-4">
             <span className="font-mono text-[10.5px] font-semibold tracking-[0.08em] text-amber">04</span>
             <h3 className="m-0 font-serif text-[28px] font-medium tracking-[-0.015em] text-ink">

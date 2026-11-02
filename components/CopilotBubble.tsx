@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -8,7 +8,20 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** Page anchors the copilot pointed at while answering. */
+  targets?: string[];
 }
+
+/** A page anchor the copilot may scroll to (see PAGE_TARGETS in lib/profile.ts). */
+export interface CopilotTarget {
+  id: string;
+  label: string;
+}
+
+/** At this width and up, the collapsed drawer leaves the page visible beside it. */
+const SIDE_BY_SIDE_QUERY = "(min-width: 1024px)";
+const SPOTLIGHT_CLASS = "copilot-spotlight";
+const SPOTLIGHT_MS = 2800;
 
 const STARTER_PROMPTS = [
   "What did you build at Illumina?",
@@ -76,13 +89,16 @@ const CheckIcon = () => (
   </svg>
 );
 
-const TypingIndicator = () => (
+const TypingIndicator = ({ caption }: { caption?: string | null }) => (
   <article className="flex flex-col gap-1.5">
     <AssistantLabel />
     <div className="flex h-4 items-center gap-1.5 border-l border-rule pl-3.5">
       <span className="h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-bounce" style={{ animationDelay: "0ms", animationDuration: "900ms" }} />
       <span className="h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-bounce" style={{ animationDelay: "180ms", animationDuration: "900ms" }} />
       <span className="h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-bounce" style={{ animationDelay: "360ms", animationDuration: "900ms" }} />
+      {caption && (
+        <span className="ml-1.5 font-mono text-[10.5px] italic tracking-[0.02em] text-ink-faint">{caption}</span>
+      )}
     </div>
   </article>
 );
@@ -106,7 +122,7 @@ function usePrefersReducedMotion() {
   return prefersReducedMotion;
 }
 
-export default function CopilotBubble() {
+export default function CopilotBubble({ targets = [] }: { targets?: CopilotTarget[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -122,6 +138,8 @@ export default function CopilotBubble() {
   const wasOpenRef = useRef(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const spotlightRef = useRef<{ el: HTMLElement; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const [turningTo, setTurningTo] = useState<string | null>(null);
   const busy = isLoading || isStreaming;
   const prefersReducedMotion = usePrefersReducedMotion();
 
@@ -165,8 +183,47 @@ export default function CopilotBubble() {
     return () => {
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
       abortControllerRef.current?.abort();
+      if (spotlightRef.current) clearTimeout(spotlightRef.current.timer);
     };
   }, []);
+
+  const targetLabels = useMemo(() => new Map(targets.map((t) => [t.id, t.label])), [targets]);
+
+  /**
+   * Scrolls the page to a copilot target and gives it a brief highlighter
+   * wash. "auto" (the model called show_on_page) only fires when the page is
+   * visible beside the drawer; "click" (the visitor tapped "See on page")
+   * tucks the drawer away first when it would cover the page.
+   * Returns whether the page actually moved.
+   */
+  const showOnPage = useCallback(
+    (id: string, source: "auto" | "click"): boolean => {
+      const el = document.getElementById(id);
+      if (!el) return false;
+      const sideBySide = window.matchMedia(SIDE_BY_SIDE_QUERY).matches && !isExpanded;
+      if (source === "auto" && !sideBySide) return false;
+      if (source === "click" && !sideBySide) setIsOpen(false);
+
+      el.scrollIntoView({ behavior: prefersReducedMotion ? "instant" : "smooth", block: "start" });
+
+      // Whole sections just scroll; a single entry also gets the highlight.
+      if (el.tagName !== "SECTION") {
+        if (spotlightRef.current) {
+          clearTimeout(spotlightRef.current.timer);
+          spotlightRef.current.el.classList.remove(SPOTLIGHT_CLASS);
+        }
+        void el.offsetWidth; // restart the animation if the same entry is shown twice
+        el.classList.add(SPOTLIGHT_CLASS);
+        const timer = setTimeout(() => {
+          el.classList.remove(SPOTLIGHT_CLASS);
+          spotlightRef.current = null;
+        }, SPOTLIGHT_MS);
+        spotlightRef.current = { el, timer };
+      }
+      return true;
+    },
+    [isExpanded, prefersReducedMotion]
+  );
 
   const sendMessage = useCallback(async (textOverride?: string) => {
     const content = (textOverride ?? input).trim();
@@ -177,6 +234,7 @@ export default function CopilotBubble() {
     setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
+    setTurningTo(null);
     setLiveMessage("Titus is thinking…");
 
     const controller = new AbortController();
@@ -221,18 +279,49 @@ export default function CopilotBubble() {
       let firstChunk = true;
       let buffer = "";
       const assistantId = crypto.randomUUID();
+      // Targets can arrive before the first text delta (the model is told to
+      // call show_on_page first), so they're held here until the message exists.
+      const replyTargets: string[] = [];
+      let pageMoved = false;
 
       const appendDelta = (text: string) => {
         if (firstChunk) {
           firstChunk = false;
           setIsLoading(false);
           setIsStreaming(true);
-          setMessages((prev) => [...prev, { id: assistantId, role: "assistant" as const, content: text }]);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: assistantId,
+              role: "assistant" as const,
+              content: text,
+              ...(replyTargets.length > 0 && { targets: [...replyTargets] }),
+            },
+          ]);
         } else {
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             return [...prev.slice(0, -1), { ...last, content: last.content + text }];
           });
+        }
+      };
+
+      const handleAction = (target: string) => {
+        const label = targetLabels.get(target);
+        if (!label || replyTargets.includes(target)) return;
+        replyTargets.push(target);
+        if (!firstChunk) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantId ? { ...m, targets: [...replyTargets] } : m))
+          );
+        }
+        // Move the page for the first target only; later ones stay as links.
+        if (!pageMoved) {
+          pageMoved = showOnPage(target, "auto");
+          if (pageMoved) {
+            setTurningTo(label);
+            setLiveMessage(`Showing ${label} on the page`);
+          }
         }
       };
 
@@ -267,9 +356,14 @@ export default function CopilotBubble() {
           buffer = buffer.slice(newlineIndex + 1);
           if (!line) continue;
 
-          const event = JSON.parse(line) as { type: "delta"; text: string } | { type: "error"; code: string };
+          const event = JSON.parse(line) as
+            | { type: "delta"; text: string }
+            | { type: "action"; target: string }
+            | { type: "error"; code: string };
           if (event.type === "error") {
             handleErrorCode(event.code);
+          } else if (event.type === "action") {
+            handleAction(event.target);
           } else {
             appendDelta(event.text);
           }
@@ -292,8 +386,9 @@ export default function CopilotBubble() {
     } finally {
       setIsLoading(false);
       setIsStreaming(false);
+      setTurningTo(null);
     }
-  }, [input, busy, messages]);
+  }, [input, busy, messages, targetLabels, showOnPage]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -497,6 +592,24 @@ export default function CopilotBubble() {
                     </ReactMarkdown>
                   </div>
                 )}
+                {msg.targets && msg.targets.length > 0 && (
+                  <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
+                      See on page
+                    </span>
+                    {msg.targets.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => showOnPage(t, "click")}
+                        className="font-mono text-[11px] text-amber underline decoration-dotted underline-offset-[3px] transition-colors hover:text-ink"
+                      >
+                        <span aria-hidden="true">↓ </span>
+                        {targetLabels.get(t) ?? t}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <button
                   onClick={() => copyMessage(msg.id, msg.content)}
                   className="mt-2 flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint transition-colors hover:text-amber"
@@ -509,7 +622,7 @@ export default function CopilotBubble() {
             </article>
           ))}
 
-          {isLoading && <TypingIndicator />}
+          {isLoading && <TypingIndicator caption={turningTo && `Turning to ${turningTo}…`} />}
           <div ref={messagesEndRef} />
         </div>
 
