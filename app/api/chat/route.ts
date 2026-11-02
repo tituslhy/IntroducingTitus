@@ -6,6 +6,7 @@ import { createHash } from "crypto";
 import { Client as LangSmithClient, RunTree } from "langsmith";
 import { buildSystemPrompt } from "@/lib/copilot-prompt";
 import { PAGE_TARGET_IDS } from "@/lib/profile";
+import { checkOrigin, createRateLimiter, getClientIp, jsonError } from "@/lib/api-guards";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -37,21 +38,13 @@ const OPENAI_TIMEOUT_MS = 30_000;
 // this code change.
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 10;
+const checkRateLimit = createRateLimiter(RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_REQUESTS);
 
 // Rough, approximate cost estimate for structured logging only. Update these
 // per-1K-char rates if OpenAI's published pricing for gpt-6-luna changes;
 // this is intentionally not token-exact.
 const ESTIMATED_INPUT_COST_PER_1K_CHARS = 0.000025;
 const ESTIMATED_OUTPUT_COST_PER_1K_CHARS = 0.0001;
-
-const SITE_ORIGINS = new Set<string>([
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://introducing-titus.vercel.app",
-  "http://localhost:3000",
-  "http://localhost:3001",
-]);
-if (process.env.VERCEL_URL) {
-  SITE_ORIGINS.add(`https://${process.env.VERCEL_URL}`);
-}
 
 let systemPromptCache: string | null = null;
 let requestCounter = 0;
@@ -74,82 +67,6 @@ function getSystemPrompt(): string {
 }
 
 type InputMessage = { role: "system" | "user" | "assistant"; content: string };
-
-// ---------------------------------------------------------------------------
-// Rate limiting
-// ---------------------------------------------------------------------------
-
-const rateLimitBuckets = new Map<string, number[]>();
-
-function getClientIp(request: NextRequest): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0].trim();
-  }
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) {
-    return realIp.trim();
-  }
-  return "unknown";
-}
-
-function checkRateLimit(ip: string): { limited: boolean; retryAfterSeconds: number } {
-  const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const timestamps = (rateLimitBuckets.get(ip) ?? []).filter((t) => t > windowStart);
-
-  if (timestamps.length >= RATE_LIMIT_MAX_REQUESTS) {
-    rateLimitBuckets.set(ip, timestamps);
-    const oldest = timestamps[0];
-    const retryAfterSeconds = Math.max(
-      1,
-      Math.ceil((oldest + RATE_LIMIT_WINDOW_MS - now) / 1000)
-    );
-    return { limited: true, retryAfterSeconds };
-  }
-
-  timestamps.push(now);
-  if (timestamps.length === 0) {
-    rateLimitBuckets.delete(ip);
-  } else {
-    rateLimitBuckets.set(ip, timestamps);
-  }
-  return { limited: false, retryAfterSeconds: 0 };
-}
-
-// ---------------------------------------------------------------------------
-// Origin validation (defense-in-depth, not a sole control — non-browser
-// clients can omit or forge the Origin/Referer headers entirely)
-// ---------------------------------------------------------------------------
-
-function isAllowedOrigin(originOrReferer: string, request: NextRequest): boolean {
-  try {
-    const origin = new URL(originOrReferer).origin;
-    if (SITE_ORIGINS.has(origin)) return true;
-    // Also allow same-origin as the deployment serving the request, so
-    // Vercel preview deployments (dynamic *.vercel.app URLs) work without
-    // extra config.
-    const selfOrigin = new URL(request.url).origin;
-    return origin === selfOrigin;
-  } catch {
-    return false;
-  }
-}
-
-function checkOrigin(request: NextRequest): boolean {
-  const origin = request.headers.get("origin");
-  if (origin) {
-    return isAllowedOrigin(origin, request);
-  }
-  const referer = request.headers.get("referer");
-  if (referer) {
-    return isAllowedOrigin(referer, request);
-  }
-  // No Origin or Referer at all — allow through. This check only guards
-  // against forged/cross-site *browser* requests; a non-browser client can
-  // simply omit these headers, so absence alone is not a rejection reason.
-  return true;
-}
 
 // ---------------------------------------------------------------------------
 // LangSmith tracing — opt-in only, default OFF, never allowed to break chat
@@ -313,13 +230,6 @@ type StreamEvent =
 
 function encodeEvent(encoder: TextEncoder, event: StreamEvent): Uint8Array {
   return encoder.encode(JSON.stringify(event) + "\n");
-}
-
-function jsonError(status: number, body: Record<string, unknown>): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
 }
 
 export async function POST(request: NextRequest) {
