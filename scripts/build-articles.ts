@@ -41,6 +41,7 @@ const ARTICLES_OUT = join(CONTENT, "articles.json");
 const META_OUT = join(CONTENT, "articles-meta.json");
 const NOTES_PATH = join(CONTENT, "article-notes.json");
 const JOINT_DIR = join(ROOT, "resources", "joint-articles");
+const UNZIP = "/usr/bin/unzip";
 
 // Turndown's own DOM (its bundled typings declare the wrong module name).
 const { createDocument } = createRequire(join(ROOT, "package.json"))("@mixmark-io/domino") as {
@@ -84,8 +85,10 @@ function locatePosts(): string {
   if (statSync(source).isFile()) {
     if (!source.endsWith(".zip")) fail(`Expected a .zip or a folder, got ${source}`);
     mkdirSync(EXTRACT_DIR, { recursive: true });
-    // System unzip (macOS/Linux): no zip dependency for a script I run by hand.
-    execFileSync("unzip", ["-q", "-o", source, "-d", EXTRACT_DIR], { stdio: "inherit" });
+    // System unzip by absolute path (macOS/Linux), never resolved through PATH:
+    // no zip dependency for a script I run by hand, and nothing on PATH can stand in for it.
+    if (!existsSync(UNZIP)) fail(`${UNZIP} not found. Unzip the export into resources/ yourself and pass the folder.`);
+    execFileSync(UNZIP, ["-q", "-o", source, "-d", EXTRACT_DIR], { stdio: "inherit" });
     source = EXTRACT_DIR;
   }
   const posts = findPostsDir(source);
