@@ -1,99 +1,5 @@
-import { ARTICLE_COUNT_WORD, BLOCKCHAIN_ARTICLE_COUNT, FICTIONAL_BASSOON_COVERAGE, ILLUMINA_SAVINGS_FIGURE } from '@/lib/content'
-
-const SOCIAL = {
-  github: 'https://github.com/tituslhy',
-  linkedin: 'https://www.linkedin.com/in/titus-lim-hsien-yong-70223254/',
-  medium: 'https://medium.com/@tituslhy',
-  email: 'tituslhy@gmail.com',
-}
-
-type MarginNote = {
-  constraint: string
-  decision: string
-  outcome: string
-}
-
-type Project = {
-  slug: string
-  title: string
-  sub: string
-  body: string
-  figure: { label: string; value: string }
-  secondary: { label: string; value: string }
-  tags: string[]
-  github?: string | null
-  demo?: string | null
-  accent: 'amber' | 'blue'
-  marginNote?: MarginNote
-}
-
-const PROJECTS: Project[] = [
-  {
-    slug: 'fictional-bassoon',
-    title: 'fictional-bassoon',
-    sub: 'A fifty-four-container LLM harness, vibe-coded end-to-end',
-    body: `Fifty-four containers, deliberately: a full production-realistic stack — FastAPI, LangGraph, Celery, RabbitMQ, Redis Sentinel, Citus distributed Postgres, dual-pool PgBouncer, PostgREST, ClickHouse, Langfuse, MinIO, an LGTM observability stack, and a Next.js 14 frontend behind Nginx — built to exercise a realistic multi-service architecture end-to-end, not overengineering for its own sake. Solo-built and vibe-coded end-to-end with LLMs, then audited by CodeRabbit, with ${FICTIONAL_BASSOON_COVERAGE} test coverage.`,
-    figure: { label: 'containers', value: '54' },
-    secondary: { label: 'test coverage', value: FICTIONAL_BASSOON_COVERAGE },
-    tags: ['Python', 'LangGraph', 'Postgres', 'ClickHouse', 'Docker', 'Langfuse', 'Next.js'],
-    github: 'https://github.com/tituslhy/fictional-bassoon',
-    accent: 'amber',
-    marginNote: {
-      constraint: 'Solo build, no team — needed to prove real distributed-systems competency, not a toy demo.',
-      decision: 'Built the full production stack anyway: queues, caches, a distributed Postgres, an observability stack, and a proxy — one service per real-world concern.',
-      outcome: `${FICTIONAL_BASSOON_COVERAGE} test coverage, CodeRabbit-audited, public repo.`,
-    },
-  },
-  {
-    slug: 'illumina-rag',
-    title: 'Illumina Agentic RAG',
-    sub: 'A sixteen-component production retrieval platform',
-    body: 'Production-grade agentic RAG for enterprise field-service engineering. Features semantic double-merge chunking, chunk dreaming, HyDE, hybrid search, Cohere reranking, prompt compression, and an iterative multi-hop retrieval loop. Blue-green vector collection swap strategy invented from first principles.',
-    figure: { label: 'components', value: '16' },
-    secondary: { label: 'anticipated savings', value: ILLUMINA_SAVINGS_FIGURE },
-    tags: ['LlamaIndex', 'Qdrant', 'AWS Bedrock', 'Docker+CUDA', 'Grafana', 'SonarQube'],
-    github: null,
-    accent: 'blue',
-    marginNote: {
-      constraint: 'Sole data scientist, production SLAs, no dedicated ML team to lean on for retrieval quality.',
-      decision: 'A 16-component pipeline — semantic chunking, HyDE, hybrid search, reranking, prompt compression, iterative retrieval — plus a blue-green vector collection swap invented from first principles for safe reindexing.',
-      outcome: `Anticipated to save ${ILLUMINA_SAVINGS_FIGURE} upon full deployment.`,
-    },
-  },
-  {
-    slug: 'margin-call',
-    title: 'TheMarginCall',
-    sub: 'Six specialists arguing about your portfolio',
-    body: 'A multi-agent investment guidance crew built on Autogen. Six specialists collaborate in a group chat: a statistical analyst, a technical analyst (RSI, Bollinger, Ichimoku), a fundamental analyst, a researcher that reads SEC filings via RAG, a finance professor for concepts, and a reporter that writes and emails the findings.',
-    figure: { label: 'agents', value: '6' },
-    secondary: { label: 'modes', value: 'II' },
-    tags: ['Python', 'Autogen', 'LlamaIndex', 'Qdrant', 'RAG', 'Tavily', 'Gmail'],
-    github: 'https://github.com/tituslhy/TheMarginCall',
-    demo: 'https://www.youtube.com/watch?v=uLtMD3J4U40',
-    accent: 'amber',
-  },
-]
-
-const OPEN_SOURCE = [
-  { project: 'LlamaIndex', text: 'Integration with Microsoft LLMLingua2 prompt compression', href: 'https://github.com/run-llama/llama_index/pull/17531' },
-  { project: 'LlamaIndex', text: 'Gmail Tool bug fix', href: 'https://github.com/run-llama/llama_index/commit/d5c0fe12a278a332e5d007a3742902e1b36c068f' },
-  { project: 'Unsloth', text: 'Retrieval Augmented Finetuning cookbook', href: 'https://github.com/unslothai/notebooks/pull/51' },
-  { project: 'IBM ACP', text: 'Agent Communication Protocol LlamaIndex example', href: 'https://github.com/i-am-bee/acp/pull/176' },
-  { project: 'Giskard', text: 'RAGET bug fix', href: 'https://github.com/Giskard-AI/giskard-oss/pull/2178' },
-  { project: 'Chainlit', text: 'Chainlit-LlamaIndex cookbook', href: 'https://github.com/Chainlit/cookbook/pull/138' },
-]
-
-const ARTICLES = [
-  { n: 1, title: 'Agent Memory: The underrated superpower of agentic apps', venue: 'MITB for All', read: '11 min', href: 'https://medium.com/mitb-for-all/agent-memory-the-underrated-superpower-of-agentic-apps-1c16fb47f435' },
-  { n: 2, title: 'How to Train Your LLM: Low-Rank Adaptation Finetuning using Unsloth', venue: 'MITB for All', read: '14 min', href: 'https://medium.com/mitb-for-all/how-to-train-your-llm-teaching-toothless-to-bite-8d9f56fe4b2a' },
-  { n: 3, title: 'How to RAFT your LLM: Retrieval Augmented Finetuning using Unsloth', venue: 'MITB for All', read: '12 min', href: 'https://medium.com/mitb-for-all/how-to-raft-your-llm-retrieval-augmented-finetuning-using-unsloth-4c3844a9a6e3' },
-  { n: 4, title: 'A second look at LangGraph: When “Command-Send” becomes “common sense”', venue: 'MITB for All', read: '9 min', href: 'https://medium.com/mitb-for-all/a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8' },
-  { n: 5, title: 'Helm Charts: The Multi-Server Orchestra Conductor', venue: 'MITB for All', read: '10 min', href: 'https://medium.com/mitb-for-all/helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1' },
-  { n: 6, title: 'A gentle introduction to LiteLLM', venue: 'MITB for All', read: '7 min', href: 'https://medium.com/mitb-for-all/a-gentle-introduction-to-litellm-649d48a0c2c7' },
-  { n: 7, title: 'Your agent needs a bouncer', venue: 'MITB for All', read: '13 min', href: 'https://medium.com/mitb-for-all/your-ai-agent-needs-a-bouncer-f115d5ddac55' },
-]
-
-const FEATURED_BY = ['Singapore Management University', 'Unsloth', 'LlamaIndex', 'IBM', 'FlowerAI']
+import { ARTICLE_COUNT_WORD, BLOCKCHAIN_ARTICLE_COUNT } from '@/lib/content'
+import { FEATURED_ARTICLES as ARTICLES, FEATURED_BY, OPEN_SOURCE, PROJECTS, SOCIAL, type Project } from '@/lib/profile'
 
 function SectionMarker({ folio, kicker, children }: { folio: string; kicker: string; children: React.ReactNode }) {
   return (
@@ -120,7 +26,8 @@ function ProjectFeature({ project, index }: { project: Project; index: number })
 
   return (
     <article
-      className={`grid grid-cols-1 items-start gap-[clamp(24px,4vw,56px)] border-b border-rule py-[clamp(28px,5vw,64px)] ${
+      id={`project-${project.slug}`}
+      className={`relative scroll-mt-24 grid grid-cols-1 items-start gap-[clamp(24px,4vw,56px)] border-b border-rule py-[clamp(28px,5vw,64px)] ${
         flipped
           ? 'min-[881px]:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]'
           : 'min-[881px]:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]'
@@ -231,7 +138,7 @@ function Projects() {
         </div>
 
         {/* Open-source contributions */}
-        <div className="mt-[clamp(40px,5vw,64px)]">
+        <div id="open-source" className="relative mt-[clamp(40px,5vw,64px)] scroll-mt-24">
           <div className="mb-[18px] flex items-baseline gap-4">
             <span className="font-mono text-[10.5px] font-semibold tracking-[0.08em] text-amber">06</span>
             <h3 className="m-0 font-serif text-[28px] font-medium tracking-[-0.015em] text-ink">

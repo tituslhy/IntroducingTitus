@@ -1,29 +1,4 @@
-const STACK_GROUPS = [
-  {
-    label: 'AI / GenAI Frameworks',
-    items: ['LangChain', 'LangGraph', 'LlamaIndex', 'CrewAI', 'Autogen', 'DSPy', 'MCP', 'A2A'],
-  },
-  {
-    label: 'Languages',
-    items: ['Python ◆ Expert', 'SQL ◆ Expert', 'Java ◆ Proficient'],
-  },
-  {
-    label: 'Infrastructure',
-    items: ['Docker', 'Kubernetes / Helm', 'GitHub Actions', 'Jenkins', 'vLLM'],
-  },
-  {
-    label: 'Databases',
-    items: ['PostgreSQL', 'Oracle DB', 'Redis', 'MongoDB', 'Qdrant', 'Neo4j'],
-  },
-  {
-    label: 'Observability',
-    items: ['Grafana', 'Prometheus', 'Loki', 'Langfuse', 'Arize Phoenix', 'ELK'],
-  },
-  {
-    label: 'Cloud',
-    items: ['AWS', 'GCP', 'Azure', 'Snowflake'],
-  },
-]
+import { SITE_STACK_GROUPS as STACK_GROUPS } from '@/lib/profile'
 
 export default function TechStack() {
   return (
