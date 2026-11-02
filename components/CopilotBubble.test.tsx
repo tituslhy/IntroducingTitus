@@ -854,4 +854,83 @@ describe("CopilotBubble", () => {
       ).toBeInTheDocument();
     });
   });
+  describe("recruiter mode", () => {
+    const JD =
+      "Staff GenAI Engineer at Acme. Build production RAG and multi-agent platforms on Kubernetes. Rust a plus. Lead a small team.";
+    const TARGETS = [{ id: "role-illumina", label: "Illumina, 2023" }];
+    const BRIEF = {
+      roleTitle: "Staff GenAI Engineer",
+      company: "Acme",
+      verdict: "Strongest on production retrieval.",
+      requirements: [
+        { requirement: "Production RAG", fit: "strong", evidence: "I built it at Illumina.", targets: ["role-illumina"] },
+        { requirement: "Rust", fit: "not_on_file", evidence: "", targets: [] },
+      ],
+    };
+
+    async function openFitMode() {
+      const user = userEvent.setup();
+      render(<CopilotBubble targets={TARGETS} email="me@example.com" />);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      await user.click(screen.getByRole("button", { name: /i'm hiring/i }));
+      return user;
+    }
+
+    it("switches the input to a job-description box and back", async () => {
+      const user = await openFitMode();
+
+      expect(screen.getByRole("textbox", { name: /job description/i })).toHaveAttribute(
+        "placeholder",
+        "Paste the job description…"
+      );
+      expect(screen.getByRole("button", { name: /check fit/i })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /back to chat/i }));
+      expect(screen.getByPlaceholderText(/ask about my work/i)).toBeInTheDocument();
+    });
+
+    it("asks for the full posting when the paste is too short, without calling the API", async () => {
+      const user = await openFitMode();
+      await user.click(screen.getByRole("textbox", { name: /job description/i }));
+      await user.paste("Hire me");
+      await user.click(screen.getByRole("button", { name: /check fit/i }));
+
+      expect(screen.getByRole("alert")).toHaveTextContent(/paste the full posting/i);
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("renders the fit brief with evidence links and an email button", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ brief: BRIEF }) });
+      const user = await openFitMode();
+      await user.click(screen.getByRole("textbox", { name: /job description/i }));
+      await user.paste(JD);
+      await user.click(screen.getByRole("button", { name: /check fit/i }));
+
+      const card = await screen.findByRole("region", { name: /fit brief for staff genai engineer at acme/i });
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/fit",
+        expect.objectContaining({ method: "POST", body: JSON.stringify({ jobDescription: JD }) })
+      );
+      expect(within(card).getByText("Strongest on production retrieval.")).toBeInTheDocument();
+      expect(within(card).getByText(/1 of 2 requirements evidenced/i)).toBeInTheDocument();
+      expect(within(card).getByText(/not on my site/i)).toBeInTheDocument();
+      expect(within(card).getByRole("button", { name: /illumina, 2023/i })).toBeInTheDocument();
+      expect(within(card).getByRole("link", { name: /email me about this role/i }).getAttribute("href")).toMatch(
+        /^mailto:me@example\.com\?subject=Role%3A%20Staff%20GenAI%20Engineer%20at%20Acme/
+      );
+      // Back to chat mode for follow-up questions.
+      expect(screen.getByPlaceholderText(/ask about my work/i)).toHaveValue("");
+    });
+
+    it("shows a friendly error and keeps the pasted text when rate limited", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 429, json: async () => ({ error: "rate_limited" }) });
+      const user = await openFitMode();
+      await user.click(screen.getByRole("textbox", { name: /job description/i }));
+      await user.paste(JD);
+      await user.click(screen.getByRole("button", { name: /check fit/i }));
+
+      expect(await screen.findByText(/only write a few of these every ten minutes/i)).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: /job description/i })).toHaveValue(JD);
+    });
+  });
 });

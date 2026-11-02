@@ -143,7 +143,7 @@ Tech: Python, ML forecasting, streaming data pipelines
 
 **JobTech Pte Ltd — Singapore**
 *Data Scientist* | Apr 2017 – Aug 2017
-> Built a national-scale skill extraction algorithm using NLP to construct skills graphs from online job portals. Findings published in a national report on Indonesia's labour market.
+> Built a national-scale skill extraction algorithm using NLP to construct skills graphs from online job portals. Findings published in a Business Insider report on Indonesia's labour market.
 Tech: Python, NLP, regex-based entity extraction
 
 ---

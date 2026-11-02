@@ -1,14 +1,54 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import FitBriefCard from "./FitBriefCard";
+import {
+  MAX_JD_CHARS,
+  MIN_JD_CHARS,
+  fitBriefMailto,
+  fitBriefToText,
+  type FitBrief,
+} from "@/lib/fit-brief";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** Page anchors the copilot pointed at while answering. */
+  targets?: string[];
+  /** Recruiter mode result; `content` then holds its plain-text form. */
+  brief?: FitBrief;
 }
+
+const HIRING_PROMPT = "I'm hiring — check my fit for a role";
+
+/** Shown while a fit brief is being written (one call, so no live progress to report). */
+const FIT_CAPTIONS: [delayMs: number, caption: string][] = [
+  [0, "Reading the job description…"],
+  [4_000, "Matching requirements against my record…"],
+  [10_000, "Linking the evidence on the page…"],
+  [22_000, "Still working — long postings take a moment…"],
+];
+
+const FIT_ERRORS: Record<string, string> = {
+  rate_limited: "I can only write a few of these every ten minutes — try again shortly.",
+  job_description_too_short: "That looks short for a job description — could you paste the full posting?",
+  job_description_too_long: "That's longer than I can read in one go — try pasting just the role and requirements.",
+  ERR_TIMEOUT: "That took longer than it should — please try again.",
+};
+
+/** A page anchor the copilot may scroll to (see PAGE_TARGETS in lib/profile.ts). */
+export interface CopilotTarget {
+  id: string;
+  label: string;
+}
+
+/** At this width and up, the collapsed drawer leaves the page visible beside it. */
+const SIDE_BY_SIDE_QUERY = "(min-width: 1024px)";
+const SPOTLIGHT_CLASS = "copilot-spotlight";
+const SPOTLIGHT_MS = 2800;
 
 const STARTER_PROMPTS = [
   "What did you build at Illumina?",
@@ -76,13 +116,16 @@ const CheckIcon = () => (
   </svg>
 );
 
-const TypingIndicator = () => (
+const TypingIndicator = ({ caption }: { caption?: string | null }) => (
   <article className="flex flex-col gap-1.5">
     <AssistantLabel />
     <div className="flex h-4 items-center gap-1.5 border-l border-rule pl-3.5">
       <span className="h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-bounce" style={{ animationDelay: "0ms", animationDuration: "900ms" }} />
       <span className="h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-bounce" style={{ animationDelay: "180ms", animationDuration: "900ms" }} />
       <span className="h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-bounce" style={{ animationDelay: "360ms", animationDuration: "900ms" }} />
+      {caption && (
+        <span className="ml-1.5 font-mono text-[10.5px] italic tracking-[0.02em] text-ink-faint">{caption}</span>
+      )}
     </div>
   </article>
 );
@@ -106,7 +149,13 @@ function usePrefersReducedMotion() {
   return prefersReducedMotion;
 }
 
-export default function CopilotBubble() {
+export default function CopilotBubble({
+  targets = [],
+  email = "tituslhy@gmail.com",
+}: {
+  targets?: CopilotTarget[];
+  email?: string;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -122,11 +171,24 @@ export default function CopilotBubble() {
   const wasOpenRef = useRef(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const spotlightRef = useRef<{ el: HTMLElement; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const [turningTo, setTurningTo] = useState<string | null>(null);
+  const [mode, setMode] = useState<"chat" | "fit">("chat");
+  const [loadingCaption, setLoadingCaption] = useState<string | null>(null);
+  const [fitNotice, setFitNotice] = useState<string | null>(null);
+  const captionTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const busy = isLoading || isStreaming;
   const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // A fit brief is read top-down, so land on its headline, not its footer.
+    const last = messages[messages.length - 1];
+    const briefEl = last?.brief ? document.getElementById(`copilot-msg-${last.id}`) : null;
+    if (briefEl) {
+      briefEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, isLoading]);
 
   useEffect(() => {
@@ -148,8 +210,8 @@ export default function CopilotBubble() {
     const el = inputRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-  }, [input]);
+    el.style.height = `${Math.min(el.scrollHeight, mode === "fit" ? 220 : 120)}px`;
+  }, [input, mode]);
 
   const copyMessage = useCallback((id: string, content: string) => {
     navigator.clipboard.writeText(content).then(() => {
@@ -165,8 +227,48 @@ export default function CopilotBubble() {
     return () => {
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
       abortControllerRef.current?.abort();
+      if (spotlightRef.current) clearTimeout(spotlightRef.current.timer);
+      captionTimersRef.current.forEach(clearTimeout);
     };
   }, []);
+
+  const targetLabels = useMemo(() => new Map(targets.map((t) => [t.id, t.label])), [targets]);
+
+  /**
+   * Scrolls the page to a copilot target and gives it a brief highlighter
+   * wash. "auto" (the model called show_on_page) only fires when the page is
+   * visible beside the drawer; "click" (the visitor tapped "See on page")
+   * tucks the drawer away first when it would cover the page.
+   * Returns whether the page actually moved.
+   */
+  const showOnPage = useCallback(
+    (id: string, source: "auto" | "click"): boolean => {
+      const el = document.getElementById(id);
+      if (!el) return false;
+      const sideBySide = window.matchMedia(SIDE_BY_SIDE_QUERY).matches && !isExpanded;
+      if (source === "auto" && !sideBySide) return false;
+      if (source === "click" && !sideBySide) setIsOpen(false);
+
+      el.scrollIntoView({ behavior: prefersReducedMotion ? "instant" : "smooth", block: "start" });
+
+      // Whole sections just scroll; a single entry also gets the highlight.
+      if (el.tagName !== "SECTION") {
+        if (spotlightRef.current) {
+          clearTimeout(spotlightRef.current.timer);
+          spotlightRef.current.el.classList.remove(SPOTLIGHT_CLASS);
+        }
+        void el.offsetWidth; // restart the animation if the same entry is shown twice
+        el.classList.add(SPOTLIGHT_CLASS);
+        const timer = setTimeout(() => {
+          el.classList.remove(SPOTLIGHT_CLASS);
+          spotlightRef.current = null;
+        }, SPOTLIGHT_MS);
+        spotlightRef.current = { el, timer };
+      }
+      return true;
+    },
+    [isExpanded, prefersReducedMotion]
+  );
 
   const sendMessage = useCallback(async (textOverride?: string) => {
     const content = (textOverride ?? input).trim();
@@ -177,6 +279,7 @@ export default function CopilotBubble() {
     setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
+    setTurningTo(null);
     setLiveMessage("Titus is thinking…");
 
     const controller = new AbortController();
@@ -221,18 +324,49 @@ export default function CopilotBubble() {
       let firstChunk = true;
       let buffer = "";
       const assistantId = crypto.randomUUID();
+      // Targets can arrive before the first text delta (the model is told to
+      // call show_on_page first), so they're held here until the message exists.
+      const replyTargets: string[] = [];
+      let pageMoved = false;
 
       const appendDelta = (text: string) => {
         if (firstChunk) {
           firstChunk = false;
           setIsLoading(false);
           setIsStreaming(true);
-          setMessages((prev) => [...prev, { id: assistantId, role: "assistant" as const, content: text }]);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: assistantId,
+              role: "assistant" as const,
+              content: text,
+              ...(replyTargets.length > 0 && { targets: [...replyTargets] }),
+            },
+          ]);
         } else {
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             return [...prev.slice(0, -1), { ...last, content: last.content + text }];
           });
+        }
+      };
+
+      const handleAction = (target: string) => {
+        const label = targetLabels.get(target);
+        if (!label || replyTargets.includes(target)) return;
+        replyTargets.push(target);
+        if (!firstChunk) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantId ? { ...m, targets: [...replyTargets] } : m))
+          );
+        }
+        // Move the page for the first target only; later ones stay as links.
+        if (!pageMoved) {
+          pageMoved = showOnPage(target, "auto");
+          if (pageMoved) {
+            setTurningTo(label);
+            setLiveMessage(`Showing ${label} on the page`);
+          }
         }
       };
 
@@ -267,9 +401,14 @@ export default function CopilotBubble() {
           buffer = buffer.slice(newlineIndex + 1);
           if (!line) continue;
 
-          const event = JSON.parse(line) as { type: "delta"; text: string } | { type: "error"; code: string };
+          const event = JSON.parse(line) as
+            | { type: "delta"; text: string }
+            | { type: "action"; target: string }
+            | { type: "error"; code: string };
           if (event.type === "error") {
             handleErrorCode(event.code);
+          } else if (event.type === "action") {
+            handleAction(event.target);
           } else {
             appendDelta(event.text);
           }
@@ -292,10 +431,105 @@ export default function CopilotBubble() {
     } finally {
       setIsLoading(false);
       setIsStreaming(false);
+      setTurningTo(null);
     }
-  }, [input, busy, messages]);
+  }, [input, busy, messages, targetLabels, showOnPage]);
+
+  const enterFitMode = useCallback(() => {
+    setMode("fit");
+    setFitNotice(null);
+    setIsExpanded(true);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, []);
+
+  const leaveFitMode = useCallback(() => {
+    setMode("chat");
+    setFitNotice(null);
+  }, []);
+
+  const sendFit = useCallback(async () => {
+    const jd = input.trim();
+    if (!jd || busy) return;
+    if (jd.length < MIN_JD_CHARS) {
+      setFitNotice(FIT_ERRORS.job_description_too_short);
+      return;
+    }
+    if (jd.length > MAX_JD_CHARS) {
+      setFitNotice(FIT_ERRORS.job_description_too_long);
+      return;
+    }
+    setFitNotice(null);
+
+    const words = jd.split(/\s+/).length;
+    setMessages((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), role: "user", content: `Check my fit for this role (${words}-word job description).` },
+    ]);
+    setIsLoading(true);
+    setLiveMessage("Writing a fit brief…");
+    captionTimersRef.current = FIT_CAPTIONS.map(([delay, caption]) =>
+      setTimeout(() => setLoadingCaption(caption), delay)
+    );
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const res = await fetch("/api/fit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobDescription: jd }),
+        signal: controller.signal,
+      });
+      let data: { brief?: FitBrief; error?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        // Non-JSON body — handled as a generic failure below.
+      }
+      if (!res.ok || !data.brief) {
+        throw new Error(
+          (data.error && FIT_ERRORS[data.error]) ??
+            `Sorry, I couldn't write that brief. Feel free to email me the role at ${email}`
+        );
+      }
+      const brief = data.brief;
+      setMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), role: "assistant", content: fitBriefToText(brief), brief },
+      ]);
+      setInput("");
+      setMode("chat");
+      setLiveMessage("Fit brief ready");
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      setLiveMessage("Fit brief failed");
+      // Keep the pasted text so a retry is one click.
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: error instanceof Error ? error.message : `Sorry, something went wrong. Feel free to email me at ${email}`,
+        },
+      ]);
+    } finally {
+      captionTimersRef.current.forEach(clearTimeout);
+      captionTimersRef.current = [];
+      setLoadingCaption(null);
+      setIsLoading(false);
+    }
+  }, [input, busy, email]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mode === "fit") {
+      // Pasted postings are multi-line: Enter is a newline, ⌘/Ctrl+Enter submits.
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        sendFit();
+      }
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -435,12 +669,25 @@ export default function CopilotBubble() {
                     </button>
                   </li>
                 ))}
+                <li>
+                  <button
+                    type="button"
+                    onClick={enterFitMode}
+                    disabled={busy}
+                    className="group flex w-full items-baseline gap-3 border-t border-rule py-3 text-left transition-colors hover:bg-paper-deep disabled:opacity-50"
+                  >
+                    <span className="font-mono text-[13px] text-amber transition-transform group-hover:translate-x-0.5">
+                      ◆
+                    </span>
+                    <span className="font-serif text-[15px] italic leading-snug text-ink">{HIRING_PROMPT}</span>
+                  </button>
+                </li>
               </ul>
             </div>
           )}
 
           {messages.map((msg) => (
-            <article key={msg.id} className="flex flex-col gap-1.5">
+            <article key={msg.id} id={`copilot-msg-${msg.id}`} className="flex flex-col gap-1.5">
               {msg.role === "user" ? (
                 <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
                   You
@@ -449,11 +696,21 @@ export default function CopilotBubble() {
                 <AssistantLabel />
               )}
               <div
-                className={`border-l pl-3.5 ${
-                  msg.role === "user" ? "border-rule-strong" : "border-amber"
-                }`}
+                className={
+                  msg.brief
+                    ? ""
+                    : `border-l pl-3.5 ${msg.role === "user" ? "border-rule-strong" : "border-amber"}`
+                }
               >
-                {msg.role === "user" ? (
+                {msg.brief ? (
+                  <FitBriefCard
+                    brief={msg.brief}
+                    labelFor={(t) => targetLabels.get(t) ?? t}
+                    onShow={(t) => showOnPage(t, "click")}
+                    mailtoHref={fitBriefMailto(msg.brief, email)}
+                    onCheckAnother={enterFitMode}
+                  />
+                ) : msg.role === "user" ? (
                   <p className="whitespace-pre-wrap font-mono text-[12.5px] leading-relaxed text-ink-soft">
                     {msg.content}
                   </p>
@@ -497,6 +754,24 @@ export default function CopilotBubble() {
                     </ReactMarkdown>
                   </div>
                 )}
+                {msg.targets && msg.targets.length > 0 && (
+                  <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
+                      See on page
+                    </span>
+                    {msg.targets.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => showOnPage(t, "click")}
+                        className="font-mono text-[11px] text-amber underline decoration-dotted underline-offset-[3px] transition-colors hover:text-ink"
+                      >
+                        <span aria-hidden="true">↓ </span>
+                        {targetLabels.get(t) ?? t}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <button
                   onClick={() => copyMessage(msg.id, msg.content)}
                   className="mt-2 flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint transition-colors hover:text-amber"
@@ -509,37 +784,69 @@ export default function CopilotBubble() {
             </article>
           ))}
 
-          {isLoading && <TypingIndicator />}
+          {isLoading && (
+            <TypingIndicator caption={loadingCaption ?? (turningTo && `Turning to ${turningTo}…`)} />
+          )}
           <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
         <div className="flex-shrink-0 border-t border-rule bg-paper-deep px-3.5 py-3">
+          {mode === "fit" && (
+            <div className="mb-2 flex items-baseline justify-between gap-3">
+              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-amber">
+                Recruiter mode · paste a job description
+              </p>
+              <button
+                type="button"
+                onClick={leaveFitMode}
+                disabled={busy}
+                className="font-mono text-[10.5px] text-ink-soft underline decoration-dotted underline-offset-[3px] transition-colors hover:text-amber disabled:opacity-50"
+              >
+                ← Back to chat
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-2">
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about my work…"
+              placeholder={mode === "fit" ? "Paste the job description…" : "Ask about my work…"}
+              aria-label={mode === "fit" ? "Job description" : "Message"}
               disabled={busy}
               rows={1}
               className="flex-1 resize-none overflow-y-auto border border-rule bg-paper px-3 py-2 font-mono text-[12.5px] text-ink placeholder:text-ink-faint transition-colors focus:border-amber focus:outline-none disabled:opacity-50"
-              style={{ minHeight: "36px", maxHeight: "120px" }}
+              style={{ minHeight: mode === "fit" ? "96px" : "36px", maxHeight: mode === "fit" ? "220px" : "120px" }}
             />
             <button
-              onClick={() => sendMessage()}
+              onClick={() => (mode === "fit" ? sendFit() : sendMessage())}
               disabled={busy || !input.trim()}
               className="flex flex-shrink-0 items-center gap-1.5 border border-ink bg-ink px-3.5 py-2.5 font-mono text-[11px] uppercase tracking-[0.1em] text-paper transition-colors hover:border-amber hover:bg-amber disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Send message"
+              aria-label={mode === "fit" ? "Check fit" : "Send message"}
             >
-              <span>Send</span>
+              <span>{mode === "fit" ? "Check fit" : "Send"}</span>
               <span aria-hidden="true">→</span>
             </button>
           </div>
-          <p className="mt-2 font-mono text-[10px] leading-snug text-ink-faint">
-            Messages are sent to OpenAI to generate a response. This site does not save your chat history.
-          </p>
+          {fitNotice && (
+            <p role="alert" className="mt-2 font-serif text-[13px] italic leading-snug text-amber">
+              {fitNotice}
+            </p>
+          )}
+          {mode === "fit" ? (
+            <p className="mt-2 flex justify-between gap-3 font-mono text-[10px] leading-snug text-ink-faint">
+              <span>Sent to OpenAI to write the brief; not stored. ⌘/Ctrl+Enter to submit.</span>
+              <span className={input.trim().length > MAX_JD_CHARS ? "text-amber" : ""}>
+                {input.trim().length.toLocaleString()}/{MAX_JD_CHARS.toLocaleString()}
+              </span>
+            </p>
+          ) : (
+            <p className="mt-2 font-mono text-[10px] leading-snug text-ink-faint">
+              Messages are sent to OpenAI to generate a response. This site does not save your chat history.
+            </p>
+          )}
         </div>
       </div>
 

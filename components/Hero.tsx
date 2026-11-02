@@ -1,13 +1,7 @@
 import Image from 'next/image'
 import { ARTICLE_COUNT_NUMBER, ARTICLE_COUNT_SHORT } from '@/lib/content'
+import { SOCIAL } from '@/lib/profile'
 
-const SOCIAL = {
-  github: 'https://github.com/tituslhy',
-  linkedin: 'https://www.linkedin.com/in/titus-lim-hsien-yong-70223254/',
-  medium: 'https://medium.com/@tituslhy',
-  coffee: 'https://buymeacoffee.com/tituslhy',
-  email: 'tituslhy@gmail.com',
-}
 
 const ISSUE_META = {
   role: 'GenAI Engineer & Architect',
