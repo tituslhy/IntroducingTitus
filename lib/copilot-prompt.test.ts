@@ -132,6 +132,8 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
     expect(rendered).toContain('## Searching My Writing')
     expect(rendered).toContain('search_writing')
     expect(rendered).toContain('[n]')
+    expect(rendered).toContain('`more: true`')
+    expect(rendered).toContain('`error`')
   })
 
   it('tells the assistant to credit co-authors on joint articles', () => {

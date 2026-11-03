@@ -1,5 +1,6 @@
 import { TypeSafeClient, noul, score } from "@typesafe-ai/sdk";
 import { ARTICLES, type Article } from "@/lib/articles";
+import { MIN_SCORE, RELEVANT } from "@/lib/search-config";
 
 // ---------------------------------------------------------------------------
 // Searching my writing with Jev (TypeSafe AI). Two stages, no embeddings:
@@ -7,6 +8,8 @@ import { ARTICLES, type Article } from "@/lib/articles";
 //      an independent "relevant?" probability, so many (or none) can pass.
 //   2. rank — one graded `score` per shortlisted article, on more than the
 //      card (outline + intro), which is what earns the second pass its latency.
+// Returns the whole ranking, best first; search_writing pages through it
+// PAGE_SIZE at a time, so the agent decides how much it reads.
 // Fails open: stage 2 down → stage-1 order; stage 1 down → []. Retrieval
 // problems never break chat. SERVER ONLY (imports every article body).
 // ---------------------------------------------------------------------------
@@ -17,25 +20,34 @@ import { ARTICLES, type Article } from "@/lib/articles";
  */
 export const JEV_MODEL = process.env.TYPESAFE_DEFAULT_MODEL ?? "jev-latest";
 
-/** Stage-1 probability an article must reach to be shortlisted. Tune for recall. */
-export const RELEVANT = 0.5;
-/** Stage-2 expected score (0–3) a shortlisted article must reach. Tune for precision. */
-export const MIN_SCORE = 2.0;
-export const SHORTLIST_SIZE = 5;
-export const MAX_RESULTS = 2;
+export { MIN_SCORE, PAGE_SIZE, RELEVANT } from "@/lib/search-config";
 export const MAX_BODY_CHARS = 12_000;
 
-/** One shared deadline for both stages; stage 1 gets at most STAGE1_TIMEOUT_MS of it. */
-export const SEARCH_BUDGET_MS = 2_000;
-export const STAGE1_TIMEOUT_MS = 1_000;
+/**
+ * One shared deadline for both stages. GPT's rounds, not Jev, set the reply's pace,
+ * so this is generous: a timed-out search reads no articles at all.
+ */
+export const SEARCH_BUDGET_MS = 4_000;
+/**
+ * Stage 1 per attempt. Healthy calls take ~0.4s; a slow one stalls past any limit
+ * (seen at 1s and 2.5s alike), so cut it early and retry once rather than wait.
+ * Worst case: two attempts plus a 50ms backoff ≈ 2.05s, leaving stage 2 ~2s of the budget.
+ * A server Retry-After is ignored: the SDK would otherwise sleep up to 60s, past any budget.
+ */
+export const STAGE1_ATTEMPT_MS = 1_000;
+const STAGE1_RETRY = { maxRetries: 1, backoffInitialMs: 50, backoffJitter: 0, respectRetryAfter: false } as const;
 /** Below this much remaining budget, stage 2 isn't worth starting. */
 const MIN_STAGE2_MS = 200;
 
+/**
+ * Graded per part: a query comparing several topics is answered by several
+ * articles, one topic each, and none answers the whole comparison alone.
+ */
 export const RUBRIC = [
   "Doesn't help answer the query.",
   "Touches the topic in passing.",
-  "Covers the topic substantially.",
-  "Directly answers the query.",
+  "Covers the query, or one of the topics it asks about, substantially.",
+  "Directly answers the query, or one of its parts.",
 ] as const;
 
 export type FoundArticle = {
@@ -95,7 +107,10 @@ const isScore = (x: unknown): x is number =>
   typeof x === "number" && Number.isFinite(x) && x >= 0 && x <= RUBRIC.length - 1;
 const errorName = (err: unknown) => (err instanceof Error ? err.name || err.constructor.name : typeof err);
 
-/** Finds ≤ MAX_RESULTS of my articles for an agent-written, standalone query. May return []. */
+/**
+ * Finds my articles for an agent-written, standalone query: every one that
+ * passed, best first. The caller pages through it. May return [].
+ */
 export async function searchMyWriting(query: string, options: SearchOptions = {}): Promise<FoundArticle[]> {
   const { signal, onTrace } = options;
   const catalog = options.catalog ?? ARTICLES;
@@ -154,7 +169,7 @@ export async function searchMyWriting(query: string, options: SearchOptions = {}
           ])
         ),
       },
-      { timeout: STAGE1_TIMEOUT_MS, retry: { maxRetries: 0 }, signal }
+      { timeout: STAGE1_ATTEMPT_MS, retry: STAGE1_RETRY, signal }
     );
     trace.model = filter.model ?? null;
     const answers = (filter.answers ?? {}) as Record<string, { noul?: unknown } | undefined>;
@@ -162,8 +177,7 @@ export async function searchMyWriting(query: string, options: SearchOptions = {}
     shortlist = catalog
       .map((a) => ({ slug: a.slug, relevance: answers[a.slug]?.noul }))
       .filter((r): r is { slug: string; relevance: number } => isProbability(r.relevance) && r.relevance >= RELEVANT)
-      .sort((x, y) => y.relevance - x.relevance)
-      .slice(0, SHORTLIST_SIZE);
+      .sort((x, y) => y.relevance - x.relevance);
   } catch (err) {
     trace.errors.push(errorName(err));
     trace.fallback = "stage1_failed";
@@ -180,7 +194,7 @@ export async function searchMyWriting(query: string, options: SearchOptions = {}
     return finish([toFound(shortlist[0].slug, shortlist[0].relevance, null)]);
   }
 
-  const stage1Order = () => shortlist.slice(0, MAX_RESULTS).map((r) => toFound(r.slug, r.relevance, null));
+  const stage1Order = () => shortlist.map((r) => toFound(r.slug, r.relevance, null));
   const remaining = deadline - Date.now();
   if (remaining < MIN_STAGE2_MS) {
     trace.errors.push("BudgetExhausted");
@@ -202,7 +216,7 @@ export async function searchMyWriting(query: string, options: SearchOptions = {}
               slug,
               score(
                 {
-                  task: "How well does this article of mine answer the search query?",
+                  task: "How well does this article of mine answer the search query, or one distinct part of it?",
                   article: { title: a.title, summary: a.summary, outline: a.outline, intro: a.intro },
                 },
                 RUBRIC
@@ -230,7 +244,6 @@ export async function searchMyWriting(query: string, options: SearchOptions = {}
       scored
         .filter((r): r is { slug: string; relevance: number; score: number } => r.score !== null && r.score >= MIN_SCORE)
         .sort((x, y) => y.score - x.score)
-        .slice(0, MAX_RESULTS)
         .map((r) => toFound(r.slug, r.relevance, r.score))
     );
   } catch (err) {

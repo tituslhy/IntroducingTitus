@@ -31,15 +31,15 @@ const WALKTHROUGH: [stage: string, what: string][] = [
   ['Guards', 'The request clears the origin check, the rate limit and the size limits before any model sees it.'],
   ['Agent loop', 'GPT reads the question and calls search_writing("guardrails for AI agents"), a query it writes to stand on its own.'],
   ['Jev filter', `One yes-or-no probability per article, judged on its card (title, one-line summary, keywords): ${ARTICLE_COUNT_NUMBER} questions, one request. Most fall away.`],
-  ['Jev rank', 'Up to five survivors are scored 0–3 against a rubric, this time on their outline and opening, and the top two are read in full.'],
-  ['Agent loop', 'Round two: GPT answers from what the articles say, in my voice, citing them as [1] and [2].'],
+  ['Jev rank', 'Every survivor is scored 0–3 against a rubric, this time on their outline and opening. The two best are read in full; if they aren’t enough, GPT asks for the next two from the same ranking.'],
+  ['Agent loop', 'GPT answers from what the articles say, in my voice, citing them as [1], [2] and onward.'],
   ['Checks', 'Output is capped, and only the numbers the server actually sent can become links.'],
   ['Drawer', 'The reply streams in with superscript footnotes and a Sources row underneath.'],
 ]
 
 const GUARDRAILS: [guardrail: string, prevents: string][] = [
   ['Page anchors validated server-side', 'Pointing at things that don’t exist'],
-  ['Article retrieval: relevance filter, graded rerank, known slugs only, at most two', 'Irrelevant or invented sources'],
+  ['Article retrieval: relevance filter, graded rerank, known slugs only, at most four', 'Irrelevant or invented sources'],
   ['“Not on file”', 'Overselling, especially in recruiter mode'],
   ['Job descriptions wrapped as data and not stored upstream', 'Prompt injection; keeping confidential postings'],
   ['Fit briefs re-validated after the model writes them', '“Strong” claims without evidence'],
@@ -221,6 +221,18 @@ export default function ColophonPage() {
                 </li>
               ))}
             </ol>
+            <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
+              Reading in pages
+            </p>
+            <p className={prose}>
+              I don’t set how many articles it reads; GPT does. A search ranks every article that clears the filter
+              and hands over the best two, plus a count of how many are still waiting. If two don’t cover the
+              question, GPT asks for the next two with <code className="font-mono text-[14px]">more: true</code>,
+              served from the ranking it already holds, so Jev isn’t asked again. It gets two searches per reply, so
+              the second is either the next page or a fresh query, which runs Jev again and replaces the ranking.
+              When the ranking runs out, the tool says so, and GPT answers from what it has read. That caps a reply
+              at four articles.
+            </p>
           </Section>
 
           <Section folio={next()} title="One source of truth">
