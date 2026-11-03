@@ -34,11 +34,12 @@ describe("Navigation", () => {
       });
     });
 
-    it("should render folio numbers for each nav item", () => {
+    it("should render only the label for each nav item, with no folio numbers", () => {
       render(<Navigation />);
+      const nav = screen.getByRole("navigation", { name: /section navigation/i });
       const folios = ["01", "02", "03", "05", "07"];
       folios.forEach((folio) => {
-        expect(screen.getByText(folio)).toBeInTheDocument();
+        expect(within(nav).queryByText(folio)).not.toBeInTheDocument();
       });
     });
 
@@ -422,18 +423,10 @@ describe("Navigation", () => {
   });
 
   describe("Responsive Behavior", () => {
-    it("should hide brand subtitle on screens smaller than 720px", () => {
+    it("should hide brand subtitle on screens smaller than 1080px", () => {
       render(<Navigation />);
       const subtitle = screen.getByText("Titus Lim · Personal site");
-      expect(subtitle.className).toContain("max-[720px]:hidden");
-    });
-
-    it("should hide folio numbers on screens smaller than 720px", () => {
-      render(<Navigation />);
-      const folios = screen.getAllByText(/^0[1-5]$/);
-      folios.forEach((folio) => {
-        expect(folio.className).toContain("max-[720px]:hidden");
-      });
+      expect(subtitle.className).toContain("max-[1080px]:hidden");
     });
 
     it("should hide CTA text on screens smaller than 720px", () => {
@@ -443,10 +436,160 @@ describe("Navigation", () => {
       expect(textSpan?.className).toContain("max-[720px]:hidden");
     });
 
-    it("should center nav items on screens 1080px and wider", () => {
+    it("should center nav items on screens 721px and wider", () => {
       render(<Navigation />);
       const navList = screen.getByRole("navigation").querySelector("ul");
-      expect(navList?.className).toContain("min-[1080px]:justify-center");
+      expect(navList?.className).toContain("min-[721px]:[justify-content:safe_center]");
+      expect(navList?.className).not.toContain("min-[1080px]:justify-center");
+    });
+
+    it("should let the nav list scroll horizontally with smooth motion", () => {
+      render(<Navigation />);
+      const navList = screen.getByRole("navigation").querySelector("ul");
+      expect(navList?.classList.contains("relative")).toBe(true);
+      expect(navList?.classList.contains("overflow-x-auto")).toBe(true);
+      expect(navList?.classList.contains("scroll-smooth")).toBe(true);
+      expect(navList?.classList.contains("motion-reduce:scroll-auto")).toBe(true);
+    });
+
+    it("should render no edge fade overlays", () => {
+      const { container } = render(<Navigation />);
+      const fades = container.querySelectorAll("nav div[aria-hidden='true']");
+      expect(fades).toHaveLength(0);
+    });
+  });
+
+  describe("Phone Layout (720px and narrower)", () => {
+    // Asserts each class token is present on the element (exact token match, no substring false positives)
+    const expectClasses = (el: HTMLElement, classes: string[]) => {
+      classes.forEach((cls) => {
+        expect(el.classList.contains(cls)).toBe(true);
+      });
+    };
+
+    it("should stack brand and email on the top row of a two-column grid", () => {
+      render(<Navigation />);
+      const grid = screen.getByRole("navigation").querySelector("div") as HTMLElement;
+      const brand = screen.getByRole("link", { name: /back to top/i });
+      const cta = screen.getByRole("link", { name: /email titus/i });
+
+      expectClasses(grid, ["max-[720px]:h-auto", "max-[720px]:grid-cols-[1fr_auto]"]);
+      expectClasses(brand, ["max-[720px]:col-start-1", "max-[720px]:row-start-1"]);
+      expectClasses(cta, ["max-[720px]:col-start-2", "max-[720px]:row-start-1"]);
+    });
+
+    it("should give the link list its own full-width second row", () => {
+      render(<Navigation />);
+      const navList = screen.getByRole("navigation").querySelector("ul") as HTMLElement;
+      const listWrapper = navList.parentElement as HTMLElement;
+
+      expectClasses(listWrapper, [
+        "max-[720px]:col-span-2",
+        "max-[720px]:row-start-2",
+        "max-[720px]:-mx-1.5",
+        "max-[360px]:-mx-1",
+      ]);
+      expectClasses(navList, [
+        "max-[720px]:flex-wrap",
+        "max-[720px]:justify-between",
+        "max-[720px]:gap-0",
+        "max-[720px]:px-0",
+      ]);
+    });
+
+    it("should tighten link padding and type on small phones", () => {
+      render(<Navigation />);
+      const navList = screen.getByRole("navigation").querySelector("ul") as HTMLElement;
+      const links = within(navList).getAllByRole("link");
+
+      expect(links).toHaveLength(5);
+      links.forEach((link) => {
+        expectClasses(link, ["max-[720px]:px-1.5", "max-[360px]:px-1", "max-[360px]:text-[11px]"]);
+      });
+    });
+  });
+
+  describe("Active Link Centering", () => {
+    let capturedCallback: IntersectionObserverCallback | null = null;
+
+    beforeEach(() => {
+      capturedCallback = null;
+
+      class MockIntersectionObserver {
+        constructor(callback: IntersectionObserverCallback) {
+          capturedCallback = callback;
+        }
+        observe = jest.fn();
+        unobserve = jest.fn();
+        disconnect = jest.fn();
+      }
+
+      global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
+    });
+
+    // jsdom has no layout engine, so stub the geometry the effect reads
+    const stubLayout = (
+      list: HTMLElement,
+      link: HTMLElement,
+      geometry: { scrollWidth: number; clientWidth: number; offsetLeft: number; offsetWidth: number }
+    ) => {
+      Object.defineProperty(list, "scrollWidth", { value: geometry.scrollWidth, configurable: true });
+      Object.defineProperty(list, "clientWidth", { value: geometry.clientWidth, configurable: true });
+      Object.defineProperty(link, "offsetLeft", { value: geometry.offsetLeft, configurable: true });
+      Object.defineProperty(link, "offsetWidth", { value: geometry.offsetWidth, configurable: true });
+    };
+
+    // Fire the scroll-spy observer so the section with this id becomes active
+    const activateSection = (id: string) => {
+      if (!capturedCallback) throw new Error("IntersectionObserver was not created");
+      act(() => {
+        capturedCallback!(
+          [{ isIntersecting: true, target: { id } as unknown as Element } as IntersectionObserverEntry],
+          {} as IntersectionObserver
+        );
+      });
+    };
+
+    it("should centre the active link when the list overflows", () => {
+      const { container } = render(<Navigation />);
+      const navList = container.querySelector("nav ul") as HTMLElement;
+      const stackLink = within(navList).getAllByRole("link")[1];
+      stubLayout(navList, stackLink, { scrollWidth: 600, clientWidth: 300, offsetLeft: 400, offsetWidth: 60 });
+      const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
+
+      activateSection("stack");
+
+      expect(stackLink.getAttribute("aria-current")).toBe("true");
+      // offsetLeft - (clientWidth - offsetWidth) / 2 = 400 - 120
+      expect(navList.scrollLeft).toBe(280);
+      expect(scrollToSpy).not.toHaveBeenCalled();
+      scrollToSpy.mockRestore();
+    });
+
+    it("should inset the active underline more tightly on phones", () => {
+      const { container } = render(<Navigation />);
+      const navList = container.querySelector("nav ul") as HTMLElement;
+      const stackLink = within(navList).getAllByRole("link")[1];
+
+      activateSection("stack");
+
+      const underline = stackLink.querySelector("span[class*='bg-amber']") as HTMLElement;
+      expect(underline).toBeInTheDocument();
+      expect(underline.classList.contains("max-[720px]:inset-x-1.5")).toBe(true);
+      expect(underline.classList.contains("max-[360px]:inset-x-1")).toBe(true);
+    });
+
+    it("should leave scrollLeft at 0 when the list fits without overflowing", () => {
+      const { container } = render(<Navigation />);
+      const navList = container.querySelector("nav ul") as HTMLElement;
+      const stackLink = within(navList).getAllByRole("link")[1];
+      // Same link geometry as the overflow case, so the centring formula would give 280 if it ran
+      stubLayout(navList, stackLink, { scrollWidth: 300, clientWidth: 300, offsetLeft: 400, offsetWidth: 60 });
+
+      activateSection("stack");
+
+      expect(stackLink.getAttribute("aria-current")).toBe("true");
+      expect(navList.scrollLeft).toBe(0);
     });
   });
 
@@ -498,17 +641,14 @@ describe("Navigation", () => {
       });
     });
 
-    it("should render nav items with folio and label", () => {
+    it("should render nav items with label only", () => {
       const { container } = render(<Navigation />);
       const listItems = container.querySelectorAll("nav ul li");
 
-      const expectedFolios = ["01", "02", "03", "05", "07"];
       const expectedLabels = ["About", "Stack", "Experience", "Projects", "Writing"];
 
       listItems.forEach((li, index) => {
-        const text = li.textContent;
-        expect(text).toContain(expectedFolios[index]);
-        expect(text).toContain(expectedLabels[index]);
+        expect(li.textContent).toBe(expectedLabels[index]);
       });
     });
   });

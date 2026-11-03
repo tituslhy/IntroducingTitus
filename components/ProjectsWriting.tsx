@@ -176,7 +176,7 @@ function Writing() {
     <section id="writing" className="bg-paper-deep text-ink">
       <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
         <SectionMarker folio="07" kicker="Writing">
-          Seven articles, of<em className="italic text-amber">{ARTICLE_COUNT_WORD}</em>.
+          Seven articles, of <em className="italic text-amber">{ARTICLE_COUNT_WORD}</em>.
         </SectionMarker>
 
         <p className="mb-8 max-w-[60ch] font-serif text-[19px] italic text-ink-soft">
