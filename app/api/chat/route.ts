@@ -28,8 +28,9 @@ const MAX_REQUEST_BODY_BYTES = 100_000;
 const MAX_OUTPUT_CHARS = 6_000;
 // Bounds how long we'll wait on the upstream OpenAI call (including the
 // full duration of streaming), so a hung request can't hold the connection
-// open indefinitely.
-const OPENAI_TIMEOUT_MS = 30_000;
+// open indefinitely. It covers the whole loop, tool calls included: three GPT
+// rounds have taken ~28s on their own, plus up to SEARCH_BUDGET_MS per search.
+const OPENAI_TIMEOUT_MS = 45_000;
 
 // In-process sliding-window rate limit, keyed by client IP. This app runs on
 // Vercel Fluid Compute, which reuses instances across requests, so an

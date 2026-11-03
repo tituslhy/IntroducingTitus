@@ -7,17 +7,17 @@
 import { TypeSafeClient } from "@typesafe-ai/sdk";
 import {
   MAX_BODY_CHARS,
-  MAX_RESULTS,
   MIN_SCORE,
   RELEVANT,
-  SHORTLIST_SIZE,
+  SEARCH_BUDGET_MS,
+  STAGE1_ATTEMPT_MS,
   searchMyWriting,
   type SearchTrace,
 } from "./writing-search";
 import type { Article } from "./articles";
 
 type Answers = Record<string, unknown>;
-type Reply = { answers: Answers } | { status: number };
+type Reply = { answers: Answers } | { status: number; headers?: Record<string, string> };
 
 /** Stage-1 "noul" answer: independent probability the article is relevant. */
 const noul = (p: unknown) => ({ type: "noul", noul: p });
@@ -34,7 +34,8 @@ function fakeJev(replies: Reply[]) {
     requests.push(JSON.parse(String(init?.body)));
     const reply = replies[requests.length - 1];
     if (!reply) throw new Error("unexpected extra systemOne call");
-    if ("status" in reply) return new Response("upstream failure", { status: reply.status });
+    if ("status" in reply)
+      return new Response("upstream failure", { status: reply.status, headers: reply.headers });
     return new Response(
       JSON.stringify({ model: "jev-test", answers: reply.answers, usage: { input_tokens: 1, output_tokens: 1 } }),
       { status: 200, headers: { "content-type": "application/json" } }
@@ -68,8 +69,9 @@ function article(slug: string, overrides: Partial<Article> = {}): Article {
 }
 
 describe("searchMyWriting", () => {
-  it("shortlists articles at or above RELEVANT, capped at SHORTLIST_SIZE, and ranks them in stage 2", async () => {
-    // Stage 1 gives 8 articles strictly descending relevance; the top 5 are shortlisted.
+  it("shortlists articles at or above RELEVANT and returns every one that clears MIN_SCORE, best first", async () => {
+    // Stage 1 gives 8 articles strictly descending relevance; all 8 clear RELEVANT, so all 8 are shortlisted.
+    // Stage 2 only scores the top 5, and the unscored three come back null and are dropped.
     const slugs = ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"];
     const catalog = slugs.map((s) => article(s));
     const relevance = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6];
@@ -82,10 +84,9 @@ describe("searchMyWriting", () => {
     const found = await searchMyWriting("guardrails", { client, catalog });
 
     expect(Object.keys(requests[0].questions)).toEqual(slugs);
-    expect(Object.keys(requests[1].questions)).toEqual(["s0", "s1", "s2", "s3", "s4"]);
+    expect(Object.keys(requests[1].questions)).toEqual(slugs);
     expect(requests[0].state).toEqual({ query: "guardrails" });
-    expect(found.map((a) => a.slug)).toEqual(["s1", "s2"]);
-    expect(found.length).toBeLessThanOrEqual(MAX_RESULTS);
+    expect(found.map((a) => a.slug)).toEqual(["s1", "s2", "s3", "s0", "s4"]);
   });
 
   it("treats a relevance of exactly RELEVANT as shortlisted and anything below it as out", async () => {
@@ -134,7 +135,7 @@ describe("searchMyWriting", () => {
     expect(onTrace.mock.calls[0][0]).toMatchObject({ fallback: "single" });
   });
 
-  it("ranks by stage-2 score, drops articles below MIN_SCORE, and keeps at most MAX_RESULTS", async () => {
+  it("ranks by stage-2 score and drops articles below MIN_SCORE", async () => {
     const catalog = [article("a"), article("b"), article("c")];
     const { client } = fakeJev([
       { answers: { a: noul(0.9), b: noul(0.9), c: noul(0.9) } },
@@ -209,7 +210,7 @@ describe("searchMyWriting", () => {
     expect(found.map((a) => [a.slug, a.score])).toEqual([["b", 2.5]]);
   });
 
-  it("returns stage-1 order (top MAX_RESULTS, score null) when stage 2 fails", async () => {
+  it("returns the full shortlist in stage-1 order (score null) when stage 2 fails", async () => {
     const catalog = [article("a"), article("b"), article("c")];
     const { client } = fakeJev([
       { answers: { a: noul(0.6), b: noul(0.9), c: noul(0.7) } },
@@ -222,13 +223,14 @@ describe("searchMyWriting", () => {
     expect(found).toEqual([
       expect.objectContaining({ slug: "b", relevance: 0.9, score: null }),
       expect.objectContaining({ slug: "c", relevance: 0.7, score: null }),
+      expect.objectContaining({ slug: "a", relevance: 0.6, score: null }),
     ]);
     const trace: SearchTrace = onTrace.mock.calls[0][0];
     expect(trace.fallback).toBe("stage2_failed");
     expect(trace.errors).toEqual(["InternalServerError"]);
   });
 
-  it("treats a stage-2 answer with no valid score as a stage-2 failure and uses stage-1 order", async () => {
+  it("treats a stage-2 answer with no valid score as a stage-2 failure and uses the full stage-1 order", async () => {
     const catalog = [article("a"), article("b"), article("c")];
     const { client } = fakeJev([
       { answers: { a: noul(0.6), b: noul(0.9), c: noul(0.7) } },
@@ -241,6 +243,7 @@ describe("searchMyWriting", () => {
     expect(found).toEqual([
       expect.objectContaining({ slug: "b", relevance: 0.9, score: null }),
       expect.objectContaining({ slug: "c", relevance: 0.7, score: null }),
+      expect.objectContaining({ slug: "a", relevance: 0.6, score: null }),
     ]);
     expect(onTrace.mock.calls[0][0]).toMatchObject({ fallback: "stage2_failed", errors: ["NoValidScores"] });
   });
@@ -279,16 +282,99 @@ describe("searchMyWriting", () => {
     expect(found[0]).not.toHaveProperty("coAuthors");
   });
 
-  it("returns [] when stage 1 fails", async () => {
+  it("returns [] when stage 1 fails on both attempts", async () => {
     const catalog = [article("a"), article("b")];
-    const { client, fetch } = fakeJev([{ status: 500 }]);
+    const { client, fetch } = fakeJev([{ status: 500 }, { status: 500 }]);
     const onTrace = jest.fn();
 
     const found = await searchMyWriting("q", { client, catalog, onTrace });
 
     expect(found).toEqual([]);
-    expect(fetch).toHaveBeenCalledTimes(1);
+    // One attempt plus one retry; stage 2 is never reached.
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect(onTrace.mock.calls[0][0]).toMatchObject({ fallback: "stage1_failed", errors: ["InternalServerError"] });
+  });
+
+  it("stage 1 recovers on retry and uses the shortlist", async () => {
+    const catalog = [article("a"), article("b"), article("c")];
+    const { client, fetch, requests } = fakeJev([
+      { status: 500 },
+      { answers: { a: noul(0.6), b: noul(0.9), c: noul(0.1) } },
+      { answers: { a: scored(2.2), b: scored(2.5) } },
+    ]);
+    const onTrace = jest.fn();
+
+    const found = await searchMyWriting("q", { client, catalog, onTrace });
+
+    // Two stage-1 attempts (the first failed), then one stage-2 call.
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(Object.keys(requests[1].questions)).toEqual(["a", "b", "c"]);
+    // Stage 2 is asked in shortlist order, best first.
+    expect(Object.keys(requests[2].questions)).toEqual(["b", "a"]);
+    expect(found.map((a) => [a.slug, a.score])).toEqual([
+      ["b", 2.5],
+      ["a", 2.2],
+    ]);
+    expect(onTrace.mock.calls[0][0]).toMatchObject({
+      shortlist: [
+        { slug: "b", relevance: 0.9 },
+        { slug: "a", relevance: 0.6 },
+      ],
+      fallback: "none",
+      errors: [],
+    });
+  });
+
+  it.each([429, 503])(
+    "stage 1 retries a %i with a large Retry-After without waiting for it",
+    async (status) => {
+      const catalog = [article("a"), article("b")];
+      const { client, fetch } = fakeJev([
+        { status, headers: { "retry-after": "30" } },
+        { answers: { a: noul(0.6), b: noul(0.9) } },
+        { answers: { a: scored(2.2), b: scored(2.5) } },
+      ]);
+      const onTrace = jest.fn();
+
+      const started = Date.now();
+      const found = await searchMyWriting("q", { client, catalog, onTrace });
+      const elapsed = Date.now() - started;
+
+      // The 30s Retry-After is ignored: the retry follows the 50ms backoff, so the search stays well inside budget.
+      expect(elapsed).toBeLessThan(1_000);
+      expect(fetch).toHaveBeenCalledTimes(3);
+      expect(found.map((a) => a.slug)).toEqual(["b", "a"]);
+      expect(onTrace.mock.calls[0][0]).toMatchObject({ fallback: "none", errors: [] });
+    }
+  );
+
+  it("does not retry stage 2, falling back to stage-1 order after one failed call", async () => {
+    const catalog = [article("a"), article("b")];
+    const { client, fetch } = fakeJev([{ answers: { a: noul(0.6), b: noul(0.9) } }, { status: 500 }]);
+    const onTrace = jest.fn();
+
+    const found = await searchMyWriting("q", { client, catalog, onTrace });
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(found).toEqual([
+      expect.objectContaining({ slug: "b", relevance: 0.9, score: null }),
+      expect.objectContaining({ slug: "a", relevance: 0.6, score: null }),
+    ]);
+    expect(onTrace.mock.calls[0][0]).toMatchObject({ fallback: "stage2_failed", errors: ["InternalServerError"] });
+  });
+
+  it("calls stage 1 with a per-attempt timeout and one retry", async () => {
+    const catalog = [article("a"), article("b")];
+    const { client } = fakeJev([{ answers: { a: noul(0.9), b: noul(0.1) } }]);
+    const systemOne = jest.spyOn(client, "systemOne");
+
+    await searchMyWriting("q", { client, catalog });
+
+    expect(systemOne).toHaveBeenCalledTimes(1);
+    expect(systemOne.mock.calls[0][1]).toMatchObject({
+      timeout: STAGE1_ATTEMPT_MS,
+      retry: { maxRetries: 1, respectRetryAfter: false },
+    });
   });
 
   it("truncates returned bodies to MAX_BODY_CHARS", async () => {
@@ -312,14 +398,47 @@ describe("searchMyWriting", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("never shortlists more than SHORTLIST_SIZE articles, even when all clear the threshold", async () => {
-    const catalog = Array.from({ length: SHORTLIST_SIZE + 3 }, (_, i) => article(`x${i}`));
-    const answers = Object.fromEntries(catalog.map((a) => [a.slug, noul(0.9)]));
-    const { client, requests } = fakeJev([{ answers }, { answers: {} }]);
+  it("shortlists every article that clears RELEVANT with no cap, and returns every one that clears MIN_SCORE", async () => {
+    const slugs = Array.from({ length: 12 }, (_, i) => `n${i}`);
+    const catalog = slugs.map((s) => article(s));
+    const { client, requests } = fakeJev([
+      { answers: Object.fromEntries(slugs.map((s) => [s, noul(0.9)])) },
+      // Scores rise with index, so the best-first ranking is the reverse of the catalog order.
+      { answers: Object.fromEntries(slugs.map((s, i) => [s, scored(MIN_SCORE + i * 0.05)])) },
+    ]);
 
-    await searchMyWriting("q", { client, catalog });
+    const found = await searchMyWriting("q", { client, catalog });
 
-    expect(Object.keys(requests[1].questions)).toHaveLength(SHORTLIST_SIZE);
+    expect(Object.keys(requests[1].questions)).toEqual(slugs);
+    expect(found).toHaveLength(slugs.length);
+    expect(found.map((a) => a.slug)).toEqual([...slugs].reverse());
+  });
+
+  it("skips stage 2 and returns the full stage-1 order when stage 1 uses up the budget", async () => {
+    // Stage 1 takes SEARCH_BUDGET_MS - 100ms, leaving 100ms, which is less than the 200ms stage 2 needs.
+    let clock = 1_000_000;
+    const nowSpy = jest.spyOn(Date, "now").mockImplementation(() => clock);
+    try {
+      const catalog = [article("a"), article("b"), article("c")];
+      const systemOne = jest.fn(async () => {
+        clock += SEARCH_BUDGET_MS - 100;
+        return { model: "jev-test", answers: { a: noul(0.6), b: noul(0.9), c: noul(0.7) } };
+      });
+      const client = { systemOne } as unknown as Pick<TypeSafeClient, "systemOne">;
+      const onTrace = jest.fn();
+
+      const found = await searchMyWriting("q", { client, catalog, onTrace });
+
+      expect(systemOne).toHaveBeenCalledTimes(1);
+      expect(found.map((a) => [a.slug, a.score])).toEqual([
+        ["b", null],
+        ["c", null],
+        ["a", null],
+      ]);
+      expect(onTrace.mock.calls[0][0]).toMatchObject({ fallback: "stage2_failed", errors: ["BudgetExhausted"] });
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it("stamps the trace with its start time and the catalog size", async () => {

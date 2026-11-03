@@ -142,7 +142,8 @@ export default function Hero() {
           >
             <span className="block">Lim</span>
             <span className="block pl-[0.6em] max-[1100px]:pl-0">Hsien&nbsp;Yong</span>
-            <span className="flex items-baseline justify-start gap-[0.4em] text-[0.78em] font-normal italic text-ink-soft min-[1100px]:justify-end">
+            {/* Right-aligned, (Titus) sits under the g of Yong; at 0.9 leading the descender would touch it. */}
+            <span className="flex items-baseline justify-start gap-[0.4em] text-[0.78em] font-normal italic text-ink-soft min-[1100px]:mt-[0.18em] min-[1100px]:justify-end">
               <em className="italic text-amber">(Titus)</em>
             </span>
           </h1>

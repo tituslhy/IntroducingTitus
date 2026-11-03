@@ -18,7 +18,7 @@ import { ARTICLES, type Article } from "../lib/articles";
 import { buildSystemPrompt } from "../lib/copilot-prompt";
 import { copilotStream, MODEL as GPT_MODEL } from "../lib/copilot-loop";
 import { createCopilotTools, type CopilotTool } from "../lib/copilot-tools";
-import { JEV_MODEL, searchMyWriting, type SearchTrace } from "../lib/writing-search";
+import { JEV_MODEL, PAGE_SIZE, searchMyWriting, type SearchTrace } from "../lib/writing-search";
 
 const OUT = join(process.cwd(), "content", "eval-results.json");
 const AGENT_TIMEOUT_MS = 60_000;
@@ -155,7 +155,8 @@ async function main() {
     const t = trace as SearchTrace | null;
     jevModel ??= t?.model ?? null;
     const shortlist = t?.shortlist.map((s) => s.slug) ?? [];
-    const chosen = found.map((a) => a.slug);
+    // The first page: what the agent reads before deciding whether to ask for more.
+    const chosen = found.slice(0, PAGE_SIZE).map((a) => a.slug);
 
     const agent = await runAgent(openai, systemPrompt, question);
     const invented = [...new Set((agent.text.match(URL_RE) ?? []).map(trimUrl))].filter((u) => !allowedUrls.has(u));

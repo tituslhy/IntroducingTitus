@@ -47,6 +47,7 @@ jest.mock("langsmith/traceable", () => ({
 
 // search_writing talks to Jev. Route tests drive it through this mock only.
 jest.mock("@/lib/writing-search", () => ({
+  PAGE_SIZE: 2,
   searchMyWriting: jest.fn(async () => []),
 }));
 

@@ -1,5 +1,11 @@
 import { PAGE_TARGET_IDS } from "@/lib/profile";
-import { searchMyWriting, type FoundArticle, type SearchOptions, type SearchTrace } from "@/lib/writing-search";
+import {
+  PAGE_SIZE,
+  searchMyWriting,
+  type FoundArticle,
+  type SearchOptions,
+  type SearchTrace,
+} from "@/lib/writing-search";
 import type { TraceSpan } from "@/lib/copilot-loop";
 
 // ---------------------------------------------------------------------------
@@ -88,19 +94,25 @@ function createShowOnPageTool(): CopilotTool<string> {
 
 // ---------------------------------------------------------------------------
 // search_writing — finds and reads my own articles (lib/writing-search.ts).
-// Results are numbered per reply, continuing across both allowed searches, and
-// each new article is emitted as a `source` event for the drawer's footnotes.
+// A search ranks everything that passes, but hands over PAGE_SIZE at a time;
+// `more: true` serves the next page from that ranking without asking Jev
+// again. Results are numbered per reply, continuing across calls, and each new
+// article is emitted as a `source` event for the drawer's footnotes.
 // ---------------------------------------------------------------------------
 
 const MAX_QUERY_CHARS = 300;
 
-export function parseSearchWritingQuery(raw: string): string | null {
+export type SearchWritingArgs = { query: string; more: boolean };
+
+/** Returns the validated arguments, or null. A missing `more` means a new search. */
+export function parseSearchWritingArgs(raw: string): SearchWritingArgs | null {
   try {
-    const parsed = JSON.parse(raw) as { query?: unknown } | null;
+    const parsed = JSON.parse(raw) as { query?: unknown; more?: unknown } | null;
     const query = parsed?.query;
-    if (typeof query !== "string") return null;
+    const more = parsed?.more ?? false;
+    if (typeof query !== "string" || typeof more !== "boolean") return null;
     const trimmed = query.trim().slice(0, MAX_QUERY_CHARS);
-    return trimmed ? trimmed : null;
+    return trimmed ? { query: trimmed, more } : null;
   } catch {
     return null;
   }
@@ -108,16 +120,35 @@ export function parseSearchWritingQuery(raw: string): string | null {
 
 type SearchFn = (query: string, options: SearchOptions) => Promise<FoundArticle[]>;
 
-function createSearchWritingTool(search: SearchFn): CopilotTool<string> {
+function createSearchWritingTool(search: SearchFn): CopilotTool<SearchWritingArgs> {
   // Per reply: the same article found twice keeps its first number.
   const numbered = new Map<string, number>();
+  // Per reply: the last search's ranking, minus the pages already handed over.
+  let pending: FoundArticle[] | null = null;
+
+  const page = (emit: Emit) => {
+    const served = pending!.splice(0, PAGE_SIZE);
+    return {
+      articles: served.map((a) => {
+        let n = numbered.get(a.slug);
+        if (n === undefined) {
+          n = numbered.size + 1;
+          numbered.set(a.slug, n);
+          emit({ type: "source", n, title: a.title, url: a.url, relevance: a.relevance, score: a.score });
+        }
+        return { n, title: a.title, url: a.url, ...(a.coAuthors?.length && { coAuthors: a.coAuthors }), body: a.body };
+      }),
+      remaining: pending!.length,
+      served,
+    };
+  };
 
   return {
     definition: {
       type: "function",
       name: "search_writing",
       description:
-        "Find and read my own articles on a topic. Use before answering anything about my writing or my views on a technical topic. Cite results as [n].",
+        "Find and read my own articles on a topic, best match first, two at a time. Use before answering anything about my writing or my views on a technical topic. Cite results as [n].",
       strict: true,
       parameters: {
         type: "object",
@@ -127,14 +158,28 @@ function createSearchWritingTool(search: SearchFn): CopilotTool<string> {
             description:
               "A standalone search query. Resolve references like 'that one' from the conversation.",
           },
+          more: {
+            type: "boolean",
+            description:
+              "true: the next articles from your last search (query is then ignored). false: a new search.",
+          },
         },
-        required: ["query"],
+        required: ["query", "more"],
         additionalProperties: false,
       },
     },
     maxCallsPerReply: 2,
-    parse: parseSearchWritingQuery,
-    async run(query, { emit, signal, trace }) {
+    parse: parseSearchWritingArgs,
+    async run({ query, more }, { emit, signal, trace }) {
+      if (more && pending) {
+        if (pending.length === 0) return { articles: [], note: "No more articles of mine on this." };
+        const { served, ...result } = page(emit);
+        trace?.annotate({
+          search: { page: "more", chosen: served.map((a) => ({ slug: a.slug, relevance: a.relevance, score: a.score })) },
+        });
+        return result;
+      }
+
       let searchTrace: SearchTrace | null = null;
       const found = await search(query, {
         signal,
@@ -155,26 +200,23 @@ function createSearchWritingTool(search: SearchFn): CopilotTool<string> {
           );
         },
       });
-      if (trace && searchTrace) recordSearchSteps(trace, query, searchTrace, found);
+      pending = [...found];
       if (found.length === 0) {
+        if (trace && searchTrace) recordSearchSteps(trace, query, searchTrace, []);
+        // A failed search found nothing because it never looked: it must not read as "I haven't written about it".
+        if ((searchTrace as SearchTrace | null)?.fallback === "stage1_failed") {
+          return { articles: [], error: "search unavailable" };
+        }
         return { articles: [], note: "No article of mine covers this." };
       }
-      return {
-        articles: found.map((a) => {
-          let n = numbered.get(a.slug);
-          if (n === undefined) {
-            n = numbered.size + 1;
-            numbered.set(a.slug, n);
-            emit({ type: "source", n, title: a.title, url: a.url, relevance: a.relevance, score: a.score });
-          }
-          return { n, title: a.title, url: a.url, ...(a.coAuthors?.length && { coAuthors: a.coAuthors }), body: a.body };
-        }),
-      };
+      const { served, ...result } = page(emit);
+      if (trace && searchTrace) recordSearchSteps(trace, query, searchTrace, served);
+      return result;
     },
   };
 }
 
-/** Jev's two stages as child steps of the search_writing trace span (tracing only). */
+/** Jev's two stages as child steps of the search_writing trace span (tracing only). `chosen` is the page served. */
 function recordSearchSteps(trace: TraceSpan, query: string, t: SearchTrace, found: FoundArticle[]): void {
   const stage1End = t.startedAt + t.stage1Ms;
   const failed = (stage: SearchTrace["fallback"]) => (t.fallback === stage ? t.errors.join(", ") || stage : undefined);
