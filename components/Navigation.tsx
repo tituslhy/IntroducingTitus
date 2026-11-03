@@ -1,19 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { EMAIL } from '@/lib/profile'
 
+// No folios here: the nav lists five of the page's seven numbered sections, so
+// they'd read 01, 02, 03, 05, 07. The section headings carry the numbers.
 const NAV_ITEMS = [
-  { id: 'lede', label: 'About', folio: '01' },
-  { id: 'stack', label: 'Stack', folio: '02' },
-  { id: 'dossier', label: 'Experience', folio: '03' },
-  { id: 'projects', label: 'Projects', folio: '05' },
-  { id: 'writing', label: 'Writing', folio: '07' },
+  { id: 'lede', label: 'About' },
+  { id: 'stack', label: 'Stack' },
+  { id: 'dossier', label: 'Experience' },
+  { id: 'projects', label: 'Projects' },
+  { id: 'writing', label: 'Writing' },
 ]
 
 export default function Navigation() {
   const [active, setActive] = useState('masthead')
   const [hidden, setHidden] = useState(false)
+  const listRef = useRef<HTMLUListElement>(null)
 
   // Scroll-spy: underline the active section
   useEffect(() => {
@@ -31,6 +34,15 @@ export default function Navigation() {
     })
     return () => obs.disconnect()
   }, [])
+
+  // Where the list still scrolls (phones), slide it so the active link stays in view.
+  // Sets scrollLeft on the list only, so it can never scroll the page.
+  useEffect(() => {
+    const list = listRef.current
+    const link = list?.querySelector<HTMLElement>('[aria-current="true"]')
+    if (!list || !link || list.scrollWidth <= list.clientWidth) return
+    list.scrollLeft = link.offsetLeft - (list.clientWidth - link.offsetWidth) / 2
+  }, [active])
 
   // Hide on scroll-down, reveal on scroll-up, always visible in top 80px
   useEffect(() => {
@@ -64,7 +76,9 @@ export default function Navigation() {
       style={{ transform: hidden ? 'translateY(-110%)' : 'translateY(0)' }}
       className="sticky top-0 z-50 border-b border-rule bg-[color-mix(in_oklch,var(--paper)_88%,transparent)] backdrop-blur-[10px] backdrop-saturate-[1.4] transition-transform duration-[240ms] ease-[cubic-bezier(.4,0,.2,1)] max-[880px]:border-b-0"
     >
-      <div className="mx-auto grid h-14 max-w-[1280px] grid-cols-[auto_1fr_auto] items-center gap-6 px-[clamp(18px,4vw,56px)]">
+      {/* Below 720px: two rows. Brand and email on top, all five links on their own row,
+          because a sideways-scrolling row hides the links nobody knows to scroll to. */}
+      <div className="mx-auto grid h-14 max-w-[1280px] grid-cols-[auto_1fr_auto] items-center gap-6 px-[clamp(18px,4vw,56px)] max-[720px]:h-auto max-[720px]:grid-cols-[1fr_auto] max-[720px]:gap-x-4 max-[720px]:gap-y-0 max-[720px]:pt-1.5 max-[720px]:pb-1">
         {/* Brand → back to top */}
         <a
           href="#masthead"
@@ -73,19 +87,26 @@ export default function Navigation() {
             scrollTo('masthead')
           }}
           aria-label="Back to top"
-          className="flex items-baseline gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
+          className="flex items-baseline gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 max-[720px]:col-start-1 max-[720px]:row-start-1"
         >
           <span className="font-serif text-[22px] font-semibold italic tracking-[-0.01em] text-ink">
             T<span className="mx-0.5 not-italic text-amber">·</span>L
           </span>
-          <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-soft max-[720px]:hidden">
+          {/* Below 1080px the tagline gives its room to the section links, so all five fit */}
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-soft max-[1080px]:hidden">
             Titus Lim · Personal site
           </span>
         </a>
 
-        {/* Anchor list with folios + scroll-spy underline */}
-        <div className="relative min-w-0">
-          <ul className="flex flex-nowrap justify-start gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[1080px]:justify-center">
+        {/* Anchor list with scroll-spy underline. The negative margin on phones cancels the links'
+            padding, so the first label lines up with the brand. One row from 320px up. */}
+        <div className="relative min-w-0 max-[720px]:col-span-2 max-[720px]:row-start-2 max-[720px]:-mx-1.5 max-[360px]:-mx-1">
+          {/* relative: the list is its links' offsetParent, so offsetLeft ignores its scroll.
+              It only scrolls as a fallback (e.g. enlarged text); at normal sizes every link fits. */}
+          <ul
+            ref={listRef}
+            className="relative flex flex-nowrap justify-start gap-1 overflow-x-auto scroll-smooth px-1 [scrollbar-width:none] motion-reduce:scroll-auto [&::-webkit-scrollbar]:hidden min-[721px]:[justify-content:safe_center] max-[720px]:flex-wrap max-[720px]:justify-between max-[720px]:gap-0 max-[720px]:px-0"
+          >
             {NAV_ITEMS.map((n) => {
               const isActive = active === n.id
               return (
@@ -97,34 +118,24 @@ export default function Navigation() {
                       scrollTo(n.id)
                     }}
                     aria-current={isActive ? 'true' : undefined}
-                    className={`relative inline-flex items-baseline gap-1.5 px-3 py-2 font-mono text-[12px] tracking-[0.04em] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 ${
+                    className={`relative inline-flex items-baseline gap-1.5 px-3 py-2 font-mono text-[12px] tracking-[0.04em] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 max-[720px]:px-1.5 max-[360px]:px-1 max-[360px]:text-[11px] ${
                       isActive ? 'text-ink' : 'text-ink-soft hover:text-ink'
                     }`}
                   >
-                    <span className="text-[10px] text-ink-faint max-[720px]:hidden">{n.folio}</span>
                     <span>{n.label}</span>
-                    {isActive && <span className="absolute inset-x-3 bottom-0.5 h-0.5 bg-amber" />}
+                    {isActive && <span className="absolute inset-x-3 bottom-0.5 h-0.5 bg-amber max-[720px]:inset-x-1.5 max-[360px]:inset-x-1" />}
                   </a>
                 </li>
               )
             })}
           </ul>
-          {/* Edge fades: cue that the list scrolls horizontally on narrow viewports */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-paper to-transparent min-[1080px]:hidden"
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-paper to-transparent min-[1080px]:hidden"
-          />
         </div>
 
         {/* Get in touch CTA */}
         <a
           href={`mailto:${EMAIL}?subject=Resume Request`}
           aria-label="Email Titus"
-          className="inline-flex min-h-0 min-w-0 items-center justify-center gap-2 whitespace-nowrap border border-ink px-3.5 py-[7px] font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink transition-colors duration-150 hover:bg-ink hover:text-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 max-[720px]:min-h-11 max-[720px]:min-w-11"
+          className="inline-flex min-h-0 min-w-0 items-center justify-center gap-2 whitespace-nowrap border border-ink px-3.5 py-[7px] font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink transition-colors duration-150 hover:bg-ink hover:text-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 max-[720px]:col-start-2 max-[720px]:row-start-1 max-[720px]:min-h-11 max-[720px]:min-w-11"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-amber shadow-[0_0_0_3px_color-mix(in_oklch,var(--amber)_30%,transparent)]" />
           <span className="max-[720px]:hidden">Get in touch</span>
