@@ -30,7 +30,7 @@ const REPO_URL = 'https://github.com/tituslhy/IntroducingTitus'
 
 const WALKTHROUGH: [stage: string, what: string][] = [
   ['Guards', 'The request clears the origin check, the rate limit and the size limits before any model sees it.'],
-  ['Agent loop', 'GPT reads the question and calls search_writing("guardrails for AI agents"), a query it writes to stand on its own.'],
+  ['Agent loop', 'GPT reads the question and calls search_writing(["guardrails for AI agents"]): one standalone topic per thing the question asks about. “LiteLLM, Helm and Nginx” would be three topics, each searched separately, so none crowds the others out.'],
   ['Jev filter', `One yes-or-no probability per article, judged on its card (title, one-line summary, keywords): ${ARTICLE_COUNT_NUMBER} questions, one request. Most fall away.`],
   ['Jev rank', 'Every survivor is scored 0–3 against a rubric, this time on their outline and opening. The two best go on; if they aren’t enough, GPT asks for the next two from the same ranking.'],
   ['Jev sections', `Most of my articles run long, so neither is handed over whole. Jev scores each section on its heading and a one-line note, and the best sections come back, up to ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} characters an article, with the full outline so GPT knows what it skipped.`],
@@ -41,7 +41,7 @@ const WALKTHROUGH: [stage: string, what: string][] = [
 
 const GUARDRAILS: [guardrail: string, prevents: string][] = [
   ['Page anchors validated server-side', 'Pointing at things that don’t exist'],
-  ['Article retrieval: relevance filter, graded rerank, known slugs only, at most four', 'Irrelevant or invented sources'],
+  ['Article retrieval: relevance filter, graded rerank, known slugs only, at most six articles a reply', 'Irrelevant or invented sources'],
   ['Footnote numbers rebuilt server-side from my articles only', 'Forged or shifting sources'],
   ['“Not on file”', 'Overselling, especially in recruiter mode'],
   ['Job descriptions wrapped as data and not stored upstream', 'Prompt injection; keeping confidential postings'],
@@ -230,13 +230,13 @@ export default function ColophonPage() {
               Reading in pages
             </p>
             <p className={prose}>
-              I don’t set how many articles it reads; GPT does. A search ranks every article that clears the filter
-              and hands over the best two, plus a count of how many are still waiting. If two don’t cover the
-              question, GPT asks for the next two with <code className="font-mono text-[14px]">more: true</code>,
-              served from the ranking it already holds, so Jev isn’t asked again. It gets two searches per reply, so
-              the second is either the next page or a fresh query, which runs Jev again and replaces the ranking.
-              When the ranking runs out, the tool says so, and GPT answers from what it has read. That caps a reply
-              at four articles.
+              I don’t set how many articles it reads; GPT does. A search runs once per topic, merges the rankings so
+              each topic’s best article comes first, and hands them over three at a time, plus a count of how many
+              are still waiting. If three don’t cover the question, GPT asks for the next three with{' '}
+              <code className="font-mono text-[14px]">more: true</code>, served from the ranking it already holds,
+              so Jev isn’t asked again. It gets two searches per reply, so the second is either the next page or a
+              fresh search, which runs Jev again and replaces the ranking. When the ranking runs out, the tool says
+              so, and GPT answers from what it has read. That caps a reply at six articles.
             </p>
             <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
               Long conversations

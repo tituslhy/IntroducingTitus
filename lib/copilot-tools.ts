@@ -1,4 +1,5 @@
 import { PAGE_TARGET_IDS } from "@/lib/profile";
+import { MAX_TOPICS } from "@/lib/search-config";
 import {
   PAGE_SIZE,
   searchMyWriting,
@@ -106,17 +107,29 @@ function createShowOnPageTool(): CopilotTool<string> {
 
 const MAX_QUERY_CHARS = 300;
 
-export type SearchWritingArgs = { query: string; more: boolean };
+export type SearchWritingArgs = { topics: string[]; more: boolean };
 
-/** Returns the validated arguments, or null. A missing `more` means a new search. */
+/**
+ * Returns the validated arguments, or null. Topics are trimmed, blanks dropped,
+ * deduped case-insensitively (first spelling kept) and capped at MAX_QUERY_CHARS;
+ * 0 or more than MAX_TOPICS left → null. A missing `more` means a new search.
+ */
 export function parseSearchWritingArgs(raw: string): SearchWritingArgs | null {
   try {
-    const parsed = JSON.parse(raw) as { query?: unknown; more?: unknown } | null;
-    const query = parsed?.query;
+    const parsed = JSON.parse(raw) as { topics?: unknown; more?: unknown } | null;
+    const topics = parsed?.topics;
     const more = parsed?.more ?? false;
-    if (typeof query !== "string" || typeof more !== "boolean") return null;
-    const trimmed = query.trim().slice(0, MAX_QUERY_CHARS);
-    return trimmed ? { query: trimmed, more } : null;
+    if (!Array.isArray(topics) || !topics.every((t) => typeof t === "string") || typeof more !== "boolean") return null;
+    const seen = new Set<string>();
+    const cleaned: string[] = [];
+    for (const t of topics as string[]) {
+      const topic = t.trim().slice(0, MAX_QUERY_CHARS);
+      const key = topic.toLowerCase();
+      if (!topic || seen.has(key)) continue;
+      seen.add(key);
+      cleaned.push(topic);
+    }
+    return cleaned.length >= 1 && cleaned.length <= MAX_TOPICS ? { topics: cleaned, more } : null;
   } catch {
     return null;
   }
@@ -124,6 +137,35 @@ export function parseSearchWritingArgs(raw: string): SearchWritingArgs | null {
 
 type SearchFn = (query: string, options: SearchOptions) => Promise<FoundArticle[]>;
 type PickFn = (article: PickInput, focus: string, options?: PickOptions) => Promise<PickedArticle>;
+
+/** A found article with every topic whose search matched it, in first-match order. */
+export type TopicArticle = FoundArticle & { topics: string[] };
+
+/**
+ * Round-robin across topics — 1st of each, then 2nd of each — so no topic's
+ * articles crowd another's out. An article matched by several topics appears
+ * once, at its first position, listing every topic that matched it.
+ */
+export function mergeByTopic(rankings: { topic: string; found: FoundArticle[] }[]): TopicArticle[] {
+  const merged: TopicArticle[] = [];
+  const bySlug = new Map<string, TopicArticle>();
+  const depth = Math.max(0, ...rankings.map((r) => r.found.length));
+  for (let i = 0; i < depth; i++) {
+    for (const { topic, found } of rankings) {
+      const a = found[i];
+      if (!a) continue;
+      const existing = bySlug.get(a.slug);
+      if (existing) {
+        if (!existing.topics.includes(topic)) existing.topics.push(topic);
+        continue;
+      }
+      const entry = { ...a, topics: [topic] };
+      bySlug.set(a.slug, entry);
+      merged.push(entry);
+    }
+  }
+  return merged;
+}
 
 function createSearchWritingTool(
   search: SearchFn,
@@ -135,19 +177,14 @@ function createSearchWritingTool(
   let nextN = prior.reduce((max, c) => Math.max(max, c.n), 0) + 1;
   // Per reply: articles already emitted as footnotes for this reply.
   const emitted = new Set<string>();
-  // Per reply: the last search's ranking, minus the pages already handed over.
-  let pending: FoundArticle[] | null = null;
+  // Per reply: the last search's merged ranking, minus the pages already handed over.
+  let pending: TopicArticle[] | null = null;
 
-  // Each served article is read section by section: the parts that matter for `focus`, not the whole body.
-  const page = async (emit: Emit, focus: string, signal: AbortSignal, trace?: TraceSpan) => {
+  // Each served article is read section by section, focused on the topic that found it.
+  const page = async (emit: Emit, signal: AbortSignal, trace?: TraceSpan) => {
     const served = pending!.splice(0, PAGE_SIZE);
     const picks = await Promise.all(
-      served.map((a) =>
-        pick(a, focus, {
-          signal,
-          onTrace: (t) => recordSectionStep(trace, t),
-        })
-      )
+      served.map((a) => pick(a, a.topics[0], { signal, onTrace: (t) => recordSectionStep(trace, t) }))
     );
     return {
       articles: served.map((a, i) => {
@@ -164,6 +201,7 @@ function createSearchWritingTool(
           n,
           title: a.title,
           url: a.url,
+          topic: a.topics[0],
           ...(a.publishedAt && { published: publishedDate(a.publishedAt) }),
           ...(a.coAuthors?.length && { coAuthors: a.coAuthors }),
           outline: picks[i].outline,
@@ -180,72 +218,106 @@ function createSearchWritingTool(
       type: "function",
       name: "search_writing",
       description:
-        "Find and read my own articles on a topic, best match first, two at a time. Use before answering anything about my writing or my views on a technical topic. Cite results as [n].",
+        "Find and read my own articles, best match first, three at a time. Pass one topic per distinct thing the question asks about (up to 3); each is searched separately. Use before answering anything about my writing or my views on a technical topic. Cite results as [n].",
       strict: true,
       parameters: {
         type: "object",
         properties: {
-          query: {
-            type: "string",
+          topics: {
+            type: "array",
+            items: { type: "string" },
+            minItems: 1,
+            maxItems: MAX_TOPICS,
             description:
-              "A standalone search query. Resolve references like 'that one' from the conversation.",
+              "One standalone search per distinct thing asked about, e.g. [\"LiteLLM\", \"Helm charts\", \"Nginx\"]. A single-topic question passes one. Resolve references like 'that one' from the conversation.",
           },
           more: {
             type: "boolean",
             description:
-              "true: the next articles from your last search (query is then ignored). false: a new search.",
+              "true: the next articles from your last search (topics are then ignored). false: a new search.",
           },
         },
-        required: ["query", "more"],
+        required: ["topics", "more"],
         additionalProperties: false,
       },
     },
     maxCallsPerReply: 2,
     parse: parseSearchWritingArgs,
-    async run({ query, more }, { emit, signal, trace }) {
+    async run({ topics, more }, { emit, signal, trace }) {
       if (more && pending) {
         if (pending.length === 0) return { articles: [], note: "No more articles of mine on this." };
-        const { served, ...result } = await page(emit, query, signal, trace);
-        trace?.annotate({
-          search: { page: "more", chosen: served.map((a) => ({ slug: a.slug, relevance: a.relevance, score: a.score })) },
-        });
+        const { served, ...result } = await page(emit, signal, trace);
+        trace?.annotate({ search: { page: "more", chosen: served.map(chosenOf) } });
         return result;
       }
 
-      let searchTrace: SearchTrace | null = null;
-      const found = await search(query, {
-        signal,
-        // The log line carries latency and fallbacks only: never the query or article text.
-        onTrace: (t) => {
-          searchTrace = t;
-          console.log(
-            JSON.stringify({
-              event: "copilot_writing_search",
-              model: t.model,
-              stage1Ms: t.stage1Ms,
-              stage2Ms: t.stage2Ms,
-              totalMs: t.totalMs,
-              shortlisted: t.shortlist.length,
-              fallback: t.fallback,
-              errors: t.errors,
-            })
-          );
-        },
-      });
-      pending = [...found];
-      if (found.length === 0) {
-        if (trace && searchTrace) recordSearchSteps(trace, query, searchTrace, []);
+      const runs = await Promise.all(
+        topics.map(async (topic) => {
+          let searchTrace: SearchTrace | null = null;
+          const found = await search(topic, {
+            signal,
+            // The log line carries latency and fallbacks only: never the query or article text.
+            onTrace: (t) => {
+              searchTrace = t;
+              console.log(
+                JSON.stringify({
+                  event: "copilot_writing_search",
+                  model: t.model,
+                  stage1Ms: t.stage1Ms,
+                  stage2Ms: t.stage2Ms,
+                  totalMs: t.totalMs,
+                  shortlisted: t.shortlist.length,
+                  fallback: t.fallback,
+                  errors: t.errors,
+                })
+              );
+            },
+          });
+          return { topic, found, trace: searchTrace as SearchTrace | null };
+        })
+      );
+      for (const r of runs) if (trace && r.trace) recordJevSteps(trace, r.topic, r.trace);
+
+      pending = mergeByTopic(runs);
+      if (pending.length === 0) {
+        if (trace) annotateSearch(trace, runs, []);
         // A failed search found nothing because it never looked: it must not read as "I haven't written about it".
-        if ((searchTrace as SearchTrace | null)?.fallback === "stage1_failed") {
-          return { articles: [], error: "search unavailable" };
-        }
+        if (runs.some((r) => r.trace?.fallback === "stage1_failed")) return { articles: [], error: "search unavailable" };
         return { articles: [], note: "No article of mine covers this." };
       }
-      const { served, ...result } = await page(emit, query, signal, trace);
-      if (trace && searchTrace) recordSearchSteps(trace, query, searchTrace, served);
+      const { served, ...result } = await page(emit, signal, trace);
+      if (trace) annotateSearch(trace, runs, served);
       return result;
     },
   };
+}
+
+const chosenOf = (a: FoundArticle) => ({ slug: a.slug, relevance: a.relevance, score: a.score });
+
+/**
+ * One annotation per search call. A single topic keeps the flat shape
+ * (fallback, totalMs, errors, chosen); several topics add `topics` and a `perTopic` breakdown.
+ */
+function annotateSearch(
+  trace: TraceSpan,
+  runs: { topic: string; trace: SearchTrace | null }[],
+  served: FoundArticle[]
+): void {
+  const traced = runs.filter((r): r is { topic: string; trace: SearchTrace } => r.trace !== null);
+  if (traced.length === 0) return;
+  const worst = traced.find((r) => r.trace.fallback !== "none")?.trace.fallback ?? "none";
+  trace.annotate({
+    search: {
+      fallback: worst,
+      totalMs: Math.max(...traced.map((r) => r.trace.totalMs)),
+      errors: traced.flatMap((r) => r.trace.errors),
+      chosen: served.map(chosenOf),
+      ...(runs.length > 1 && {
+        topics: runs.map((r) => r.topic),
+        perTopic: traced.map((r) => ({ topic: r.topic, fallback: r.trace.fallback, totalMs: r.trace.totalMs, errors: r.trace.errors })),
+      }),
+    },
+  });
 }
 
 /** Jev's section pick for one served article, as a child step of the search_writing span (tracing only). */
@@ -259,13 +331,13 @@ function recordSectionStep(trace: TraceSpan | undefined, t: SectionTrace): void 
   });
 }
 
-/** Jev's two stages as child steps of the search_writing trace span (tracing only). `chosen` is the page served. */
-function recordSearchSteps(trace: TraceSpan, query: string, t: SearchTrace, found: FoundArticle[]): void {
+/** Jev's two stages for one topic's search, as child steps of the search_writing span (tracing only). */
+function recordJevSteps(trace: TraceSpan, query: string, t: SearchTrace): void {
   const stage1End = t.startedAt + t.stage1Ms;
   const failed = (stage: SearchTrace["fallback"]) => (t.fallback === stage ? t.errors.join(", ") || stage : undefined);
   trace.step("jev filter (noul)", {
     inputs: { query, articles: t.catalogSize },
-    outputs: { model: t.model, shortlist: t.shortlist },
+    outputs: { model: t.model, shortlist: t.shortlist, ...(t.nearMisses?.length && { nearMisses: t.nearMisses }) },
     startTime: t.startedAt,
     endTime: stage1End,
     error: failed("stage1_failed"),
@@ -279,14 +351,6 @@ function recordSearchSteps(trace: TraceSpan, query: string, t: SearchTrace, foun
       error: failed("stage2_failed"),
     });
   }
-  trace.annotate({
-    search: {
-      fallback: t.fallback,
-      totalMs: t.totalMs,
-      errors: t.errors,
-      chosen: found.map((a) => ({ slug: a.slug, relevance: a.relevance, score: a.score })),
-    },
-  });
 }
 
 /**

@@ -407,20 +407,23 @@ describe("searchMyWriting", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("shortlists every article that clears RELEVANT with no cap, and returns every one that clears MIN_SCORE", async () => {
+  it("returns every one of the stage-2 survivors that clears MIN_SCORE, best first, within the cap", async () => {
+    // Twelve articles all clear RELEVANT, with probabilities falling by index, so the cap keeps n0 to n7.
     const slugs = Array.from({ length: 12 }, (_, i) => `n${i}`);
     const catalog = slugs.map((s) => article(s));
-    const { client, requests } = fakeJev([
-      { answers: Object.fromEntries(slugs.map((s) => [s, noul(0.9)])) },
-      // Scores rise with index, so the best-first ranking is the reverse of the catalog order.
-      { answers: Object.fromEntries(slugs.map((s, i) => [s, scored(MIN_SCORE + i * 0.05)])) },
+    const { client } = fakeJev([
+      { answers: Object.fromEntries(slugs.map((s, i) => [s, noul(0.95 - i * 0.01)])) },
+      // n0 and n1 score below MIN_SCORE; the rest rise with index, so the best-first order is the reverse.
+      {
+        answers: Object.fromEntries(
+          slugs.slice(0, 8).map((s, i) => [s, scored(i < 2 ? MIN_SCORE - 0.5 : MIN_SCORE + i * 0.05)])
+        ),
+      },
     ]);
 
     const found = await searchMyWriting("q", { client, catalog });
 
-    expect(Object.keys(requests[1].questions)).toEqual(slugs);
-    expect(found).toHaveLength(slugs.length);
-    expect(found.map((a) => a.slug)).toEqual([...slugs].reverse());
+    expect(found.map((a) => a.slug)).toEqual(["n7", "n6", "n5", "n4", "n3", "n2"]);
   });
 
   it("skips stage 2 and returns the full stage-1 order when stage 1 uses up the budget", async () => {
@@ -565,5 +568,62 @@ describe("searchMyWriting", () => {
     expect(serialised).not.toContain(query);
     expect(serialised).not.toContain("BODY-MARKER");
     expect(serialised).not.toContain("INTRO-MARKER");
+  });
+});
+
+describe("stage-2 cap and near-misses", () => {
+  it("scores at most 8 shortlisted articles at stage 2, the 8 most probable", async () => {
+    const slugs = Array.from({ length: 12 }, (_, i) => `n${i}`);
+    const catalog = slugs.map((s) => article(s));
+    const stage1 = Object.fromEntries(slugs.map((s, i) => [s, noul(0.9 - i * 0.01)]));
+    const stage2 = Object.fromEntries(slugs.map((s) => [s, scored(2.5)]));
+    const { client, requests } = fakeJev([{ answers: stage1 }, { answers: stage2 }]);
+
+    await searchMyWriting("q", { client, catalog });
+
+    // n0 to n7 are the eight highest stage-1 probabilities; n8 to n11 are dropped before stage 2.
+    expect(Object.keys(requests[1].questions).sort()).toEqual(slugs.slice(0, 8).sort());
+  });
+
+  it("records the top 5 sub-threshold probabilities as nearMisses, highest first", async () => {
+    const catalog = [
+      article("hit"),
+      article("m1"),
+      article("m2"),
+      article("m3"),
+      article("m4"),
+      article("m5"),
+      article("m6"),
+      article("bad1"),
+      article("bad2"),
+      article("bad3"),
+    ];
+    const { client } = fakeJev([
+      {
+        answers: {
+          hit: noul(0.9),
+          m1: noul(0.45),
+          m2: noul(0.2),
+          m3: noul(0.49),
+          m4: noul(0.3),
+          m5: noul(0.4),
+          m6: noul(0.1),
+          bad1: noul(1.5),
+          bad2: noul("x"),
+          bad3: noul(-0.1),
+        },
+      },
+    ]);
+    const onTrace = jest.fn();
+
+    await searchMyWriting("q", { client, catalog, onTrace });
+
+    expect(onTrace.mock.calls[0][0].nearMisses).toEqual([
+      { slug: "m3", relevance: 0.49 },
+      { slug: "m1", relevance: 0.45 },
+      { slug: "m5", relevance: 0.4 },
+      { slug: "m4", relevance: 0.3 },
+      { slug: "m2", relevance: 0.2 },
+    ]);
   });
 });
