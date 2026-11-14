@@ -128,6 +128,7 @@ describe("searchMyWriting", () => {
         title: "Title a",
         url: "https://medium.com/@tituslhy/a",
         body: "Body of a",
+        publishedAt: "2025-01-01",
         relevance: 0.9,
         score: null,
       },

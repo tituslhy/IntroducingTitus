@@ -54,6 +54,8 @@ export type FoundArticle = {
   slug: string;
   title: string;
   url: string;
+  /** ISO timestamp from the corpus: when the article went up. */
+  publishedAt: string;
   /** Set on joint articles: who I co-wrote it with. */
   coAuthors?: string[];
   /** Article body, ≤ MAX_BODY_CHARS. */
@@ -142,6 +144,7 @@ export async function searchMyWriting(query: string, options: SearchOptions = {}
       slug,
       title: a.title,
       url: a.url,
+      publishedAt: a.publishedAt,
       ...(a.coAuthors?.length && { coAuthors: a.coAuthors }),
       body: a.body.slice(0, MAX_BODY_CHARS),
       relevance,

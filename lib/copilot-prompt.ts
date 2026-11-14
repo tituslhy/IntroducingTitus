@@ -35,7 +35,9 @@ import {
   type Role,
 } from './profile'
 
-const TOKEN_PATTERN = /\{\{([A-Z0-9_]+)\}\}/g
+import { articleByUrl, formatPublished } from './citation-ledger'
+
+const TOKEN_PATTERN =/\{\{([A-Z0-9_]+)\}\}/g
 
 /** "Jul 2026 — Present" → "Jul 2026 – Present" (en dash reads better in prose). */
 function proseDates(dates: string): string {
@@ -87,8 +89,20 @@ function renderOpenSource(): string {
   return OPEN_SOURCE.map((o) => `- ${o.project}: ${o.text} (${o.href})`).join('\n')
 }
 
+/**
+ * Featured articles with their publish dates, looked up in the corpus by
+ * Medium post id (the featured links use the publication URL, the corpus the
+ * profile URL). Linked with the corpus URL, the same one search_writing and the
+ * drawer's footnotes use, so an article reaches the visitor under one link.
+ * An unmatched article renders undated with its own link rather than breaking
+ * chat; a test asserts every featured article matches.
+ */
 function renderFeaturedArticles(): string {
-  return FEATURED_ARTICLES.map((a) => `${a.n}. [${a.title}](${a.href}) — ${a.read} read`).join('\n')
+  return FEATURED_ARTICLES.map((a) => {
+    const article = articleByUrl(a.href)
+    const published = article ? `published ${formatPublished(article.publishedAt)}, ` : ''
+    return `${a.n}. [${a.title}](${article?.url ?? a.href}) — ${published}${a.read} read`
+  }).join('\n')
 }
 
 /** Unique project names in first-seen order: "LlamaIndex, Unsloth, IBM ACP, …". */
