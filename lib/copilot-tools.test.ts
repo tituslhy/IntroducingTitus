@@ -220,15 +220,15 @@ describe("search_writing tool", () => {
 
     expect(first).toEqual({
       articles: [
-        { n: 1, title: "Title a", url: "https://medium.com/@tituslhy/a", body: "Body of a" },
-        { n: 2, title: "Title b", url: "https://medium.com/@tituslhy/b", body: "Body of b" },
+        { n: 1, title: "Title a", url: "https://medium.com/@tituslhy/a", outline: [], sections: [{ heading: null, text: "Body of a" }] },
+        { n: 2, title: "Title b", url: "https://medium.com/@tituslhy/b", outline: [], sections: [{ heading: null, text: "Body of b" }] },
       ],
       remaining: 0,
     });
     expect(second).toEqual({
       articles: [
-        { n: 2, title: "Title b", url: "https://medium.com/@tituslhy/b", body: "Body of b" },
-        { n: 3, title: "Title c", url: "https://medium.com/@tituslhy/c", body: "Body of c" },
+        { n: 2, title: "Title b", url: "https://medium.com/@tituslhy/b", outline: [], sections: [{ heading: null, text: "Body of b" }] },
+        { n: 3, title: "Title c", url: "https://medium.com/@tituslhy/c", outline: [], sections: [{ heading: null, text: "Body of c" }] },
       ],
       remaining: 0,
     });
@@ -361,7 +361,14 @@ describe("search_writing paging", () => {
 
   /** What the model sees for one article. */
   function out(slug: string, n: number) {
-    return { n, title: `Title ${slug}`, url: `https://medium.com/@tituslhy/${slug}`, body: `Body of ${slug}` };
+    // A short fixture body is returned whole, with no headings and no outline.
+    return {
+      n,
+      title: `Title ${slug}`,
+      url: `https://medium.com/@tituslhy/${slug}`,
+      outline: [],
+      sections: [{ heading: null, text: `Body of ${slug}` }],
+    };
   }
 
   function getSearchTool(search: jest.Mock): CopilotTool {
@@ -575,6 +582,7 @@ describe("search_writing trace steps", () => {
     url: `https://medium.com/@tituslhy/${slug}`,
     publishedAt: "2025-06-18T00:00:00.000Z",
     body: `Body ${slug}`,
+    outline: [],
     relevance: 0.9,
     score,
   });
@@ -880,7 +888,16 @@ describe("search_writing citation ledger (prior citations)", () => {
     const result = await tool.run({ query: "q", more: false }, { emit: jest.fn(), signal });
 
     expect(result).toEqual({
-      articles: [{ n: 1, title: "Title x", url: "https://medium.com/@tituslhy/x", published: "2025-06-18", body: "Body of x" }],
+      articles: [
+        {
+          n: 1,
+          title: "Title x",
+          url: "https://medium.com/@tituslhy/x",
+          published: "2025-06-18",
+          outline: [],
+          sections: [{ heading: null, text: "Body of x" }],
+        },
+      ],
       remaining: 0,
     });
   });
@@ -903,5 +920,132 @@ describe("search_writing citation ledger (prior citations)", () => {
 
     expect(result.articles[0]).not.toHaveProperty("published");
     expect(result.articles[0]).toMatchObject({ n: 1, title: "Title x" });
+  });
+});
+
+describe("search_writing sections", () => {
+  const signal = new AbortController().signal;
+
+  function article(slug: string) {
+    return {
+      slug,
+      title: `Title ${slug}`,
+      url: `https://medium.com/@tituslhy/${slug}`,
+      body: `Body of ${slug}`,
+      relevance: 0.9,
+      score: 2.5,
+      publishedAt: "2025-06-18T10:00:00.000Z",
+      outline: [`Heading ${slug}`],
+    };
+  }
+
+  function picked(slug: string) {
+    return {
+      outline: [`Heading ${slug}`],
+      sections: [{ heading: `Heading ${slug}`, text: `Picked text of ${slug}` }],
+      truncated: false,
+    };
+  }
+
+  function toolWith(search: jest.Mock, pick: jest.Mock): CopilotTool {
+    const tool = createCopilotTools({ search, pick }).find((t) => t.definition.name === "search_writing");
+    if (!tool) throw new Error("search_writing is not registered");
+    return tool;
+  }
+
+  it("search_writing output has sections and outline, not body", async () => {
+    const search = jest.fn(async () => [article("a")]);
+    const pick = jest.fn(async () => picked("a"));
+
+    const result = await toolWith(search, pick).run({ query: "q", more: false }, { emit: jest.fn(), signal });
+
+    expect(result).toEqual({
+      articles: [
+        {
+          n: 1,
+          title: "Title a",
+          url: "https://medium.com/@tituslhy/a",
+          published: "2025-06-18",
+          outline: ["Heading a"],
+          sections: [{ heading: "Heading a", text: "Picked text of a" }],
+        },
+      ],
+      remaining: 0,
+    });
+    expect((result as { articles: object[] }).articles[0]).not.toHaveProperty("body");
+  });
+
+  it("passes the query as the focus to pick", async () => {
+    const search = jest.fn(async () => [article("a")]);
+    const pick = jest.fn(async (_article: { slug: string; body: string }, _focus: string) => picked("a"));
+
+    await toolWith(search, pick).run({ query: "guardrails for agents", more: false }, { emit: jest.fn(), signal });
+
+    expect(pick).toHaveBeenCalledTimes(1);
+    expect(pick.mock.calls[0][0]).toMatchObject({ slug: "a", body: "Body of a" });
+    expect(pick.mock.calls[0][1]).toBe("guardrails for agents");
+  });
+
+  it("records a jev sections trace step per served article", async () => {
+    const search = jest.fn(async () => [article("a"), article("b")]);
+    const pick = jest.fn(
+      async (a: { slug: string }, _focus: string, opts?: { onTrace?: (t: unknown) => void }) => {
+        opts?.onTrace?.({
+          slug: a.slug,
+          focus: "q",
+          scored: [{ key: `Heading ${a.slug}`, score: 2.5 }],
+          chosen: [`Heading ${a.slug}`],
+          fallback: "none",
+          startedAt: 1_000,
+          ms: 40,
+        });
+        return picked(a.slug);
+      }
+    );
+    const span = { annotate: jest.fn(), step: jest.fn(), end: jest.fn(), fail: jest.fn() };
+
+    await toolWith(search, pick).run(
+      { query: "q", more: false },
+      { emit: jest.fn(), signal, trace: span as unknown as TraceSpan }
+    );
+
+    expect(span.step).toHaveBeenCalledTimes(2);
+    for (const slug of ["a", "b"]) {
+      expect(span.step).toHaveBeenCalledWith(
+        "jev sections (score)",
+        expect.objectContaining({
+          inputs: { focus: "q", slug },
+          outputs: expect.objectContaining({ chosen: [`Heading ${slug}`], fallback: "none" }),
+        })
+      );
+    }
+  });
+});
+
+describe("search_writing short articles", () => {
+  it("records no jev sections step for a short article returned whole", async () => {
+    const signal = new AbortController().signal;
+    const search = jest.fn(async () => [
+      {
+        slug: "short",
+        title: "Title short",
+        url: "https://medium.com/@tituslhy/short",
+        body: "A short body.",
+        outline: [],
+        relevance: 0.9,
+        score: 2.5,
+        publishedAt: "2025-06-18T10:00:00.000Z",
+      },
+    ]);
+    const tool = createCopilotTools({ search }).find((t) => t.definition.name === "search_writing") as CopilotTool;
+    const span = { annotate: jest.fn(), step: jest.fn(), end: jest.fn(), fail: jest.fn() };
+
+    const result = await tool.run(
+      { query: "q", more: false },
+      { emit: jest.fn(), signal, trace: span as unknown as TraceSpan }
+    );
+
+    expect(result).toMatchObject({ articles: [{ n: 1, sections: [{ heading: null, text: "A short body." }] }] });
+    expect(span.step).not.toHaveBeenCalledWith("jev sections (score)", expect.anything());
   });
 });

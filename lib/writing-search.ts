@@ -21,6 +21,7 @@ import { MIN_SCORE, RELEVANT } from "@/lib/search-config";
 export const JEV_MODEL = process.env.TYPESAFE_DEFAULT_MODEL ?? "jev-latest";
 
 export { MIN_SCORE, PAGE_SIZE, RELEVANT } from "@/lib/search-config";
+/** The old per-article body cap (12k chars). No longer applied: search_writing reads picked sections instead. */
 export const MAX_BODY_CHARS = 12_000;
 
 /**
@@ -58,8 +59,12 @@ export type FoundArticle = {
   publishedAt: string;
   /** Set on joint articles: who I co-wrote it with. */
   coAuthors?: string[];
-  /** Article body, ≤ MAX_BODY_CHARS. */
+  /** Full article body; search_writing hands over picked sections, never the whole thing. */
   body: string;
+  /** Headings in order, from the corpus. */
+  outline: string[];
+  /** Section notes from the build, when it has drafted them. */
+  sectionNotes?: Record<string, string>;
   /** Stage-1 probability. */
   relevance: number;
   /** Stage-2 expected score, or null if stage 2 was skipped or failed. */
@@ -146,7 +151,9 @@ export async function searchMyWriting(query: string, options: SearchOptions = {}
       url: a.url,
       publishedAt: a.publishedAt,
       ...(a.coAuthors?.length && { coAuthors: a.coAuthors }),
-      body: a.body.slice(0, MAX_BODY_CHARS),
+      body: a.body,
+      outline: a.outline,
+      ...(a.sectionNotes && { sectionNotes: a.sectionNotes }),
       relevance,
       score: s,
     };

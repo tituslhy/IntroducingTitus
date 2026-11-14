@@ -8,6 +8,7 @@ import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH } from '@/lib/content'
 import { loadScorecard, type Scorecard } from '@/lib/eval-results'
 import { FIT_LEVEL_LABELS, NOT_ON_FILE_NOTE, type FitBrief } from '@/lib/fit-brief'
 import { SOCIAL } from '@/lib/profile'
+import { SECTION_BUDGET_CHARS } from '@/lib/search-config'
 
 const TITLE = 'How Ask Titus works | Titus Lim'
 const DESCRIPTION =
@@ -31,7 +32,8 @@ const WALKTHROUGH: [stage: string, what: string][] = [
   ['Guards', 'The request clears the origin check, the rate limit and the size limits before any model sees it.'],
   ['Agent loop', 'GPT reads the question and calls search_writing("guardrails for AI agents"), a query it writes to stand on its own.'],
   ['Jev filter', `One yes-or-no probability per article, judged on its card (title, one-line summary, keywords): ${ARTICLE_COUNT_NUMBER} questions, one request. Most fall away.`],
-  ['Jev rank', 'Every survivor is scored 0–3 against a rubric, this time on their outline and opening. The two best are read in full; if they aren’t enough, GPT asks for the next two from the same ranking.'],
+  ['Jev rank', 'Every survivor is scored 0–3 against a rubric, this time on their outline and opening. The two best go on; if they aren’t enough, GPT asks for the next two from the same ranking.'],
+  ['Jev sections', `Most of my articles run long, so neither is handed over whole. Jev scores each section on its heading and a one-line note, and the best sections come back, up to ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} characters an article, with the full outline so GPT knows what it skipped.`],
   ['Agent loop', 'GPT answers from what the articles say, in my voice, citing them as [1], [2] and onward. An article keeps the same number for the whole conversation, and it says when I wrote it; for a framework article more than six months old, it adds that you should check the project’s current docs.'],
   ['Checks', 'Output is capped, and only the numbers the server actually sent can become links.'],
   ['Drawer', 'The reply streams in with superscript footnotes and a Sources row underneath.'],

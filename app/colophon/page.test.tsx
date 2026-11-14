@@ -157,4 +157,12 @@ describe("ColophonPage content", () => {
     const items = within(section).getAllByRole("listitem").map((li) => li.textContent ?? "");
     expect(items.some((text) => /rank me against/i.test(text))).toBe(true);
   });
+
+  it("walkthrough describes reading sections", () => {
+    render(<ColophonPage />);
+
+    const anatomy = screen.getByRole("heading", { level: 2, name: /anatomy of a reply/i }).closest("section")!;
+    expect(anatomy.textContent ?? "").toMatch(/sections/i);
+    expect(document.body.textContent ?? "").not.toMatch(/read in full/i);
+  });
 });

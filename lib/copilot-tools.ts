@@ -8,6 +8,7 @@ import {
 } from "@/lib/writing-search";
 import type { TraceSpan } from "@/lib/copilot-loop";
 import { publishedDate, type PriorCitation } from "@/lib/citation-ledger";
+import { pickSections, type PickInput, type PickOptions, type PickedArticle, type SectionTrace } from "@/lib/section-pick";
 
 // ---------------------------------------------------------------------------
 // Copilot tool registry. The /api/chat loop offers every tool here to the
@@ -122,8 +123,13 @@ export function parseSearchWritingArgs(raw: string): SearchWritingArgs | null {
 }
 
 type SearchFn = (query: string, options: SearchOptions) => Promise<FoundArticle[]>;
+type PickFn = (article: PickInput, focus: string, options?: PickOptions) => Promise<PickedArticle>;
 
-function createSearchWritingTool(search: SearchFn, prior: readonly PriorCitation[]): CopilotTool<SearchWritingArgs> {
+function createSearchWritingTool(
+  search: SearchFn,
+  prior: readonly PriorCitation[],
+  pick: PickFn
+): CopilotTool<SearchWritingArgs> {
   // Per conversation: an article keeps the number it was first cited under.
   const numbered = new Map<string, number>(prior.map((c) => [c.slug, c.n]));
   let nextN = prior.reduce((max, c) => Math.max(max, c.n), 0) + 1;
@@ -132,10 +138,19 @@ function createSearchWritingTool(search: SearchFn, prior: readonly PriorCitation
   // Per reply: the last search's ranking, minus the pages already handed over.
   let pending: FoundArticle[] | null = null;
 
-  const page = (emit: Emit) => {
+  // Each served article is read section by section: the parts that matter for `focus`, not the whole body.
+  const page = async (emit: Emit, focus: string, signal: AbortSignal, trace?: TraceSpan) => {
     const served = pending!.splice(0, PAGE_SIZE);
+    const picks = await Promise.all(
+      served.map((a) =>
+        pick(a, focus, {
+          signal,
+          onTrace: (t) => recordSectionStep(trace, t),
+        })
+      )
+    );
     return {
-      articles: served.map((a) => {
+      articles: served.map((a, i) => {
         let n = numbered.get(a.slug);
         if (n === undefined) {
           n = nextN++;
@@ -151,7 +166,8 @@ function createSearchWritingTool(search: SearchFn, prior: readonly PriorCitation
           url: a.url,
           ...(a.publishedAt && { published: publishedDate(a.publishedAt) }),
           ...(a.coAuthors?.length && { coAuthors: a.coAuthors }),
-          body: a.body,
+          outline: picks[i].outline,
+          sections: picks[i].sections,
         };
       }),
       remaining: pending!.length,
@@ -189,7 +205,7 @@ function createSearchWritingTool(search: SearchFn, prior: readonly PriorCitation
     async run({ query, more }, { emit, signal, trace }) {
       if (more && pending) {
         if (pending.length === 0) return { articles: [], note: "No more articles of mine on this." };
-        const { served, ...result } = page(emit);
+        const { served, ...result } = await page(emit, query, signal, trace);
         trace?.annotate({
           search: { page: "more", chosen: served.map((a) => ({ slug: a.slug, relevance: a.relevance, score: a.score })) },
         });
@@ -225,11 +241,22 @@ function createSearchWritingTool(search: SearchFn, prior: readonly PriorCitation
         }
         return { articles: [], note: "No article of mine covers this." };
       }
-      const { served, ...result } = page(emit);
+      const { served, ...result } = await page(emit, query, signal, trace);
       if (trace && searchTrace) recordSearchSteps(trace, query, searchTrace, served);
       return result;
     },
   };
+}
+
+/** Jev's section pick for one served article, as a child step of the search_writing span (tracing only). */
+function recordSectionStep(trace: TraceSpan | undefined, t: SectionTrace): void {
+  if (t.fallback === "short") return; // returned whole, Jev never asked: no decision to show
+  trace?.step("jev sections (score)", {
+    inputs: { focus: t.focus, slug: t.slug },
+    outputs: { scored: t.scored, chosen: t.chosen, fallback: t.fallback },
+    startTime: t.startedAt,
+    endTime: t.startedAt + t.ms,
+  });
 }
 
 /** Jev's two stages as child steps of the search_writing trace span (tracing only). `chosen` is the page served. */
@@ -266,9 +293,11 @@ function recordSearchSteps(trace: TraceSpan, query: string, t: SearchTrace, foun
  * Built per request, so per-reply state (counters) lives in closures.
  * `prior` is the conversation's citation ledger, already resolved against the corpus.
  */
-export function createCopilotTools(deps: { search?: SearchFn; prior?: readonly PriorCitation[] } = {}): CopilotTool[] {
+export function createCopilotTools(
+  deps: { search?: SearchFn; prior?: readonly PriorCitation[]; pick?: PickFn } = {}
+): CopilotTool[] {
   return [
     createShowOnPageTool() as CopilotTool,
-    createSearchWritingTool(deps.search ?? searchMyWriting, deps.prior ?? []) as CopilotTool,
+    createSearchWritingTool(deps.search ?? searchMyWriting, deps.prior ?? [], deps.pick ?? pickSections) as CopilotTool,
   ];
 }
