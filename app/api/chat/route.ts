@@ -7,6 +7,8 @@ import { buildSystemPrompt } from "@/lib/copilot-prompt";
 import { createCopilotTools, type CopilotEvent } from "@/lib/copilot-tools";
 import { copilotStream, type CopilotChunk, type InputMessage, type LoopStats } from "@/lib/copilot-loop";
 import { ChatTrace } from "@/lib/copilot-tracing";
+import { parseCitations, renderConversationContext, resolveCitations } from "@/lib/citation-ledger";
+import { fitHistory, type HistoryMessage } from "@/lib/chat-history";
 import { checkOrigin, createRateLimiter, getClientIp, jsonError } from "@/lib/api-guards";
 
 // ---------------------------------------------------------------------------
@@ -196,11 +198,21 @@ export async function POST(request: NextRequest) {
   }
 
   let messages: { role: string; content: string }[];
+  let rawCitations: unknown;
   try {
-    ({ messages } = await request.json());
+    ({ messages, citations: rawCitations } = await request.json());
   } catch {
     return new Response("Invalid request body", { status: 400 });
   }
+
+  // Articles cited earlier in the conversation, so numbering stays stable.
+  // Optional (older drawers don't send it); only number + link are trusted,
+  // and only links that resolve to an article in the corpus.
+  const citationRefs = parseCitations(rawCitations);
+  if (citationRefs === null) {
+    return new Response("Invalid citations", { status: 400 });
+  }
+  const priorCitations = resolveCitations(citationRefs);
 
   const VALID_ROLES = new Set(["user", "assistant"]);
 
@@ -220,21 +232,38 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const trimmedMessages = messages.slice(-MAX_MESSAGES);
-
-  const totalContentLength = trimmedMessages.reduce((sum, m) => sum + m.content.length, 0);
-  if (totalContentLength > MAX_TOTAL_CONTENT_LENGTH) {
+  // Last 20 messages, starting on a visitor's message, with the oldest
+  // exchanges dropped until the conversation fits the budget (lib/chat-history.ts).
+  const fitted = fitHistory(messages as HistoryMessage[], {
+    maxMessages: MAX_MESSAGES,
+    maxChars: MAX_TOTAL_CONTENT_LENGTH,
+  });
+  if (fitted === null) {
     console.warn(
       JSON.stringify({ event: "copilot_chat_rejected", reason: "budget_exceeded", ip })
     );
     return jsonError(400, { error: "conversation_too_long" });
   }
+  if (fitted.messages.length === 0) {
+    return new Response("A visitor message is required", { status: 400 });
+  }
+  const trimmedMessages = fitted.messages;
+  // Everything not sent to the model: the 20-message cut plus dropped leading replies and old exchanges.
+  const discarded = messages.length - trimmedMessages.length;
+  if (discarded > 0) {
+    console.log(JSON.stringify({ event: "copilot_history_trimmed", dropped: discarded }));
+  }
+
+  const totalContentLength = trimmedMessages.reduce((sum, m) => sum + m.content.length, 0);
 
   const openai = new OpenAI({ apiKey });
 
   const systemPrompt = getSystemPrompt();
   const input: InputMessage[] = [
     { role: "system", content: systemPrompt },
+    // Per request, after the cached prompt: today's date and the citation ledger.
+    // Server-built and capped, so it doesn't count against the visitor's budget.
+    { role: "system", content: renderConversationContext(priorCitations, new Date()) },
     ...trimmedMessages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
 
@@ -251,7 +280,7 @@ export async function POST(request: NextRequest) {
       const stats: LoopStats = { rounds: 0, toolCalls: 0 };
       // One tool set per request, shared by the attempt and any retry, so source
       // numbers already streamed to the drawer keep pointing at the same articles.
-      const tools = createCopilotTools();
+      const tools = createCopilotTools({ prior: priorCitations });
 
       const drain = async (gen: AsyncIterable<CopilotChunk>, abortController: AbortController) => {
         for await (const item of gen) {

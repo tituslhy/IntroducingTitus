@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "test": "jest",
     "articles:build": "node --env-file-if-exists=.env.local --import tsx scripts/build-articles.ts",
-    "eval:writing": "node --env-file-if-exists=.env.local --import tsx scripts/eval-writing.ts"
+    "eval:writing": "node --env-file-if-exists=.env.local --import tsx scripts/eval-writing.ts",
+    "eval:replay": "node --env-file-if-exists=.env.local --import tsx scripts/replay-citations.ts"
   },
   "dependencies": {
     "@typesafe-ai/sdk": "0.7.0",

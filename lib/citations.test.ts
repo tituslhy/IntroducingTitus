@@ -11,7 +11,15 @@ jest.mock("react-markdown", () => ({
   },
 }));
 
-import { CITE_SCHEME, citationUrlTransform, linkCitations, sourceForHref, toSource } from "./citations";
+import {
+  CITE_SCHEME,
+  MAX_CITATIONS,
+  citationUrlTransform,
+  collectCitations,
+  linkCitations,
+  sourceForHref,
+  toSource,
+} from "./citations";
 
 describe("linkCitations", () => {
   it("turns a bare [n] marker into a cite: link", () => {
@@ -145,5 +153,72 @@ describe("sourceForHref", () => {
   it("returns null when there are no sources", () => {
     expect(sourceForHref("cite:1", undefined)).toBeNull();
     expect(sourceForHref("cite:1", [])).toBeNull();
+  });
+});
+
+describe("collectCitations", () => {
+  /** A source as the drawer holds it: title and URL on the message, number on the footnote. */
+  const cite = (n: number, slug: string) => ({ n, title: `Title ${slug}`, url: `https://medium.com/@tituslhy/${slug}` });
+  const urlOf = (slug: string) => `https://medium.com/@tituslhy/${slug}`;
+
+  it("returns nothing when there are no messages", () => {
+    expect(collectCitations([])).toEqual([]);
+  });
+
+  it("returns nothing when no message has sources, whether the field is absent or empty", () => {
+    expect(collectCitations([{}, { sources: [] }, { sources: undefined }])).toEqual([]);
+  });
+
+  it("sends only the number and link, not the title", () => {
+    expect(collectCitations([{ sources: [cite(1, "a")] }])).toEqual([{ n: 1, url: urlOf("a") }]);
+  });
+
+  it("dedupes by number: a number reused for a different article keeps the first article", () => {
+    expect(collectCitations([{ sources: [cite(1, "a")] }, { sources: [cite(1, "b")] }])).toEqual([
+      { n: 1, url: urlOf("a") },
+    ]);
+  });
+
+  it("dedupes by URL: an article under a second number keeps its first number", () => {
+    expect(collectCitations([{ sources: [cite(1, "a")] }, { sources: [cite(2, "a")] }])).toEqual([
+      { n: 1, url: urlOf("a") },
+    ]);
+  });
+
+  it("keeps the first entry seen across messages, and still takes a later article under a free number", () => {
+    const messages = [{ sources: [cite(3, "a")] }, { sources: [cite(3, "b"), cite(4, "b")] }];
+    expect(collectCitations(messages)).toEqual([
+      { n: 3, url: urlOf("a") },
+      { n: 4, url: urlOf("b") },
+    ]);
+  });
+
+  it("collects from every message, not just the latest", () => {
+    const messages = [{ sources: [cite(1, "a")] }, { content: "no sources here" }, { sources: [cite(2, "b")] }];
+    expect(collectCitations(messages)).toEqual([
+      { n: 1, url: urlOf("a") },
+      { n: 2, url: urlOf("b") },
+    ]);
+  });
+
+  it("follows message order, then source order within a message, not number order", () => {
+    const messages = [{ sources: [cite(3, "c"), cite(1, "a")] }, { sources: [cite(2, "b")] }];
+    expect(collectCitations(messages).map((r) => r.n)).toEqual([3, 1, 2]);
+  });
+
+  it("caps the result at MAX_CITATIONS (40), keeping the first 40", () => {
+    expect(MAX_CITATIONS).toBe(40);
+    const sources = Array.from({ length: 45 }, (_, i) => cite(i + 1, `p${i + 1}`));
+    const refs = collectCitations([{ sources }]);
+    expect(refs).toHaveLength(40);
+    expect(refs[0]).toEqual({ n: 1, url: urlOf("p1") });
+    expect(refs[39]).toEqual({ n: 40, url: urlOf("p40") });
+  });
+
+  it("does not count duplicates towards the cap", () => {
+    const sources = Array.from({ length: 40 }, (_, i) => [cite(i + 1, `p${i + 1}`), cite(i + 1, `p${i + 1}`)]).flat();
+    const refs = collectCitations([{ sources }]);
+    expect(refs).toHaveLength(40);
+    expect(refs.at(-1)).toEqual({ n: 40, url: urlOf("p40") });
   });
 });

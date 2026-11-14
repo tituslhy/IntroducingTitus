@@ -13,6 +13,7 @@ import {
 } from "@/lib/fit-brief";
 import {
   citationUrlTransform,
+  collectCitations,
   linkCitations,
   sourceForHref,
   toSource,
@@ -298,12 +299,14 @@ export default function CopilotBubble({
 
     // Keep only the last 20 messages to avoid exceeding context limits
     const historyToSend = updatedMessages.slice(-20).map(({ role, content }) => ({ role, content }));
+    // Every article cited this session (not just in the 20 sent), so each keeps its number.
+    const citations = collectCitations(updatedMessages);
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: historyToSend }),
+        body: JSON.stringify({ messages: historyToSend, citations }),
         signal: controller.signal,
       });
 

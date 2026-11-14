@@ -926,6 +926,26 @@ describe("CopilotBubble", () => {
       `${JSON.stringify({ type: "source", n, title, url, relevance: 0.9, score: 2.6 })}\n`;
     const delta = (text: string) => `${JSON.stringify({ type: "delta", text })}\n`;
 
+    it("sends the citations from earlier replies with the next message, as number and link only", async () => {
+      const user = userEvent.setup();
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(createStreamingResponse([source(1, "Your agent needs a bouncer"), delta("First answer [1].")]))
+        .mockResolvedValueOnce(createStreamingResponse([delta("Second answer.")]));
+      render(<CopilotBubble />);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      const input = screen.getByPlaceholderText(/ask about my work/i);
+
+      await user.type(input, "First question{Enter}");
+      await waitFor(() => expect(screen.getByText("Sources")).toBeInTheDocument());
+      await user.type(input, "Second question{Enter}");
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+
+      const bodyOf = (call: number) => JSON.parse((global.fetch as jest.Mock).mock.calls[call][1].body);
+      expect(bodyOf(0).citations).toEqual([]);
+      expect(bodyOf(1).citations).toEqual([{ n: 1, url: GUARDRAILS }]);
+      expect(bodyOf(1).citations[0]).not.toHaveProperty("title");
+    });
+
     it("renders a Sources row with one link per article the reply drew on", async () => {
       await askAndWait([source(1, "Your agent needs a bouncer"), source(2, "Teaching Toothless to Bite", "https://medium.com/@tituslhy/lora"), delta("Two pieces cover it.")]);
 

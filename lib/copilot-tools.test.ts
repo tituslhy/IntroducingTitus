@@ -2,6 +2,7 @@ import { createCopilotTools, parseSearchWritingArgs, parseShowOnPageTarget, type
 import { PAGE_TARGET_IDS } from "./profile";
 import type { SearchTrace } from "./writing-search";
 import type { TraceSpan } from "./copilot-loop";
+import type { PriorCitation } from "./citation-ledger";
 
 describe("parseShowOnPageTarget", () => {
   it("returns the target when it is a valid page anchor id", () => {
@@ -572,6 +573,7 @@ describe("search_writing trace steps", () => {
     slug,
     title: `Title ${slug}`,
     url: `https://medium.com/@tituslhy/${slug}`,
+    publishedAt: "2025-06-18T00:00:00.000Z",
     body: `Body ${slug}`,
     relevance: 0.9,
     score,
@@ -737,5 +739,169 @@ describe("search_writing trace steps", () => {
     });
     expect(span.step).toHaveBeenCalledTimes(stepsAfterSearch);
     expect(search).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("search_writing citation ledger (prior citations)", () => {
+  const signal = new AbortController().signal;
+  const DATED = "2025-06-18T10:00:00.000Z";
+
+  function found(slug: string, overrides: Record<string, unknown> = {}) {
+    return {
+      slug,
+      title: `Title ${slug}`,
+      url: `https://medium.com/@tituslhy/${slug}`,
+      body: `Body of ${slug}`,
+      relevance: 0.9,
+      score: 2.5,
+      publishedAt: DATED,
+      ...overrides,
+    };
+  }
+
+  /** An article cited in an earlier reply, as the server resolves it from the request. */
+  function prior(n: number, slug: string): PriorCitation {
+    return {
+      n,
+      slug,
+      title: `Title ${slug}`,
+      url: `https://medium.com/@tituslhy/${slug}`,
+      publishedAt: DATED,
+    };
+  }
+
+  function getSearchTool(search: jest.Mock, ledger: PriorCitation[]): CopilotTool {
+    const tool = createCopilotTools({ search, prior: ledger }).find((t) => t.definition.name === "search_writing");
+    if (!tool) throw new Error("search_writing is not registered");
+    return tool;
+  }
+
+  it("keeps the number an article was cited under in an earlier reply", async () => {
+    const search = jest.fn(async () => [found("x")]);
+    const tool = getSearchTool(search, [prior(2, "x")]);
+
+    const result = await tool.run({ query: "q", more: false }, { emit: jest.fn(), signal });
+
+    expect(result).toMatchObject({ articles: [{ n: 2, title: "Title x" }] });
+  });
+
+  it("gives a new article the number after the highest prior one, skipping gaps (2 and 5 give 6)", async () => {
+    const search = jest.fn(async () => [found("z"), found("y")]);
+    const tool = getSearchTool(search, [prior(2, "x"), prior(5, "y")]);
+
+    const result = await tool.run({ query: "q", more: false }, { emit: jest.fn(), signal });
+
+    // z is new (6); y keeps the 5 it was cited under.
+    expect(result).toMatchObject({ articles: [{ n: 6, title: "Title z" }, { n: 5, title: "Title y" }] });
+  });
+
+  it("starts at 1 when the ledger is empty", async () => {
+    const search = jest.fn(async () => [found("a")]);
+    const tool = getSearchTool(search, []);
+
+    expect(await tool.run({ query: "q", more: false }, { emit: jest.fn(), signal })).toMatchObject({
+      articles: [{ n: 1 }],
+    });
+  });
+
+  it("emits a source event for a prior-numbered article on its first appearance in this reply", async () => {
+    const search = jest.fn(async () => [found("x")]);
+    const tool = getSearchTool(search, [prior(2, "x")]);
+    const emit = jest.fn();
+
+    await tool.run({ query: "q", more: false }, { emit, signal });
+
+    expect(emit.mock.calls.map((c) => c[0])).toEqual([
+      { type: "source", n: 2, title: "Title x", url: "https://medium.com/@tituslhy/x", relevance: 0.9, score: 2.5 },
+    ]);
+  });
+
+  it("emits a prior-numbered article once per reply, however many times it is found in that reply", async () => {
+    const search = jest.fn(async () => [found("x")]);
+    const tool = getSearchTool(search, [prior(2, "x")]);
+    const emit = jest.fn();
+
+    await tool.run({ query: "first", more: false }, { emit, signal });
+    await tool.run({ query: "second", more: false }, { emit, signal });
+
+    expect(emit).toHaveBeenCalledTimes(1);
+    expect(emit.mock.calls[0][0]).toMatchObject({ type: "source", n: 2 });
+  });
+
+  it("emits a prior-numbered article again in a new reply, since each reply needs its own footnotes", async () => {
+    const search = jest.fn(async () => [found("x")]);
+    const ledger = [prior(2, "x")];
+    const replyOne = jest.fn();
+    const replyTwo = jest.fn();
+
+    await getSearchTool(search, ledger).run({ query: "q", more: false }, { emit: replyOne, signal });
+    const result = await getSearchTool(search, ledger).run({ query: "q", more: false }, { emit: replyTwo, signal });
+
+    expect(replyTwo).toHaveBeenCalledTimes(1);
+    expect(replyTwo.mock.calls[0][0]).toMatchObject({ type: "source", n: 2 });
+    expect(result).toMatchObject({ articles: [{ n: 2 }] });
+  });
+
+  it("emits the prior article and a new article in the same reply, each once", async () => {
+    const search = jest.fn(async () => [found("x"), found("new")]);
+    const tool = getSearchTool(search, [prior(2, "x")]);
+    const emit = jest.fn();
+
+    await tool.run({ query: "q", more: false }, { emit, signal });
+
+    expect(emit.mock.calls.map((c) => [c[0].n, c[0].title])).toEqual([
+      [2, "Title x"],
+      [3, "Title new"],
+    ]);
+  });
+
+  it("keeps a prior number for an article found on a later page, and emits it on its first page", async () => {
+    // PAGE_SIZE is 2: page one is [a, b], page two is [c].
+    const search = jest.fn(async () => [found("a"), found("b"), found("c")]);
+    const tool = getSearchTool(search, [prior(4, "b")]);
+    const emit = jest.fn();
+
+    const first = await tool.run({ query: "q", more: false }, { emit, signal });
+    const second = await tool.run({ query: "q", more: true }, { emit, signal });
+
+    expect(first).toMatchObject({ articles: [{ n: 5, title: "Title a" }, { n: 4, title: "Title b" }], remaining: 1 });
+    expect(second).toMatchObject({ articles: [{ n: 6, title: "Title c" }], remaining: 0 });
+    expect(emit.mock.calls.map((c) => [c[0].n, c[0].title])).toEqual([
+      [5, "Title a"],
+      [4, "Title b"],
+      [6, "Title c"],
+    ]);
+  });
+
+  it("puts the published date (YYYY-MM-DD) on each result", async () => {
+    const search = jest.fn(async () => [found("x", { publishedAt: "2025-06-18T23:30:00.000Z" })]);
+    const tool = getSearchTool(search, []);
+
+    const result = await tool.run({ query: "q", more: false }, { emit: jest.fn(), signal });
+
+    expect(result).toEqual({
+      articles: [{ n: 1, title: "Title x", url: "https://medium.com/@tituslhy/x", published: "2025-06-18", body: "Body of x" }],
+      remaining: 0,
+    });
+  });
+
+  it("omits published when the article has no publish date", async () => {
+    const undated = {
+      slug: "x",
+      title: "Title x",
+      url: "https://medium.com/@tituslhy/x",
+      body: "Body of x",
+      relevance: 0.9,
+      score: 2.5,
+    };
+    const search = jest.fn(async () => [undated]);
+    const tool = getSearchTool(search, []);
+
+    const result = (await tool.run({ query: "q", more: false }, { emit: jest.fn(), signal })) as {
+      articles: Record<string, unknown>[];
+    };
+
+    expect(result.articles[0]).not.toHaveProperty("published");
+    expect(result.articles[0]).toMatchObject({ n: 1, title: "Title x" });
   });
 });

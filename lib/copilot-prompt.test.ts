@@ -15,6 +15,7 @@ import {
   type Role,
 } from './profile'
 import { buildSystemPrompt, promptTokens } from './copilot-prompt'
+import { articleByUrl, formatPublished } from './citation-ledger'
 
 // Normalises every dash-with-spaces to the en dash the prose renderer uses
 // ("Jul 2026 — Present" → "Jul 2026 – Present"), so assertions compare content
@@ -210,7 +211,7 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
     })
 
     it.each(FEATURED_ARTICLES.map((a) => [a.n, a.href] as const))('includes featured article %s', (_n, href) => {
-      expect(rendered).toContain(href)
+      expect(rendered).toContain(articleByUrl(href)!.url)
     })
 
     it('includes the contact email', () => {
@@ -282,5 +283,58 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
     it('does not use other third-person narration verbs for Titus', () => {
       expect(rendered).not.toMatch(/\bTitus (?:thought|was|has|did|says|writes)\b/)
     })
+  })
+})
+
+describe('featured articles and their publish dates', () => {
+  it.each(FEATURED_ARTICLES.map((a) => [a.n, a.href] as const))('featured article %s resolves to a corpus article', (_n, href) => {
+    expect(articleByUrl(href)).toBeDefined()
+  })
+
+  it.each(FEATURED_ARTICLES.map((a) => [a.n, a.title, a.href, a.read] as const))(
+    'renders featured article %s with its publish date and reading time',
+    (_n, title, href, read) => {
+      const article = articleByUrl(href)!
+      expect(rendered).toContain(`[${title}](${article.url}) — published ${formatPublished(article.publishedAt)}, ${read} read`)
+    }
+  )
+
+  it('shows a published date on every featured line', () => {
+    const featuredLines = rendered.split('\n').filter((line) => /^\d+\. \[.+\]\(https:\/\/medium\.com\//.test(line))
+    expect(featuredLines).toHaveLength(FEATURED_ARTICLES.length)
+    for (const line of featuredLines) {
+      expect(line).toMatch(/— published \d{1,2} [A-Za-z]{3,4} \d{4}, \d+ min read$/)
+    }
+  })
+})
+
+describe('featured article links', () => {
+  it.each(FEATURED_ARTICLES.map((a) => [a.n, a.title, a.href] as const))(
+    'links featured article %s to its corpus URL, not the publication URL',
+    (_n, title, href) => {
+      const corpusUrl = articleByUrl(href)!.url
+      expect(corpusUrl).toMatch(/^https:\/\/medium\.com\/@tituslhy\//)
+      expect(rendered).toContain(`[${title}](${corpusUrl})`)
+      if (corpusUrl !== href) expect(rendered).not.toContain(`](${href})`)
+    }
+  )
+
+  it('falls back to the featured href, with no date, when the corpus has no match', () => {
+    // Stub the lookup to miss, in a fresh module registry so the rest of this file is unaffected.
+    let out = ''
+    jest.isolateModules(() => {
+      jest.doMock('./citation-ledger', () => ({
+        ...jest.requireActual('./citation-ledger'),
+        articleByUrl: () => undefined,
+      }))
+      const fresh = require('./copilot-prompt') as typeof import('./copilot-prompt')
+      out = fresh.buildSystemPrompt('{{FEATURED_ARTICLES}}')
+    })
+    jest.dontMock('./citation-ledger')
+
+    for (const a of FEATURED_ARTICLES) {
+      expect(out).toContain(`${a.n}. [${a.title}](${a.href}) — ${a.read} read`)
+    }
+    expect(out).not.toContain('published')
   })
 })

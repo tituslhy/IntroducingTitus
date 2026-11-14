@@ -7,6 +7,7 @@ import {
   type SearchTrace,
 } from "@/lib/writing-search";
 import type { TraceSpan } from "@/lib/copilot-loop";
+import { publishedDate, type PriorCitation } from "@/lib/citation-ledger";
 
 // ---------------------------------------------------------------------------
 // Copilot tool registry. The /api/chat loop offers every tool here to the
@@ -96,8 +97,10 @@ function createShowOnPageTool(): CopilotTool<string> {
 // search_writing — finds and reads my own articles (lib/writing-search.ts).
 // A search ranks everything that passes, but hands over PAGE_SIZE at a time;
 // `more: true` serves the next page from that ranking without asking Jev
-// again. Results are numbered per reply, continuing across calls, and each new
-// article is emitted as a `source` event for the drawer's footnotes.
+// again. Results are numbered once per conversation: an article cited in an
+// earlier reply (the `prior` ledger) keeps its number, and a new one gets the
+// next free number. Each article is emitted as a `source` event the first time
+// it appears in this reply, for the drawer's footnotes.
 // ---------------------------------------------------------------------------
 
 const MAX_QUERY_CHARS = 300;
@@ -120,9 +123,12 @@ export function parseSearchWritingArgs(raw: string): SearchWritingArgs | null {
 
 type SearchFn = (query: string, options: SearchOptions) => Promise<FoundArticle[]>;
 
-function createSearchWritingTool(search: SearchFn): CopilotTool<SearchWritingArgs> {
-  // Per reply: the same article found twice keeps its first number.
-  const numbered = new Map<string, number>();
+function createSearchWritingTool(search: SearchFn, prior: readonly PriorCitation[]): CopilotTool<SearchWritingArgs> {
+  // Per conversation: an article keeps the number it was first cited under.
+  const numbered = new Map<string, number>(prior.map((c) => [c.slug, c.n]));
+  let nextN = prior.reduce((max, c) => Math.max(max, c.n), 0) + 1;
+  // Per reply: articles already emitted as footnotes for this reply.
+  const emitted = new Set<string>();
   // Per reply: the last search's ranking, minus the pages already handed over.
   let pending: FoundArticle[] | null = null;
 
@@ -132,11 +138,21 @@ function createSearchWritingTool(search: SearchFn): CopilotTool<SearchWritingArg
       articles: served.map((a) => {
         let n = numbered.get(a.slug);
         if (n === undefined) {
-          n = numbered.size + 1;
+          n = nextN++;
           numbered.set(a.slug, n);
+        }
+        if (!emitted.has(a.slug)) {
+          emitted.add(a.slug);
           emit({ type: "source", n, title: a.title, url: a.url, relevance: a.relevance, score: a.score });
         }
-        return { n, title: a.title, url: a.url, ...(a.coAuthors?.length && { coAuthors: a.coAuthors }), body: a.body };
+        return {
+          n,
+          title: a.title,
+          url: a.url,
+          ...(a.publishedAt && { published: publishedDate(a.publishedAt) }),
+          ...(a.coAuthors?.length && { coAuthors: a.coAuthors }),
+          body: a.body,
+        };
       }),
       remaining: pending!.length,
       served,
@@ -246,10 +262,13 @@ function recordSearchSteps(trace: TraceSpan, query: string, t: SearchTrace, foun
   });
 }
 
-/** Built per request, so per-reply state (counters) lives in closures. */
-export function createCopilotTools(deps: { search?: SearchFn } = {}): CopilotTool[] {
+/**
+ * Built per request, so per-reply state (counters) lives in closures.
+ * `prior` is the conversation's citation ledger, already resolved against the corpus.
+ */
+export function createCopilotTools(deps: { search?: SearchFn; prior?: readonly PriorCitation[] } = {}): CopilotTool[] {
   return [
     createShowOnPageTool() as CopilotTool,
-    createSearchWritingTool(deps.search ?? searchMyWriting) as CopilotTool,
+    createSearchWritingTool(deps.search ?? searchMyWriting, deps.prior ?? []) as CopilotTool,
   ];
 }
