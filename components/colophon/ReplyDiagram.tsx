@@ -4,7 +4,7 @@
  * hidden per breakpoint (display:none also drops it from the a11y tree).
  * Thresholds and page size come from lib/search-config.ts, so they can't drift.
  */
-import { MIN_SCORE, PAGE_SIZE, RELEVANT } from '@/lib/search-config'
+import { MAX_TOPICS, MIN_SCORE, PAGE_SIZE, RELEVANT, STAGE2_MAX } from '@/lib/search-config'
 
 const MONO = 'var(--font-ibm-plex-mono), ui-monospace, monospace'
 
@@ -105,7 +105,8 @@ function ToolsBox({ x, y, w }: { x: number; y: number; w: number }) {
       <rect x={x} y={y} width={w} height={64} fill="var(--paper)" stroke="var(--ink)" strokeWidth={1} />
       <Label x={x + 10} y={y + 16}>TOOLS</Label>
       <text x={x + 10} y={y + 36} fontFamily={MONO} fontSize={12} fill="var(--ink)">show_on_page</text>
-      <text x={x + 10} y={y + 54} fontFamily={MONO} fontSize={12} fill="var(--ink)">search_writing</text>
+      {/* 22 mono chars at 10.5px ≈ 139px: fits the 150px mobile box */}
+      <text x={x + 10} y={y + 54} fontFamily={MONO} fontSize={10.5} fill="var(--ink)">search_writing(topics)</text>
     </g>
   )
 }
@@ -118,10 +119,11 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
   const description =
     `A visitor's question passes the guards and enters the agent loop. Each round, GPT either answers or calls tools; ` +
     `the tool results go back to GPT for the next round, for at most four rounds. The tools are show_on_page and search_writing. ` +
-    `For a new query, search_writing runs a Jev filter (one yes/no per article, ${articleCount} articles), then a Jev rank ` +
-    `(a graded score for every survivor), holds that ranking, and returns the text of the best two to the loop. ` +
-    `Calling it again with more: true returns the next two from the same ranking without calling Jev, until the ranking runs out. ` +
-    `search_writing can be called at most twice per reply: the second call is either the next page or a new query. ` +
+    `search_writing takes up to ${MAX_TOPICS} topics and searches each topic separately: for each, a Jev filter (one yes/no per article, ` +
+    `${articleCount} articles), then a Jev rank (a graded score for up to ${STAGE2_MAX} survivors). It merges the topics' rankings so each ` +
+    `topic's best article comes first, holds that ranking, and returns the best sections of the top ${PAGE_SIZE} articles to the loop. ` +
+    `Calling it again with more: true returns the next ${PAGE_SIZE} from the same ranking without calling Jev, until the ranking runs out. ` +
+    `search_writing can be called at most twice per reply: the second call is either the next page or a new search. ` +
     `GPT's answer then passes output checks and streams to the drawer.`
 
   return (

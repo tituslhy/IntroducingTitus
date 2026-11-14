@@ -166,3 +166,26 @@ describe("ColophonPage content", () => {
     expect(document.body.textContent ?? "").not.toMatch(/read in full/i);
   });
 });
+
+describe("ColophonPage topics copy", () => {
+  it("walkthrough calls search_writing with a list of topics", () => {
+    render(<ColophonPage />);
+
+    expect(document.body.textContent ?? "").toMatch(/search_writing\(\[/);
+  });
+
+  it("reading in pages says three at a time", () => {
+    render(<ColophonPage />);
+
+    expect(document.body.textContent ?? "").toMatch(/three at a time/i);
+  });
+
+  it("guardrails row says at most six articles a reply", () => {
+    render(<ColophonPage />);
+
+    const section = screen.getByRole("heading", { level: 2, name: /guardrails/i }).closest("section")!;
+    const rows = within(within(section).getByRole("table")).getAllByRole("row").map((r) => r.textContent ?? "");
+    expect(rows.some((text) => /at most six articles/i.test(text))).toBe(true);
+    expect(rows.some((text) => /at most four articles|at four articles/i.test(text))).toBe(false);
+  });
+});

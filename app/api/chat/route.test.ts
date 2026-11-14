@@ -942,7 +942,7 @@ describe("POST - tool loop", () => {
     await queueRounds(
       [
         responseCreated("resp_1"),
-        functionCall("call_1", "search_writing", JSON.stringify({ query: "guardrails" })),
+        functionCall("call_1", "search_writing", JSON.stringify({ topics: ["guardrails"] })),
         responseDone,
       ],
       [outputText("Yes, I wrote about it [1][2]."), responseDone]
@@ -991,7 +991,7 @@ describe("POST - tool loop", () => {
       .mockResolvedValueOnce(
         await makeStream([
           responseCreated("resp_1"),
-          functionCall("call_1", "search_writing", JSON.stringify({ query: "guardrails" })),
+          functionCall("call_1", "search_writing", JSON.stringify({ topics: ["guardrails"] })),
           responseDone,
         ])
       )
@@ -1000,7 +1000,7 @@ describe("POST - tool loop", () => {
       .mockResolvedValueOnce(
         await makeStream([
           responseCreated("resp_2"),
-          functionCall("call_2", "search_writing", JSON.stringify({ query: "guardrails" })),
+          functionCall("call_2", "search_writing", JSON.stringify({ topics: ["guardrails"] })),
           responseDone,
         ])
       )
@@ -1229,7 +1229,7 @@ describe("POST - tracing", () => {
           { type: "response.created", response: { id: "resp_1" } },
           {
             type: "response.output_item.done",
-            item: { type: "function_call", name: "search_writing", arguments: '{"query":"guardrails"}', call_id: "c1" },
+            item: { type: "function_call", name: "search_writing", arguments: '{"topics":["guardrails"]}', call_id: "c1" },
           },
           { type: "response.done" },
         ])
@@ -1771,7 +1771,7 @@ describe("POST - citation ledger", () => {
       .mockResolvedValueOnce(
         await makeStream([
           responseCreated("resp_1"),
-          functionCall("call_1", "search_writing", JSON.stringify({ query: "agents" })),
+          functionCall("call_1", "search_writing", JSON.stringify({ topics: ["agents"] })),
           responseDone,
         ])
       )

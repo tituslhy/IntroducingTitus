@@ -48,3 +48,14 @@ describe("ReplyDiagram", () => {
     expect(screen.queryByText("noul × 65")).not.toBeInTheDocument();
   });
 });
+
+describe("ReplyDiagram search_writing topics", () => {
+  it("labels the search tool search_writing(topics) and says it searches each topic separately", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of Array.from(container.querySelectorAll('svg[role="img"]'))) {
+      expect(svg.textContent ?? "").toContain("search_writing(topics)");
+      expect(svg.getAttribute("aria-label") ?? "").toMatch(/each topic separately/i);
+    }
+  });
+});
