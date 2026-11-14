@@ -32,7 +32,7 @@ const WALKTHROUGH: [stage: string, what: string][] = [
   ['Agent loop', 'GPT reads the question and calls search_writing("guardrails for AI agents"), a query it writes to stand on its own.'],
   ['Jev filter', `One yes-or-no probability per article, judged on its card (title, one-line summary, keywords): ${ARTICLE_COUNT_NUMBER} questions, one request. Most fall away.`],
   ['Jev rank', 'Every survivor is scored 0–3 against a rubric, this time on their outline and opening. The two best are read in full; if they aren’t enough, GPT asks for the next two from the same ranking.'],
-  ['Agent loop', 'GPT answers from what the articles say, in my voice, citing them as [1], [2] and onward.'],
+  ['Agent loop', 'GPT answers from what the articles say, in my voice, citing them as [1], [2] and onward. An article keeps the same number for the whole conversation, and it says when I wrote it; for a framework article more than six months old, it adds that you should check the project’s current docs.'],
   ['Checks', 'Output is capped, and only the numbers the server actually sent can become links.'],
   ['Drawer', 'The reply streams in with superscript footnotes and a Sources row underneath.'],
 ]
@@ -40,6 +40,7 @@ const WALKTHROUGH: [stage: string, what: string][] = [
 const GUARDRAILS: [guardrail: string, prevents: string][] = [
   ['Page anchors validated server-side', 'Pointing at things that don’t exist'],
   ['Article retrieval: relevance filter, graded rerank, known slugs only, at most four', 'Irrelevant or invented sources'],
+  ['Footnote numbers rebuilt server-side from my articles only', 'Forged or shifting sources'],
   ['“Not on file”', 'Overselling, especially in recruiter mode'],
   ['Job descriptions wrapped as data and not stored upstream', 'Prompt injection; keeping confidential postings'],
   ['Fit briefs re-validated after the model writes them', '“Strong” claims without evidence'],
@@ -51,6 +52,7 @@ const WONT_DO = [
   'Talk salary, availability or family. Those go to my inbox.',
   'Speculate about my weaknesses, or invent a “balanced” critique to sound objective.',
   'Invent a project, a skill or an article. If it isn’t on file, it says so.',
+  'Tell you what I’d use today instead of what an article says. It says when I wrote it and points you to the project’s current docs.',
   'Remember you between visits. The conversation lives in your browser tab and ends with it. Conversations are logged, privately, so I can see where it goes wrong and fix it; they’re never published.',
 ]
 
@@ -232,6 +234,15 @@ export default function ColophonPage() {
               the second is either the next page or a fresh query, which runs Jev again and replaces the ranking.
               When the ranking runs out, the tool says so, and GPT answers from what it has read. That caps a reply
               at four articles.
+            </p>
+            <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
+              Long conversations
+            </p>
+            <p className={prose}>
+              It sees the last 20 messages, always starting on one of yours. When a long conversation outgrows its
+              budget, the oldest exchanges drop off first rather than the conversation being cut short. Articles cited
+              earlier keep their numbers: the drawer sends back what it has cited, and the server checks each link
+              against my articles before the model sees it.
             </p>
           </Section>
 

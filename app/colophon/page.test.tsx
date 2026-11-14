@@ -113,4 +113,40 @@ describe("ColophonPage content", () => {
 
     expect(screen.getByRole("button", { name: /check a role against my record/i })).toBeInTheDocument();
   });
+
+  it("describes stable footnotes", () => {
+    render(<ColophonPage />);
+
+    expect(document.body.textContent).toMatch(/keeps the same number for the whole conversation/i);
+  });
+
+  it("describes dated articles", () => {
+    render(<ColophonPage />);
+
+    expect(document.body.textContent).toMatch(/says when I wrote it/i);
+  });
+
+  it("describes long conversations", () => {
+    render(<ColophonPage />);
+
+    const text = document.body.textContent ?? "";
+    expect(text).toMatch(/oldest exchanges/i);
+    expect(text).toMatch(/keep their numbers/i);
+  });
+
+  it("won't-do list covers invented current views", () => {
+    render(<ColophonPage />);
+
+    const section = screen.getByRole("heading", { level: 2, name: /what it won[’']t do/i }).closest("section")!;
+    const items = within(section).getAllByRole("listitem").map((li) => li.textContent ?? "");
+    expect(items.some((text) => /what I[’']d use today/i.test(text))).toBe(true);
+  });
+
+  it("guardrails table lists rebuilt footnote numbers", () => {
+    render(<ColophonPage />);
+
+    const section = screen.getByRole("heading", { level: 2, name: /guardrails/i }).closest("section")!;
+    const rows = within(within(section).getByRole("table")).getAllByRole("row").map((r) => r.textContent ?? "");
+    expect(rows.some((text) => /Footnote numbers rebuilt server-side/i.test(text))).toBe(true);
+  });
 });
