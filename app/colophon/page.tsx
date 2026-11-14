@@ -51,6 +51,7 @@ const GUARDRAILS: [guardrail: string, prevents: string][] = [
 const WONT_DO = [
   'Talk salary, availability or family. Those go to my inbox.',
   'Speculate about my weaknesses, or invent a “balanced” critique to sound objective.',
+  'Rate me, or rank me against candidates it can’t see. It shows the evidence and leaves the judging to you.',
   'Invent a project, a skill or an article. If it isn’t on file, it says so.',
   'Tell you what I’d use today instead of what an article says. It says when I wrote it and points you to the project’s current docs.',
   'Remember you between visits. The conversation lives in your browser tab and ends with it. Conversations are logged, privately, so I can see where it goes wrong and fix it; they’re never published.',

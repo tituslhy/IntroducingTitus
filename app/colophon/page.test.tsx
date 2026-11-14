@@ -149,4 +149,12 @@ describe("ColophonPage content", () => {
     const rows = within(within(section).getByRole("table")).getAllByRole("row").map((r) => r.textContent ?? "");
     expect(rows.some((text) => /Footnote numbers rebuilt server-side/i.test(text))).toBe(true);
   });
+
+  it("won't-do list refuses to rank me against other candidates", () => {
+    render(<ColophonPage />);
+
+    const section = screen.getByRole("heading", { level: 2, name: /what it won[’']t do/i }).closest("section")!;
+    const items = within(section).getAllByRole("listitem").map((li) => li.textContent ?? "");
+    expect(items.some((text) => /rank me against/i.test(text))).toBe(true);
+  });
 });

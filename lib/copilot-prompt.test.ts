@@ -275,6 +275,11 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
     })
   })
 
+  it('includes the evaluative and comparative questions rule', () => {
+    expect(rendered).toMatch(/I can[’']t see the other candidates/)
+    expect(rendered).toContain('No numbers out of 10')
+  })
+
   describe('voice', () => {
     it('never describes Titus in the third person with "Titus thought"', () => {
       expect(rendered).not.toContain('Titus thought')
