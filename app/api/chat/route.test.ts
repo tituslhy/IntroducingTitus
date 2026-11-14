@@ -972,7 +972,7 @@ describe("POST - tool loop", () => {
     expect(search).toHaveBeenCalledWith("guardrails", expect.objectContaining({ onTrace: expect.any(Function) }));
     const output = JSON.parse(mockCreate.mock.calls[1][0].input[0].output);
     expect(output.articles.map((a: { n: number }) => a.n)).toEqual([1, 2]);
-    expect(output.articles[0].body).toBe("Guardrails body");
+    expect(output.articles[0].sections[0].text).toBe("Guardrails body");
   });
 
   it("reuses source numbers across a retry, so the drawer never sees two articles under one n", async () => {

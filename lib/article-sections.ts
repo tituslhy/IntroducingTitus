@@ -72,14 +72,13 @@ export function splitSections(body: string): Section[] {
   return sections;
 }
 
-const memo = new Map<string, Section[]>();
+const memo = new Map<string, { body: string; sections: Section[] }>();
 
-/** splitSections, cached per article slug (the corpus is static for the process). */
+/** splitSections, cached per article slug; a changed body for the same slug is re-split, never served stale. */
 export function memoSections(slug: string, body: string): Section[] {
-  let sections = memo.get(slug);
-  if (!sections) {
-    sections = splitSections(body);
-    memo.set(slug, sections);
-  }
+  const hit = memo.get(slug);
+  if (hit && hit.body === body) return hit.sections;
+  const sections = splitSections(body);
+  memo.set(slug, { body, sections });
   return sections;
 }

@@ -10,3 +10,5 @@ export const RELEVANT = 0.5;
 export const MIN_SCORE = 2.0;
 /** Articles search_writing hands the agent per call; it asks for the next page with `more`. */
 export const PAGE_SIZE = 2;
+/** Characters of section text search_writing hands over per article (intro gets up to a third). */
+export const SECTION_BUDGET_CHARS = 6_000;

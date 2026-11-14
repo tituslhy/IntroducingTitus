@@ -129,6 +129,7 @@ describe("searchMyWriting", () => {
         url: "https://medium.com/@tituslhy/a",
         body: "Body of a",
         publishedAt: "2025-01-01",
+        outline: ["Heading"],
         relevance: 0.9,
         score: null,
       },
@@ -378,16 +379,23 @@ describe("searchMyWriting", () => {
     });
   });
 
-  it("truncates returned bodies to MAX_BODY_CHARS", async () => {
+  it("returns full bodies, outline and sectionNotes from the corpus", async () => {
     const longBody = "x".repeat(MAX_BODY_CHARS + 5_000);
-    const catalog = [article("a", { body: longBody })];
+    const catalog = [
+      article("a", {
+        body: longBody,
+        outline: ["One", "Two"],
+        sectionNotes: { One: "note one" },
+      }),
+    ];
     const { client } = fakeJev([{ answers: { a: noul(0.9) } }]);
 
     const found = await searchMyWriting("q", { client, catalog });
 
     expect(found).toHaveLength(1);
-    expect(found[0].body).toHaveLength(MAX_BODY_CHARS);
-    expect(found[0].body).toBe(longBody.slice(0, MAX_BODY_CHARS));
+    expect(found[0].body).toBe(longBody);
+    expect(found[0].outline).toEqual(["One", "Two"]);
+    expect(found[0].sectionNotes).toEqual({ One: "note one" });
   });
 
   it("returns [] with no API call when the catalog is empty", async () => {

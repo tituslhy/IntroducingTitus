@@ -24,6 +24,8 @@ export type Article = {
   intro: string;
   /** Full text, Markdown. */
   body: string;
+  /** Section key (lib/article-sections.ts) → one plain sentence on what it covers. Absent until the build drafts them. */
+  sectionNotes?: Record<string, string>;
   words: number;
 };
 
