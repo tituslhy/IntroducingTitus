@@ -44,7 +44,7 @@ const QUESTION_KINDS: [question: string, route: string][] = [
   ['What have you written about guardrails?', 'One topic, searched: the steps above.'],
   [
     'How do I use LiteLLM, Helm and Nginx?',
-    'search_writing(["LiteLLM", "Helm", "Nginx"]): three searches, merged so each topic’s best article comes first.',
+    'search_writing(["LiteLLM", "Helm", "Nginx"]): one call, three searches inside it (one per topic), merged so each topic’s best article comes first.',
   ],
   [
     'How would you build production-ready agents?',

@@ -284,3 +284,16 @@ describe("ColophonPage three kinds of question", () => {
     expect(row.textContent ?? "").toMatch(/No search/i);
   });
 });
+
+describe("ColophonPage LiteLLM route is one call", () => {
+  it("the LiteLLM row says it is one call with three searches inside it", () => {
+    render(<ColophonPage />);
+    const heading = screen.getByText(/three kinds of question/i);
+    const section = (heading.closest("section") ?? document.body) as HTMLElement;
+    const cell = within(section).getByText("How do I use LiteLLM, Helm and Nginx?");
+    const row = cell.closest("tr") ?? cell.parentElement!;
+
+    expect(row.textContent ?? "").toMatch(/one call/i);
+    expect(row.textContent ?? "").toMatch(/three searches inside it/i);
+  });
+});
