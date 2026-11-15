@@ -84,9 +84,10 @@ export async function pickSections(article: PickInput, focus: string, opts: Pick
     const result = await client.systemOne(
       {
         state: { query: focus },
+        // Keyed by position: heading text (spaces, punctuation, repeats) never becomes a question id.
         questions: Object.fromEntries(
-          rest.map((s) => [
-            s.key,
+          rest.map((s, i) => [
+            `s${i}`,
             score(
               {
                 task: "How well does this section of my article answer the search query?",
@@ -100,7 +101,10 @@ export async function pickSections(article: PickInput, focus: string, opts: Pick
       { timeout: SECTION_PICK_MS, retry: { maxRetries: 0 }, signal: opts.signal }
     );
     const answers = (result.answers ?? {}) as Record<string, { score?: unknown } | undefined>;
-    const scored = rest.map((s, i) => ({ s, i, score: isScore(answers[s.key]?.score) ? (answers[s.key]!.score as number) : null }));
+    const scored = rest.map((s, i) => {
+      const raw = answers[`s${i}`]?.score;
+      return { s, i, score: isScore(raw) ? raw : null };
+    });
     trace.scored = scored.map(({ s, score: sc }) => ({ key: s.key, score: sc }));
     // Best first; null scores last; ties keep article order.
     order = [...scored].sort((x, y) => (y.score ?? -1) - (x.score ?? -1) || x.i - y.i).map((x) => x.s);
@@ -109,9 +113,12 @@ export async function pickSections(article: PickInput, focus: string, opts: Pick
     order = rest;
   }
 
-  const chosen = new Set<Section>();
-  let used = 0;
-  for (const s of order) {
+  // The best section always comes back, cut to the budget if it's too long; the rest fill what's left, best first.
+  const top = order[0];
+  const topText = top.body.slice(0, remaining);
+  const chosen = new Set<Section>([top]);
+  let used = topText.length;
+  for (const s of order.slice(1)) {
     if (used + s.body.length > remaining) continue;
     chosen.add(s);
     used += s.body.length;
@@ -123,17 +130,11 @@ export async function pickSections(article: PickInput, focus: string, opts: Pick
     sections.push({ heading: null, text: introText });
     keys.push(intro.key);
   }
-  if (chosen.size === 0) {
-    const best = order[0];
-    sections.push({ heading: best.heading, text: best.body.slice(0, remaining) });
-    keys.push(best.key);
-  } else {
-    for (const s of rest)
-      if (chosen.has(s)) {
-        sections.push(toPicked(s));
-        keys.push(s.key);
-      }
-  }
+  for (const s of rest)
+    if (chosen.has(s)) {
+      sections.push(s === top ? { heading: s.heading, text: topText } : toPicked(s));
+      keys.push(s.key);
+    }
   return finish({ outline, sections, truncated: true }, keys);
 }
 

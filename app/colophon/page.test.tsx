@@ -244,3 +244,11 @@ describe("ColophonPage three tools and themes", () => {
     expect(text).not.toMatch(/two best/i);
   });
 });
+
+describe("ColophonPage theme count", () => {
+  it("never states a theme count no script produced", () => {
+    render(<ColophonPage />);
+
+    expect(document.body.textContent ?? "").not.toMatch(/\b(about|around|roughly)?\s*(eight|8)\s+themes\b/i);
+  });
+});

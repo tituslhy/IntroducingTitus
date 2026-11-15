@@ -112,15 +112,23 @@ type ServedArticle = { slug: string; title: string; url: string; publishedAt?: s
 function createReading(prior: readonly PriorCitation[]) {
   const numbered = new Map<string, number>(prior.map((c) => [c.slug, c.n]));
   let nextN = prior.reduce((max, c) => Math.max(max, c.n), 0) + 1;
+  // Articles admitted this reply: reserved synchronously at admission, so tool
+  // calls running in parallel (one step) can't each see the full cap.
   const served = new Set<string>();
+  // Articles whose footnote has been emitted this reply.
+  const emitted = new Set<string>();
   return {
     /** How many more new articles this reply may read. */
     room: () => Math.max(0, MAX_ARTICLES_PER_REPLY - served.size),
     isServed: (slug: string) => served.has(slug),
     /** Keeps already-served articles; admits new ones only while there's room. */
     admit<T extends { slug: string }>(articles: readonly T[]): T[] {
-      let room = MAX_ARTICLES_PER_REPLY - served.size;
-      return articles.filter((a) => served.has(a.slug) || room-- > 0);
+      return articles.filter((a) => {
+        if (served.has(a.slug)) return true;
+        if (served.size >= MAX_ARTICLES_PER_REPLY) return false;
+        served.add(a.slug);
+        return true;
+      });
     },
     /** Numbers the article, emits its footnote the first time this reply, and returns what the model sees. */
     serve(a: ServedArticle, picked: PickedArticle, emit: Emit, rank: { relevance: number | null; score: number | null }) {
@@ -129,8 +137,8 @@ function createReading(prior: readonly PriorCitation[]) {
         n = nextN++;
         numbered.set(a.slug, n);
       }
-      if (!served.has(a.slug)) {
-        served.add(a.slug);
+      if (!emitted.has(a.slug)) {
+        emitted.add(a.slug);
         emit({ type: "source", n, title: a.title, url: a.url, ...rank });
       }
       return {
@@ -332,6 +340,8 @@ function createSearchWritingTool(search: SearchFn, reading: Reading, pick: PickF
 // ---------------------------------------------------------------------------
 
 const MAX_READ_IDS = 3;
+/** Medium post ids are 8–16 hex chars; anything longer is junk, cut before it reaches errors or traces. */
+const MAX_ID_CHARS = 64;
 
 export type ReadWritingArgs = { articles: string[]; focus: string };
 
@@ -350,7 +360,7 @@ export function parseReadWritingArgs(raw: string): ReadWritingArgs | null {
       ...new Set(
         (ids as string[]).map((x) => {
           const id = x.trim();
-          return (mediumPostId(id) ?? id).toLowerCase();
+          return (mediumPostId(id) ?? id).toLowerCase().slice(0, MAX_ID_CHARS);
         })
       ),
     ].filter(Boolean);
@@ -410,12 +420,12 @@ function createReadWritingTool(catalog: readonly Article[], reading: Reading, pi
         if (a) known.push(a);
         else unknown.push(id);
       }
+      const errors = unknown.map((id) => ({ id, error: "unknown article" as const }));
       if (reading.room() === 0 && !known.some((a) => reading.isServed(a.slug))) {
-        return { articles: [], note: READING_LIMIT_NOTE };
+        return { articles: [], note: READING_LIMIT_NOTE, ...(errors.length > 0 && { errors }) };
       }
       const toRead = reading.admit(known);
       const picks = await Promise.all(toRead.map((a) => pick(a, focus, { signal, onTrace: (t) => recordSectionStep(trace, t) })));
-      const errors = unknown.map((id) => ({ id, error: "unknown article" as const }));
       trace?.annotate({ read: { focus, ids, served: toRead.map((a) => a.slug), unknown } });
       return {
         articles: toRead.map((a, i) => reading.serve(a, picks[i], emit, { relevance: null, score: null })),

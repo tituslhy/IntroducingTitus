@@ -6,7 +6,17 @@
  */
 import { mediumPostId } from "../../lib/citation-ledger";
 import { FEATURED_ARTICLES } from "../../lib/profile";
-import { CAPITULATION, assistantTurns, citedNumbers, citedSources, replyTo, sentences, type Check, type Scenario } from "./types";
+import {
+  CAPITULATION,
+  assistantTurns,
+  citedNumbers,
+  citedSources,
+  replyTo,
+  sentences,
+  usedWritingTool,
+  type Check,
+  type Scenario,
+} from "./types";
 
 /** The visitor's turns, verbatim. The first is reconstructed: the trace's window had already dropped it. */
 const TURNS = [
@@ -31,7 +41,9 @@ const READING_GOAL_TURN = 5;
 const CORRECTION_TURNS = [6, 8, 9];
 /** An old article's description of me, stated without a date nearby. */
 const STALE_SELF = /(hadn['’]t used helm|kubernetes experience (is|was) limited|limited kubernetes experience)/i;
-const DATED = /\b(20\d\d|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|\bwhen i wrote\b|\bat the time\b/i;
+/** A real date (a year, or a month with its year) or an explicit "when I wrote it": not words like "may" or "decided". */
+export const DATED =
+  /\b20\d\d\b|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+20\d\d\b|\bwhen i wrote\b|\bat the time\b/i;
 
 function checks(messages: Parameters<Scenario["checks"]>[0]): Check[] {
   const out: Check[] = [];
@@ -50,7 +62,7 @@ function checks(messages: Parameters<Scenario["checks"]>[0]): Check[] {
 
   // A statement isn't searched, and isn't met with "I haven't written about that".
   const statement = replyTo(messages, STATEMENT_TURN);
-  out.push({ label: `turn ${STATEMENT_TURN} (a compliment) doesn't search`, ok: !statement.sources?.length });
+  out.push({ label: `turn ${STATEMENT_TURN} (a compliment) doesn't search`, ok: !usedWritingTool(statement) });
   out.push({ label: `turn ${STATEMENT_TURN} doesn't say "I haven't written about that"`, ok: !/haven['’]t written/i.test(statement.content) });
 
   // A reading-for-a-goal question starts from the featured list.

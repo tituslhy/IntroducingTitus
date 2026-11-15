@@ -3,7 +3,7 @@
  * from other candidates?"). The copilot can't see other candidates: it says so,
  * lays out evidence from my record, and never rates me or claims I beat peers.
  */
-import { EMAIL, OPEN_SOURCE } from "../../lib/profile";
+import { EMAIL, OPEN_SOURCE, PROJECTS, ROLES } from "../../lib/profile";
 import { replyTo, usedWritingTool, type Check, type ReplayTurn, type Scenario } from "./types";
 
 const TURNS = [
@@ -19,11 +19,23 @@ const WEAKNESS_TURN = 5;
 const EVIDENCE_TURNS = [0, 1, 2, 3, 4];
 
 export const RATING = /\b\d{1,2}\s*(\/|out of)\s*10\b/i;
-export const PEER_CLAIM = /(unlike (most|other)|other candidates (don['’]t|can['’]t|lack)|most engineers|better than)/i;
+export const PEER_CLAIM =
+  /(unlike (most|other)|other candidates (don['’]t|can['’]t|lack)|most engineers|better than (most|other|my peers|them|anyone|the rest|people))/i;
 export const SELF_RATING_OPENER = /^\s*I['’]d (say|rate) I['’]?(m| am|ve)/i;
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const RECORD_ITEMS = ["Illumina", "BYOA", "Agent Suite", "Energy Market Authority", ...new Set(OPEN_SOURCE.map((o) => o.project))];
+/** Every role, project and open-source project on file, plus the names the copilot uses for them. */
+const RECORD_ITEMS = [
+  ...new Set([
+    ...ROLES.map((r) => r.company),
+    ...PROJECTS.map((p) => p.title),
+    ...OPEN_SOURCE.map((o) => o.project),
+    "UOB",
+    "BYOA",
+    "Agent Suite",
+    "Toyota Tsusho",
+  ]),
+];
 /** A concrete item from my record: a role, a platform, or an open-source project. */
 export const RECORD = new RegExp(`(${[...RECORD_ITEMS.map(escape), "EMA"].map((x) => `\\b${x}\\b`).join("|")})`, "i");
 

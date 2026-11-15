@@ -6,7 +6,8 @@
  *   npm run eval:writing -- --dry     # print results without writing the file
  *
  * Each question runs twice: once through searchMyWriting directly (retrieval
- * metrics, with the question as the query), and once through the real agent
+ * metrics: each of the row's topics searched separately and merged, as
+ * search_writing does, or the question itself), and once through the real agent
  * loop with the real system prompt (tool-call, abstain and no-invention
  * metrics). /colophon reads the output, so commit it only from a real run.
  */
@@ -17,64 +18,12 @@ import { TypeSafeClient } from "@typesafe-ai/sdk";
 import { ARTICLES, type Article } from "../lib/articles";
 import { buildSystemPrompt } from "../lib/copilot-prompt";
 import { copilotStream, MODEL as GPT_MODEL } from "../lib/copilot-loop";
-import { createCopilotTools, type CopilotTool } from "../lib/copilot-tools";
+import { createCopilotTools, mergeByTopic, type CopilotTool } from "../lib/copilot-tools";
 import { JEV_MODEL, PAGE_SIZE, searchMyWriting, type SearchTrace } from "../lib/writing-search";
+import { GOLDEN, countsForRetrieval, retrievalQueries, type Expect } from "./eval-golden";
 
 const OUT = join(process.cwd(), "content", "eval-results.json");
 const AGENT_TIMEOUT_MS = 60_000;
-
-/**
- * Expected articles are matched by title substring (case-insensitive), or by
- * keyword, so the set survives slug changes. "none" rows must retrieve
- * nothing; "no-search" rows must not call a writing tool (search_writing or
- * read_writing) at all.
- */
-type Expect =
-  | { kind: "articles"; titles?: string[]; keyword?: string }
-  | { kind: "none" }
-  | { kind: "no-search" };
-
-const GOLDEN: { question: string; expect: Expect }[] = [
-  // The n8n multi-agent piece is the one with guardrails (Llama Guard); "Your AI Agent Needs a Bouncer"
-  // is about routing messy queries with Jev, so it gets its own question below.
-  { question: "How do you approach guardrails for agents?", expect: { kind: "articles", titles: ["multi-agent system with n8n"] } },
-  { question: "How do you triage messy, ambiguous user questions in a multi-agent system?", expect: { kind: "articles", titles: ["Needs a Bouncer"] } },
-  { question: "Have you written about LoRA?", expect: { kind: "articles", titles: ["How to Train Your LLM"] } },
-  { question: "What's RAFT?", expect: { kind: "articles", titles: ["How to RAFT your LLM"] } },
-  { question: "What do you think about LiteLLM?", expect: { kind: "articles", titles: ["introduction to LiteLLM"] } },
-  { question: "What have you written about blockchain?", expect: { kind: "articles", keyword: "blockchain" } },
-  { question: "How do you give agents memory?", expect: { kind: "articles", titles: ["Agent Memory"] } },
-  { question: "How do Command and Send work in LangGraph?", expect: { kind: "articles", titles: ["second look at LangGraph"] } },
-  { question: "How do you deploy a multi-server app with Helm?", expect: { kind: "articles", titles: ["Helm Charts"] } },
-  { question: "Which of your articles explains fine-tuning with Unsloth?", expect: { kind: "articles", titles: ["How to Train Your LLM", "How to RAFT your LLM"] } },
-  // The drawer's starter question: needs all three fine-tuning articles, so at least two searches.
-  {
-    question: "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?",
-    expect: { kind: "articles", titles: ["Low Rank Adaptation", "How to RAFT your LLM", "GRPO"] },
-  },
-  { question: "Have you written about Rust?", expect: { kind: "none" } },
-  { question: "Have you written about building iOS apps in Swift?", expect: { kind: "none" } },
-  { question: "What's your take on Kotlin coroutines?", expect: { kind: "none" } },
-  // Multi-part: each part is its own topic, so Nginx isn't crowded out (the original miss).
-  {
-    question: "How would I use LiteLLM, Helm and Nginx to put agents in production?",
-    expect: { kind: "articles", titles: ["introduction to LiteLLM", "Helm Charts", "Nginx"] },
-  },
-  // Abstract and goal-shaped: answered by reasoning over the library tree, then read_writing.
-  {
-    question: "How would you design production-ready agents?",
-    expect: { kind: "articles", titles: ["Testing RAG Agents", "Agent Memory", "Needs a Bouncer", "introduction to LiteLLM"] },
-  },
-  {
-    question: "Which of your articles should I read to build production-ready agents?",
-    expect: { kind: "articles", titles: ["Testing RAG Agents", "Agent Memory", "Needs a Bouncer", "introduction to LiteLLM"] },
-  },
-  { question: "What did you build at Illumina?", expect: { kind: "no-search" } },
-  { question: "Where did you study?", expect: { kind: "no-search" } },
-  { question: "What do you do at Mastercard?", expect: { kind: "no-search" } },
-  // Evaluative: evidence from the record in the prompt, never a search.
-  { question: "How do you stand out against other candidates?", expect: { kind: "no-search" } },
-];
 
 // ---------------------------------------------------------------------------
 
@@ -166,18 +115,26 @@ async function main() {
 
   let jevModel: string | null = null;
   const results = [];
-  for (const [i, { question, expect }] of GOLDEN.entries()) {
+  for (const [i, row] of GOLDEN.entries()) {
+    const { question, expect } = row;
     process.stdout.write(`[${i + 1}/${GOLDEN.length}] ${question}\n`);
     const expected = expectedSlugs(expect, ARTICLES);
     const expectedUrls = new Set(ARTICLES.filter((a) => expected.includes(a.slug)).map((a) => a.url));
 
-    let trace: SearchTrace | null = null;
-    const found = await searchMyWriting(question, { onTrace: (t) => (trace = t) });
-    const t = trace as SearchTrace | null;
-    jevModel ??= t?.model ?? null;
-    const shortlist = t?.shortlist.map((s) => s.slug) ?? [];
-    // The first page: what the agent reads before deciding whether to ask for more.
-    const chosen = found.slice(0, PAGE_SIZE).map((a) => a.slug);
+    const runs = await Promise.all(
+      retrievalQueries(row).map(async (topic) => {
+        let trace: SearchTrace | null = null;
+        const found = await searchMyWriting(topic, { onTrace: (tr) => (trace = tr) });
+        return { topic, found, trace: trace as SearchTrace | null };
+      })
+    );
+    const traces = runs.map((r) => r.trace).filter((x): x is SearchTrace => x !== null);
+    jevModel ??= traces[0]?.model ?? null;
+    const shortlist = [...new Set(traces.flatMap((tr) => tr.shortlist.map((s) => s.slug)))];
+    // The first page of the merged ranking: what the agent reads before deciding whether to ask for more.
+    const chosen = mergeByTopic(runs).slice(0, PAGE_SIZE).map((a) => a.slug);
+    const totalMs = traces.length ? Math.max(...traces.map((tr) => tr.totalMs)) : null;
+    const fallback = traces.find((tr) => tr.fallback !== "none")?.fallback ?? traces[0]?.fallback ?? null;
 
     const agent = await runAgent(openai, systemPrompt, question);
     const invented = [...new Set((agent.text.match(URL_RE) ?? []).map(trimUrl))].filter((u) => !allowedUrls.has(u));
@@ -188,15 +145,17 @@ async function main() {
       question,
       expect: expect.kind,
       expected,
+      topics: retrievalQueries(row),
+      scoredForRetrieval: countsForRetrieval(row),
       retrieval: {
         shortlist,
         chosen,
         recall: expect.kind === "articles" ? expected.some((s) => shortlist.includes(s)) : null,
         precisionAt2: expect.kind === "articles" && chosen.length ? ratio(chosen.filter((s) => expected.includes(s)).length, chosen.length) : expect.kind === "articles" ? 0 : null,
         abstained: chosen.length === 0,
-        totalMs: t?.totalMs ?? null,
-        fallback: t?.fallback ?? null,
-        errors: t?.errors ?? [],
+        totalMs,
+        fallback,
+        errors: traces.flatMap((tr) => tr.errors),
       },
       agent: {
         searched: agent.searched,
@@ -213,6 +172,8 @@ async function main() {
   }
 
   const writing = results.filter((r) => r.expect === "articles");
+  // Abstract rows are answered from the library tree, not one search: end-to-end metrics only.
+  const retrievalWriting = writing.filter((r) => r.scoredForRetrieval);
   const none = results.filter((r) => r.expect === "none");
   const noSearch = results.filter((r) => r.expect === "no-search");
   const latencies = results.map((r) => r.retrieval.totalMs).filter((x): x is number => x !== null);
@@ -224,12 +185,12 @@ async function main() {
       [...writing, ...none].filter((r) => r.agent.searched).length + noSearch.filter((r) => !r.agent.searched).length,
       results.length
     ),
-    stage1Recall: ratio(writing.filter((r) => r.retrieval.recall).length, writing.length),
+    stage1Recall: ratio(retrievalWriting.filter((r) => r.retrieval.recall).length, retrievalWriting.length),
     // End to end: the agent read an expected article, through search_writing or read_writing.
     agentRecall: ratio(writing.filter((r) => r.agent.readExpected).length, writing.length),
     precisionAt2: ratio(
-      writing.reduce((sum, r) => sum + (r.retrieval.precisionAt2 ?? 0), 0),
-      writing.length
+      retrievalWriting.reduce((sum, r) => sum + (r.retrieval.precisionAt2 ?? 0), 0),
+      retrievalWriting.length
     ),
     abstainAccuracy: ratio(
       none.filter((r) => r.retrieval.abstained && r.agent.sources === 0 && r.agent.citations === 0).length,

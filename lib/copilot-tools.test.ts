@@ -1573,3 +1573,61 @@ describe("parseReadWritingArgs", () => {
     expect(parseReadWritingArgs("null")).toBeNull();
   });
 });
+
+describe("writing tools share one reply cap, under parallel calls and for unknown ids (review fixes)", () => {
+  const signal = new AbortController().signal;
+
+  it("the reply cap holds when both writing tools run in parallel", async () => {
+    const emit = jest.fn();
+    const search = jest.fn(async () => [foundOf(EPSILON), foundOf(ZETA), foundOf(ETA), foundOf(THETA)]);
+    // read_writing admits its ids, then waits on pick; search_writing finishes first and admits its page in between.
+    const slowPick = jest.fn(async (article: { slug: string }, focus: string) => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return { outline: [`O ${article.slug}`], sections: [{ heading: `H ${article.slug}`, text: `Picked ${article.slug} for ${focus}` }], truncated: false };
+    });
+    const { searchWriting, readWriting } = instance({ search, catalog: [ALPHA, BETA, GAMMA, DELTA], pick: slowPick });
+
+    const [read, found] = await Promise.all([
+      readWriting.run(
+        { articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc", "dddddddddddd"], focus: "f" },
+        { emit, signal }
+      ),
+      searchWriting.run({ topics: ["many"], more: false }, { emit, signal }),
+    ]);
+
+    const served = [
+      ...(read as { articles: { n: number }[] }).articles,
+      ...(found as { articles: { n: number }[] }).articles,
+    ];
+    expect(served.length).toBeLessThanOrEqual(MAX_ARTICLES_PER_REPLY);
+    const sources = emit.mock.calls.map(([event]) => event);
+    expect(sources.length).toBeLessThanOrEqual(MAX_ARTICLES_PER_REPLY);
+    expect(new Set(sources.map((e) => e.n)).size).toBe(sources.length);
+  });
+
+  it("read_writing at the cap still reports unknown ids", async () => {
+    const emit = jest.fn();
+    const search = jest.fn(async () => [foundOf(EPSILON), foundOf(ZETA), foundOf(ETA)]);
+    const { searchWriting, readWriting } = instance({
+      search,
+      catalog: [ALPHA, BETA, GAMMA, DELTA],
+      pick: pickStub(),
+    });
+    // Four read plus two from the search page (the page is cut to the two remaining) = the cap of six.
+    await readWriting.run({ articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc", "dddddddddddd"], focus: "f" }, { emit, signal });
+    await searchWriting.run({ topics: ["many"], more: false }, { emit, signal });
+
+    expect(await readWriting.run({ articles: ["unknownid0001"], focus: "f" }, { emit, signal })).toEqual({
+      articles: [],
+      note: LIMIT_NOTE,
+      errors: [{ id: "unknownid0001", error: "unknown article" }],
+    });
+  });
+
+  it("parseReadWritingArgs caps each id at 64 characters", () => {
+    const parsed = parseReadWritingArgs(JSON.stringify({ articles: ["a".repeat(200)], focus: "f" }));
+
+    expect(parsed).not.toBeNull();
+    expect(parsed!.articles[0].length).toBeLessThanOrEqual(64);
+  });
+});
