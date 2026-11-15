@@ -17,6 +17,7 @@ const scorecard: Scorecard = {
   precisionAt2: null,
   abstainAccuracy: 1,
   noInvention: 0.5,
+  pageSize: null,
 };
 
 function sectionTitles(): string[] {
@@ -74,6 +75,36 @@ describe("ColophonPage sections", () => {
     expect(scoped.getByText(/42 questions/)).toBeInTheDocument();
     expect(scoped.getByText(/1 October 2026/)).toBeInTheDocument();
     expect(scoped.getByText(/jev-1\.13/)).toBeInTheDocument();
+  });
+
+  it("labels the precision row with the page size the run used", () => {
+    jest.mocked(loadScorecard).mockReturnValue({ ...scorecard, pageSize: 3 });
+    render(<ColophonPage />);
+
+    expect(screen.getByText("Precision@3")).toBeInTheDocument();
+    expect(screen.queryByText("Precision@2")).not.toBeInTheDocument();
+  });
+
+  it("labels the precision row Precision@2 when the run recorded no page size", () => {
+    jest.mocked(loadScorecard).mockReturnValue(scorecard);
+    render(<ColophonPage />);
+
+    expect(screen.getByText("Precision@2")).toBeInTheDocument();
+  });
+
+  it("describes the scenario replays in prose, with no numbers, covering career and writing questions", () => {
+    jest.mocked(loadScorecard).mockReturnValue(scorecard);
+    render(<ColophonPage />);
+
+    const section = screen.getByRole("heading", { name: /how it.s tested/i }).closest("section") as HTMLElement;
+    const sentence = (section.textContent ?? "")
+      .split(/(?<=\.)\s+/)
+      .find((s) => /replay/i.test(s));
+
+    expect(sentence).toBeDefined();
+    expect(sentence).toMatch(/career/i);
+    expect(sentence).toMatch(/writing/i);
+    expect(sentence).not.toMatch(/\d/);
   });
 });
 

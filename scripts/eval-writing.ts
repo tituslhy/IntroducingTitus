@@ -26,7 +26,8 @@ const AGENT_TIMEOUT_MS = 60_000;
 /**
  * Expected articles are matched by title substring (case-insensitive), or by
  * keyword, so the set survives slug changes. "none" rows must retrieve
- * nothing; "no-search" rows must not call search_writing at all.
+ * nothing; "no-search" rows must not call a writing tool (search_writing or
+ * read_writing) at all.
  */
 type Expect =
   | { kind: "articles"; titles?: string[]; keyword?: string }
@@ -54,9 +55,25 @@ const GOLDEN: { question: string; expect: Expect }[] = [
   { question: "Have you written about Rust?", expect: { kind: "none" } },
   { question: "Have you written about building iOS apps in Swift?", expect: { kind: "none" } },
   { question: "What's your take on Kotlin coroutines?", expect: { kind: "none" } },
+  // Multi-part: each part is its own topic, so Nginx isn't crowded out (the original miss).
+  {
+    question: "How would I use LiteLLM, Helm and Nginx to put agents in production?",
+    expect: { kind: "articles", titles: ["introduction to LiteLLM", "Helm Charts", "Nginx"] },
+  },
+  // Abstract and goal-shaped: answered by reasoning over the library tree, then read_writing.
+  {
+    question: "How would you design production-ready agents?",
+    expect: { kind: "articles", titles: ["Testing RAG Agents", "Agent Memory", "Needs a Bouncer", "introduction to LiteLLM"] },
+  },
+  {
+    question: "Which of your articles should I read to build production-ready agents?",
+    expect: { kind: "articles", titles: ["Testing RAG Agents", "Agent Memory", "Needs a Bouncer", "introduction to LiteLLM"] },
+  },
   { question: "What did you build at Illumina?", expect: { kind: "no-search" } },
   { question: "Where did you study?", expect: { kind: "no-search" } },
   { question: "What do you do at Mastercard?", expect: { kind: "no-search" } },
+  // Evaluative: evidence from the record in the prompt, never a search.
+  { question: "How do you stand out against other candidates?", expect: { kind: "no-search" } },
 ];
 
 // ---------------------------------------------------------------------------
@@ -74,14 +91,17 @@ function expectedSlugs(expect: Expect, corpus: readonly Article[]): string[] {
     .map((a) => a.slug);
 }
 
-type AgentRun = { searched: boolean; queries: number; sources: { n: number; url: string }[]; text: string };
+type AgentRun = { searched: boolean; queries: number; reads: number; sources: { n: number; url: string }[]; text: string };
 
 async function runAgent(openai: OpenAI, systemPrompt: string, question: string): Promise<AgentRun> {
   let queries = 0;
+  let reads = 0;
   const tools: CopilotTool[] = createCopilotTools().map((t) =>
     t.definition.name === "search_writing"
       ? { ...t, run: (args, ctx) => (queries++, t.run(args, ctx)) }
-      : t
+      : t.definition.name === "read_writing"
+        ? { ...t, run: (args, ctx) => (reads++, t.run(args, ctx)) }
+        : t
   );
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS);
@@ -99,7 +119,7 @@ async function runAgent(openai: OpenAI, systemPrompt: string, question: string):
   } finally {
     clearTimeout(timer);
   }
-  return { searched: queries > 0, queries, sources, text };
+  return { searched: queries + reads > 0, queries, reads, sources, text };
 }
 
 const URL_RE = /https?:\/\/[^\s)\]>"'`]+/g;
@@ -149,6 +169,7 @@ async function main() {
   for (const [i, { question, expect }] of GOLDEN.entries()) {
     process.stdout.write(`[${i + 1}/${GOLDEN.length}] ${question}\n`);
     const expected = expectedSlugs(expect, ARTICLES);
+    const expectedUrls = new Set(ARTICLES.filter((a) => expected.includes(a.slug)).map((a) => a.url));
 
     let trace: SearchTrace | null = null;
     const found = await searchMyWriting(question, { onTrace: (t) => (trace = t) });
@@ -180,6 +201,9 @@ async function main() {
       agent: {
         searched: agent.searched,
         searches: agent.queries,
+        reads: agent.reads,
+        // Did the agent read (by either tool) at least one expected article?
+        readExpected: expect.kind === "articles" ? agent.sources.some((s) => expectedUrls.has(s.url)) : null,
         sources: agent.sources.length,
         citations: [...new Set(citedNumbers)].length,
         inventedUrls: invented,
@@ -201,6 +225,8 @@ async function main() {
       results.length
     ),
     stage1Recall: ratio(writing.filter((r) => r.retrieval.recall).length, writing.length),
+    // End to end: the agent read an expected article, through search_writing or read_writing.
+    agentRecall: ratio(writing.filter((r) => r.agent.readExpected).length, writing.length),
     precisionAt2: ratio(
       writing.reduce((sum, r) => sum + (r.retrieval.precisionAt2 ?? 0), 0),
       writing.length
@@ -216,6 +242,8 @@ async function main() {
     latencyMs: { p50: percentile(latencies, 50), p95: percentile(latencies, 95) },
     fallbacks,
     questionCount: results.length,
+    // Precision is measured on the first page; the scorecard labels it with this.
+    pageSize: PAGE_SIZE,
   };
 
   const output = { runAt: new Date().toISOString(), model: { jev: jevModel, gpt: GPT_MODEL }, questions: results, metrics };
