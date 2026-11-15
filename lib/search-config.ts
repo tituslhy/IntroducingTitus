@@ -16,3 +16,5 @@ export const SECTION_BUDGET_CHARS = 6_000;
 export const STAGE2_MAX = 8;
 /** Most topics one search_writing call takes; each is searched separately. */
 export const MAX_TOPICS = 3;
+/** Most characters the library tree (themes → articles) may take in the system prompt. */
+export const TREE_MAX_CHARS = 32_000;
