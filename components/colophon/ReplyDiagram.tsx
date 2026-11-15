@@ -118,28 +118,30 @@ function ToolsBox({ x, y, w }: { x: number; y: number; w: number }) {
 
 export default function ReplyDiagram({ articleCount }: { articleCount: number }) {
   const filterSub = `noul × ${articleCount}`
-  const filterPass = `pass ≥ ${RELEVANT}`
-  const rankPass = `pass ≥ ${MIN_SCORE.toFixed(1)}`
-  const rankSub = `top ${STAGE2_MAX} scored`
-  const sectionsSub = `≤ ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} chars an article`
+  const filterPass = `p(yes) ≥ ${RELEVANT}`
+  const rankPass = `≥ ${MIN_SCORE.toFixed(1)} of 3`
+  const rankSub = `score × top ${STAGE2_MAX}`
+  const sectionsSub = 'score × each section'
+  const keeps = `keeps the best sections, ≤ ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} chars an article`
   const cap = `≤${MAX_ARTICLES_PER_REPLY} articles a reply`
   const description =
     `A visitor's question passes the guards and enters the agent loop. Each round, GPT either answers or calls tools; ` +
     `the tool results go back to GPT for the next round, for at most four rounds. The tools are show_on_page, search_writing and read_writing. ` +
     `Articles are reached by one of two routes, one route per call: search_writing or read_writing, and a reply can use both. ` +
     `search_writing takes up to ${MAX_TOPICS} topics in one call and searches each topic separately: for each, ` +
-    `a Jev filter (one yes/no per article, ${articleCount} articles), then a Jev rank (a graded score for up to ${STAGE2_MAX} survivors). ` +
+    `a Jev filter (noul: one yes/no question per article, ${articleCount} articles, kept at p(yes) ≥ ${RELEVANT}), ` +
+    `then a Jev rank (score: a graded 0–3 score for up to ${STAGE2_MAX} survivors, kept at ≥ ${MIN_SCORE.toFixed(1)}). ` +
     `It merges the topics' rankings round-robin, so each topic's best article comes first, and hands over ${PAGE_SIZE} at a time; ` +
     `calling it again with more: true returns the next ${PAGE_SIZE} without calling Jev. ` +
     `read_writing involves no search: for broad questions, GPT reads the library map of themes in its prompt, picks up to 3 articles, and opens them by id. ` +
-    `Both routes end at Jev sections, which picks each article's best sections, up to ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} characters an article, ` +
+    `Both routes end at Jev sections (score again, on each section's heading and one-line note), which keeps each article's best sections, up to ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} characters an article, ` +
     `and that article text goes back to GPT. Each tool can be called at most twice per reply, and a reply reads at most ${MAX_ARTICLES_PER_REPLY} articles. ` +
     `GPT's answer then passes output checks and streams to the drawer.`
 
   return (
     <figure className="my-[clamp(20px,3vw,32px)] min-[1120px]:-mx-[100px]">
       {/* Desktop */}
-      <svg viewBox="0 0 760 496" role="img" aria-label={description} className="hidden h-auto w-full min-[760px]:block">
+      <svg viewBox="0 0 760 512" role="img" aria-label={description} className="hidden h-auto w-full min-[760px]:block">
         <ArrowHead id="reply-arrow-h" />
         <Box x={0} y={38} w={84} title="visitor" />
         <path d="M84,61 H106" {...line} markerEnd="url(#reply-arrow-h)" />
@@ -194,12 +196,13 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
         {/* Both routes: Jev picks each article's best sections; the text goes back to GPT */}
         <Box x={246} y={404} w={160} title="Jev sections" sub={sectionsSub} />
         <path d="M406,427 H744 V200 H408" {...line} markerEnd="url(#reply-arrow-h)" />
-        <Small x={326} y={468} anchor="middle">article text back to GPT</Small>
-        <Small x={326} y={484} anchor="middle">{`≤2 calls of each tool · ${cap}`}</Small>
+        <Small x={326} y={468} anchor="middle">{keeps}</Small>
+        <Small x={326} y={484} anchor="middle">article text back to GPT</Small>
+        <Small x={326} y={500} anchor="middle">{`≤2 calls of each tool · ${cap}`}</Small>
       </svg>
 
       {/* Mobile */}
-      <svg viewBox="0 0 340 832" role="img" aria-label={description} className="mx-auto block h-auto w-full max-w-[400px] min-[760px]:hidden">
+      <svg viewBox="0 0 340 860" role="img" aria-label={description} className="mx-auto block h-auto w-full max-w-[400px] min-[760px]:hidden">
         <ArrowHead id="reply-arrow-v" />
         <Box x={95} y={0} w={150} title="visitor" />
         <path d="M170,46 V62" {...line} markerEnd="url(#reply-arrow-v)" />
@@ -239,15 +242,17 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
         {/* Both routes meet at Jev sections; the text returns to the tools up the left edge */}
         <Box x={90} y={624} w={160} title="Jev sections" sub={sectionsSub} />
         <path d="M90,647 H2 V300 H93" {...line} markerEnd="url(#reply-arrow-v)" />
-        <Small x={170} y={688} anchor="middle">article text back to GPT</Small>
-        <Small x={170} y={702} anchor="middle">{`${cap} · ≤2 calls a tool`}</Small>
+        <Small x={170} y={688} anchor="middle">{'keeps the best sections, '}</Small>
+        <Small x={170} y={702} anchor="middle">{`≤ ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} chars an article`}</Small>
+        <Small x={170} y={720} anchor="middle">article text back to GPT</Small>
+        <Small x={170} y={734} anchor="middle">{`${cap} · ≤2 calls a tool`}</Small>
 
         {/* Answer leaves the loop down the right edge */}
-        <path d="M245,179 H318 V739 H247" {...line} markerEnd="url(#reply-arrow-v)" />
+        <path d="M245,179 H318 V771 H247" {...line} markerEnd="url(#reply-arrow-v)" />
         <Small x={282} y={172} anchor="middle">answer</Small>
-        <Box x={95} y={716} w={150} title="checks" />
-        <path d="M170,762 V782" {...line} markerEnd="url(#reply-arrow-v)" />
-        <Box x={95} y={784} w={150} title="drawer" />
+        <Box x={95} y={748} w={150} title="checks" />
+        <path d="M170,794 V814" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Box x={95} y={816} w={150} title="drawer" />
       </svg>
     </figure>
   )

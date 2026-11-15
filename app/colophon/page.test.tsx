@@ -297,3 +297,14 @@ describe("ColophonPage LiteLLM route is one call", () => {
     expect(row.textContent ?? "").toMatch(/three searches inside it/i);
   });
 });
+
+describe("ColophonPage names each Jev operation", () => {
+  it("walkthrough names the Jev operation at each Jev step", () => {
+    render(<ColophonPage />);
+    const text = document.body.textContent ?? "";
+
+    expect(text).toContain("Jev filter (noul)");
+    expect(text).toContain("Jev rank (score)");
+    expect(text).toContain("Jev sections (score)");
+  });
+});
