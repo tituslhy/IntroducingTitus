@@ -5,7 +5,7 @@ For me, months from now, when I've forgotten the commands. Checklists first; det
 Two things to know up front:
 
 - `resources/` is gitignored. The Medium export and the saved joint-article pages live only on my machine.
-- `content/` is committed. `articles.json`, `articles-meta.json`, `article-notes.json` and `eval-results.json` ship with the site.
+- `content/` is committed. `articles.json`, `articles-meta.json`, `article-notes.json`, `article-themes.json` and `eval-results.json` ship with the site.
 
 ---
 
@@ -14,9 +14,10 @@ Two things to know up front:
 - [ ] Export from Medium: Settings → Security and apps → Download your information. The zip arrives by email.
 - [ ] Replace `resources/medium-export.zip` with the new zip.
 - [ ] Joint article (published under a co-author's byline)? Open it in the browser, File → Save Page As → "Webpage, HTML Only", into `resources/joint-articles/`. The build warns about any joint article in my export that has no saved page. Medium blocks scripted fetches, so this has to be done by hand.
-- [ ] `npm run articles:build`. It drafts a note (summary + keywords) for each new article with an LLM, using `OPENAI_API_KEY`.
-- [ ] Open `content/article-notes.json`, find the new entries (`"reviewed": false`), fix the summary and keywords, and set `"reviewed": true`. These notes are the retrieval index the copilot searches, so they matter.
-- [ ] `npm run articles:build` again. This time it writes the corpus.
+- [ ] `npm run articles:build`. Using `OPENAI_API_KEY`, it drafts for each new article: a note (summary + keywords), a one-line note per section, and which theme(s) it belongs under.
+- [ ] Open `content/article-notes.json`, find the new entries (`"reviewed": false`), fix the summary and keywords, and set `"reviewed": true`. These notes are the retrieval index the copilot searches, so they matter. The `sections` notes inside each entry are not reviewed (fix one if it's wrong, but nothing waits on them).
+- [ ] Open `content/article-themes.json`, check the new article's entry under `assignments` (one or two theme ids from `themes`), and set its `reviewed` entry to `true`. This is the library tree the copilot reads for broad questions ("what should I read to build production agents?").
+- [ ] `npm run articles:build` again. This time it writes the corpus (and checks the tree still fits its 32k-character limit).
 - [ ] `npx jest`.
 - [ ] Optional: `npm run eval:writing` (re-runs the golden set and rewrites `content/eval-results.json`, which feeds the /colophon scorecard). Commit that file only from a real run, never a hand edit.
 - [ ] Optional: `npm run eval:replay` (replays a recorded conversation and checks it; writes nothing).
@@ -28,9 +29,12 @@ Flags for `articles:build`:
 |---|---|
 | `-- path/to/export` | Use a different zip, or an unzipped folder, instead of `resources/medium-export.zip`. |
 | `-- --no-draft` | Don't draft missing notes with an LLM (no API key needed). New articles then still need notes before the corpus is written. |
-| `-- --allow-unreviewed` | Write the corpus even with unreviewed notes. Local experiments only. Never ship a corpus built this way. |
+| `-- --allow-unreviewed` | Write the corpus even with unreviewed notes or themes. Local experiments only. Never ship a corpus built this way. |
+| `-- --retheme` | Throw away the themes and draft a fresh set (about 8) from every article. Everything in `article-themes.json` is unreviewed again: review the theme list (`"themesReviewed": true`) and every assignment. Use when the library has outgrown its themes. |
 
-What it writes: `content/articles.json` (the corpus, server-only), `content/articles-meta.json` (the article count the page shows), and merges into `content/article-notes.json` (never overwrites my edits). It also warns about notes for articles that are no longer in the export.
+What it writes: `content/articles.json` (the corpus, server-only), `content/articles-meta.json` (the article count the page shows), and merges into `content/article-notes.json` and `content/article-themes.json` (never overwrites my edits, except `--retheme`). It also warns about notes and theme assignments for articles that are no longer in the export.
+
+First build after the writing-tree change: it backfills section notes for every article (one call each, about 65) and drafts the first set of themes. Review the theme list and all assignments once (`"themesReviewed": true`, every `reviewed` entry `true`), then re-run.
 
 RSS only carries the latest ~10 posts, so the export is the source of truth. Re-run the whole thing every time I publish.
 
@@ -85,7 +89,10 @@ Local: `.env.local` at the repo root (gitignored; the npm scripts load it automa
 | Symptom | What it means | What to do |
 |---|---|---|
 | `articles:build` prints "N article(s) need review in content/article-notes.json" and "Corpus not written." | New or edited notes still have `"reviewed": false`. Deliberate: unreviewed LLM summaries never ship. | Review them, set `"reviewed": true`, re-run. Not `--allow-unreviewed`. |
-| `articles:build` says "OPENAI_API_KEY is needed to draft notes" | New articles need notes and there's no key. | Add the key to `.env.local`, or `--no-draft` and write the notes by hand. |
+| `articles:build` says "OPENAI_API_KEY is needed to draft notes" (or "to draft themes") | New articles need notes or a theme and there's no key. | Add the key to `.env.local`, or `--no-draft` and write the notes / assignments by hand. |
+| `articles:build` prints "N problem(s) in content/article-themes.json" | Themes or assignments unreviewed, an article with no theme, or an assignment to a theme id that doesn't exist. | Fix the listed entries, set `reviewed` / `themesReviewed`, re-run. |
+| `articles:build` says "The library tree is N chars, over TREE_MAX_CHARS" | The tree (one line per article per theme) no longer fits the prompt budget. | Shorten long summaries or theme descriptions, or file fewer articles under two themes. If the library has simply grown, raise `TREE_MAX_CHARS` in `lib/search-config.ts` deliberately. |
+| A section note reads wrong | Drafted by an LLM, not reviewed. | Edit it in `article-notes.json` → `sections`. Delete it and the next build redrafts it. |
 | `articles:build` warns about joint articles with no saved page | A joint article is listed in my export but not saved in `resources/joint-articles/`. | Open the printed URL, Save Page As → "Webpage, HTML Only" into that folder, re-run. |
 | `npx jest` fails "featured article N resolves to a corpus article" (`lib/copilot-prompt.test.ts`) | An entry in `FEATURED_ARTICLES` (`lib/profile.ts`) has no match in `content/articles.json`, so the prompt would link it without a date. | Rebuild the corpus from a fresh export, or fix the featured entry's `href`/title. |
 | Visitor sees "That conversation has gotten a bit long for me to follow" (`conversation_too_long`) | The conversation doesn't fit the history budget even after dropping the oldest exchanges (`lib/chat-history.ts`). Logged as `copilot_chat_rejected` / `budget_exceeded`. | Usually fine: one very long paste. If it shows up often in logs, look at the budget in `app/api/chat/route.ts`. |
@@ -113,4 +120,4 @@ The `articles:build` and `eval:*` scripts load `.env.local` themselves (`node --
 
 ## Coming with the writing tree
 
-Not built yet (planned in `docs/superpowers/plans/2026-11-14-copilot-writing-tree.md`). When it lands, the publish flow gains a theme-review step alongside the notes review, and replays move into their own scenario files. Update this doc then.
+Themes and section notes are in (above). Still planned in `docs/superpowers/plans/2026-11-14-copilot-writing-tree.md`: the copilot reading the tree (`read_writing`), and replays moving into their own scenario files. Update this doc then.
