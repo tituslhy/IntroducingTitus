@@ -110,7 +110,8 @@ function ScorecardTable({ card }: { card: Scorecard }) {
   const rows: [string, string, string][] = [
     ['Tool-call accuracy', percent(card.toolCallAccuracy), 'Searched for writing questions; stayed out of it for CV questions'],
     ['Recall', percent(card.stage1Recall), 'The right article made the shortlist'],
-    ['Precision@2', percent(card.precisionAt2), 'The articles it read were the right ones'],
+    // Runs recorded before pageSize existed read pages of 2.
+    [`Precision@${card.pageSize ?? 2}`, percent(card.precisionAt2), 'The articles it read were the right ones'],
     ['Abstain accuracy', percent(card.abstainAccuracy), 'Said “I haven’t written about that” when I hadn’t'],
     ['No invention', percent(card.noInvention), 'Replies with no made-up titles, links or citations'],
   ]
@@ -305,7 +306,10 @@ export default function ColophonPage() {
             <Section folio={next()} title="How it’s tested">
               <p className={`${prose} mb-5`}>
                 A golden set of questions, each with the article it should find, or none, run against the real models.
-                These numbers come straight from the last run.
+                These numbers come straight from the last run. Scripted conversations are replayed through the same
+                loop too: a visitor switching between career and writing questions and back, correcting it, or asking
+                it to rank me against other candidates. Each replay checks that footnotes keep their numbers, that
+                career questions aren’t searched, and that it never rates me.
               </p>
               <ScorecardTable card={scorecard} />
             </Section>

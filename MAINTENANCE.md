@@ -20,7 +20,7 @@ Two things to know up front:
 - [ ] `npm run articles:build` again. This time it writes the corpus (and checks the tree still fits its 32k-character limit).
 - [ ] `npx jest`.
 - [ ] Optional: `npm run eval:writing` (re-runs the golden set and rewrites `content/eval-results.json`, which feeds the /colophon scorecard). Commit that file only from a real run, never a hand edit.
-- [ ] Optional: `npm run eval:replay` (replays a recorded conversation and checks it; writes nothing).
+- [ ] Optional: `npm run eval:replay` (replays the scripted conversations in `scripts/replay-scenarios/` and checks them; writes nothing).
 - [ ] Commit `content/`, push. Vercel deploys.
 
 Flags for `articles:build`:
@@ -75,11 +75,13 @@ Local: `.env.local` at the repo root (gitignored; the npm scripts load it automa
 ## 4. Debugging a bad answer
 
 - [ ] Find the run in LangSmith, project `personal-website`. One trace per chat request, named `copilot-chat`.
-- [ ] Read the child runs: each `gpt round n`, each `search_writing` call with its arguments and result, and under it `jev filter (noul)` (the shortlist and relevance) and `jev rank (score)` (every stage-2 score). The `search_writing` run also carries `search.chosen` (what was served) and any `fallback`/`errors`. Export the trace if I want to keep it.
+- [ ] Read the child runs: each `gpt round n`, each `search_writing` call with its arguments and result, and under it `jev filter (noul)` (the shortlist, relevance and near-misses) and `jev rank (score)` (every stage-2 score). The `search_writing` run also carries `search.chosen` (what was served) and any `fallback`/`errors`. A `read_writing` call (articles picked from the library tree) carries `read` (ids, focus, what was served, unknown ids). Under either, `jev sections (score)` shows which sections of each article were picked. Export the trace if I want to keep it.
 - [ ] Decide which layer failed:
   - Search didn't find the right article: usually a weak note. Fix the summary/keywords in `content/article-notes.json`, rebuild. Add the question to `GOLDEN` in `scripts/eval-writing.ts` so it stays fixed.
+  - A broad question read the wrong articles: look at the library tree. The article may be under the wrong theme in `content/article-themes.json`, or its summary may not say what it's about.
+  - The right article, but the wrong part of it: check its section notes (`sections` in `article-notes.json`) and the `jev sections (score)` step.
   - Search found it but the answer was wrong (bad citation, apology on a correction, stale self-description): prompt or loop problem. Look at `copilot-system-prompt.md` and `lib/copilot-loop.ts`.
-- [ ] Reproduce: `npm run eval:replay`. Today `scripts/replay-citations.ts` replays one recorded conversation (the `TURNS` list) with checks tied to specific turn numbers. To replay a new conversation, copy its visitor turns into `TURNS` (or a copy of the script) and adjust the turn-number constants and checks.
+- [ ] Reproduce: `npm run eval:replay -- <scenario>`. Each file in `scripts/replay-scenarios/` is one scripted conversation (`langserve`, `mixed-modes`, `evaluative`) with its own checks; `-- --list` lists them without calling any API. To replay a new conversation, copy one of those files, put the visitor's turns in `TURNS`, write its checks, and add it to `SCENARIOS` in `scripts/replay-scenarios/index.ts`. Every scenario also gets the shared footnote checks.
 - [ ] Without LangSmith: Vercel's runtime logs have one `copilot_writing_search` JSON line per search (latency, fallback, errors, no query text) and `copilot_chat_rejected` lines for refused requests.
 
 ---
@@ -112,12 +114,6 @@ Local: `.env.local` at the repo root (gitignored; the npm scripts load it automa
 | `npx tsc --noEmit -p .` | Type-check without building. |
 | `npm run articles:build` | Rebuild the article corpus from `resources/medium-export.zip` (flags in section 1). |
 | `npm run eval:writing` | Golden set for article search, real GPT + real Jev; writes `content/eval-results.json`. `-- --dry` prints without writing; `-- --models` lists Jev builds. Costs API calls. |
-| `npm run eval:replay` | Replays a recorded conversation through the real loop and checks it. Writes nothing; exits 1 on a failed check. Costs ~10 agent turns. |
+| `npm run eval:replay` | Replays every scripted conversation (`scripts/replay-scenarios/`) through the real loop and checks it. `-- <name>` runs one; `-- --list` lists them. Writes nothing; exits 1 on a failed check. Costs ~25 agent turns for all three. |
 
 The `articles:build` and `eval:*` scripts load `.env.local` themselves (`node --env-file-if-exists`).
-
----
-
-## Coming with the writing tree
-
-Themes and section notes are in (above). Still planned in `docs/superpowers/plans/2026-11-14-copilot-writing-tree.md`: the copilot reading the tree (`read_writing`), and replays moving into their own scenario files. Update this doc then.
