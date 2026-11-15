@@ -20,7 +20,7 @@ import {
   type Source,
 } from "@/lib/citations";
 import { COPILOT_OPEN_EVENT, type CopilotOpenDetail } from "@/lib/copilot-events";
-import { COLOPHON_PATH } from "@/lib/content";
+import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH } from "@/lib/content";
 
 interface Message {
   id: string;
@@ -62,10 +62,11 @@ const SIDE_BY_SIDE_QUERY = "(min-width: 1024px)";
 const SPOTLIGHT_CLASS = "copilot-spotlight";
 const SPOTLIGHT_MS = 2800;
 
+/** One of each kind it handles well: a role, a project, a broad question across my writing, a specific one. */
 const STARTER_PROMPTS = [
   "What did you build at Illumina?",
   "What trade-offs shaped fictional-bassoon?",
-  "Which article should I read first?",
+  "How would you build production-ready agents?",
   "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?",
 ];
 
@@ -700,6 +701,10 @@ export default function CopilotBubble({
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5" style={{ minHeight: 0 }}>
           {messages.length === 0 && !busy && (
             <div>
+              <p className="mb-4 font-serif text-[15px] leading-snug text-ink-soft">
+                Ask about my roles, projects or any of my {ARTICLE_COUNT_NUMBER} articles, or paste a job description to
+                see how I fit.
+              </p>
               <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
                 Start with one of these
               </p>

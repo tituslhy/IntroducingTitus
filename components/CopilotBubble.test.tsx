@@ -2,6 +2,9 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TextEncoder, TextDecoder } from "util";
 import CopilotBubble from "./CopilotBubble";
+import { ARTICLE_COUNT_NUMBER } from "@/lib/content";
+
+const INTRO = `Ask about my roles, projects or any of my ${ARTICLE_COUNT_NUMBER} articles, or paste a job description to see how I fit.`;
 
 // Renders plain text, except [text](href) which goes through the drawer's own
 // `a` renderer, so citation links can be exercised without the ESM markdown stack.
@@ -139,10 +142,36 @@ describe("CopilotBubble", () => {
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
 
     // Assert
-    expect(screen.getByText(/what did you build at illumina/i)).toBeInTheDocument();
-    expect(screen.getByText(/what trade-offs shaped fictional-bassoon/i)).toBeInTheDocument();
-    expect(screen.getByText(/which article should i read first/i)).toBeInTheDocument();
-    expect(screen.getByText(/lora, raft or grpo/i)).toBeInTheDocument();
+    expect(screen.getByText("What did you build at Illumina?")).toBeInTheDocument();
+    expect(screen.getByText("What trade-offs shaped fictional-bassoon?")).toBeInTheDocument();
+    expect(screen.getByText("How would you build production-ready agents?")).toBeInTheDocument();
+    expect(screen.getByText("LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?")).toBeInTheDocument();
+    expect(screen.queryByText(/which article should i read first/i)).not.toBeInTheDocument();
+  });
+
+  it("says what it can be asked about, with the live article count", async () => {
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+
+    expect(screen.getByText(INTRO)).toBeInTheDocument();
+  });
+
+  it("sends the broad starter question when clicked", async () => {
+    const user = userEvent.setup();
+    (global.fetch as jest.Mock).mockResolvedValue(
+      createStreamingResponse([`{"type":"delta","text":"Broad answer"}\n`])
+    );
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+
+    await user.click(screen.getByText("How would you build production-ready agents?"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/broad answer/i)).toBeInTheDocument();
+    });
+    const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+    expect(body.messages).toEqual([{ role: "user", content: "How would you build production-ready agents?" }]);
   });
 
   it("should send starter prompt when clicked", async () => {
@@ -172,6 +201,7 @@ describe("CopilotBubble", () => {
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    expect(screen.getByText(INTRO)).toBeInTheDocument();
 
     // Act
     const input = screen.getByPlaceholderText(/ask about my work/i);
@@ -181,6 +211,7 @@ describe("CopilotBubble", () => {
     await waitFor(() => {
       expect(screen.queryByText(/what did you build at illumina/i)).not.toBeInTheDocument();
     });
+    expect(screen.queryByText(INTRO)).not.toBeInTheDocument();
   });
 
   it("should display typing indicator while loading", async () => {
