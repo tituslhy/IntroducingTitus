@@ -126,7 +126,8 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
   const description =
     `A visitor's question passes the guards and enters the agent loop. Each round, GPT either answers or calls tools; ` +
     `the tool results go back to GPT for the next round, for at most four rounds. The tools are show_on_page, search_writing and read_writing. ` +
-    `Articles are reached by one of two routes. search_writing takes up to ${MAX_TOPICS} topics and searches each topic separately: for each, ` +
+    `Articles are reached by one of two routes, one route per call: search_writing or read_writing, and a reply can use both. ` +
+    `search_writing takes up to ${MAX_TOPICS} topics in one call and searches each topic separately: for each, ` +
     `a Jev filter (one yes/no per article, ${articleCount} articles), then a Jev rank (a graded score for up to ${STAGE2_MAX} survivors). ` +
     `It merges the topics' rankings round-robin, so each topic's best article comes first, and hands over ${PAGE_SIZE} at a time; ` +
     `calling it again with more: true returns the next ${PAGE_SIZE} without calling Jev. ` +
@@ -167,7 +168,7 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
         <Box x={10} y={280} w={80} h={22} title="topic 1" />
         <Box x={10} y={306} w={80} h={22} title="topic 2" />
         <Box x={10} y={332} w={80} h={22} title="topic 3" />
-        <Small x={200} y={290} anchor="middle">each topic, in parallel</Small>
+        <Small x={258} y={290} anchor="middle">one call: each topic searched separately</Small>
         <path d="M90,319 H102" {...line} markerEnd="url(#reply-arrow-h)" />
         <Box x={104} y={296} w={90} title="Jev filter" sub={filterSub} />
         <Small x={149} y={356} anchor="middle">{filterPass}</Small>
@@ -184,6 +185,7 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
         {/* Route 2: read_writing opens articles GPT picked from the library map in its prompt */}
         <path d="M382,238 V262 H605 V286" {...line} markerEnd="url(#reply-arrow-h)" />
         <Small x={494} y={257} anchor="middle">read_writing(ids)</Small>
+        <Small x={326} y={257} anchor="middle">or</Small>
         <Box x={520} y={288} w={170} title="read_writing" sub="ids from the library map" />
         <Small x={612} y={350}>no search</Small>
         <Small x={612} y={364}>up to 3 ids</Small>
@@ -214,7 +216,7 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
 
         {/* Route 1 (left): topics, each through Jev, merged */}
         <path d="M120,342 V362 H80 V374" {...line} markerEnd="url(#reply-arrow-v)" />
-        <Box x={6} y={376} w={148} h={40} title="topic 1 · 2 · 3" sub="searched separately" />
+        <Box x={6} y={376} w={148} h={40} title="topic 1 · 2 · 3" sub={`1 call, ≤${MAX_TOPICS} searches`} />
         <path d="M80,416 V428" {...line} markerEnd="url(#reply-arrow-v)" />
         <Box x={6} y={430} w={148} title="Jev filter" sub={filterSub} />
         <path d="M80,476 V490" {...line} markerEnd="url(#reply-arrow-v)" />
@@ -228,6 +230,7 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
 
         {/* Route 2 (right): ids from the library map, no search */}
         <path d="M220,342 V362 H236 V374" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Small x={170} y={366} anchor="middle">or</Small>
         <Box x={166} y={376} w={140} title="read_writing" sub="from the library map" />
         <Small x={172} y={440}>no search</Small>
         <Small x={172} y={454}>≤3 ids</Small>

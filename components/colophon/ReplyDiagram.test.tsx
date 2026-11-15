@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { MAX_ARTICLES_PER_REPLY } from "@/lib/search-config";
+import { MAX_ARTICLES_PER_REPLY, MAX_TOPICS } from "@/lib/search-config";
 import ReplyDiagram from "./ReplyDiagram";
 
 describe("ReplyDiagram", () => {
@@ -115,6 +115,41 @@ describe("ReplyDiagram two routes", () => {
       expect(label).toContain("read_writing");
       expect(label).toContain("Jev sections");
       expect(label).toMatch(/merge/i);
+    }
+  });
+});
+
+describe("ReplyDiagram either route, one call", () => {
+  // The desktop SVG is hidden on mobile (class "hidden"); the mobile SVG is the one shown as a block.
+  const desktopSvg = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('svg[role="img"]')).find((s) => s.classList.contains("hidden")) as SVGElement;
+  const mobileSvg = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('svg[role="img"]')).find((s) => s.classList.contains("block")) as SVGElement;
+
+  it("marks the two routes as alternatives, in both SVGs", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of [desktopSvg(container), mobileSvg(container)]) {
+      const texts = Array.from(svg.querySelectorAll("text")).map((t) => t.textContent?.trim());
+      expect(texts).toContain("or");
+    }
+  });
+
+  it("says one search_writing call searches every topic, in each SVG", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    expect(desktopSvg(container).textContent ?? "").toContain("one call: each topic searched separately");
+    expect(mobileSvg(container).textContent ?? "").toContain(`1 call, ≤${MAX_TOPICS} searches`);
+  });
+
+  it("the description says one route per call, and a reply can use both", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of Array.from(container.querySelectorAll('svg[role="img"]'))) {
+      const label = svg.getAttribute("aria-label") ?? "";
+      expect(label).toContain("one route per call");
+      expect(label).toContain("a reply can use both");
+      expect(label).toMatch(/in one call/i);
     }
   });
 });
