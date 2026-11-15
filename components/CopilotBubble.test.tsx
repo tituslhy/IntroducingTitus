@@ -2,6 +2,9 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TextEncoder, TextDecoder } from "util";
 import CopilotBubble from "./CopilotBubble";
+import { ARTICLE_COUNT_NUMBER } from "@/lib/content";
+
+const INTRO = `Ask about my roles, projects or any of my ${ARTICLE_COUNT_NUMBER} articles, or paste a job description to see how I fit.`;
 
 // Renders plain text, except [text](href) which goes through the drawer's own
 // `a` renderer, so citation links can be exercised without the ESM markdown stack.
@@ -139,10 +142,36 @@ describe("CopilotBubble", () => {
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
 
     // Assert
-    expect(screen.getByText(/what did you build at illumina/i)).toBeInTheDocument();
-    expect(screen.getByText(/what trade-offs shaped fictional-bassoon/i)).toBeInTheDocument();
-    expect(screen.getByText(/which article should i read first/i)).toBeInTheDocument();
-    expect(screen.getByText(/lora, raft or grpo/i)).toBeInTheDocument();
+    expect(screen.getByText("What did you build at Illumina?")).toBeInTheDocument();
+    expect(screen.getByText("What trade-offs shaped fictional-bassoon?")).toBeInTheDocument();
+    expect(screen.getByText("How would you build production-ready agents?")).toBeInTheDocument();
+    expect(screen.getByText("LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?")).toBeInTheDocument();
+    expect(screen.queryByText(/which article should i read first/i)).not.toBeInTheDocument();
+  });
+
+  it("says what it can be asked about, with the live article count", async () => {
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+
+    expect(screen.getByText(INTRO)).toBeInTheDocument();
+  });
+
+  it("sends the broad starter question when clicked", async () => {
+    const user = userEvent.setup();
+    (global.fetch as jest.Mock).mockResolvedValue(
+      createStreamingResponse([`{"type":"delta","text":"Broad answer"}\n`])
+    );
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+
+    await user.click(screen.getByText("How would you build production-ready agents?"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/broad answer/i)).toBeInTheDocument();
+    });
+    const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+    expect(body.messages).toEqual([{ role: "user", content: "How would you build production-ready agents?" }]);
   });
 
   it("should send starter prompt when clicked", async () => {
@@ -172,6 +201,7 @@ describe("CopilotBubble", () => {
     );
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    expect(screen.getByText(INTRO)).toBeInTheDocument();
 
     // Act
     const input = screen.getByPlaceholderText(/ask about my work/i);
@@ -181,6 +211,7 @@ describe("CopilotBubble", () => {
     await waitFor(() => {
       expect(screen.queryByText(/what did you build at illumina/i)).not.toBeInTheDocument();
     });
+    expect(screen.queryByText(INTRO)).not.toBeInTheDocument();
   });
 
   it("should display typing indicator while loading", async () => {
@@ -925,6 +956,59 @@ describe("CopilotBubble", () => {
     const source = (n: number, title: string, url = GUARDRAILS) =>
       `${JSON.stringify({ type: "source", n, title, url, relevance: 0.9, score: 2.6 })}\n`;
     const delta = (text: string) => `${JSON.stringify({ type: "delta", text })}\n`;
+
+    it("sends the citations from earlier replies with the next message, as number and link only", async () => {
+      const user = userEvent.setup();
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(createStreamingResponse([source(1, "Your agent needs a bouncer"), delta("First answer [1].")]))
+        .mockResolvedValueOnce(createStreamingResponse([delta("Second answer.")]));
+      render(<CopilotBubble />);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      const input = screen.getByPlaceholderText(/ask about my work/i);
+
+      await user.type(input, "First question{Enter}");
+      await waitFor(() => expect(screen.getByText("Sources")).toBeInTheDocument());
+      await user.type(input, "Second question{Enter}");
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+
+      const bodyOf = (call: number) => JSON.parse((global.fetch as jest.Mock).mock.calls[call][1].body);
+      expect(bodyOf(0).citations).toEqual([]);
+      expect(bodyOf(1).citations).toEqual([{ n: 1, url: GUARDRAILS }]);
+      expect(bodyOf(1).citations[0]).not.toHaveProperty("title");
+    });
+
+    it("links a citation to an article cited in an earlier reply", async () => {
+      const EARLIER = "https://medium.com/@tituslhy/earlier";
+      const user = userEvent.setup();
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(createStreamingResponse([source(2, "Earlier article", EARLIER), delta("First answer [2].")]))
+        .mockResolvedValueOnce(createStreamingResponse([delta("The most recent is [2].")]));
+      render(<CopilotBubble />);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      const input = screen.getByPlaceholderText(/ask about my work/i);
+
+      await user.type(input, "First question{Enter}");
+      await waitFor(() => expect(screen.getByText("Sources")).toBeInTheDocument());
+      await user.type(input, "Second question{Enter}");
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByText(/The most recent is/)).toBeInTheDocument());
+
+      // One superscript per reply: reply 2 has no footnote of its own, but [2] still points at the earlier article.
+      const links = screen.getAllByRole("link", { name: "Source 2: Earlier article" });
+      expect(links).toHaveLength(2);
+      for (const link of links) expect(link).toHaveAttribute("href", EARLIER);
+    });
+
+    it("a number no reply ever sent stays plain text", async () => {
+      const user = userEvent.setup();
+      (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse([delta("Unknown [9] here.")]));
+      render(<CopilotBubble />);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      await user.type(screen.getByPlaceholderText(/ask about my work/i), "Question{Enter}");
+
+      await waitFor(() => expect(screen.getByText(/Unknown \[9\] here\./)).toBeInTheDocument());
+      expect(screen.queryByRole("link", { name: /^Source 9/ })).not.toBeInTheDocument();
+    });
 
     it("renders a Sources row with one link per article the reply drew on", async () => {
       await askAndWait([source(1, "Your agent needs a bouncer"), source(2, "Teaching Toothless to Bite", "https://medium.com/@tituslhy/lora"), delta("Two pieces cover it.")]);

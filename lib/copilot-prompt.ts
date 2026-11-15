@@ -35,7 +35,15 @@ import {
   type Role,
 } from './profile'
 
-const TOKEN_PATTERN = /\{\{([A-Z0-9_]+)\}\}/g
+import { articleByUrl, formatPublished } from './citation-ledger'
+import { ARTICLES, type Article } from './articles'
+import { renderWritingTree, type Themes } from './writing-tree'
+import themesFile from '../content/article-themes.json'
+
+/** What the prompt says instead of the tree when the themes aren't reviewed yet. */
+export const LIBRARY_UNAVAILABLE = "(The library tree isn't available right now. Use search_writing.)"
+
+const TOKEN_PATTERN =/\{\{([A-Z0-9_]+)\}\}/g
 
 /** "Jul 2026 — Present" → "Jul 2026 – Present" (en dash reads better in prose). */
 function proseDates(dates: string): string {
@@ -87,8 +95,37 @@ function renderOpenSource(): string {
   return OPEN_SOURCE.map((o) => `- ${o.project}: ${o.text} (${o.href})`).join('\n')
 }
 
+/**
+ * Featured articles with their publish dates, looked up in the corpus by
+ * Medium post id (the featured links use the publication URL, the corpus the
+ * profile URL). Linked with the corpus URL, the same one search_writing and the
+ * drawer's footnotes use, so an article reaches the visitor under one link.
+ * An unmatched article renders undated with its own link rather than breaking
+ * chat; a test asserts every featured article matches.
+ */
 function renderFeaturedArticles(): string {
-  return FEATURED_ARTICLES.map((a) => `${a.n}. [${a.title}](${a.href}) — ${a.read} read`).join('\n')
+  return FEATURED_ARTICLES.map((a) => {
+    const article = articleByUrl(a.href)
+    const published = article ? `published ${formatPublished(article.publishedAt)}, ` : ''
+    return `${a.n}. [${a.title}](${article?.url ?? a.href}) — ${published}${a.read} read`
+  }).join('\n')
+}
+
+/**
+ * The library tree (themes → articles) for {{WRITING_TREE}}. Review-gated:
+ * nothing until I've reviewed the theme list, and only articles whose
+ * assignment I've reviewed.
+ */
+export function renderLibrary(
+  articles: readonly Article[] = ARTICLES,
+  themes: Themes = themesFile as unknown as Themes
+): string {
+  if (themes.themesReviewed !== true) return LIBRARY_UNAVAILABLE
+  const tree = renderWritingTree(
+    articles.filter((a) => themes.reviewed?.[a.slug] === true),
+    themes
+  )
+  return tree || LIBRARY_UNAVAILABLE
 }
 
 /** Unique project names in first-seen order: "LlamaIndex, Unsloth, IBM ACP, …". */
@@ -135,6 +172,7 @@ export function promptTokens(): Record<string, string> {
     WRITING_TOPICS: WRITING_TOPICS.join(', '),
     LINKS: renderLinks(),
     PAGE_TARGETS: renderPageTargets(),
+    WRITING_TREE: renderLibrary(),
   }
 }
 

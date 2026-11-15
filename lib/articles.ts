@@ -24,8 +24,15 @@ export type Article = {
   intro: string;
   /** Full text, Markdown. */
   body: string;
+  /** Section key (lib/article-sections.ts) → one plain sentence on what it covers. Absent until the build drafts them. */
+  sectionNotes?: Record<string, string>;
   words: number;
 };
 
-/** Imported statically so Vercel's file tracing bundles it with the function. */
-export const ARTICLES = corpus as Article[];
+/**
+ * Imported statically so Vercel's file tracing bundles it with the function.
+ * Via `unknown`: TypeScript infers each article's sectionNotes as an object of
+ * its own literal heading keys, which doesn't overlap Record<string, string>
+ * across articles. The build script is what guarantees the shape.
+ */
+export const ARTICLES = corpus as unknown as Article[];

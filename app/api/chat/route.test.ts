@@ -66,6 +66,8 @@ jest.mock("@/lib/copilot-tracing", () => ({
 // Import after all mocks are set up
 import { POST, isTracingEnabled } from "./route";
 import { PAGE_TARGET_IDS } from "@/lib/profile";
+import { ARTICLES } from "@/lib/articles";
+import { formatPublished } from "@/lib/citation-ledger";
 import type { NextRequest } from "next/server";
 
 // next/jest loads .env files, and tracing turns on whenever a LangSmith key is set.
@@ -310,10 +312,12 @@ describe("POST", () => {
     expect(response.status).toBe(200);
     expect(mockCreate).toHaveBeenCalled();
     const callArgs = mockCreate.mock.calls[0][0];
-    // input should have system prompt + last 20 messages = 21 total
+    // The last 20 start at Message 5, a reply, so the window starts on the next visitor message:
+    // system prompt, conversation context, then Message 6 to Message 24 (19 messages) = 21 total.
     expect(callArgs.input.length).toBe(21);
     expect(callArgs.input[0].role).toBe("system");
-    expect(callArgs.input[1].content).toBe("Message 5"); // first of last 20
+    expect(callArgs.input[1].role).toBe("system");
+    expect(callArgs.input[2].content).toBe("Message 6");
     expect(callArgs.input[20].content).toBe("Message 24"); // last message
   });
 
@@ -582,6 +586,7 @@ describe("POST", () => {
     expect(tools.map((t: { name?: string; type: string }) => t.name ?? t.type)).toEqual([
       "show_on_page",
       "search_writing",
+      "read_writing",
     ]);
     expect(tools).not.toContainEqual({ type: "web_search_preview" });
   });
@@ -636,11 +641,11 @@ describe("POST", () => {
     expect(lines.filter((l) => l.type === "action")).toHaveLength(1);
     expect(lines[1]).toEqual({ type: "delta", text: "Solo, sixteen components." });
 
-    // Round two is not the final round, so both function tools are still offered.
+    // Round two is not the final round, so all three function tools are still offered.
     // Tool results go back by previous_response_id.
     const followUp = mockCreate.mock.calls[1][0];
     expect(followUp.previous_response_id).toBe("resp_1");
-    expect(followUp.tools.map((t: { name?: string }) => t.name)).toEqual(["show_on_page", "search_writing"]);
+    expect(followUp.tools.map((t: { name?: string }) => t.name)).toEqual(["show_on_page", "search_writing", "read_writing"]);
     // The per-reply budget is spent by the first call, so the second is refused as over-limit.
     expect(followUp.input).toEqual([
       { type: "function_call_output", call_id: "call_1", output: JSON.stringify({ shown: "role-illumina" }) },
@@ -675,8 +680,10 @@ describe("POST", () => {
     const parsed = JSON.parse(lines[0]);
     expect(parsed).toEqual({ type: "delta", text: "Response" });
     const callArgs = mockCreate.mock.calls[0][0];
-    expect(callArgs.input.length).toBe(3); // system + user + assistant
-    expect(callArgs.input[2].role).toBe("assistant");
+    // system prompt + conversation context + user + assistant
+    expect(callArgs.input.length).toBe(4);
+    expect(callArgs.input[1].role).toBe("system");
+    expect(callArgs.input[3].role).toBe("assistant");
   });
 
   it("should handle split error event across multiple read() chunks", async () => {
@@ -936,7 +943,7 @@ describe("POST - tool loop", () => {
     await queueRounds(
       [
         responseCreated("resp_1"),
-        functionCall("call_1", "search_writing", JSON.stringify({ query: "guardrails" })),
+        functionCall("call_1", "search_writing", JSON.stringify({ topics: ["guardrails"] })),
         responseDone,
       ],
       [outputText("Yes, I wrote about it [1][2]."), responseDone]
@@ -966,7 +973,7 @@ describe("POST - tool loop", () => {
     expect(search).toHaveBeenCalledWith("guardrails", expect.objectContaining({ onTrace: expect.any(Function) }));
     const output = JSON.parse(mockCreate.mock.calls[1][0].input[0].output);
     expect(output.articles.map((a: { n: number }) => a.n)).toEqual([1, 2]);
-    expect(output.articles[0].body).toBe("Guardrails body");
+    expect(output.articles[0].sections[0].text).toBe("Guardrails body");
   });
 
   it("reuses source numbers across a retry, so the drawer never sees two articles under one n", async () => {
@@ -985,7 +992,7 @@ describe("POST - tool loop", () => {
       .mockResolvedValueOnce(
         await makeStream([
           responseCreated("resp_1"),
-          functionCall("call_1", "search_writing", JSON.stringify({ query: "guardrails" })),
+          functionCall("call_1", "search_writing", JSON.stringify({ topics: ["guardrails"] })),
           responseDone,
         ])
       )
@@ -994,7 +1001,7 @@ describe("POST - tool loop", () => {
       .mockResolvedValueOnce(
         await makeStream([
           responseCreated("resp_2"),
-          functionCall("call_2", "search_writing", JSON.stringify({ query: "guardrails" })),
+          functionCall("call_2", "search_writing", JSON.stringify({ topics: ["guardrails"] })),
           responseDone,
         ])
       )
@@ -1223,7 +1230,7 @@ describe("POST - tracing", () => {
           { type: "response.created", response: { id: "resp_1" } },
           {
             type: "response.output_item.done",
-            item: { type: "function_call", name: "search_writing", arguments: '{"query":"guardrails"}', call_id: "c1" },
+            item: { type: "function_call", name: "search_writing", arguments: '{"topics":["guardrails"]}', call_id: "c1" },
           },
           { type: "response.done" },
         ])
@@ -1474,5 +1481,315 @@ describe("POST - production mode cache", () => {
       expect(response1.status).toBe(200);
       expect(response2.status).toBe(200);
     });
+  });
+});
+
+describe("POST - citation ledger", () => {
+  const originalApiKey = process.env.OPENAI_API_KEY;
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  // A Monday evening in UTC that is already Tuesday in Singapore.
+  const NOW = new Date("2026-11-13T17:00:00Z");
+
+  // Two real corpus articles: their URLs and titles come from the corpus, not from these tests.
+  const A = ARTICLES[0];
+  const B = ARTICLES[1];
+
+  beforeEach(() => {
+    process.env.OPENAI_API_KEY = "test-key";
+    (process.env as Record<string, string>).NODE_ENV = "test";
+    mockCreate.mockReset();
+  });
+
+  afterEach(() => {
+    process.env.OPENAI_API_KEY = originalApiKey;
+    (process.env as Record<string, string>).NODE_ENV = originalNodeEnv || "";
+    mockCreate.mockReset();
+    jest.useRealTimers();
+  });
+
+  type FakeEvent = Parameters<typeof makeStream>[0][number];
+  const responseCreated = (id: string): FakeEvent => ({ type: "response.created", response: { id } });
+  const responseDone: FakeEvent = { type: "response.done" };
+  const outputText = (delta: string): FakeEvent => ({ type: "response.output_text.delta", delta });
+  const functionCall = (call_id: string, name: string, args: string): FakeEvent => ({
+    type: "response.output_item.done",
+    item: { type: "function_call", name, arguments: args, call_id },
+  });
+
+  /** Fakes only Date, so the route's "today" is NOW while timers and streams behave normally. */
+  function freezeDate() {
+    jest.useFakeTimers({
+      now: NOW,
+      doNotFake: [
+        "nextTick",
+        "queueMicrotask",
+        "setImmediate",
+        "clearImmediate",
+        "setTimeout",
+        "clearTimeout",
+        "setInterval",
+        "clearInterval",
+      ],
+    });
+  }
+
+  function postWith(extra: Record<string, unknown>, content = "Hello") {
+    return POST(
+      createPostRequest(
+        JSON.stringify({ messages: [{ role: "user", content }], ...extra })
+      ) as unknown as NextRequest
+    );
+  }
+
+  function parseLines(ndjson: string): Array<Record<string, unknown>> {
+    return ndjson.split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  }
+
+  /** The model input's second message: the per-request context. */
+  function contextOf(callIndex = 0): string {
+    return mockCreate.mock.calls[callIndex][0].input[1].content;
+  }
+
+  it("still answers a request with no citations field, with today's date and nothing cited yet", async () => {
+    freezeDate();
+    mockCreate.mockResolvedValueOnce(await makeStream([outputText("Hi"), responseDone]));
+
+    const response = await postWith({});
+    expect(response.status).toBe(200);
+    await drainResponse(response);
+
+    const input = mockCreate.mock.calls[0][0].input;
+    expect(input[0]).toEqual({ role: "system", content: "You are Titus's copilot." });
+    expect(input[1]).toEqual({ role: "system", content: "Today's date: 14 Nov 2026." });
+    expect(input[2]).toEqual({ role: "user", content: "Hello" });
+  });
+
+  it("accepts an empty citations list the same way, with no ledger section", async () => {
+    freezeDate();
+    mockCreate.mockResolvedValueOnce(await makeStream([outputText("Hi"), responseDone]));
+
+    const response = await postWith({ citations: [] });
+    expect(response.status).toBe(200);
+    await drainResponse(response);
+
+    expect(contextOf()).toBe("Today's date: 14 Nov 2026.");
+    expect(contextOf()).not.toContain("already cited");
+  });
+
+  it.each([
+    ["a string", "1,2"],
+    ["an object", { n: 1, url: A.url }],
+    ["an entry with n of 0", [{ n: 0, url: A.url }]],
+    ["an entry with n of 100", [{ n: 100, url: A.url }]],
+    ["an entry with a fractional n", [{ n: 1.5, url: A.url }]],
+    ["an entry without a url", [{ n: 1 }]],
+    ["an entry that is null", [null]],
+    ["more than 40 entries", Array.from({ length: 41 }, (_, i) => ({ n: (i % 99) + 1, url: A.url }))],
+  ])("rejects citations that are %s with 400 before calling OpenAI", async (_label, citations) => {
+    const response = await postWith({ citations });
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Invalid citations");
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("drops a URL that is not in the corpus without an error, and keeps the rest", async () => {
+    freezeDate();
+    mockCreate.mockResolvedValueOnce(await makeStream([outputText("Hi"), responseDone]));
+
+    const response = await postWith({
+      citations: [
+        { n: 1, url: "https://example.com/not-mine" },
+        { n: 2, url: B.url },
+      ],
+    });
+    expect(response.status).toBe(200);
+    await drainResponse(response);
+
+    const context = contextOf();
+    expect(context).toContain(`[2] ${B.title} (published `);
+    expect(context).not.toContain("[1]");
+    expect(context).not.toContain("example.com");
+  });
+
+  it("takes the title and date from the corpus, not from a title and date the client sends", async () => {
+    freezeDate();
+    mockCreate.mockResolvedValueOnce(await makeStream([outputText("Hi"), responseDone]));
+
+    const response = await postWith({
+      citations: [{ n: 1, url: A.url, title: "Forged headline", publishedAt: "1999-01-01T00:00:00.000Z" }],
+    });
+    expect(response.status).toBe(200);
+    await drainResponse(response);
+
+    const context = contextOf();
+    expect(context).toContain(`[1] ${A.title} (published ${formatPublished(A.publishedAt)}`);
+    expect(context).not.toContain("Forged headline");
+    expect(context).not.toContain("1999");
+  });
+
+  it("states today's date in Singapore time, not UTC", async () => {
+    freezeDate();
+    mockCreate.mockResolvedValueOnce(await makeStream([outputText("Hi"), responseDone]));
+
+    const response = await postWith({});
+    await drainResponse(response);
+
+    // 17:00 UTC on 13 Nov is 01:00 on 14 Nov in Singapore.
+    expect(contextOf().split("\n")[0]).toBe("Today's date: 14 Nov 2026.");
+  });
+
+  it("does not count the ledger against the 12,000-character budget, even with 40 citations", async () => {
+    freezeDate();
+    mockCreate.mockResolvedValueOnce(await makeStream([outputText("Hi"), responseDone]));
+    const citations = ARTICLES.slice(0, 40).map((a, i) => ({ n: i + 1, url: a.url }));
+    // Exactly 12,000 characters of visitor conversation: the budget's limit, not over it.
+    const messages = [
+      { role: "user", content: "a".repeat(4000) },
+      { role: "assistant", content: "b".repeat(4000) },
+      { role: "user", content: "c".repeat(4000) },
+    ];
+
+    const response = await POST(
+      createPostRequest(JSON.stringify({ messages, citations })) as unknown as NextRequest
+    );
+    expect(response.status).toBe(200);
+    await drainResponse(response);
+
+    const input = mockCreate.mock.calls[0][0].input;
+    expect(input).toHaveLength(5); // system prompt, context, and the three messages
+    expect(input[1].content).toContain("[40] ");
+  });
+
+  // Pads a label to exactly 4,000 characters: the per-message cap, so each message is legal on its own.
+  const pad = (label: string) => label.padEnd(4000, ".");
+
+  it("accepts an over-budget conversation by dropping its oldest exchange, and sends the rest to OpenAI", async () => {
+    freezeDate();
+    mockCreate.mockResolvedValueOnce(await makeStream([outputText("Hi"), responseDone]));
+    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    const messages = [
+      { role: "user", content: pad("U1") },
+      { role: "assistant", content: pad("A1") },
+      { role: "user", content: pad("U2") },
+      { role: "assistant", content: pad("A2") },
+      { role: "user", content: pad("U3") },
+    ];
+
+    try {
+      const response = await POST(
+        createPostRequest(JSON.stringify({ messages, citations: [{ n: 1, url: A.url }] })) as unknown as NextRequest
+      );
+      expect(response.status).toBe(200);
+      await drainResponse(response);
+
+      // 20,000 characters in total. Dropping U1 and A1 leaves 12,000, which fits.
+      const input = mockCreate.mock.calls[0][0].input;
+      expect(input).toHaveLength(5); // system prompt, context message, then the three kept messages
+      expect(input.slice(2).map((m: { content: string }) => m.content)).toEqual([
+        pad("U2"),
+        pad("A2"),
+        pad("U3"),
+      ]);
+      expect(JSON.stringify(input)).not.toContain("U1");
+
+      const trimmed = logSpy.mock.calls
+        .map(([line]) => JSON.parse(String(line)))
+        .filter((e) => e.event === "copilot_history_trimmed");
+      expect(trimmed).toEqual([{ event: "copilot_history_trimmed", dropped: 2 }]);
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
+  it("logs no trim when the whole conversation was sent", async () => {
+    mockCreate.mockResolvedValueOnce(await makeStream([outputText("Hi"), responseDone]));
+    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      await drainResponse(await postWith({}));
+
+      const events = logSpy.mock.calls.map(([line]) => JSON.parse(String(line)).event);
+      expect(events).not.toContain("copilot_history_trimmed");
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
+  it("refuses with 400 when the newest exchange alone is over budget (a reply sent after the last visitor message)", async () => {
+    // A drawer always ends on a visitor message, so this needs a crafted request: one visitor
+    // message followed by three replies. The exchange they make is 16,000 characters.
+    const messages = [
+      { role: "user", content: pad("U1") },
+      { role: "assistant", content: pad("A1") },
+      { role: "assistant", content: pad("A2") },
+      { role: "assistant", content: pad("A3") },
+    ];
+
+    const response = await POST(
+      createPostRequest(JSON.stringify({ messages, citations: [{ n: 1, url: A.url }] })) as unknown as NextRequest
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "conversation_too_long" });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("answers 400 when the conversation holds only replies and no visitor message", async () => {
+    const response = await POST(
+      createPostRequest(JSON.stringify({ messages: [{ role: "assistant", content: "Hi" }] })) as unknown as NextRequest
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("A visitor message is required");
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("hands the ledger to search_writing, so a cited article keeps its number and a new one continues from the highest", async () => {
+    const search = jest.requireMock("@/lib/writing-search").searchMyWriting as jest.Mock;
+    search.mockResolvedValueOnce([
+      {
+        slug: A.slug,
+        title: A.title,
+        url: A.url,
+        publishedAt: A.publishedAt,
+        body: "A body",
+        relevance: 0.9,
+        score: 2.5,
+      },
+      {
+        slug: "brand-new",
+        title: "Brand new",
+        url: "https://medium.com/@tituslhy/brand-new",
+        publishedAt: "2026-10-01T00:00:00.000Z",
+        body: "New body",
+        relevance: 0.8,
+        score: null,
+      },
+    ]);
+    mockCreate
+      .mockResolvedValueOnce(
+        await makeStream([
+          responseCreated("resp_1"),
+          functionCall("call_1", "search_writing", JSON.stringify({ topics: ["agents"] })),
+          responseDone,
+        ])
+      )
+      .mockResolvedValueOnce(await makeStream([outputText("Both [2][6]."), responseDone]));
+
+    const response = await postWith({ citations: [{ n: 2, url: A.url }, { n: 5, url: B.url }] });
+    const lines = parseLines(await drainResponse(response));
+
+    // The ledger's number 2 goes to A again; the new article is 6 (the highest prior number, 5, plus one).
+    const output = JSON.parse(mockCreate.mock.calls[1][0].input[0].output);
+    expect(output.articles.map((a: { n: number; title: string }) => [a.n, a.title])).toEqual([
+      [2, A.title],
+      [6, "Brand new"],
+    ]);
+    expect(lines.filter((l) => l.type === "source")).toEqual([
+      expect.objectContaining({ type: "source", n: 2, url: A.url }),
+      expect.objectContaining({ type: "source", n: 6, url: "https://medium.com/@tituslhy/brand-new" }),
+    ]);
   });
 });

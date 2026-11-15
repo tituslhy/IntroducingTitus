@@ -1,6 +1,6 @@
 import { TypeSafeClient, noul, score } from "@typesafe-ai/sdk";
 import { ARTICLES, type Article } from "@/lib/articles";
-import { MIN_SCORE, RELEVANT } from "@/lib/search-config";
+import { MIN_SCORE, RELEVANT, STAGE2_MAX } from "@/lib/search-config";
 
 // ---------------------------------------------------------------------------
 // Searching my writing with Jev (TypeSafe AI). Two stages, no embeddings:
@@ -21,6 +21,7 @@ import { MIN_SCORE, RELEVANT } from "@/lib/search-config";
 export const JEV_MODEL = process.env.TYPESAFE_DEFAULT_MODEL ?? "jev-latest";
 
 export { MIN_SCORE, PAGE_SIZE, RELEVANT } from "@/lib/search-config";
+/** The old per-article body cap (12k chars). No longer applied: search_writing reads picked sections instead. */
 export const MAX_BODY_CHARS = 12_000;
 
 /**
@@ -54,10 +55,16 @@ export type FoundArticle = {
   slug: string;
   title: string;
   url: string;
+  /** ISO timestamp from the corpus: when the article went up. */
+  publishedAt: string;
   /** Set on joint articles: who I co-wrote it with. */
   coAuthors?: string[];
-  /** Article body, ≤ MAX_BODY_CHARS. */
+  /** Full article body; search_writing hands over picked sections, never the whole thing. */
   body: string;
+  /** Headings in order, from the corpus. */
+  outline: string[];
+  /** Section notes from the build, when it has drafted them. */
+  sectionNotes?: Record<string, string>;
   /** Stage-1 probability. */
   relevance: number;
   /** Stage-2 expected score, or null if stage 2 was skipped or failed. */
@@ -75,6 +82,8 @@ export type SearchTrace = {
   model: string | null;
   /** Stage-1 shortlist, best first (slugs and probabilities only). */
   shortlist: { slug: string; relevance: number }[];
+  /** The top 5 stage-1 probabilities below RELEVANT, highest first: what almost made it. */
+  nearMisses: { slug: string; relevance: number }[];
   /** Stage-2 expected score for every shortlisted slug, including those under MIN_SCORE (null = no valid score). */
   ranked: { slug: string; score: number | null }[];
   stage1Ms: number;
@@ -121,6 +130,7 @@ export async function searchMyWriting(query: string, options: SearchOptions = {}
     catalogSize: catalog.length,
     model: null,
     shortlist: [],
+    nearMisses: [],
     ranked: [],
     stage1Ms: 0,
     stage2Ms: null,
@@ -142,8 +152,11 @@ export async function searchMyWriting(query: string, options: SearchOptions = {}
       slug,
       title: a.title,
       url: a.url,
+      publishedAt: a.publishedAt,
       ...(a.coAuthors?.length && { coAuthors: a.coAuthors }),
-      body: a.body.slice(0, MAX_BODY_CHARS),
+      body: a.body,
+      outline: a.outline,
+      ...(a.sectionNotes && { sectionNotes: a.sectionNotes }),
       relevance,
       score: s,
     };
@@ -174,10 +187,13 @@ export async function searchMyWriting(query: string, options: SearchOptions = {}
     trace.model = filter.model ?? null;
     const answers = (filter.answers ?? {}) as Record<string, { noul?: unknown } | undefined>;
     // Iterating the catalog (not the answers) ignores answers for unknown slugs.
-    shortlist = catalog
+    const judged = catalog
       .map((a) => ({ slug: a.slug, relevance: answers[a.slug]?.noul }))
-      .filter((r): r is { slug: string; relevance: number } => isProbability(r.relevance) && r.relevance >= RELEVANT)
+      .filter((r): r is { slug: string; relevance: number } => isProbability(r.relevance))
       .sort((x, y) => y.relevance - x.relevance);
+    // Only the most probable STAGE2_MAX go on: stage 2 is where the latency is.
+    shortlist = judged.filter((r) => r.relevance >= RELEVANT).slice(0, STAGE2_MAX);
+    trace.nearMisses = judged.filter((r) => r.relevance < RELEVANT).slice(0, 5);
   } catch (err) {
     trace.errors.push(errorName(err));
     trace.fallback = "stage1_failed";
