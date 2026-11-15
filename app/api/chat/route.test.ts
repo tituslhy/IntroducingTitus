@@ -586,6 +586,7 @@ describe("POST", () => {
     expect(tools.map((t: { name?: string; type: string }) => t.name ?? t.type)).toEqual([
       "show_on_page",
       "search_writing",
+      "read_writing",
     ]);
     expect(tools).not.toContainEqual({ type: "web_search_preview" });
   });
@@ -640,11 +641,11 @@ describe("POST", () => {
     expect(lines.filter((l) => l.type === "action")).toHaveLength(1);
     expect(lines[1]).toEqual({ type: "delta", text: "Solo, sixteen components." });
 
-    // Round two is not the final round, so both function tools are still offered.
+    // Round two is not the final round, so all three function tools are still offered.
     // Tool results go back by previous_response_id.
     const followUp = mockCreate.mock.calls[1][0];
     expect(followUp.previous_response_id).toBe("resp_1");
-    expect(followUp.tools.map((t: { name?: string }) => t.name)).toEqual(["show_on_page", "search_writing"]);
+    expect(followUp.tools.map((t: { name?: string }) => t.name)).toEqual(["show_on_page", "search_writing", "read_writing"]);
     // The per-reply budget is spent by the first call, so the second is refused as over-limit.
     expect(followUp.input).toEqual([
       { type: "function_call_output", call_id: "call_1", output: JSON.stringify({ shown: "role-illumina" }) },

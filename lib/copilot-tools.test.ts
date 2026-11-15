@@ -1,4 +1,13 @@
-import { createCopilotTools, mergeByTopic, parseSearchWritingArgs, parseShowOnPageTarget, type CopilotTool } from "./copilot-tools";
+import {
+  createCopilotTools,
+  mergeByTopic,
+  parseReadWritingArgs,
+  parseSearchWritingArgs,
+  parseShowOnPageTarget,
+  type CopilotTool,
+} from "./copilot-tools";
+import type { Article } from "./articles";
+import { MAX_ARTICLES_PER_REPLY } from "./search-config";
 import { PAGE_TARGET_IDS } from "./profile";
 import type { SearchTrace } from "./writing-search";
 import type { TraceSpan } from "./copilot-loop";
@@ -77,12 +86,13 @@ describe("show_on_page tool run", () => {
 });
 
 describe("createCopilotTools", () => {
-  it("registers show_on_page (one call per reply) and search_writing (two), in that order", () => {
+  it("registers show_on_page (one call per reply), search_writing and read_writing (two each), in that order", () => {
     const tools = createCopilotTools();
 
-    expect(tools.map((t) => t.definition.name)).toEqual(["show_on_page", "search_writing"]);
+    expect(tools.map((t) => t.definition.name)).toEqual(["show_on_page", "search_writing", "read_writing"]);
     expect(tools[0].maxCallsPerReply).toBe(1);
     expect(tools[1].maxCallsPerReply).toBe(2);
+    expect(tools[2].maxCallsPerReply).toBe(2);
   });
 
   it("defines show_on_page as a strict function tool with the page anchor ids as its enum", () => {
@@ -1329,5 +1339,237 @@ describe("search_writing topics", () => {
         })
       );
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 6: read_writing reads named articles; shares numbering and the reply cap with search_writing.
+// ---------------------------------------------------------------------------
+
+function fixtureArticle(slug: string, id: string, overrides: Partial<Article> = {}): Article {
+  return {
+    slug,
+    title: `Title ${slug}`,
+    url: `https://medium.com/@tituslhy/${slug}-${id}`,
+    publishedAt: "2025-06-18T10:00:00.000Z",
+    summary: `Summary ${slug}`,
+    keywords: ["keyword"],
+    outline: ["Heading"],
+    intro: `Intro ${slug}`,
+    body: `Body of ${slug}`,
+    words: 500,
+    ...overrides,
+  };
+}
+
+const ALPHA = fixtureArticle("alpha", "aaaaaaaaaaaa");
+const BETA = fixtureArticle("beta", "bbbbbbbbbbbb");
+const GAMMA = fixtureArticle("gamma", "cccccccccccc");
+const DELTA = fixtureArticle("delta", "dddddddddddd");
+const EPSILON = fixtureArticle("epsilon", "eeeeeeeeeeee");
+const ZETA = fixtureArticle("zeta", "ffffffffffff");
+const ETA = fixtureArticle("eta", "111111111111");
+const THETA = fixtureArticle("theta", "222222222222");
+const LIMIT_NOTE = "Reading limit for this reply reached; answer from what you have.";
+
+/** A search_writing result for an article, as the search returns it. */
+function foundOf(a: Article) {
+  return {
+    slug: a.slug,
+    title: a.title,
+    url: a.url,
+    body: a.body,
+    relevance: 0.9,
+    score: 2.5,
+    publishedAt: a.publishedAt,
+    outline: a.outline,
+  };
+}
+
+/** Every tool from ONE createCopilotTools() instance, so numbering and the reply cap are shared. */
+function instance(deps: { search?: jest.Mock; pick?: jest.Mock; catalog?: Article[] } = {}) {
+  const tools = createCopilotTools(deps);
+  const byName = (name: string): CopilotTool => {
+    const tool = tools.find((t) => t.definition.name === name);
+    if (!tool) throw new Error(`${name} is not registered`);
+    return tool;
+  };
+  return { searchWriting: byName("search_writing"), readWriting: byName("read_writing") };
+}
+
+function pickStub() {
+  return jest.fn(async (article: { slug: string }, focus: string) => ({
+    outline: [`O ${article.slug}`],
+    sections: [{ heading: `H ${article.slug}`, text: `Picked ${article.slug} for ${focus}` }],
+    truncated: false,
+  }));
+}
+
+describe("read_writing", () => {
+  const signal = new AbortController().signal;
+
+  it("defines read_writing as a strict function tool taking 1 to 3 article ids and a focus, at most 2 calls a reply", () => {
+    const tool = instance().readWriting;
+
+    expect(tool.definition).toMatchObject({ type: "function", name: "read_writing", strict: true });
+    expect(tool.definition.parameters).toMatchObject({
+      type: "object",
+      required: ["articles", "focus"],
+      additionalProperties: false,
+      properties: {
+        articles: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
+        focus: { type: "string" },
+      },
+    });
+    expect(tool.maxCallsPerReply).toBe(2);
+  });
+
+  it("read_writing serves known ids with picked sections", async () => {
+    const pick = pickStub();
+    const { readWriting } = instance({ catalog: [ALPHA, BETA], pick });
+
+    const result = await readWriting.run(
+      { articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb"], focus: "agents" },
+      { emit: jest.fn(), signal }
+    );
+
+    expect(result).toEqual({
+      articles: [
+        {
+          n: 1,
+          title: "Title alpha",
+          url: ALPHA.url,
+          published: "2025-06-18",
+          outline: ["O alpha"],
+          sections: [{ heading: "H alpha", text: "Picked alpha for agents" }],
+        },
+        {
+          n: 2,
+          title: "Title beta",
+          url: BETA.url,
+          published: "2025-06-18",
+          outline: ["O beta"],
+          sections: [{ heading: "H beta", text: "Picked beta for agents" }],
+        },
+      ],
+    });
+    expect(result).not.toHaveProperty("errors");
+    expect(pick.mock.calls.map(([article, focus]) => [article.slug, focus])).toEqual([
+      ["alpha", "agents"],
+      ["beta", "agents"],
+    ]);
+  });
+
+  it("unknown ids get an error entry and no source event", async () => {
+    const emit = jest.fn();
+    const { readWriting } = instance({ catalog: [ALPHA], pick: pickStub() });
+
+    const result = await readWriting.run({ articles: ["aaaaaaaaaaaa", "zzzzzzzzzzzz"], focus: "x" }, { emit, signal });
+
+    expect(result).toEqual({
+      articles: [expect.objectContaining({ n: 1, title: "Title alpha" })],
+      errors: [{ id: "zzzzzzzzzzzz", error: "unknown article" }],
+    });
+    expect(emit.mock.calls.map(([event]) => event)).toEqual([
+      { type: "source", n: 1, title: "Title alpha", url: ALPHA.url, relevance: null, score: null },
+    ]);
+  });
+
+  it("an article found by search_writing and then read keeps one number and one source event per reply", async () => {
+    const emit = jest.fn();
+    const search = jest.fn(async (query: string) => (query === "alpha topic" ? [foundOf(ALPHA)] : [foundOf(BETA)]));
+    const { searchWriting, readWriting } = instance({ search, catalog: [ALPHA, BETA], pick: pickStub() });
+
+    const found = await searchWriting.run({ topics: ["alpha topic"], more: false }, { emit, signal });
+    const readBeta = await readWriting.run({ articles: ["bbbbbbbbbbbb"], focus: "f" }, { emit, signal });
+    const foundBeta = await searchWriting.run({ topics: ["beta topic"], more: false }, { emit, signal });
+    const readAlpha = await readWriting.run({ articles: ["aaaaaaaaaaaa"], focus: "f" }, { emit, signal });
+
+    expect(found).toMatchObject({ articles: [{ n: 1, title: "Title alpha" }] });
+    expect(readBeta).toMatchObject({ articles: [{ n: 2, title: "Title beta" }] });
+    // Beta was already numbered 2 by read_writing, so search_writing keeps 2 and emits nothing new.
+    expect(foundBeta).toMatchObject({ articles: [{ n: 2, title: "Title beta" }] });
+    expect(readAlpha).toMatchObject({ articles: [{ n: 1, title: "Title alpha" }] });
+    expect(emit.mock.calls.map(([event]) => event)).toEqual([
+      { type: "source", n: 1, title: "Title alpha", url: ALPHA.url, relevance: 0.9, score: 2.5 },
+      { type: "source", n: 2, title: "Title beta", url: BETA.url, relevance: null, score: null },
+    ]);
+  });
+
+  it("stops at 6 articles per reply across both tools", async () => {
+    expect(MAX_ARTICLES_PER_REPLY).toBe(6);
+    const emit = jest.fn();
+    const search = jest.fn(async () => [foundOf(EPSILON), foundOf(ZETA), foundOf(ETA), foundOf(THETA)]);
+    const { searchWriting, readWriting } = instance({
+      search,
+      catalog: [ALPHA, BETA, GAMMA, DELTA, EPSILON, ZETA, ETA, THETA],
+      pick: pickStub(),
+    });
+
+    // Four new articles from read_writing.
+    const first = await readWriting.run({ articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc", "dddddddddddd"], focus: "f" }, { emit, signal });
+    expect(first).toMatchObject({ articles: [{ n: 1 }, { n: 2 }, { n: 3 }, { n: 4 }] });
+
+    // Two of the search's first page fit in the remaining capacity; the page is truncated.
+    const second = await searchWriting.run({ topics: ["many"], more: false }, { emit, signal });
+    expect((second as { articles: { title: string }[] }).articles.map((a) => a.title)).toEqual(["Title epsilon", "Title zeta"]);
+
+    // Capacity is spent, so a new article gets the note.
+    expect(await readWriting.run({ articles: ["222222222222"], focus: "f" }, { emit, signal })).toEqual({
+      articles: [],
+      note: LIMIT_NOTE,
+    });
+    expect(await searchWriting.run({ topics: ["many"], more: true }, { emit, signal })).toEqual({
+      articles: [],
+      note: LIMIT_NOTE,
+    });
+
+    // Re-serving an article already served this reply costs nothing and is still returned.
+    const again = await readWriting.run({ articles: ["aaaaaaaaaaaa"], focus: "f" }, { emit, signal });
+    expect(again).toMatchObject({ articles: [{ n: 1, title: "Title alpha" }] });
+    expect(again).not.toHaveProperty("note");
+
+    const sourceNumbers = emit.mock.calls.map(([event]) => event.n);
+    expect(sourceNumbers).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+});
+
+describe("parseReadWritingArgs", () => {
+  it("rejects 0 or 4 ids", () => {
+    expect(parseReadWritingArgs('{"articles":[],"focus":"agents"}')).toBeNull();
+    expect(parseReadWritingArgs('{"articles":["a1","b2","c3","d4"],"focus":"agents"}')).toBeNull();
+    expect(parseReadWritingArgs('{"articles":["aaaaaaaaaaaa","bbbbbbbbbbbb","cccccccccccc"],"focus":"agents"}')).toEqual({
+      articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc"],
+      focus: "agents",
+    });
+  });
+
+  it("trims and lowercases ids, drops blanks, and dedupes", () => {
+    expect(
+      parseReadWritingArgs('{"articles":[" AAAAAAAAAAAA ","","  ","aaaaaaaaaaaa","bbbbbbbbbbbb"],"focus":"f"}')
+    ).toEqual({ articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb"], focus: "f" });
+  });
+
+  it("reduces a full Medium URL to its post id", () => {
+    expect(
+      parseReadWritingArgs('{"articles":["https://medium.com/@tituslhy/alpha-aaaaaaaaaaaa"],"focus":"f"}')
+    ).toEqual({ articles: ["aaaaaaaaaaaa"], focus: "f" });
+  });
+
+  it("returns null for a blank or missing focus", () => {
+    expect(parseReadWritingArgs('{"articles":["aaaaaaaaaaaa"],"focus":"   "}')).toBeNull();
+    expect(parseReadWritingArgs('{"articles":["aaaaaaaaaaaa"]}')).toBeNull();
+  });
+
+  it("caps the focus at 300 characters", () => {
+    expect(parseReadWritingArgs(JSON.stringify({ articles: ["aaaaaaaaaaaa"], focus: "x".repeat(400) }))?.focus).toHaveLength(300);
+  });
+
+  it("returns null for malformed JSON and for wrong types", () => {
+    expect(parseReadWritingArgs('{"articles":["aaaaaaaaaaaa"],"focus":')).toBeNull();
+    expect(parseReadWritingArgs('{"articles":"aaaaaaaaaaaa","focus":"f"}')).toBeNull();
+    expect(parseReadWritingArgs('{"articles":[42],"focus":"f"}')).toBeNull();
+    expect(parseReadWritingArgs('{"articles":["aaaaaaaaaaaa"],"focus":42}')).toBeNull();
+    expect(parseReadWritingArgs("null")).toBeNull();
   });
 });

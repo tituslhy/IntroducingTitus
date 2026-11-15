@@ -4,7 +4,7 @@
  * hidden per breakpoint (display:none also drops it from the a11y tree).
  * Thresholds and page size come from lib/search-config.ts, so they can't drift.
  */
-import { MAX_TOPICS, MIN_SCORE, PAGE_SIZE, RELEVANT, STAGE2_MAX } from '@/lib/search-config'
+import { MAX_ARTICLES_PER_REPLY, MAX_TOPICS, MIN_SCORE, PAGE_SIZE, RELEVANT, STAGE2_MAX } from '@/lib/search-config'
 
 const MONO = 'var(--font-ibm-plex-mono), ui-monospace, monospace'
 
@@ -93,20 +93,23 @@ function LoopFrame({ x, y, w, h }: { x: number; y: number; w: number; h: number 
   )
 }
 
+const TOOLS_H = 82
+
 /** GPT box: decides each round whether to call tools or answer. */
 function GptBox({ x, y, w }: { x: number; y: number; w: number }) {
   return <Box x={x} y={y} w={w} title="GPT" sub="answer, or call tools?" />
 }
 
-/** Tools box listing both tools, with search_writing's row y exposed for the chain. */
+/** Tools box listing the three tools; search_writing's row lines up with its expanded chain. */
 function ToolsBox({ x, y, w }: { x: number; y: number; w: number }) {
   return (
     <g>
-      <rect x={x} y={y} width={w} height={64} fill="var(--paper)" stroke="var(--ink)" strokeWidth={1} />
+      <rect x={x} y={y} width={w} height={TOOLS_H} fill="var(--paper)" stroke="var(--ink)" strokeWidth={1} />
       <Label x={x + 10} y={y + 16}>TOOLS</Label>
       <text x={x + 10} y={y + 36} fontFamily={MONO} fontSize={12} fill="var(--ink)">show_on_page</text>
       {/* 22 mono chars at 10.5px ≈ 139px: fits the 150px mobile box */}
       <text x={x + 10} y={y + 54} fontFamily={MONO} fontSize={10.5} fill="var(--ink)">search_writing(topics)</text>
+      <text x={x + 10} y={y + 72} fontFamily={MONO} fontSize={10.5} fill="var(--ink)">read_writing(ids)</text>
     </g>
   )
 }
@@ -118,12 +121,14 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
   const page = `${PAGE_SIZE} at a time`
   const description =
     `A visitor's question passes the guards and enters the agent loop. Each round, GPT either answers or calls tools; ` +
-    `the tool results go back to GPT for the next round, for at most four rounds. The tools are show_on_page and search_writing. ` +
+    `the tool results go back to GPT for the next round, for at most four rounds. The tools are show_on_page, search_writing and read_writing. ` +
     `search_writing takes up to ${MAX_TOPICS} topics and searches each topic separately: for each, a Jev filter (one yes/no per article, ` +
     `${articleCount} articles), then a Jev rank (a graded score for up to ${STAGE2_MAX} survivors). It merges the topics' rankings so each ` +
     `topic's best article comes first, holds that ranking, and returns the best sections of the top ${PAGE_SIZE} articles to the loop. ` +
     `Calling it again with more: true returns the next ${PAGE_SIZE} from the same ranking without calling Jev, until the ranking runs out. ` +
     `search_writing can be called at most twice per reply: the second call is either the next page or a new search. ` +
+    `read_writing reads up to 3 articles GPT picked by id from the library of themes in its prompt, for broad questions, with the same section picking. ` +
+    `A reply reads at most ${MAX_ARTICLES_PER_REPLY} articles across both. ` +
     `GPT's answer then passes output checks and streams to the drawer.`
 
   return (
@@ -165,20 +170,20 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
         <path d="M406,168 H714 V181" {...line} strokeDasharray="3 3" markerEnd="url(#reply-arrow-h)" />
         <Small x={560} y={162} anchor="middle">{`more: true · next ${PAGE_SIZE}, no Jev call`}</Small>
         {/* Each page of article text returns to the loop */}
-        <path d="M714,229 V268 H326 V222" {...line} markerEnd="url(#reply-arrow-h)" />
+        <path d="M714,229 V268 H326 V240" {...line} markerEnd="url(#reply-arrow-h)" />
         <Small x={520} y={284} anchor="middle">{`article text back to GPT, ${page} until the ranking runs out`}</Small>
         <Small x={520} y={300} anchor="middle">≤2 search_writing calls per reply: the next page, or a new query</Small>
       </svg>
 
       {/* Mobile */}
-      <svg viewBox="0 0 340 592" role="img" aria-label={description} className="mx-auto block h-auto w-full max-w-[400px] min-[760px]:hidden">
+      <svg viewBox="0 0 340 610" role="img" aria-label={description} className="mx-auto block h-auto w-full max-w-[400px] min-[760px]:hidden">
         <ArrowHead id="reply-arrow-v" />
         <Box x={95} y={0} w={150} title="visitor" />
         <path d="M170,46 V62" {...line} markerEnd="url(#reply-arrow-v)" />
         <Box x={95} y={64} w={150} title="guards" />
         <path d="M170,110 V154" {...line} markerEnd="url(#reply-arrow-v)" />
 
-        <LoopFrame x={0} y={126} w={340} h={324} />
+        <LoopFrame x={0} y={126} w={340} h={342} />
         <GptBox x={95} y={156} w={150} />
         <path d="M140,202 V258" {...line} markerEnd="url(#reply-arrow-v)" />
         <Small x={132} y={234} anchor="end">calls</Small>
@@ -187,29 +192,29 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
         <ToolsBox x={95} y={260} w={150} />
 
         {/* search_writing, expanded below the tools */}
-        <path d="M120,324 V334 H52 V344" {...line} markerEnd="url(#reply-arrow-v)" />
-        <Small x={46} y={340} anchor="end">query</Small>
-        <Box x={6} y={346} w={92} title="Jev filter" sub={filterSub} />
-        <Small x={52} y={406} anchor="middle">{filterPass}</Small>
-        <path d="M98,369 H110" {...line} markerEnd="url(#reply-arrow-v)" />
-        <Box x={112} y={346} w={92} title="Jev rank" sub="score × all" />
-        <Small x={158} y={406} anchor="middle">{rankPass}</Small>
-        <path d="M204,369 H216" {...line} markerEnd="url(#reply-arrow-v)" />
-        <Box x={218} y={346} w={78} title="ranking" sub={page} accent />
+        <path d="M120,342 V352 H52 V362" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Small x={46} y={358} anchor="end">query</Small>
+        <Box x={6} y={364} w={92} title="Jev filter" sub={filterSub} />
+        <Small x={52} y={424} anchor="middle">{filterPass}</Small>
+        <path d="M98,387 H110" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Box x={112} y={364} w={92} title="Jev rank" sub="score × all" />
+        <Small x={158} y={424} anchor="middle">{rankPass}</Small>
+        <path d="M204,387 H216" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Box x={218} y={364} w={78} title="ranking" sub={page} accent />
         {/* more: true pages the held ranking, skipping Jev */}
-        <path d="M236,324 V344" {...line} strokeDasharray="3 3" markerEnd="url(#reply-arrow-v)" />
-        <Small x={242} y={338}>more</Small>
+        <path d="M236,342 V362" {...line} strokeDasharray="3 3" markerEnd="url(#reply-arrow-v)" />
+        <Small x={242} y={356}>more</Small>
         {/* Each page returns to the loop around the right of the tools */}
-        <path d="M296,369 H306 V292 H247" {...line} markerEnd="url(#reply-arrow-v)" />
-        <Small x={170} y={426} anchor="middle">{`article text back to GPT, ${page}`}</Small>
-        <Small x={170} y={440} anchor="middle">≤2 calls per reply: next page or new query</Small>
+        <path d="M296,387 H306 V300 H247" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Small x={170} y={444} anchor="middle">{`article text back to GPT, ${page}`}</Small>
+        <Small x={170} y={458} anchor="middle">≤2 calls per reply: next page or new query</Small>
 
         {/* Answer leaves the loop down the right edge */}
-        <path d="M245,179 H318 V497 H247" {...line} markerEnd="url(#reply-arrow-v)" />
+        <path d="M245,179 H318 V515 H247" {...line} markerEnd="url(#reply-arrow-v)" />
         <Small x={282} y={172} anchor="middle">answer</Small>
-        <Box x={95} y={474} w={150} title="checks" />
-        <path d="M170,520 V542" {...line} markerEnd="url(#reply-arrow-v)" />
-        <Box x={95} y={544} w={150} title="drawer" />
+        <Box x={95} y={492} w={150} title="checks" />
+        <path d="M170,538 V560" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Box x={95} y={562} w={150} title="drawer" />
       </svg>
     </figure>
   )

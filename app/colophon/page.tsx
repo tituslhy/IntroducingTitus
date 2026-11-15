@@ -32,8 +32,8 @@ const WALKTHROUGH: [stage: string, what: string][] = [
   ['Guards', 'The request clears the origin check, the rate limit and the size limits before any model sees it.'],
   ['Agent loop', 'GPT reads the question and calls search_writing(["guardrails for AI agents"]): one standalone topic per thing the question asks about. “LiteLLM, Helm and Nginx” would be three topics, each searched separately, so none crowds the others out.'],
   ['Jev filter', `One yes-or-no probability per article, judged on its card (title, one-line summary, keywords): ${ARTICLE_COUNT_NUMBER} questions, one request. Most fall away.`],
-  ['Jev rank', 'Every survivor is scored 0–3 against a rubric, this time on their outline and opening. The two best go on; if they aren’t enough, GPT asks for the next two from the same ranking.'],
-  ['Jev sections', `Most of my articles run long, so neither is handed over whole. Jev scores each section on its heading and a one-line note, and the best sections come back, up to ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} characters an article, with the full outline so GPT knows what it skipped.`],
+  ['Jev rank', 'Every survivor is scored 0–3 against a rubric, this time on their outline and opening. The three best go on; if they aren’t enough, GPT asks for the next three from the same ranking.'],
+  ['Jev sections', `Most of my articles run long, so none is handed over whole. Jev scores each section on its heading and a one-line note, and the best sections come back, up to ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} characters an article, with the full outline so GPT knows what it skipped.`],
   ['Agent loop', 'GPT answers from what the articles say, in my voice, citing them as [1], [2] and onward. An article keeps the same number for the whole conversation, and it says when I wrote it; for a framework article more than six months old, it adds that you should check the project’s current docs.'],
   ['Checks', 'Output is capped, and only the numbers the server actually sent can become links.'],
   ['Drawer', 'The reply streams in with superscript footnotes and a Sources row underneath.'],
@@ -236,7 +236,19 @@ export default function ColophonPage() {
               <code className="font-mono text-[14px]">more: true</code>, served from the ranking it already holds,
               so Jev isn’t asked again. It gets two searches per reply, so the second is either the next page or a
               fresh search, which runs Jev again and replaces the ranking. When the ranking runs out, the tool says
-              so, and GPT answers from what it has read. That caps a reply at six articles.
+              so, and GPT answers from what it has read. A reply reads at most six articles, however it found them.
+            </p>
+            <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
+              Reading by theme
+            </p>
+            <p className={prose}>
+              Search answers concrete questions well and broad ones badly. Ask “how would you build production-ready
+              agents?” and every article is a little relevant, so none stands out. For those, GPT doesn’t search. Its
+              prompt carries a map of my library: about eight themes, each article listed under its theme with a
+              one-line summary. GPT reasons over the themes, picks up to three articles that together answer the
+              question, and opens them with <code className="font-mono text-[14px]">read_writing</code>. Jev then picks
+              their sections, as it does for search. The map is only for choosing what to read: GPT cites what it read,
+              never a summary. The themes are drafted by a model when I publish, and I review them before they ship.
             </p>
             <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
               Long conversations
@@ -315,7 +327,7 @@ export default function ColophonPage() {
               Next.js · a ~70-line tool loop on the OpenAI Responses API · Jev (TypeSafe AI) · Vercel
             </p>
             <p className={`${prose} mt-3`}>
-              No agent framework. Two tools and at most four rounds is one loop, and a loop I can read end to end is one
+              No agent framework. Three tools and at most four rounds is one loop, and a loop I can read end to end is one
               I can debug at 2am. The source is on{' '}
               <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-amber underline underline-offset-2">
                 GitHub

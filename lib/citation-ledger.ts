@@ -137,7 +137,7 @@ export function renderConversationContext(ledger: readonly PriorCitation[], now:
   if (ledger.length > 0) {
     lines.push(
       "",
-      "Articles of mine already cited in this conversation. Reuse these numbers when you cite them again; search_writing returns them under the same numbers:",
+      "Articles of mine already cited in this conversation. Reuse these numbers when you cite them again; search_writing and read_writing return them under the same numbers:",
       ...ledger.map((c) => {
         const by = c.coAuthors?.length ? `, co-written with ${AND_LIST.format(c.coAuthors)}` : "";
         return `[${c.n}] ${c.title} (published ${formatPublished(c.publishedAt)}${by}) ${c.url}`;
