@@ -14,8 +14,10 @@ import {
   SOCIAL,
   type Role,
 } from './profile'
-import { buildSystemPrompt, promptTokens } from './copilot-prompt'
-import { articleByUrl, formatPublished } from './citation-ledger'
+import { buildSystemPrompt, promptTokens, renderLibrary } from './copilot-prompt'
+import { articleByUrl, formatPublished, mediumPostId } from './citation-ledger'
+import { ARTICLES } from './articles'
+import type { Themes } from './writing-tree'
 
 // Normalises every dash-with-spaces to the en dash the prose renderer uses
 // ("Jul 2026 — Present" → "Jul 2026 – Present"), so assertions compare content
@@ -341,5 +343,57 @@ describe('featured article links', () => {
       expect(out).toContain(`${a.n}. [${a.title}](${a.href}) — ${a.read} read`)
     }
     expect(out).not.toContain('published')
+  })
+})
+
+describe('My Library (renderLibrary and the WRITING_TREE token)', () => {
+  const UNAVAILABLE = "(The library tree isn't available right now. Use search_writing.)"
+
+  const allThemed = (reviewed: Record<string, boolean>, themesReviewed = true): Themes => ({
+    themes: [{ id: 't1', name: 'All', description: 'Everything' }],
+    assignments: Object.fromEntries(ARTICLES.map((a) => [a.slug, ['t1']])),
+    reviewed,
+    themesReviewed,
+  })
+  const everyReviewed = Object.fromEntries(ARTICLES.map((a) => [a.slug, true]))
+
+  it('rendered prompt contains the tree with every article\'s post id', () => {
+    const out = renderLibrary(ARTICLES, allThemed(everyReviewed))
+
+    expect(out).not.toBe(UNAVAILABLE)
+    for (const a of ARTICLES) {
+      expect(out).toContain(mediumPostId(a.url) ?? a.slug)
+    }
+  })
+
+  it('returns the unavailable line when the themes are not reviewed', () => {
+    expect(renderLibrary(ARTICLES, allThemed(everyReviewed, false))).toBe(UNAVAILABLE)
+  })
+
+  it('returns the unavailable line when the rendered tree is empty', () => {
+    const empty: Themes = { themes: [], assignments: {}, reviewed: {}, themesReviewed: true }
+
+    expect(renderLibrary(ARTICLES, empty)).toBe(UNAVAILABLE)
+  })
+
+  it('leaves an unreviewed article out of the tree', () => {
+    const [first, second] = ARTICLES
+    const reviewed = { ...everyReviewed, [first.slug]: false }
+
+    const out = renderLibrary(ARTICLES, allThemed(reviewed))
+
+    expect(out).not.toContain(mediumPostId(first.url) ?? first.slug)
+    expect(out).toContain(mediumPostId(second.url) ?? second.slug)
+  })
+
+  it('tree section says never cite from it and points at read_writing', () => {
+    expect(rendered).toContain('## My Library')
+    expect(rendered.toLowerCase()).toContain('never cite')
+    expect(rendered).toContain('read_writing')
+  })
+
+  it('WRITING_TREE is a template token: exposed by promptTokens and rendered away', () => {
+    expect(promptTokens()).toHaveProperty('WRITING_TREE')
+    expect(rendered).not.toContain('{{WRITING_TREE}}')
   })
 })

@@ -393,7 +393,7 @@ describe("renderConversationContext", () => {
       [
         "Today's date: 14 Nov 2026.",
         "",
-        "Articles of mine already cited in this conversation. Reuse these numbers when you cite them again; search_writing returns them under the same numbers:",
+        "Articles of mine already cited in this conversation. Reuse these numbers when you cite them again; search_writing and read_writing return them under the same numbers:",
         `[1] Alpha (published 18 Jun 2025) ${ALPHA_URL}`,
         `[2] Beta (published 2 Jan 2024, co-written with Jane Doe and John Roe) ${BETA_PUBLICATION_URL}`,
       ].join("\n")

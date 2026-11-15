@@ -36,6 +36,12 @@ import {
 } from './profile'
 
 import { articleByUrl, formatPublished } from './citation-ledger'
+import { ARTICLES, type Article } from './articles'
+import { renderWritingTree, type Themes } from './writing-tree'
+import themesFile from '../content/article-themes.json'
+
+/** What the prompt says instead of the tree when the themes aren't reviewed yet. */
+export const LIBRARY_UNAVAILABLE = "(The library tree isn't available right now. Use search_writing.)"
 
 const TOKEN_PATTERN =/\{\{([A-Z0-9_]+)\}\}/g
 
@@ -105,6 +111,23 @@ function renderFeaturedArticles(): string {
   }).join('\n')
 }
 
+/**
+ * The library tree (themes → articles) for {{WRITING_TREE}}. Review-gated:
+ * nothing until I've reviewed the theme list, and only articles whose
+ * assignment I've reviewed.
+ */
+export function renderLibrary(
+  articles: readonly Article[] = ARTICLES,
+  themes: Themes = themesFile as unknown as Themes
+): string {
+  if (themes.themesReviewed !== true) return LIBRARY_UNAVAILABLE
+  const tree = renderWritingTree(
+    articles.filter((a) => themes.reviewed?.[a.slug] === true),
+    themes
+  )
+  return tree || LIBRARY_UNAVAILABLE
+}
+
 /** Unique project names in first-seen order: "LlamaIndex, Unsloth, IBM ACP, …". */
 function openSourceProjects(): string {
   return Array.from(new Set(OPEN_SOURCE.map((o) => o.project))).join(', ')
@@ -149,6 +172,7 @@ export function promptTokens(): Record<string, string> {
     WRITING_TOPICS: WRITING_TOPICS.join(', '),
     LINKS: renderLinks(),
     PAGE_TARGETS: renderPageTargets(),
+    WRITING_TREE: renderLibrary(),
   }
 }
 

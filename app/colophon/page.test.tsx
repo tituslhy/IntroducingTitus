@@ -189,3 +189,27 @@ describe("ColophonPage topics copy", () => {
     expect(rows.some((text) => /at most four articles|at four articles/i.test(text))).toBe(false);
   });
 });
+
+describe("ColophonPage three tools and themes", () => {
+  it("stack section says Three tools, not Two tools", () => {
+    render(<ColophonPage />);
+
+    const text = document.body.textContent ?? "";
+    expect(text).toMatch(/Three tools/);
+    expect(text).not.toMatch(/Two tools/);
+  });
+
+  it("has a Reading by theme paragraph", () => {
+    render(<ColophonPage />);
+
+    expect(document.body.textContent ?? "").toMatch(/Reading by theme/i);
+  });
+
+  it("the Jev rank step says the three best go on, not two", () => {
+    render(<ColophonPage />);
+
+    const text = document.body.textContent ?? "";
+    expect(text).toMatch(/three best go on/i);
+    expect(text).not.toMatch(/two best/i);
+  });
+});

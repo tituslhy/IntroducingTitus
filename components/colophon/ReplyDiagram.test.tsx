@@ -49,6 +49,16 @@ describe("ReplyDiagram", () => {
   });
 });
 
+describe("ReplyDiagram read_writing", () => {
+  it("shows the read_writing tool in both SVGs", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of Array.from(container.querySelectorAll('svg[role="img"]'))) {
+      expect(svg.textContent ?? "").toContain("read_writing");
+    }
+  });
+});
+
 describe("ReplyDiagram search_writing topics", () => {
   it("labels the search tool search_writing(topics) and says it searches each topic separately", () => {
     const { container } = render(<ReplyDiagram articleCount={65} />);

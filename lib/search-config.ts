@@ -18,3 +18,5 @@ export const STAGE2_MAX = 8;
 export const MAX_TOPICS = 3;
 /** Most characters the library tree (themes → articles) may take in the system prompt. */
 export const TREE_MAX_CHARS = 32_000;
+/** Most distinct articles one reply may read, across search_writing and read_writing. */
+export const MAX_ARTICLES_PER_REPLY = 6;

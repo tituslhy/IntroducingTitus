@@ -1,5 +1,6 @@
 import { PAGE_TARGET_IDS } from "@/lib/profile";
-import { MAX_TOPICS } from "@/lib/search-config";
+import { MAX_ARTICLES_PER_REPLY, MAX_TOPICS } from "@/lib/search-config";
+import { ARTICLES, type Article } from "@/lib/articles";
 import {
   PAGE_SIZE,
   searchMyWriting,
@@ -8,7 +9,7 @@ import {
   type SearchTrace,
 } from "@/lib/writing-search";
 import type { TraceSpan } from "@/lib/copilot-loop";
-import { publishedDate, type PriorCitation } from "@/lib/citation-ledger";
+import { mediumPostId, publishedDate, type PriorCitation } from "@/lib/citation-ledger";
 import { pickSections, type PickInput, type PickOptions, type PickedArticle, type SectionTrace } from "@/lib/section-pick";
 
 // ---------------------------------------------------------------------------
@@ -20,7 +21,8 @@ import { pickSections, type PickInput, type PickOptions, type PickedArticle, typ
 
 export type CopilotEvent =
   | { type: "action"; target: string }
-  | { type: "source"; n: number; title: string; url: string; relevance: number; score: number | null };
+  /** relevance/score are Jev's for search_writing; null for read_writing, which reads by id without ranking. */
+  | { type: "source"; n: number; title: string; url: string; relevance: number | null; score: number | null };
 
 export type Emit = (event: CopilotEvent) => void;
 
@@ -96,13 +98,61 @@ function createShowOnPageTool(): CopilotTool<string> {
 }
 
 // ---------------------------------------------------------------------------
+// Reading state shared by search_writing and read_writing, per request:
+// numbering is per conversation (an article cited in an earlier reply, the
+// `prior` ledger, keeps its number; a new one gets the next free number), each
+// article is emitted as a `source` event once per reply, and a reply reads at
+// most MAX_ARTICLES_PER_REPLY distinct articles across both tools.
+// ---------------------------------------------------------------------------
+
+export const READING_LIMIT_NOTE = "Reading limit for this reply reached; answer from what you have.";
+
+type ServedArticle = { slug: string; title: string; url: string; publishedAt?: string; coAuthors?: string[] };
+
+function createReading(prior: readonly PriorCitation[]) {
+  const numbered = new Map<string, number>(prior.map((c) => [c.slug, c.n]));
+  let nextN = prior.reduce((max, c) => Math.max(max, c.n), 0) + 1;
+  const served = new Set<string>();
+  return {
+    /** How many more new articles this reply may read. */
+    room: () => Math.max(0, MAX_ARTICLES_PER_REPLY - served.size),
+    isServed: (slug: string) => served.has(slug),
+    /** Keeps already-served articles; admits new ones only while there's room. */
+    admit<T extends { slug: string }>(articles: readonly T[]): T[] {
+      let room = MAX_ARTICLES_PER_REPLY - served.size;
+      return articles.filter((a) => served.has(a.slug) || room-- > 0);
+    },
+    /** Numbers the article, emits its footnote the first time this reply, and returns what the model sees. */
+    serve(a: ServedArticle, picked: PickedArticle, emit: Emit, rank: { relevance: number | null; score: number | null }) {
+      let n = numbered.get(a.slug);
+      if (n === undefined) {
+        n = nextN++;
+        numbered.set(a.slug, n);
+      }
+      if (!served.has(a.slug)) {
+        served.add(a.slug);
+        emit({ type: "source", n, title: a.title, url: a.url, ...rank });
+      }
+      return {
+        n,
+        title: a.title,
+        url: a.url,
+        ...(a.publishedAt && { published: publishedDate(a.publishedAt) }),
+        ...(a.coAuthors?.length && { coAuthors: a.coAuthors }),
+        outline: picked.outline,
+        sections: picked.sections,
+      };
+    },
+  };
+}
+
+type Reading = ReturnType<typeof createReading>;
+
+// ---------------------------------------------------------------------------
 // search_writing — finds and reads my own articles (lib/writing-search.ts).
 // A search ranks everything that passes, but hands over PAGE_SIZE at a time;
 // `more: true` serves the next page from that ranking without asking Jev
-// again. Results are numbered once per conversation: an article cited in an
-// earlier reply (the `prior` ledger) keeps its number, and a new one gets the
-// next free number. Each article is emitted as a `source` event the first time
-// it appears in this reply, for the drawer's footnotes.
+// again. Numbering, footnotes and the per-reply cap are the shared Reading state.
 // ---------------------------------------------------------------------------
 
 const MAX_QUERY_CHARS = 300;
@@ -167,47 +217,23 @@ export function mergeByTopic(rankings: { topic: string; found: FoundArticle[] }[
   return merged;
 }
 
-function createSearchWritingTool(
-  search: SearchFn,
-  prior: readonly PriorCitation[],
-  pick: PickFn
-): CopilotTool<SearchWritingArgs> {
-  // Per conversation: an article keeps the number it was first cited under.
-  const numbered = new Map<string, number>(prior.map((c) => [c.slug, c.n]));
-  let nextN = prior.reduce((max, c) => Math.max(max, c.n), 0) + 1;
-  // Per reply: articles already emitted as footnotes for this reply.
-  const emitted = new Set<string>();
+function createSearchWritingTool(search: SearchFn, reading: Reading, pick: PickFn): CopilotTool<SearchWritingArgs> {
   // Per reply: the last search's merged ranking, minus the pages already handed over.
   let pending: TopicArticle[] | null = null;
 
   // Each served article is read section by section, focused on the topic that found it.
+  // Past the reply's reading cap, the page is cut short; nothing left to serve → null.
   const page = async (emit: Emit, signal: AbortSignal, trace?: TraceSpan) => {
-    const served = pending!.splice(0, PAGE_SIZE);
+    const served = reading.admit(pending!.splice(0, PAGE_SIZE));
+    if (served.length === 0) return null;
     const picks = await Promise.all(
       served.map((a) => pick(a, a.topics[0], { signal, onTrace: (t) => recordSectionStep(trace, t) }))
     );
     return {
-      articles: served.map((a, i) => {
-        let n = numbered.get(a.slug);
-        if (n === undefined) {
-          n = nextN++;
-          numbered.set(a.slug, n);
-        }
-        if (!emitted.has(a.slug)) {
-          emitted.add(a.slug);
-          emit({ type: "source", n, title: a.title, url: a.url, relevance: a.relevance, score: a.score });
-        }
-        return {
-          n,
-          title: a.title,
-          url: a.url,
-          topic: a.topics[0],
-          ...(a.publishedAt && { published: publishedDate(a.publishedAt) }),
-          ...(a.coAuthors?.length && { coAuthors: a.coAuthors }),
-          outline: picks[i].outline,
-          sections: picks[i].sections,
-        };
-      }),
+      articles: served.map((a, i) => ({
+        ...reading.serve(a, picks[i], emit, { relevance: a.relevance, score: a.score }),
+        topic: a.topics[0],
+      })),
       remaining: pending!.length,
       served,
     };
@@ -246,10 +272,14 @@ function createSearchWritingTool(
     async run({ topics, more }, { emit, signal, trace }) {
       if (more && pending) {
         if (pending.length === 0) return { articles: [], note: "No more articles of mine on this." };
-        const { served, ...result } = await page(emit, signal, trace);
+        const paged = await page(emit, signal, trace);
+        if (!paged) return { articles: [], note: READING_LIMIT_NOTE };
+        const { served, ...result } = paged;
         trace?.annotate({ search: { page: "more", chosen: served.map(chosenOf) } });
         return result;
       }
+      // Cap already reached: don't spend a Jev search on articles that can't be read.
+      if (reading.room() === 0) return { articles: [], note: READING_LIMIT_NOTE };
 
       const runs = await Promise.all(
         topics.map(async (topic) => {
@@ -285,9 +315,112 @@ function createSearchWritingTool(
         if (runs.some((r) => r.trace?.fallback === "stage1_failed")) return { articles: [], error: "search unavailable" };
         return { articles: [], note: "No article of mine covers this." };
       }
-      const { served, ...result } = await page(emit, signal, trace);
+      const paged = await page(emit, signal, trace);
+      if (!paged) return { articles: [], note: READING_LIMIT_NOTE };
+      const { served, ...result } = paged;
       if (trace) annotateSearch(trace, runs, served);
       return result;
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// read_writing — reads articles the model chose from the library tree in the
+// system prompt, by Medium post id. For abstract or goal-shaped questions,
+// where the model reasons over themes instead of searching. Sections are
+// picked against `focus`, exactly as search_writing picks them against a topic.
+// ---------------------------------------------------------------------------
+
+const MAX_READ_IDS = 3;
+
+export type ReadWritingArgs = { articles: string[]; focus: string };
+
+/**
+ * Returns the validated arguments, or null. Ids are trimmed and lowercased (a
+ * full Medium URL is reduced to its post id), blanks dropped, deduped; 1 to 3
+ * must remain. `focus` is trimmed and capped at MAX_QUERY_CHARS; blank → null.
+ */
+export function parseReadWritingArgs(raw: string): ReadWritingArgs | null {
+  try {
+    const parsed = JSON.parse(raw) as { articles?: unknown; focus?: unknown } | null;
+    const ids = parsed?.articles;
+    const focus = parsed?.focus;
+    if (!Array.isArray(ids) || !ids.every((x) => typeof x === "string") || typeof focus !== "string") return null;
+    const cleaned = [
+      ...new Set(
+        (ids as string[]).map((x) => {
+          const id = x.trim();
+          return (mediumPostId(id) ?? id).toLowerCase();
+        })
+      ),
+    ].filter(Boolean);
+    const f = focus.trim().slice(0, MAX_QUERY_CHARS);
+    return cleaned.length >= 1 && cleaned.length <= MAX_READ_IDS && f ? { articles: cleaned, focus: f } : null;
+  } catch {
+    return null;
+  }
+}
+
+function createReadWritingTool(catalog: readonly Article[], reading: Reading, pick: PickFn): CopilotTool<ReadWritingArgs> {
+  let byId: Map<string, Article> | null = null;
+  const lookup = (id: string) => {
+    if (!byId) {
+      byId = new Map();
+      for (const a of catalog) {
+        const pid = mediumPostId(a.url);
+        if (pid && !byId.has(pid)) byId.set(pid, a);
+      }
+    }
+    return byId.get(id);
+  };
+
+  return {
+    definition: {
+      type: "function",
+      name: "read_writing",
+      description:
+        "Read up to 3 of my articles by id, chosen from the library tree in the system prompt. Use for broad or goal-shaped questions, after reasoning over the themes. Returns the sections most relevant to `focus`. Cite results as [n].",
+      strict: true,
+      parameters: {
+        type: "object",
+        properties: {
+          articles: {
+            type: "array",
+            items: { type: "string" },
+            minItems: 1,
+            maxItems: MAX_READ_IDS,
+            description: "Article ids exactly as listed in the library tree (the 12-character code before each title).",
+          },
+          focus: {
+            type: "string",
+            description: "What to read them for, as a standalone phrase, e.g. \"making agents production-ready\". Picks which sections come back.",
+          },
+        },
+        required: ["articles", "focus"],
+        additionalProperties: false,
+      },
+    },
+    maxCallsPerReply: 2,
+    parse: parseReadWritingArgs,
+    async run({ articles: ids, focus }, { emit, signal, trace }) {
+      const known: Article[] = [];
+      const unknown: string[] = [];
+      for (const id of ids) {
+        const a = lookup(id);
+        if (a) known.push(a);
+        else unknown.push(id);
+      }
+      if (reading.room() === 0 && !known.some((a) => reading.isServed(a.slug))) {
+        return { articles: [], note: READING_LIMIT_NOTE };
+      }
+      const toRead = reading.admit(known);
+      const picks = await Promise.all(toRead.map((a) => pick(a, focus, { signal, onTrace: (t) => recordSectionStep(trace, t) })));
+      const errors = unknown.map((id) => ({ id, error: "unknown article" as const }));
+      trace?.annotate({ read: { focus, ids, served: toRead.map((a) => a.slug), unknown } });
+      return {
+        articles: toRead.map((a, i) => reading.serve(a, picks[i], emit, { relevance: null, score: null })),
+        ...(errors.length > 0 && { errors }),
+      };
     },
   };
 }
@@ -358,10 +491,13 @@ function recordJevSteps(trace: TraceSpan, query: string, t: SearchTrace): void {
  * `prior` is the conversation's citation ledger, already resolved against the corpus.
  */
 export function createCopilotTools(
-  deps: { search?: SearchFn; prior?: readonly PriorCitation[]; pick?: PickFn } = {}
+  deps: { search?: SearchFn; prior?: readonly PriorCitation[]; pick?: PickFn; catalog?: readonly Article[] } = {}
 ): CopilotTool[] {
+  const reading = createReading(deps.prior ?? []);
+  const pick = deps.pick ?? pickSections;
   return [
     createShowOnPageTool() as CopilotTool,
-    createSearchWritingTool(deps.search ?? searchMyWriting, deps.prior ?? [], deps.pick ?? pickSections) as CopilotTool,
+    createSearchWritingTool(deps.search ?? searchMyWriting, reading, pick) as CopilotTool,
+    createReadWritingTool(deps.catalog ?? ARTICLES, reading, pick) as CopilotTool,
   ];
 }
