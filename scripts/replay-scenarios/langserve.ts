@@ -8,8 +8,6 @@ import { mediumPostId } from "../../lib/citation-ledger";
 import { FEATURED_ARTICLES } from "../../lib/profile";
 import {
   CAPITULATION,
-  assistantTurns,
-  citedNumbers,
   citedSources,
   replyTo,
   sentences,
@@ -37,8 +35,12 @@ const TURNS = [
 const STATEMENT_TURN = 4;
 /** "Which articles should I read first for <goal>": must draw on the featured list. */
 const READING_GOAL_TURN = 5;
-/** Turns where the visitor corrects the copilot: the reply must not open with an apology or "you're right". */
-const CORRECTION_TURNS = [6, 8, 9];
+/**
+ * Turns where the visitor claims an article is out of date: the reply must not
+ * open with an apology or "you're right". (Turn 9 is a fair suggestion, not a
+ * correction, so agreeing with it is honest.)
+ */
+const CORRECTION_TURNS = [6, 8];
 /** An old article's description of me, stated without a date nearby. */
 const STALE_SELF = /(hadn['’]t used helm|kubernetes experience (is|was) limited|limited kubernetes experience)/i;
 /** A real date (a year, or a month with its year) or an explicit "when I wrote it": not words like "may" or "decided". */
@@ -48,12 +50,8 @@ export const DATED =
 function checks(messages: Parameters<Scenario["checks"]>[0]): Check[] {
   const out: Check[] = [];
 
-  // Every [n] in a reply is a footnote that reply actually has (this conversation re-searches before citing).
-  for (const { t, reply } of assistantTurns(messages)) {
-    const known = new Set((reply.sources ?? []).map((s) => s.n));
-    const stray = citedNumbers(reply.content).filter((n) => !known.has(n));
-    if (stray.length) out.push({ label: `turn ${t} cites [${stray.join("][")}] with no matching footnote`, ok: false });
-  }
+  // A [n] reused from an earlier reply is valid (the drawer links it); numbers that stand for no article
+  // are caught by the shared conversationChecks.
 
   // Corrections are answered by date, not by capitulation.
   for (const t of CORRECTION_TURNS) {

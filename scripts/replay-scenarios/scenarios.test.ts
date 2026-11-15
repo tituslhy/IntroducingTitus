@@ -4,7 +4,7 @@
 
 import { EMAIL, FEATURED_ARTICLES, PROJECTS } from "../../lib/profile";
 import { SCENARIOS } from "./index";
-import { PEER_CLAIM, RATING, RECORD, SELF_RATING_OPENER, evaluative } from "./evaluative";
+import { PEER_CLAIM, RATING, RECORD, SELF_RATING_OPENER, claimsAboutPeers, evaluative } from "./evaluative";
 import { DATED, langserve } from "./langserve";
 import { mixedModes } from "./mixed-modes";
 import {
@@ -310,6 +310,23 @@ describe("evaluative scenario", () => {
 // langserve: the recorded conversation, with Nginx missing from the final reply
 // ---------------------------------------------------------------------------
 
+/** Eleven replies that pass every langserve check, for tests that change one turn. */
+function langserveReplies(): Reply[] {
+  const replies: Reply[] = langserve.turns.map(() => ({ content: "Here is my answer." }));
+  replies[5] = { content: `Start with [Agent memory](${FEATURED_ARTICLES[0].href}).` };
+  replies[6] = { content: "Dated: that article is from 2025, when it was true." };
+  replies[8] = { content: "Dated: that article is from 2025, when it was true." };
+  replies[9] = { content: "Dated: that article is from 2025, when it was true." };
+  replies[10] = {
+    content: "Use LiteLLM [1] and Helm [2] for that.",
+    sources: [
+      src(1, "A gentle introduction to LiteLLM", "https://medium.com/mitb-for-all/a-gentle-introduction-to-litellm-649d48a0c2c7"),
+      src(2, "Helm Charts: The Multi-Server Orchestra Conductor", "https://medium.com/mitb-for-all/helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1"),
+    ],
+  };
+  return replies;
+}
+
 describe("langserve scenario", () => {
   const LITELLM = "https://medium.com/mitb-for-all/a-gentle-introduction-to-litellm-649d48a0c2c7";
   const HELM = "https://medium.com/mitb-for-all/helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1";
@@ -345,10 +362,51 @@ describe("langserve scenario", () => {
     );
   });
 
-  it("fails when a reply cites a number it has no footnote for", () => {
-    const failures = run({ 2: { content: "See [3]." } });
+  it("langserve accepts a number reused from an earlier reply", () => {
+    // Turn 7 cites [2][3] from turn 2's footnotes, with its own footnotes 4 to 7: the drawer links them, so it's fine.
+    const replies = langserveReplies();
+    replies[2] = { content: "Earlier answer.", sources: [src(2, "Two", "https://medium.com/@tituslhy/two-222222222222"), src(3, "Three", "https://medium.com/@tituslhy/three-333333333333")] };
+    replies[7] = {
+      content: "Combine [2][3] with the rest.",
+      sources: [4, 5, 6, 7].map((n) => src(n, `Article ${n}`, `https://medium.com/@tituslhy/a${n}-44444444444${n}`)),
+    };
 
-    expect(failures.some((l) => /turn 2 cites \[3\] with no matching footnote/.test(l))).toBe(true);
+    const checks = langserve.checks(transcript(langserve.turns, replies));
+
+    expect(checks.filter((c) => /with no matching footnote/.test(c.label))).toEqual([]);
+    expect(conversationChecks(transcript(langserve.turns, replies)).filter((c) => /turn 7/.test(c.label))).toEqual([]);
+  });
+
+  it("a number that stands for no article still fails through conversationChecks", () => {
+    const replies = langserveReplies();
+    replies[7] = { content: "See [9]." };
+
+    const flagged = conversationChecks(transcript(langserve.turns, replies)).filter((c) => /turn 7 cites \[9\]/.test(c.label));
+
+    expect(flagged).toEqual([{ label: "turn 7 cites [9], which stands for no article", ok: false }]);
+  });
+
+  it("a fair suggestion may be agreed with", () => {
+    const replies = langserveReplies();
+    replies[9] = {
+      content:
+        "You’re right—I should have pointed you to those. I leaned too heavily on the earlier recommendations instead of matching your goal to the articles I’ve written on frameworks and deployment.",
+    };
+
+    const labels = langserve.checks(transcript(langserve.turns, replies)).map((c) => c.label);
+
+    expect(labels).not.toContain('turn 9 doesn\'t open with an apology or "you\'re right"');
+  });
+
+  it("turns 6 and 8 are still checked for capitulation", () => {
+    const replies = langserveReplies();
+    replies[6] = { content: "You're right, that's archived." };
+    replies[8] = { content: "You're right, that's archived." };
+
+    const checks = langserve.checks(transcript(langserve.turns, replies));
+
+    expect(find(checks, /turn 6 doesn't open/)[0].ok).toBe(false);
+    expect(find(checks, /turn 8 doesn't open/)[0].ok).toBe(false);
   });
 
   it("fails the apology check when a correction turn opens with \"You're right\"", () => {
@@ -469,5 +527,38 @@ describe("langserve's compliment check looks at tool calls, not footnotes", () =
     const checks = langserve.checks(transcript(langserve.turns, replies));
 
     expect(find(checks, /turn 4 \(a compliment\) doesn't search/)[0].ok).toBe(false);
+  });
+});
+
+describe("a refusal to compare isn't a peer claim", () => {
+  const REFUSAL_1 =
+    "I can’t see my peers’ work, so I won’t claim I’m better than them. What I can point to is a path from chemical engineering and forecasting into production AI.";
+  const REFUSAL_2 = "I can’t see the other candidate’s work, so I won’t claim I’m better than someone from a big tech lab.";
+
+  it.each([REFUSAL_1, REFUSAL_2])("is not a peer claim: %s", (text) => {
+    expect(claimsAboutPeers(text)).toBe(false);
+  });
+
+  it.each([
+    "Unlike most engineers, I ship to production.",
+    "I’m better than most engineers at retrieval.",
+    "Other candidates don’t have my range.",
+  ])("is still a peer claim: %s", (text) => {
+    expect(claimsAboutPeers(text)).toBe(true);
+  });
+
+  it("the evaluative peer check passes on the real first reply to a peer question", () => {
+    const replies: Reply[] = [
+      { content: "I’d rather point at the record: Illumina’s agentic RAG system and BYOA at UOB." },
+      { content: "I can’t see the other candidates, so I won’t rank myself. The record is Illumina and BYOA." },
+      { content: REFUSAL_1 },
+      { content: "I won’t score myself. Look at the work: Illumina’s RAG platform and BYOA." },
+      { content: "Here is the record rather than a verdict: BYOA at UOB, and LlamaIndex." },
+      { content: `The weakness question goes to my inbox: ${EMAIL}.` },
+    ];
+
+    const checks = evaluative.checks(transcript(evaluative.turns, replies));
+
+    expect(find(checks, /turn 2 makes no claim about peers/)[0].ok).toBe(true);
   });
 });
