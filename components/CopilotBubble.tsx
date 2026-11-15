@@ -59,6 +59,8 @@ export interface CopilotTarget {
 
 /** At this width and up, the collapsed drawer leaves the page visible beside it. */
 const SIDE_BY_SIDE_QUERY = "(min-width: 1024px)";
+/** The expanded drawer is ~680px wide, so it needs a wider screen to leave the page in view. */
+const EXPANDED_SIDE_BY_SIDE_QUERY = "(min-width: 1440px)";
 const SPOTLIGHT_CLASS = "copilot-spotlight";
 const SPOTLIGHT_MS = 2800;
 
@@ -177,7 +179,7 @@ export default function CopilotBubble({
   const [isStreaming, setIsStreaming] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
   const [liveMessage, setLiveMessage] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLButtonElement>(null);
@@ -194,15 +196,22 @@ export default function CopilotBubble({
   const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
+    const scroller = messagesScrollRef.current;
+    if (!scroller) return;
+    // Empty state: the starter prompts are read top-down, so keep them at the top.
+    if (messages.length === 0 && !isLoading) {
+      scroller.scrollTop = 0;
+      return;
+    }
+    // Moves only the drawer's own scroll box (never scrollIntoView, which also
+    // walks the page's scrollers and would cancel a show_on_page scroll mid-flight).
     // A fit brief is read top-down, so land on its headline, not its footer.
     const last = messages[messages.length - 1];
     const briefEl = last?.brief ? document.getElementById(`copilot-msg-${last.id}`) : null;
-    if (briefEl) {
-      briefEl.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, isLoading]);
+    scroller.scrollTop = briefEl
+      ? scroller.scrollTop + briefEl.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+      : scroller.scrollHeight;
+  }, [messages, isLoading, isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -258,7 +267,7 @@ export default function CopilotBubble({
     (id: string, source: "auto" | "click"): boolean => {
       const el = document.getElementById(id);
       if (!el) return false;
-      const sideBySide = window.matchMedia(SIDE_BY_SIDE_QUERY).matches && !isExpanded;
+      const sideBySide = window.matchMedia(isExpanded ? EXPANDED_SIDE_BY_SIDE_QUERY : SIDE_BY_SIDE_QUERY).matches;
       if (source === "auto" && !sideBySide) return false;
       if (source === "click" && !sideBySide) setIsOpen(false);
 
@@ -613,7 +622,9 @@ export default function CopilotBubble({
     ? "min(680px, calc(100vw - 3rem))"
     : "min(23rem, calc(100vw - 3rem))";
 
-  const panelHeight = isExpanded ? "min(80vh, 740px)" : "540px";
+  // Collapsed is tall enough for the intro and every starter prompt without
+  // scrolling, but never taller than the space above the FAB.
+  const panelHeight = isExpanded ? "min(80vh, 740px)" : "min(700px, calc(100dvh - 7rem))";
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
@@ -698,7 +709,7 @@ export default function CopilotBubble({
         </span>
 
         {/* Messages */}
-        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5" style={{ minHeight: 0 }}>
+        <div ref={messagesScrollRef} className="flex-1 space-y-5 overflow-y-auto px-5 py-5" style={{ minHeight: 0 }}>
           {messages.length === 0 && !busy && (
             <div>
               <p className="mb-4 font-serif text-[15px] leading-snug text-ink-soft">
@@ -887,7 +898,6 @@ export default function CopilotBubble({
           {isLoading && (
             <TypingIndicator caption={loadingCaption ?? (turningTo && `Turning to ${turningTo}…`)} />
           )}
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
