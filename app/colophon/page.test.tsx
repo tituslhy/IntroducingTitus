@@ -252,3 +252,35 @@ describe("ColophonPage theme count", () => {
     expect(document.body.textContent ?? "").not.toMatch(/\b(about|around|roughly)?\s*(eight|8)\s+themes\b/i);
   });
 });
+
+describe("ColophonPage three kinds of question", () => {
+  const GUARDRAILS_Q = "What have you written about guardrails?";
+  const LITELLM_Q = "How do I use LiteLLM, Helm and Nginx?";
+  const BROAD_Q = "How would you build production-ready agents?";
+
+  function block(): HTMLElement {
+    render(<ColophonPage />);
+    const heading = screen.getByText(/three kinds of question/i);
+    return (heading.closest("section") ?? document.body) as HTMLElement;
+  }
+
+  it("lists three kinds of question with their route", () => {
+    const section = block();
+    const text = section.textContent ?? "";
+
+    expect(text).toMatch(/Three kinds of question/i);
+    expect(text).toContain(GUARDRAILS_Q);
+    expect(text).toContain(LITELLM_Q);
+    expect(text).toContain(BROAD_Q);
+    expect(text).toContain('search_writing(["LiteLLM", "Helm", "Nginx"])');
+  });
+
+  it("the production-ready row routes to read_writing with no search", () => {
+    const section = block();
+    const cell = within(section).getByText(BROAD_Q);
+    const row = cell.closest("tr") ?? cell.parentElement!;
+
+    expect(row.textContent ?? "").toMatch(/read_writing/);
+    expect(row.textContent ?? "").toMatch(/No search/i);
+  });
+});

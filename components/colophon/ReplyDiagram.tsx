@@ -1,10 +1,12 @@
 /**
  * "Anatomy of a reply": the path one question takes, drawn in hairlines with
- * theme tokens only. A row on desktop, a column on mobile: two SVGs, one
+ * theme tokens only. Two routes to my articles leave the tools box: a
+ * per-topic search (concrete and multi-part questions) and read_writing from
+ * the library map (broad ones); both end at Jev's section pick. A row on desktop, a column on mobile: two SVGs, one
  * hidden per breakpoint (display:none also drops it from the a11y tree).
  * Thresholds and page size come from lib/search-config.ts, so they can't drift.
  */
-import { MAX_ARTICLES_PER_REPLY, MAX_TOPICS, MIN_SCORE, PAGE_SIZE, RELEVANT, STAGE2_MAX } from '@/lib/search-config'
+import { MAX_ARTICLES_PER_REPLY, MAX_TOPICS, MIN_SCORE, PAGE_SIZE, RELEVANT, SECTION_BUDGET_CHARS, STAGE2_MAX } from '@/lib/search-config'
 
 const MONO = 'var(--font-ibm-plex-mono), ui-monospace, monospace'
 
@@ -118,23 +120,25 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
   const filterSub = `noul × ${articleCount}`
   const filterPass = `pass ≥ ${RELEVANT}`
   const rankPass = `pass ≥ ${MIN_SCORE.toFixed(1)}`
-  const page = `${PAGE_SIZE} at a time`
+  const rankSub = `top ${STAGE2_MAX} scored`
+  const sectionsSub = `≤ ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} chars an article`
+  const cap = `≤${MAX_ARTICLES_PER_REPLY} articles a reply`
   const description =
     `A visitor's question passes the guards and enters the agent loop. Each round, GPT either answers or calls tools; ` +
     `the tool results go back to GPT for the next round, for at most four rounds. The tools are show_on_page, search_writing and read_writing. ` +
-    `search_writing takes up to ${MAX_TOPICS} topics and searches each topic separately: for each, a Jev filter (one yes/no per article, ` +
-    `${articleCount} articles), then a Jev rank (a graded score for up to ${STAGE2_MAX} survivors). It merges the topics' rankings so each ` +
-    `topic's best article comes first, holds that ranking, and returns the best sections of the top ${PAGE_SIZE} articles to the loop. ` +
-    `Calling it again with more: true returns the next ${PAGE_SIZE} from the same ranking without calling Jev, until the ranking runs out. ` +
-    `search_writing can be called at most twice per reply: the second call is either the next page or a new search. ` +
-    `read_writing reads up to 3 articles GPT picked by id from the library of themes in its prompt, for broad questions, with the same section picking. ` +
-    `A reply reads at most ${MAX_ARTICLES_PER_REPLY} articles across both. ` +
+    `Articles are reached by one of two routes. search_writing takes up to ${MAX_TOPICS} topics and searches each topic separately: for each, ` +
+    `a Jev filter (one yes/no per article, ${articleCount} articles), then a Jev rank (a graded score for up to ${STAGE2_MAX} survivors). ` +
+    `It merges the topics' rankings round-robin, so each topic's best article comes first, and hands over ${PAGE_SIZE} at a time; ` +
+    `calling it again with more: true returns the next ${PAGE_SIZE} without calling Jev. ` +
+    `read_writing involves no search: for broad questions, GPT reads the library map of themes in its prompt, picks up to 3 articles, and opens them by id. ` +
+    `Both routes end at Jev sections, which picks each article's best sections, up to ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} characters an article, ` +
+    `and that article text goes back to GPT. Each tool can be called at most twice per reply, and a reply reads at most ${MAX_ARTICLES_PER_REPLY} articles. ` +
     `GPT's answer then passes output checks and streams to the drawer.`
 
   return (
     <figure className="my-[clamp(20px,3vw,32px)] min-[1120px]:-mx-[100px]">
       {/* Desktop */}
-      <svg viewBox="0 0 760 308" role="img" aria-label={description} className="hidden h-auto w-full min-[760px]:block">
+      <svg viewBox="0 0 760 496" role="img" aria-label={description} className="hidden h-auto w-full min-[760px]:block">
         <ArrowHead id="reply-arrow-h" />
         <Box x={0} y={38} w={84} title="visitor" />
         <path d="M84,61 H106" {...line} markerEnd="url(#reply-arrow-h)" />
@@ -157,33 +161,50 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
         <path d="M572,61 H594" {...line} markerEnd="url(#reply-arrow-h)" />
         <Box x={596} y={38} w={84} title="drawer" />
 
-        {/* search_writing, expanded: a new query runs Jev once and holds the ranking */}
-        <path d="M406,206 H448" {...line} markerEnd="url(#reply-arrow-h)" />
-        <Box x={450} y={183} w={94} title="Jev filter" sub={filterSub} />
-        <Small x={497} y={246} anchor="middle">{filterPass}</Small>
-        <path d="M544,206 H558" {...line} markerEnd="url(#reply-arrow-h)" />
-        <Box x={560} y={183} w={94} title="Jev rank" sub="score × all" />
-        <Small x={607} y={246} anchor="middle">{rankPass}</Small>
-        <path d="M654,206 H668" {...line} markerEnd="url(#reply-arrow-h)" />
-        <Box x={670} y={183} w={88} title="ranking" sub={page} accent />
-        {/* more: true pages the held ranking, skipping Jev */}
-        <path d="M406,168 H714 V181" {...line} strokeDasharray="3 3" markerEnd="url(#reply-arrow-h)" />
-        <Small x={560} y={162} anchor="middle">{`more: true · next ${PAGE_SIZE}, no Jev call`}</Small>
-        {/* Each page of article text returns to the loop */}
-        <path d="M714,229 V268 H326 V240" {...line} markerEnd="url(#reply-arrow-h)" />
-        <Small x={520} y={284} anchor="middle">{`article text back to GPT, ${page} until the ranking runs out`}</Small>
-        <Small x={520} y={300} anchor="middle">≤2 search_writing calls per reply: the next page, or a new query</Small>
+        {/* Route 1: search_writing splits the question into topics, each searched by Jev, merged round-robin */}
+        <path d="M270,238 V262 H50 V278" {...line} markerEnd="url(#reply-arrow-h)" />
+        <Small x={160} y={257} anchor="middle">search_writing(topics)</Small>
+        <Box x={10} y={280} w={80} h={22} title="topic 1" />
+        <Box x={10} y={306} w={80} h={22} title="topic 2" />
+        <Box x={10} y={332} w={80} h={22} title="topic 3" />
+        <Small x={200} y={290} anchor="middle">each topic, in parallel</Small>
+        <path d="M90,319 H102" {...line} markerEnd="url(#reply-arrow-h)" />
+        <Box x={104} y={296} w={90} title="Jev filter" sub={filterSub} />
+        <Small x={149} y={356} anchor="middle">{filterPass}</Small>
+        <path d="M194,319 H204" {...line} markerEnd="url(#reply-arrow-h)" />
+        <Box x={206} y={296} w={90} title="Jev rank" sub={rankSub} />
+        <Small x={251} y={356} anchor="middle">{rankPass}</Small>
+        <path d="M296,319 H306" {...line} markerEnd="url(#reply-arrow-h)" />
+        <Box x={308} y={296} w={104} title="merge" sub="round-robin" accent />
+        <Small x={418} y={312}>{`${PAGE_SIZE} at a time`}</Small>
+        <Small x={418} y={326}>{`more: next ${PAGE_SIZE}`}</Small>
+        <Small x={418} y={340}>no Jev call</Small>
+        <path d="M360,342 V402" {...line} markerEnd="url(#reply-arrow-h)" />
+
+        {/* Route 2: read_writing opens articles GPT picked from the library map in its prompt */}
+        <path d="M382,238 V262 H605 V286" {...line} markerEnd="url(#reply-arrow-h)" />
+        <Small x={494} y={257} anchor="middle">read_writing(ids)</Small>
+        <Box x={520} y={288} w={170} title="read_writing" sub="ids from the library map" />
+        <Small x={612} y={350}>no search</Small>
+        <Small x={612} y={364}>up to 3 ids</Small>
+        <path d="M605,334 V380 H392 V402" {...line} markerEnd="url(#reply-arrow-h)" />
+
+        {/* Both routes: Jev picks each article's best sections; the text goes back to GPT */}
+        <Box x={246} y={404} w={160} title="Jev sections" sub={sectionsSub} />
+        <path d="M406,427 H744 V200 H408" {...line} markerEnd="url(#reply-arrow-h)" />
+        <Small x={326} y={468} anchor="middle">article text back to GPT</Small>
+        <Small x={326} y={484} anchor="middle">{`≤2 calls of each tool · ${cap}`}</Small>
       </svg>
 
       {/* Mobile */}
-      <svg viewBox="0 0 340 610" role="img" aria-label={description} className="mx-auto block h-auto w-full max-w-[400px] min-[760px]:hidden">
+      <svg viewBox="0 0 340 832" role="img" aria-label={description} className="mx-auto block h-auto w-full max-w-[400px] min-[760px]:hidden">
         <ArrowHead id="reply-arrow-v" />
         <Box x={95} y={0} w={150} title="visitor" />
         <path d="M170,46 V62" {...line} markerEnd="url(#reply-arrow-v)" />
         <Box x={95} y={64} w={150} title="guards" />
         <path d="M170,110 V154" {...line} markerEnd="url(#reply-arrow-v)" />
 
-        <LoopFrame x={0} y={126} w={340} h={342} />
+        <LoopFrame x={0} y={126} w={340} h={224} />
         <GptBox x={95} y={156} w={150} />
         <path d="M140,202 V258" {...line} markerEnd="url(#reply-arrow-v)" />
         <Small x={132} y={234} anchor="end">calls</Small>
@@ -191,30 +212,39 @@ export default function ReplyDiagram({ articleCount }: { articleCount: number })
         <Small x={208} y={234}>results</Small>
         <ToolsBox x={95} y={260} w={150} />
 
-        {/* search_writing, expanded below the tools */}
-        <path d="M120,342 V352 H52 V362" {...line} markerEnd="url(#reply-arrow-v)" />
-        <Small x={46} y={358} anchor="end">query</Small>
-        <Box x={6} y={364} w={92} title="Jev filter" sub={filterSub} />
-        <Small x={52} y={424} anchor="middle">{filterPass}</Small>
-        <path d="M98,387 H110" {...line} markerEnd="url(#reply-arrow-v)" />
-        <Box x={112} y={364} w={92} title="Jev rank" sub="score × all" />
-        <Small x={158} y={424} anchor="middle">{rankPass}</Small>
-        <path d="M204,387 H216" {...line} markerEnd="url(#reply-arrow-v)" />
-        <Box x={218} y={364} w={78} title="ranking" sub={page} accent />
-        {/* more: true pages the held ranking, skipping Jev */}
-        <path d="M236,342 V362" {...line} strokeDasharray="3 3" markerEnd="url(#reply-arrow-v)" />
-        <Small x={242} y={356}>more</Small>
-        {/* Each page returns to the loop around the right of the tools */}
-        <path d="M296,387 H306 V300 H247" {...line} markerEnd="url(#reply-arrow-v)" />
-        <Small x={170} y={444} anchor="middle">{`article text back to GPT, ${page}`}</Small>
-        <Small x={170} y={458} anchor="middle">≤2 calls per reply: next page or new query</Small>
+        {/* Route 1 (left): topics, each through Jev, merged */}
+        <path d="M120,342 V362 H80 V374" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Box x={6} y={376} w={148} h={40} title="topic 1 · 2 · 3" sub="searched separately" />
+        <path d="M80,416 V428" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Box x={6} y={430} w={148} title="Jev filter" sub={filterSub} />
+        <path d="M80,476 V490" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Small x={86} y={487}>{filterPass}</Small>
+        <Box x={6} y={492} w={148} title="Jev rank" sub={rankSub} />
+        <path d="M80,538 V552" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Small x={86} y={549}>{rankPass}</Small>
+        <Box x={6} y={554} w={148} title="merge" sub="round-robin" accent />
+        <Small x={158} y={581}>{`${PAGE_SIZE} at a time`}</Small>
+        <path d="M80,600 V612 H140 V622" {...line} markerEnd="url(#reply-arrow-v)" />
+
+        {/* Route 2 (right): ids from the library map, no search */}
+        <path d="M220,342 V362 H236 V374" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Box x={166} y={376} w={140} title="read_writing" sub="from the library map" />
+        <Small x={172} y={440}>no search</Small>
+        <Small x={172} y={454}>≤3 ids</Small>
+        <path d="M236,422 V612 H200 V622" {...line} markerEnd="url(#reply-arrow-v)" />
+
+        {/* Both routes meet at Jev sections; the text returns to the tools up the left edge */}
+        <Box x={90} y={624} w={160} title="Jev sections" sub={sectionsSub} />
+        <path d="M90,647 H2 V300 H93" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Small x={170} y={688} anchor="middle">article text back to GPT</Small>
+        <Small x={170} y={702} anchor="middle">{`${cap} · ≤2 calls a tool`}</Small>
 
         {/* Answer leaves the loop down the right edge */}
-        <path d="M245,179 H318 V515 H247" {...line} markerEnd="url(#reply-arrow-v)" />
+        <path d="M245,179 H318 V739 H247" {...line} markerEnd="url(#reply-arrow-v)" />
         <Small x={282} y={172} anchor="middle">answer</Small>
-        <Box x={95} y={492} w={150} title="checks" />
-        <path d="M170,538 V560" {...line} markerEnd="url(#reply-arrow-v)" />
-        <Box x={95} y={562} w={150} title="drawer" />
+        <Box x={95} y={716} w={150} title="checks" />
+        <path d="M170,762 V782" {...line} markerEnd="url(#reply-arrow-v)" />
+        <Box x={95} y={784} w={150} title="drawer" />
       </svg>
     </figure>
   )

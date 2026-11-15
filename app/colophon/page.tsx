@@ -39,6 +39,19 @@ const WALKTHROUGH: [stage: string, what: string][] = [
   ['Drawer', 'The reply streams in with superscript footnotes and a Sources row underneath.'],
 ]
 
+/** How the agent reaches my articles, by kind of question (the routes in the diagram). */
+const QUESTION_KINDS: [question: string, route: string][] = [
+  ['What have you written about guardrails?', 'One topic, searched: the steps above.'],
+  [
+    'How do I use LiteLLM, Helm and Nginx?',
+    'search_writing(["LiteLLM", "Helm", "Nginx"]): three searches, merged so each topic’s best article comes first.',
+  ],
+  [
+    'How would you build production-ready agents?',
+    'No search. GPT reads the library map in its prompt, picks up to three articles, and opens them with read_writing.',
+  ],
+]
+
 const GUARDRAILS: [guardrail: string, prevents: string][] = [
   ['Page anchors validated server-side', 'Pointing at things that don’t exist'],
   ['Article retrieval: relevance filter, graded rerank, known slugs only, at most six articles a reply', 'Irrelevant or invented sources'],
@@ -227,6 +240,25 @@ export default function ColophonPage() {
                 </li>
               ))}
             </ol>
+            <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
+              Three kinds of question
+            </p>
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-ink font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-soft">
+                  <th scope="col" className="w-2/5 py-2 pr-4 font-medium">Question</th>
+                  <th scope="col" className="py-2 font-medium">Route</th>
+                </tr>
+              </thead>
+              <tbody>
+                {QUESTION_KINDS.map(([q, route]) => (
+                  <tr key={q} className="border-b border-rule align-top">
+                    <td className="py-2.5 pr-4 font-serif text-[15px] italic leading-snug text-ink">{q}</td>
+                    <td className="py-2.5 text-[14.5px] leading-snug text-ink-soft">{route}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
               Reading in pages
             </p>

@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { MAX_ARTICLES_PER_REPLY } from "@/lib/search-config";
 import ReplyDiagram from "./ReplyDiagram";
 
 describe("ReplyDiagram", () => {
@@ -66,6 +67,54 @@ describe("ReplyDiagram search_writing topics", () => {
     for (const svg of Array.from(container.querySelectorAll('svg[role="img"]'))) {
       expect(svg.textContent ?? "").toContain("search_writing(topics)");
       expect(svg.getAttribute("aria-label") ?? "").toMatch(/each topic separately/i);
+    }
+  });
+});
+
+describe("ReplyDiagram two routes", () => {
+  const svgsOf = (container: HTMLElement) => Array.from(container.querySelectorAll('svg[role="img"]'));
+
+  it("draws the topic split and the merge, in both SVGs", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of svgsOf(container)) {
+      const text = svg.textContent ?? "";
+      expect(text).toContain("topic 1");
+      expect(text).toContain("merge");
+      expect(text).toContain("round-robin");
+    }
+  });
+
+  it("draws the library-map route with no search, in both SVGs", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of svgsOf(container)) {
+      const text = svg.textContent ?? "";
+      expect(text).toContain("read_writing");
+      expect(text).toContain("library map");
+      expect(text).toContain("no search");
+    }
+  });
+
+  it("both routes meet at Jev sections, under the reply cap, in both SVGs", () => {
+    const { container } = render(<ReplyDiagram articleCount={12} />);
+
+    for (const svg of svgsOf(container)) {
+      const text = svg.textContent ?? "";
+      expect(text).toContain("Jev sections");
+      expect(text).toContain(`≤${MAX_ARTICLES_PER_REPLY} articles a reply`);
+    }
+  });
+
+  it("the description covers both routes", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of svgsOf(container)) {
+      const label = svg.getAttribute("aria-label") ?? "";
+      expect(label).toContain("library map");
+      expect(label).toContain("read_writing");
+      expect(label).toContain("Jev sections");
+      expect(label).toMatch(/merge/i);
     }
   });
 });
