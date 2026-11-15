@@ -56,6 +56,14 @@ function createStreamingResponse(chunks: string[]): Response {
   } as unknown as Response;
 }
 
+/** The scroll box that holds the messages (nearest scrolling ancestor of the starter-state intro). */
+function messagesScroller(): HTMLElement {
+  const dialog = screen.getByRole("dialog", { name: /ask titus/i });
+  const scroller = within(dialog).getByText(INTRO).closest<HTMLElement>(".overflow-y-auto");
+  if (!scroller) throw new Error("messages scroller not found");
+  return scroller;
+}
+
 describe("CopilotBubble", () => {
   beforeEach(() => {
     if (!global.TextDecoder) {
@@ -529,17 +537,39 @@ describe("CopilotBubble", () => {
       createStreamingResponse([`{"type":"delta","text":"Response"}\n`])
     );
     render(<CopilotBubble />);
-    const scrollIntoViewSpy = jest.spyOn(HTMLElement.prototype, "scrollIntoView");
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    const scroller = messagesScroller();
+    Object.defineProperty(scroller, "scrollHeight", { configurable: true, value: 987 });
 
     // Act
-    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
-    const input = screen.getByPlaceholderText(/ask about my work/i);
-    await user.type(input, "Hi{Enter}");
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "Hi{Enter}");
+
+    // Assert - the drawer's own scroll box moves; the page is never scrolled via scrollIntoView
+    await waitFor(() => {
+      expect(screen.getByText("Response")).toBeInTheDocument();
+      expect(scroller.scrollTop).toBe(987);
+    });
+    expect(HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("starts the empty drawer at the top even if the messages box kept a previous offset", async () => {
+    // Arrange
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    const fab = screen.getByRole("button", { name: /open ask titus/i });
+    await user.click(fab);
+    const scroller = messagesScroller();
+    scroller.scrollTop = 300;
+    expect(scroller.scrollTop).toBe(300); // jsdom keeps the offset, so the reset below is observable
+
+    // Act - close, leave a stale offset behind while hidden, then reopen
+    await user.click(fab);
+    scroller.scrollTop = 300;
+    await user.click(fab);
 
     // Assert
-    await waitFor(() => {
-      expect(scrollIntoViewSpy).toHaveBeenCalled();
-    });
+    expect(scroller.scrollTop).toBe(0);
+    expect(screen.getByText(INTRO)).toBeInTheDocument();
   });
 
   it("should maintain message history across multiple messages", async () => {
@@ -1150,6 +1180,84 @@ describe("CopilotBubble", () => {
 
       expect(await screen.findByText(/only write a few of these every ten minutes/i)).toBeInTheDocument();
       expect(screen.getByRole("textbox", { name: /job description/i })).toHaveValue(JD);
+    });
+  });
+
+  describe("show_on_page from the model", () => {
+    const TARGET_ID = "role-illumina";
+    const TARGETS = [{ id: TARGET_ID, label: "Illumina, 2023" }];
+    const SIDE_BY_SIDE = "(min-width: 1024px)";
+    const WIDE = "(min-width: 1440px)";
+    let originalMatchMedia: typeof window.matchMedia;
+
+    beforeEach(() => {
+      originalMatchMedia = window.matchMedia;
+    });
+
+    afterEach(() => {
+      window.matchMedia = originalMatchMedia;
+    });
+
+    // Answers each media query by whether it is listed in `matchingQueries`.
+    function mockMatchMedia(matchingQueries: string[]) {
+      // jest.setup defines matchMedia as writable but non-configurable, so assign rather than redefine.
+      window.matchMedia = jest.fn((query: string) => ({
+        matches: matchingQueries.includes(query),
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(() => true),
+      }));
+    }
+
+    // Sends one question whose stream opens with an auto action for TARGET_ID.
+    // Returns the page element so its scrollIntoView can be inspected.
+    async function askModelToShowTarget({ expanded, matching }: { expanded: boolean; matching: string[] }) {
+      mockMatchMedia(matching);
+      (global.fetch as jest.Mock).mockResolvedValue(
+        createStreamingResponse([
+          `{"type":"action","target":"${TARGET_ID}"}\n`,
+          `{"type":"delta","text":"Here it is."}\n`,
+        ])
+      );
+      render(
+        <>
+          <div id={TARGET_ID}>Illumina entry</div>
+          <CopilotBubble targets={TARGETS} />
+        </>
+      );
+      const target = document.getElementById(TARGET_ID)!;
+      target.scrollIntoView = jest.fn();
+
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      if (expanded) {
+        await user.click(screen.getByRole("button", { name: /expand chat/i }));
+      }
+      await user.type(screen.getByPlaceholderText(/ask about my work/i), "Show me Illumina{Enter}");
+      await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
+      return target;
+    }
+
+    it("scrolls the page to the target when expanded and the 1440px query matches", async () => {
+      const target = await askModelToShowTarget({ expanded: true, matching: [SIDE_BY_SIDE, WIDE] });
+
+      expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+    });
+
+    it("does not scroll the page when expanded and only the 1024px query matches", async () => {
+      const target = await askModelToShowTarget({ expanded: true, matching: [SIDE_BY_SIDE] });
+
+      expect(target.scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it("still scrolls the page when collapsed and the 1024px query matches", async () => {
+      const target = await askModelToShowTarget({ expanded: false, matching: [SIDE_BY_SIDE] });
+
+      expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
     });
   });
 });
