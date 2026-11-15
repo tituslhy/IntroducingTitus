@@ -31,7 +31,25 @@
       "multi-agent systems",
       "model routing",
       "agent orchestration"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and introduces no technical content.",
+      "Catching Jev-er: Teaching a multi-agent system to triage messy questions.": "Introduces Jev as a decision model that scores predefined answer choices instead of generating free-form text.",
+      "Why the hype?": "Reports Jev’s claimed classification accuracy, low cost, and speed as reasons to consider it for classification and tool selection.",
+      "End of story?": "Distinguishes fast System One decisions from deliberate System Two reasoning and explains why Jev should route agent tasks, not replace a supervisor.",
+      "Important Fineprint": "Describes Jev’s context limits, reduced performance in long-context mode, open and closed alternatives, and a possible shift toward specialized decision models.",
+      "How should you use Jev then?": "Discusses Jev integrations and recipes, then proposes testing it at low-reasoning decision points in a custom multi-agent system.",
+      "The idea": "Proposes a hierarchical system with a supervisor, forex specialist, and web-search specialist, using Jev to triage incoming questions.",
+      "The tools": "Defines a forex-rate tool backed by Frankfurter’s API and a web-search tool configured with Tavily.",
+      "Jev as the bouncer": "Implements LangChain middleware that classifies incoming queries and routes confident classifications to query-enrichment handlers.",
+      "Now for the query classification method": "Uses Jev’s Choice primitive to classify queries as decomposable, direct, enrichable, or needing clarification.",
+      "Taking it out for a spin": "Demonstrates Jev classifying a request for exchange rates and central-bank news as decomposable with full confidence.",
+      "Assembling the multi-agent system": "Wraps forex and web-search agents as supervisor tasks, then creates a supervisor with query middleware and persistent state.",
+      "It’s what our traces tell us that’s interesting": "Examines execution traces showing parallel specialist calls and adaptive supervisor orchestration, explaining why Jev cannot replace the supervisor.",
+      "How did the Jev-ed agents do for other question types?": "Tests direct, poorly worded, and nonsensical queries; low classification confidence leaves an enrichable query unchanged for the supervisor.",
+      "How did the baseline do?": "Compares baseline and Jev-enriched execution, reporting a nearly twelvefold speedup on one multipart task and proposing query decomposition as a cause.",
+      "Final thoughts": "Concludes that lightweight classifiers can handle specific agent decisions, while noting the experiment is small and needs more rigorous evaluation."
+    }
   },
   {
     "slug": "introducing-stablecoins-2b3e63e6c5f1",
@@ -70,7 +88,29 @@
       "algorithmic stablecoins",
       "blockchain ledger",
       "depegging"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and presents no technical content.",
+      "A dollar you have to take someone’s word for": "Introduces cryptocurrency volatility and stablecoins as tokens whose value depends on an issuer’s promise and market confidence.",
+      "1\\. What is a stablecoin?": "Defines stablecoins as cryptocurrencies designed to maintain a value relative to another asset, usually a fiat currency.",
+      "1a. Banks transfer money between themselves and facilitate payments between individuals and organizations.": "Explains that stablecoins can transfer and settle on blockchains at any time, while fiat conversion may still depend on banks.",
+      "1b. Stablecoins can also provide an alternative to holding currencies that experience significant volatility.": "Describes using dollar-denominated stablecoins to reduce exposure to depreciating currencies, while noting issuer and dollar risks.",
+      "2\\. So can anyone create a stablecoin?": "Explains that a stablecoin’s credibility depends on trust and demand, not merely an issuer’s declaration of value.",
+      "Remember the Asian Financial Crisis of 1997?": "Uses Thailand’s failed baht peg to show that exchange-rate promises require adequate reserves and market confidence.",
+      "3\\. Let’s create TitusCoin": "Describes a fiat-backed token issued against dollar reserves and redeemed by burning tokens and releasing reserves.",
+      "4\\. But does 1 TTC always equal 1 USD?": "Distinguishes an issuer’s promised redemption value from a token’s market price, which reflects buyer confidence.",
+      "The USDC depegging incident of March 2023": "Describes how uncertainty about Circle’s deposits at Silicon Valley Bank pushed USDC below its dollar peg.",
+      "5\\. Greed is the main market force maintaining the exchange rate": "Explains how arbitrageurs mint or redeem fiat-backed tokens to profit from price deviations and restore the peg.",
+      "6\\. What about using another cryptocurrency to maintain the peg?": "Introduces a model that backs stablecoin redemptions with a variable quantity of another cryptocurrency worth one dollar.",
+      "6a. The mechanism of maintaining the peg is conceptually similar": "Shows how minting and burning tokens can create arbitrage incentives that move the stablecoin price toward its peg.",
+      "6b. But this mechanism doesn’t necessarily work.": "Explains how falling collateral-token prices can trigger more issuance, selling pressure, and a self-reinforcing collapse.",
+      "6c. Terra/LUNA: When the stablecoin collapsed": "Describes TerraUSD’s redemption mechanism and how mass exits caused LUNA issuance to surge and its price to collapse.",
+      "7\\. First, we need a ledger": "Introduces a Python token ledger for balances, minting, burning, and transfers, while distinguishing blockchain records from bank reserves.",
+      "8\\. Next we need a FiatBackedIssuer": "Introduces an issuer class that tracks dollar reserves and coordinates token minting, redemption, and reserve-loss records.",
+      "9\\. Taking our stablecoin blockchain for a spin": "Extends a proof-of-stake blockchain with a name and proposer rewards, then sets up its network and token components.",
+      "Notice that a problem off the chain does not rewrite the token ledger": "Demonstrates that reserve losses reduce backing per token without changing token balances, supply, or blockchain validity.",
+      "Moving forward": "Recaps stablecoin mechanisms and introduces the problem of coordinating after-hours settlement between tokens on separate blockchains."
+    }
   },
   {
     "slug": "flash-loan-attacks-on-smart-contracts-cb08c72408bd",
@@ -97,7 +137,18 @@
       "automated market maker",
       "price oracle",
       "liquidation"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "Contains only a divider, with no substantive section text.",
+      "The heist where you borrow the money first": "Introduces AMM price manipulation and lending protocols that use pool prices to assess collateral and trigger liquidations.",
+      "Act One: Alice executes a heist with ETH she owns": "Shows how an attacker’s owned ETH can depress an AMM price and enable liquidation of an undercollateralized borrower.",
+      "Act Two: The same heist with a flash loan": "Explains flash loans, their transaction-end repayment condition and fees, and how borrowed ETH can fund price manipulation.",
+      "Act Three: The heist fails": "Demonstrates that an attack fails when price manipulation cannot make the victim liquidatable, causing the transaction to revert.",
+      "This is the part that is easy to misunderstand.": "Explains that transaction reversion rolls back earlier execution steps, without any system needing to identify the transaction as an attack.",
+      "The defence: stop asking the puddle": "Recommends independent price oracles instead of manipulable AMM prices, while noting that correlated thin markets can undermine median feeds.",
+      "Thinking of what we just did": "Summarizes real-world flash-loan oracle attacks and discusses layered defenses, including median feeds, TWAPs, liquidity, and circuit breakers.",
+      "References (honestly too many):": "Lists research, flash-loan documentation, the Uniswap v2 whitepaper, and an article about major flash-loan attacks."
+    }
   },
   {
     "slug": "introducing-smart-contracts-340c20cbe672",
@@ -126,7 +177,19 @@
       "oracles",
       "price feeds",
       "median aggregation"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and introduces no technical content.",
+      "What they are and how they work with Blockchain": "The section contrasts ledger transactions with smart contracts, setting up how blockchain programs change state.",
+      "What a smart contract actually is": "Smart contracts are deterministic programs deployed on a blockchain and invoked through transactions that call functions with arguments.",
+      "Swap contracts aren’t a major leap from the basics": "The section explains constant-product automated market makers and shows how code can price swaps using pool reserves.",
+      "Same price for any size trade?": "The section compares small and large trades in identical pools to demonstrate how trade size affects price impact.",
+      "The lending contract: a loan that asks the puddle": "The section introduces a lending protocol that accepts ETH collateral, issues USD debt, and liquidates loans below a collateral threshold.",
+      "Put the contracts on the chain": "The section demonstrates deploying an AMM and lending protocol, then submitting transactions that call the contracts.",
+      "Introducing Oracles": "The section explains why deterministic smart contracts cannot fetch external data and introduces oracles as a way to supply it.",
+      "Take the median": "The section implements an on-chain price feed and median aggregation, distinguishing stored reports from the rule that selects a price.",
+      "More oracles ≠ more truth": "The section explains that blockchain consensus verifies submitted data and execution, not source independence or factual accuracy."
+    }
   },
   {
     "slug": "introducing-mempools-the-one-time-gossip-pays-off-9fbc92701f70",
@@ -157,7 +220,21 @@
       "blockchain consensus",
       "attestations",
       "network propagation"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "Contains only a divider and no substantive section content.",
+      "The one time gossip pays off": "Introduces how network delays give blockchain participants different information and motivates examining public-chain coordination.",
+      "The idea of networks": "Defines blockchain nodes and networks, explaining how communication delays create temporarily different local views.",
+      "This is where mempools come in.": "Defines node-local mempools and models them as separate collections of transactions propagated between nodes.",
+      "Gossip: Useful precisely because it is imperfect": "Explains probabilistic transaction gossip and demonstrates how nodes can have different mempool contents.",
+      "From transactions to block proposals": "Explains that validators propose blocks using transactions available in their local mempools.",
+      "Simply sending a transaction directly to the next scheduled proposer is not a great solution.": "Describes why sending transactions only to the next proposer is unreliable and insufficient for network validation.",
+      "Gossip solves a different problem.": "Explains how gossip spreads transactions so future proposers and validating nodes are more likely to receive them.",
+      "Introducing the idea of slots": "Defines proof-of-stake slots and demonstrates reproducible, stake-weighted proposer assignment.",
+      "A fork caused by delay, not dishonesty": "Shows how delayed block propagation can lead honest proposers with different chain views to create competing blocks.",
+      "Attestations: turning local views into votes": "Explains how validators attest to locally observed chain tips and how stake weights votes for competing blocks.",
+      "Thinking about what we just learnt": "Summarizes gossip, proposals, attestations, and fork choice, then distinguishes blockchain consensus from verifying external facts."
+    }
   },
   {
     "slug": "introducing-permissioned-chains-1d8a71f5b09a",
@@ -187,7 +264,21 @@
       "transaction endorsement",
       "versioned world state",
       "concurrency control"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and no substantive article content.",
+      "A blockchain where the guest list matters": "Contrasts public proof-of-work and proof-of-stake networks with consortium ledgers that restrict participation to known organizations.",
+      "Writing our Membership Service — gives permission to even show up": "Implements a registry that gates peer participation, illustrating identity-based access in a simplified model of Fabric membership providers.",
+      "Writing the ledger’s state: a versioned key-value world, not just a list of blocks": "Defines per-key values and versions, plus execution results that record proposed writes and the versions read.",
+      "Chaincode: the business logic, run speculatively": "Shows transfer logic simulating proposed balance changes and recording read versions without committing them to ledger state.",
+      "And now: Execute → Endorse → Order → Validate": "Explains Fabric’s transaction stages: peers simulate and endorse proposals, then an ordering service sequences endorsed transactions into blocks.",
+      "Finally, the ledger itself": "Describes blocks without mining fields and explains that ordered transactions can remain in history while failing validation and state updates.",
+      "A very different looking blockchain": "Introduces a permissioned blockchain that appends ordered blocks before validating individual transactions and applying valid writes to state.",
+      "Then: what happens when two transactions collide?": "Explains optimistic concurrency control, stale-read conflicts, invalid transaction status, and client retries using fresh state and endorsements.",
+      "Demo: The tale of three banks with one shared ledger": "Sets up three banks as registered peers requiring unanimous endorsements for transactions on a shared settlement ledger.",
+      "Here comes the race condition": "Demonstrates two concurrently endorsed transfers based on the same account version, creating competing proposals before either changes state.",
+      "Concluding thoughts": "Summarizes identity-based participation, endorsement, ordering, validation, and MVCC retries, then raises propagation and information differences in public networks."
+    }
   },
   {
     "slug": "inside-opencerts-how-merkle-trees-verify-singapores-digital-diplomas-61f60d13700e",
@@ -215,7 +306,18 @@
       "merkle proofs",
       "digital credentials",
       "document verification"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "Introduces OpenCerts digital diplomas and the article’s focus on cryptographic verification.",
+      "How Ethereum and Merkle trees power Singapore’s tamper-proof diplomas.": "Explains how OpenCerts diplomas use cryptographic data and previews Merkle proofs, tampering tests, and blockchain anchoring.",
+      "The problem": "Explains why blockchain immutability could secure credentials, while publishing every diploma on-chain creates cost and privacy problems.",
+      "Okay. So don’t publish the diplomas. Hash them instead?": "Shows why one hash of all diplomas prevents convenient individual verification and proposes independent proofs without revealing other records.",
+      "The Merkle tree solution": "Describes building a Merkle tree, publishing its root, and verifying one document with a logarithmic-size set of sibling hashes.",
+      "Building a Merkle tree from scratch": "Introduces Python code for constructing a Merkle tree, generating proofs, and verifying a document against an expected root.",
+      "What just happened?": "Summarizes how a diploma and sibling hashes reconstruct the committed root, and how changing the document causes verification to fail.",
+      "Anchoring the Merkle root": "Explains why roots must be anchored against alteration, then packages certificates with proofs for independent verification.",
+      "In conclusion": "Recaps how Merkle proofs and blockchain commitments verify credentials without storing diplomas or exposing other graduates’ records."
+    }
   },
   {
     "slug": "proof-of-stake-the-mining-free-blockchain-ddae684ffec5",
@@ -254,7 +356,29 @@
       "stake-weighted selection",
       "slashing",
       "python"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and no technical content.",
+      "Part II of the voyage to understanding blockchains from scratch": "Introduces the article as a continuation of a toy blockchain tutorial.",
+      "1\\. Hash chaining makes history tamper-evident": "Explains how changing a block alters its hash and breaks links to subsequent blocks.",
+      "2\\. Mining makes rewriting history computationally suicidal": "Describes proof-of-work mining costs and introduces proof-of-stake as a way to make cheating financially costly.",
+      "The concept of proof-of-stake": "Explains stake-weighted validator selection, locked collateral, and slashing as proof-of-stake security mechanisms.",
+      "A very important caveat": "Defines the simulator’s limited scope and contrasts its features with the more complex mechanisms in real protocols.",
+      "Step 1: Create our validators": "Introduces validator objects that track stake, slashing status, and historical eligibility.",
+      "Step 2: Remove mining from our blocks": "Defines blocks without mining fields that instead record the proposer and include that identity in the hash.",
+      "Step 3: Building a stake-weighted lottery": "Describes selecting eligible proposers in proportion to stake and notes real protocols require distributed randomness.",
+      "Nothing-at-stake, and why we slash": "Explains why validators might support competing histories when proposals are cheap, motivating slashing.",
+      "Step 4: Implement slashing": "Models equivocation as one validator proposing conflicting blocks at the same height and applies a stake penalty.",
+      "Step 5: Putting it together - the PoS blockchain": "Combines validators, proposer selection, and slashing in a blockchain that checks hashes, links, and historical eligibility.",
+      "Step 6: Setting the reward": "Defines block issuance and transaction fees as rewards for validators proposing blocks.",
+      "Demo time — selection, honesty, then cheating": "Sets up validators with unequal stakes and calculates their relative probabilities of proposing blocks.",
+      "Demo A — honest rounds": "Demonstrates repeated stake-weighted proposer selection and explains why one validator can win several rounds consecutively.",
+      "Demo B — SketchyGuy lives up to his name": "Demonstrates detecting equivocation from two conflicting proposals at one height and slashing the validator.",
+      "Demo C- What if SketchyGuy ignores us?": "Shows that chain validation rejects a block proposed by a validator already slashed at that height.",
+      "But what about everything SketchyGuy did before getting slashed?": "Explains historical eligibility so slashing does not invalidate a validator’s earlier legitimate activity.",
+      "Conclusion": "Summarizes stake-weighted selection and slashing as economic alternatives to proof-of-work’s computational security costs.",
+      "But blockchain isn’t just about cryptocurrency": "Introduces OpenCerts credential verification and previews Merkle trees for proving data membership efficiently."
+    }
   },
   {
     "slug": "understanding-blockchains-from-scratch-f14c454af32f",
@@ -290,7 +414,26 @@
       "hash chaining",
       "proof of work",
       "double spending"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a visual divider and no technical discussion.",
+      "Building a tiny blockchain from first principles to understand why the real ones work": "The article introduces a toy blockchain built in Python to explain hash chaining, tamper detection, and proof-of-work.",
+      "First, the high level understanding": "Blocks record data and link to earlier blocks, while consensus rules determine valid blocks and accepted history.",
+      "The double spend problem": "Blockchains let mutually distrustful participants agree on transaction history and prevent double spending without a central referee.",
+      "Concept 1: Hash chaining makes history tamper-evident": "Cryptographic hash properties let blocks fingerprint their contents and link to previous blocks, making edits detectable.",
+      "Attempt 1: The sloppy attacker": "Changing block data without updating its stored hash causes the chain’s integrity check to fail.",
+      "Attempt 2: The clever attacker": "Recomputing a tampered block’s hash breaks the next block’s reference to its predecessor.",
+      "Attempt 3: The actually clever attacker": "Rebuilding every descendant hash can restore a tampered chain, motivating a mechanism that makes rewriting costly.",
+      "Concept 2: Proof of work — hard to produce, easy to check": "Proof-of-work miners vary a nonce to find a hash meeting a target, while others can verify the result cheaply.",
+      "What does difficulty = 5 actually mean?": "A five-zero hexadecimal prefix has an expected search cost of 16⁵ attempts, and validation checks integrity, linkage, and work.",
+      "Mine a short chain": "The example mines blocks at difficulty five and demonstrates the variable time and number of hashes required.",
+      "How this relates to Bitcoin:": "Bitcoin compares block hashes with a numeric target, adjusts difficulty periodically, and lets nodes verify mined blocks cheaply.",
+      "Attack demo: edit data and skip re-mining": "Changing block data and recomputing its hash without mining fails the proof-of-work check and disrupts later links.",
+      "What proof-of-work actually bought us": "Proof-of-work makes producing rewritten history costly while keeping verification inexpensive.",
+      "Producing history": "Finding a valid block hash may require trying enormous numbers of candidates.",
+      "Verifying history": "Nodes can verify a block with one hash, while attackers must re-mine rewritten blocks and catch up with honest miners.",
+      "Takeaways so far": "The article summarizes how hash chaining detects tampering and proof-of-work makes rewriting history computationally expensive."
+    }
   },
   {
     "slug": "building-skilled-agents-835597b38be4",
@@ -327,7 +470,28 @@
       "progressive disclosure",
       "tool use",
       "agent logging"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The opening section contains only a visual divider.",
+      "A brief introduction on agent skills and why they matter": "Agent skills address context overload by loading detailed instructions only when relevant, reducing the information models must consider.",
+      "What is a skill, actually?": "This section introduces the definition of an agent skill.",
+      "The analogy": "Tools provide agents with capabilities, while skills provide guidance on how to approach tasks and use those capabilities.",
+      "In code": "Skills use folders containing SKILL.md files; only metadata enters the system prompt, while instructions load on demand.",
+      "Let us build a light harness": "The article builds a minimal LangChain agent with weather and exchange-rate tools rather than using a preconfigured agent framework.",
+      "Using skills to guide tool use": "Example weather and forex skill instructions describe how to select tools, handle ambiguous inputs, and perform tasks.",
+      "Experiment 1: Skills in Files": "A filesystem backend and middleware expose skill files and a read_file tool for progressively loading instructions.",
+      "Give it a spin": "The agent reads a weather skill before using its existing tool, demonstrating on-demand procedural guidance.",
+      "Experiment 2: Remote skills": "A skill fetched from a remote URL is seeded into agent state, enabling distribution without storing it locally.",
+      "Experiment 3: Zero tools": "The experiment removes domain tools and uses a shell backend so the agent can execute a script specified by a skill.",
+      "Hold on. Did it actually run?": "The agent returns weather results, raising the question of how to verify that its script actually executed.",
+      "The fix is logging – but not to stdout.": "File-based logging provides evidence of script execution without mixing diagnostic messages into the JSON output consumed by the model.",
+      "The bug that explained the whole design": "A path mismatch between filesystem tools and shell execution causes failed attempts because each uses a different path namespace.",
+      "What is virtual\\_mode?": "Virtual mode translates paths for filesystem tools and blocks traversal, but shell commands bypass that translation and security boundary.",
+      "The accidental argument for the whole design": "Shell-based agents can inspect their environment and recover from incorrect paths, unlike bound tools with invalid signatures.",
+      "So which one should you build?": "The article compares bound tools, state-seeded skills, and shell-executed files, outlining their deployment, validation, and security tradeoffs.",
+      "But do you actually need skills?": "Skills are useful for large contexts, numerous tools, and enforcing standards by supplying task-specific guidance and consistent judgement.",
+      "Concluding Thoughts": "Skills package reusable judgement as instructions, while progressive disclosure delivers it without keeping all guidance in context."
+    }
   },
   {
     "slug": "a-field-guide-to-multi-agent-architectures-f6f8c689c406",
@@ -368,7 +532,32 @@
       "langgraph",
       "agent architectures",
       "workflow orchestration"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and no technical content.",
+      "Five Architectures. Five Different Answers to the Same Question.": "Introduces five multi-agent coordination architectures and frames their differences around how agents coordinate, share information, and control execution.",
+      "1\\. Hierarchical Multi-Agent Systems": "Explains hierarchical systems in which a supervisor delegates tasks to specialist agents that may have their own tools and sub-agents.",
+      "When should you use a hierarchical architecture?": "Describes when hierarchical delegation is useful and discusses supervisor bottlenecks, routing failures, and current LangGraph recommendations.",
+      "2\\. Explicit Multi Agent Workflows": "Shows how to define multi-agent control flow explicitly, including planning tasks and dispatching specialist work concurrently.",
+      "When to use explicit multi agent workflows": "Identifies auditability and nonstandard control flow as reasons to use explicit workflows, while noting their implementation burden.",
+      "3\\. Agent Swarm": "Explains decentralized swarms, where active agents use handoff tools to transfer conversations directly to other specialists.",
+      "When should you use a swarm?": "Discusses swarms for unpredictable execution paths and their costs in latency, token use, debugging, and observability.",
+      "4\\. Blackboard Multi Agent Systems": "Introduces blackboard coordination, where specialists contribute to a shared workspace and the evolving solution guides next actions.",
+      "a. The blackboard": "Defines the blackboard as structured shared problem state with specialist-owned panels, rather than a shared conversation log.",
+      "b. Knowledge sources": "Describes knowledge sources through their activation conditions and actions, with coordination occurring through the blackboard.",
+      "c. The control component": "Explains how a controller selects eligible knowledge sources based on current board state and repeats after each contribution.",
+      "Execution is deliberately sequential": "Explains why blackboard systems activate specialists sequentially, since each contribution can change which action is useful next.",
+      "When should you use a blackboard architecture?": "Covers blackboard use cases, modularity, historical applications, and complexity from schemas, activation rules, priorities, and sequential execution.",
+      "5\\. Actor-Critic (Adversarial) Multi Agent Systems": "Introduces iterative adversarial review with an actor, critic, and judge, separating defect detection from decisions to revise.",
+      "a. The Actor": "Describes how an actor creates an initial draft and revises it using critique and the judge’s priorities.",
+      "b. The critic": "Explains structured adversarial critique and severity-weighted issue scores as signals for tracking draft improvement.",
+      "c. The judge": "Describes how a judge evaluates critique findings and decides whether material problems warrant another revision.",
+      "Why a watchdog is still necessary": "Explains deterministic round caps and stalemate detection for bounding adversarial review loops that LLM roles cannot reliably terminate.",
+      "Finalisation must distinguish success from exhaustion": "Distinguishes accepted drafts from runs halted by limits or stagnation, which should report unresolved issues.",
+      "When should you use an adversarial architecture?": "Discusses iterative review use cases, added model-call costs, overcorrection, inconsistent judgments, and the need for bounded convergence.",
+      "Choosing an architecture": "Compares the five architectures by identifying who controls the next action in each coordination pattern.",
+      "Final Thoughts": "Places these architectures in historical context and explains that LLMs provide new reasoning agents for established organizational patterns."
+    }
   },
   {
     "slug": "a-second-note-on-claude-code-c521245ffc35",
@@ -413,7 +602,31 @@
       "plugins",
       "observability",
       "langsmith tracing"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "Introduces lessons from multiple Claude Code projects, extending an earlier guide with additional techniques.",
+      "0\\. Starting set-up": "Explains installing Claude Code on Windows, updating PATH, authenticating, and preparing the CLI environment.",
+      "1\\. Extending CLAUDE.MD files in Claude Code": "Describes organizing project instructions into focused Markdown rules under `.claude/rules/` instead of one large file.",
+      "Always-on rules": "Explains that rules without frontmatter load every session and provide organization but no context-token savings.",
+      "Path-scoped rules": "Shows how `paths` frontmatter loads rules only when Claude reads files matching specified glob patterns.",
+      "Things to note about rules": "Clarifies rule-trigger limitations and distinguishes behavioral guidance from hooks that enforce actions at specific lifecycle points.",
+      "2\\. Run custom logic with Hooks": "Introduces Claude Code hooks as a way to run custom logic at specified lifecycle events.",
+      "What are Hooks?": "Defines hooks, explains event matching and handler decisions, and identifies project settings files used to configure them.",
+      "Example use-case for hooks": "Demonstrates configuring a post-tool hook to run a script after file-editing tools are used.",
+      "What are Events?": "Explains lifecycle events that trigger hooks and distinguishes built-in tools such as `Edit` and `Write` from commands.",
+      "Hook Execution": "Shows how a post-tool hook runs a Python script to summarize edits and append timestamped entries to a log.",
+      "3\\. Working entirely offline?": "Describes using Claude Code’s cloud environment from a mobile app to modify a GitHub repository and approve a feature branch.",
+      "4\\. Add Observability to Claude Code": "Explains tracing Claude Code activity with LangSmith to inspect execution steps, compare models, and estimate token costs.",
+      "5\\. Tap into Claude Code’s Rich Plugin Ecosystem": "Introduces the Claude Code plugin marketplace and explains how to browse available plugins.",
+      "a. Superpowers": "Describes a plugin that autonomously plans tasks, delegates work to subagents, and assigns specialized code reviews.",
+      "Tempted to not write your own sub agents?": "Compares autonomous plugin decomposition with predefined subagents, recommending each for different levels of architectural clarity.",
+      "b. Playwright": "Shows how the Playwright plugin lets Claude run browser tests, interact with an app, and inspect screenshots.",
+      "c. Frontend Design": "Describes a plugin that applies typography, spacing, color, and layout practices to generated interfaces.",
+      "d. Context7": "Explains how Context7 retrieves version-specific documentation and code examples, with usefulness limited by source documentation quality.",
+      "e. Ralph Loop": "Recommends the Ralph Loop plugin for scaffolding greenfield projects and encourages browsing the broader plugin catalog.",
+      "Conclusion": "Concludes that using Claude Code involves learning a different way to build software.",
+      "Good prompts matter, good engineering matters more": "Argues that effective AI-assisted development depends on sound engineering, reusable processes, tools, feedback loops, and human direction."
+    }
   },
   {
     "slug": "ground-control-to-antigravity-7056a6d58d0a",
@@ -453,7 +666,30 @@
       "gemini",
       "token limits",
       "jigsaw puzzle"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains no substantive content.",
+      "An honest evaluation of using Antigravity for coding": "Introduces the author's coding workflow and how usage limits prompted an evaluation of Antigravity.",
+      "What do you do when you run out of Claude tokens?": "Explains why the author considered Antigravity as an alternative to increasing a Claude subscription.",
+      "There isn’t one Antigravity, but three": "Describes Antigravity as three interfaces built on a shared underlying system.",
+      "a. Antigravity CLI": "Covers CLI installation, IDE-agnostic use, model-specific quotas, and real-time token usage reporting.",
+      "b. Antigravity IDE": "Describes the VS Code-based IDE, its workspace integrations, and the agent's access to project context.",
+      "c. Antigravity 2.0": "Explains the overview layer for monitoring and managing agents across sessions and environments.",
+      "Coding experiment: building a Jigsaw Puzzle app": "Lists the requirements for a responsive jigsaw puzzle application used to test Antigravity.",
+      "Unlike Claude Code": "Compares Antigravity's agent folders, workflows, instructions, skills, and rule activation with Claude Code.",
+      "The setup experiment": "Reports that a repository-bootstrap workflow consumed about 38% of the Gemini quota.",
+      "The jigsaw build": "Provides the prompt used to build and run the jigsaw puzzle application in Antigravity.",
+      "First run: speed vs correctness": "Describes rapid application scaffolding and server startup, followed by an implementation that did not work correctly.",
+      "Debug loop and model switching": "Covers an incomplete fix, Gemini quota exhaustion, switching to Sonnet, and further token limits.",
+      "Takeaways": "Summarizes Antigravity's speed, correctness and token trade-offs, and the author's comparison of Gemini and Sonnet.",
+      "Token economics matter more than expected": "Explains weekly usage limits and recommends smaller, deliberate coding increments to preserve session continuity.",
+      "Still, more tokens are needed": "Discusses tight quotas during long agent sessions and the trade-off between fast loops and deeper reasoning.",
+      "The rest of the payload": "Introduces Google AI subscription benefits beyond Antigravity token limits.",
+      "Introducing Jules: Dispatch and Walk Away": "Describes Jules's autonomous GitHub task workflow, model routing, subscription requirements, and the author's experience with its commits.",
+      "Control your Google apps with Gemini": "Describes Gemini integrations for controlling Google Home devices and finding photos in Google Photos.",
+      "Other goodies": "Lists Google AI features including NotebookLM, video input, media generation, cloud credits, and bundled subscriptions.",
+      "Final thoughts": "Concludes that Antigravity is a distinct, fast coding environment, but not yet a replacement for other coding assistants."
+    }
   },
   {
     "slug": "so-you-want-a-personal-ai-assistant-4c6226e88017",
@@ -492,7 +728,30 @@
       "ollama",
       "persistent memory",
       "agentic coding"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The section contains only a separator and introduces no technical content.",
+      "Here’s an alternative to the lobster — and it might be better": "The section describes OpenClaw’s integrations and limitations, including model costs, security forks, and fragmented tools.",
+      "Meet Hermes": "The section introduces Hermes as a self-hosted agent framework that learns by creating skills from prior task performance.",
+      "Core Features": "The section summarizes Hermes memory, integrations, scheduling, subagents, sandboxing, and dependence on a capable language model.",
+      "Installing Hermes": "The section recommends downloading Hermes as a desktop application from its website.",
+      "The normal way to set up Hermes": "The section explains the command-line setup process and identifies an LLM service as the only compulsory requirement.",
+      "The better way to set up Hermes": "The section describes launching Hermes through Ollama, the benefits and hardware costs of local models, and performance limitations.",
+      "Installing MCP Tools": "The section explains adding web search, browser control, and GitHub access through MCP server configuration.",
+      "1\\. Hermes as a personal assistant": "The section demonstrates using Hermes through WhatsApp for GitHub tasks, browser searches, file creation, session resets, and approvals.",
+      "Bonus: Evidence that Hermes learns from context": "The section describes Hermes adapting its Chrome tool use after encountering browser security checks and CAPTCHA challenges.",
+      "2\\. Hermes as a CLI Copilot": "The section explains starting Hermes in an interactive terminal session for repository and coding tasks.",
+      "Unlike Claude Code…": "The section contrasts Hermes global configuration with repository-based setup and explains subagent delegation and parallel task workflows.",
+      "Want to keep working with Hermes CLI away from your desk?": "The section explains handing off a CLI session to a messaging service to continue working remotely.",
+      "3\\. Hermes as a Desktop App": "The section describes the desktop app’s cross-platform chat history and shared skills and MCP tools.",
+      "4\\. Hermes as a Python Library": "The section identifies Hermes as a pip-installable Python library and directs readers to its documentation.",
+      "Want to see Hermes logs?": "The section explains using the local dashboard to inspect agent logs and manage configuration, noting possible streaming delays.",
+      "It’s not all sunshines and rainbows though": "The section notes that Hermes has a steeper learning curve and user experience varies.",
+      "There will be integration friction": "The section describes the OAuth2 setup required to connect Google services and contrasts it with simpler hosted assistants.",
+      "Any subscription service can do it better": "The section compares Hermes’s flexible but fragile modular integrations with the polish and support of subscription services.",
+      "The biggest motivation for Hermes is personal AI": "The section emphasizes local model privacy and user control over conversations, tasks, and agents.",
+      "So who is Hermes actually for?": "The section identifies technically capable developers as Hermes’s audience and summarizes tradeoffs in privacy, cost, integration, and usability."
+    }
   },
   {
     "slug": "how-i-use-claude-code-3b1fd852305b",
@@ -535,7 +794,33 @@
       "context management",
       "multi-agent systems",
       "vibe coding"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and no substantive technical content.",
+      "Notes from an early experiment – by no means the final word": "The author describes building a full-stack stock analysis service primarily through Claude Code and reflects on the experience.",
+      "First, let’s get the obvious question out of the way": "The section frames the challenge of using coding AI without creating a disorganized codebase and introduces three tool categories.",
+      "Chat applications": "Chat-based coding tools generate code through conversation, typically requiring users to transfer suggested code into their projects.",
+      "IDE copilots": "IDE copilots suggest and apply code changes within an editor, usually with explicit user approval.",
+      "CLI agents": "CLI agents inspect and modify codebases, run tests, and iterate; their performance depends on the orchestration harness and setup.",
+      "What I actually built (vibed)": "The author used Claude Code to build a stock analysis MCP service with a dashboard using FastMCP, financial data libraries, and Prefab UI.",
+      "What the MCP produces": "The MCP returns interactive stock analysis dashboards with technical indicators from natural-language prompts in Claude Desktop.",
+      "Five tips for Vibe Coding": "This section introduces five practices for organizing and controlling coding agents.",
+      "Tip #1: Keep the main agent’s context clean": "Delegate specialized tasks to isolated sub-agents so the main agent can orchestrate without accumulating implementation context.",
+      "Tip #2: Treat skills as deferred context, not static instructions": "Load skill instructions progressively when relevant to avoid context bloat, improve precision, and reduce conflicts.",
+      "Tip #3: CLAUDE.md is a control surface, not documentation": "Use CLAUDE.md for concise project context, architectural conventions, and behavioral constraints that guide the agent.",
+      "Tip #4: Use permissions as intentional friction": "Calibrate agent permissions to balance iteration speed with control over unsafe or unintended changes.",
+      "Tip #5: Don’t rebuild what already exists": "Use existing plugins, MCP servers, and tools when they provide capabilities that would otherwise require custom implementation.",
+      "The actual build: how it came together": "The author introduces the build process and explains that its architectural decisions shaped the project instructions.",
+      "a. Designing the CLAUDE.md contract": "The author defines a CLAUDE.md workflow that delegates planning, implementation, review, and testing while keeping the main context concise.",
+      "b. The multi-agent setup": "The project uses markdown-defined sub-agents with specialized responsibilities, including a code reviewer with specified tools and review criteria.",
+      "c. Generating the prd.md": "Claude interviews the author to generate structured project tasks and supporting status and completion files through a custom command.",
+      "d. The Ralph Wiggum Agent Loop": "The Ralph Wiggum plugin repeatedly runs tasks in fresh agent sessions, validating each task while limiting iterations.",
+      "Firing the starting gun 💥": "The author starts the workflow by generating requirements and running a Ralph Loop command with sub-agent steps and a completion promise.",
+      "Bonus: Here’s how to work with Claude Code on your Phone": "The remote-control command lets users approve requests and send follow-up instructions from a phone while Claude Code runs.",
+      "Testing it": "The author reports test coverage and explains how to configure Claude Desktop to launch the local MCP service in stdio mode.",
+      "Feels like magic doesn’t it? 🪄": "The author describes planning, reviewing, and testing AI-generated code, including using CodeRabbit as a second reviewer and tuning its findings.",
+      "In closing": "The author argues that AI-assisted software development shifts engineering effort from typing code toward architecture, review, orchestration, and judgment."
+    }
   },
   {
     "slug": "how-to-be-a-data-scientist-in-2026-and-beyond-9b0b322c8e5a",
@@ -565,7 +850,21 @@
       "systems thinking",
       "agentic applications",
       "typescript"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a visual divider and introduces no technical content.",
+      "The answer is not vibe coding": "Data science roles increasingly require generative AI, agent development, and skills spanning software, infrastructure, and frontend engineering.",
+      "The emergence of generative AI is the reason": "The section traces shifts from RAG chatbots in 2023 to agent frameworks and interoperability protocols in subsequent years.",
+      "The uncomfortable reality": "Generative AI contributes to job anxiety, layoffs, and a growing supply of technical graduates competing for evolving roles.",
+      "Oh — you’re still here?": "The author introduces practical adaptation based on personal experience building and shipping AI systems.",
+      "1\\. Update your personal skills.md diligently": "As agents generate code and repository guidance, engineers need to audit their output and maintain expertise in the tools they use.",
+      "2\\. Sharpen systems thinking": "Finite context windows limit agent reliability, so developers should decompose requirements and design system architecture before implementation.",
+      "For example, imagine you are asked to design a generative-AI-driven investment system for quantitative traders.": "A trading-system example shows why batch analysis and simple real-time rules can outperform placing an LLM in a latency-sensitive path.",
+      "3\\. Ship code": "Writing code independently and building personal projects helps preserve engineering intuition while using copilots selectively.",
+      "4\\. Always be ready to explain ideas": "Data scientists must explain agent limitations, development needs, infrastructure costs, and technology choices to stakeholders.",
+      "5\\. Learn TypeScript": "Python remains important for model work, while TypeScript is increasingly used for interactive AI applications, agents, and developer tools.",
+      "Concluding Thoughts": "The conclusion emphasizes curiosity and human purpose while imagining beneficial AI applications without delegating personal thinking to agents."
+    }
   },
   {
     "slug": "introducing-liquibase-how-to-version-control-your-db-d5a08f764c09",
@@ -609,7 +908,34 @@
       "postgresql",
       "changelogs",
       "rollback"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section is a divider and contains no substantive technical content.",
+      "Databases can time travel too": "The section explains how manually applied database changes create production risk and contrasts database changes with reversible application deployments.",
+      "🧐 Couldn’t you just be more careful?": "The section attributes schema-change failures to shared database dependencies and limited system visibility rather than individual carelessness.",
+      "A quick clarification on “DB”?": "The section defines OLTP databases, their transactional workloads and ACID properties, and lists common relational database examples.",
+      "What about other types of databases?": "The section contrasts OLTP databases with OLAP and lakehouse systems, describing columnar storage and snapshot-based time travel.",
+      "Introducing Liquibase": "The section introduces Liquibase changelogs, change tracking, database schema migrations, and controlled rollbacks.",
+      "Installing Liquibase": "The section gives installation steps for Liquibase and explains how to verify its Java runtime and version.",
+      "Spinning up our DB": "The section shows how to configure credentials and start an isolated PostgreSQL instance with Docker.",
+      "Creating a Java Project": "The section explains why Liquibase is integrated with Spring Boot to run migrations during application startup.",
+      "Bootstrapping the Project": "The section directs readers to generate a Spring Boot project with Spring Initializr and open its downloaded files.",
+      "Updating pom.xml": "The section lists Spring Boot, Liquibase, PostgreSQL, and test dependencies, plus optional Maven plugin configuration.",
+      "Configuring the Database Connection": "The section configures Spring datasource credentials, the master changelog path, Liquibase startup execution, and logging levels.",
+      "Creating the master changelog": "The section creates an XML master changelog that serves as the entry point for database migrations.",
+      "Writing our first update": "The section defines a formatted SQL changeset that creates a table, records migration identity, and specifies an explicit rollback.",
+      "Adding the SQL File to the Master Changelog": "The section registers the SQL migration in the master changelog using an XML include element.",
+      "Running the Migration": "The section runs the Spring Boot application and describes how Liquibase checks tracking records and applies pending migrations.",
+      "Understanding Liquibase’s Internal Tables": "The section describes DATABASECHANGELOG migration records and DATABASECHANGELOGLOCK coordination between concurrent migration processes.",
+      "Writing updates using non-SQL methods": "The section explains declarative XML, YAML, and JSON changelogs and how Liquibase generates database-specific SQL.",
+      "The XML Way": "The section defines an XML changeset that adds a column and specifies how to remove it during rollback.",
+      "The YAML way": "The section defines a YAML changeset that inserts seed records and deletes them during rollback.",
+      "And finally, the JSON Way": "The section defines a JSON changeset that adds a Boolean column, then includes SQL, XML, YAML, and JSON migrations in the master changelog.",
+      "Ordering Matters": "The section explains that changesets run in master-changelog order and that dependent schema changes must precede data inserts.",
+      "🍥 Rolling back": "The section configures Liquibase CLI access and demonstrates reverting recent changesets with rollback counts.",
+      "🚀 How Does This Work in Production?": "The section describes reviewing database changes in Git and running Liquibase migrations through CI/CD tools such as GitHub Actions or Jenkins.",
+      "🧠 Thinking about what we just did": "The section summarizes versioned schema changes, migration tracking, concurrency protection, automatic execution, and rollback."
+    }
   },
   {
     "slug": "would-you-like-an-app-with-that-introducing-the-adk-framework-aead05a8b9cd",
@@ -649,7 +975,30 @@
       "a2a protocol",
       "cloud run",
       "multimodal chat"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The section contains only a divider and introduces no technical content.",
+      "Part four of the “Building a Hypermodern GenAI App” series": "The series addresses orphaned GenAI products and reviews earlier work on model serving, advanced retrieval, and agent development.",
+      "So you want to build a chatbot application…": "Production agent applications need trajectory tracing, multimodal interaction, and interoperability across teams and systems.",
+      "Introducing the ADK Framework": "Google ADK is a multi-language agent orchestration framework that handles execution, tools, tracing, state, and interoperability.",
+      "Developing your first agent": "The section scaffolds an ADK project and implements a foreign-exchange agent using an external API tool.",
+      "Start Chatting (and tracing)": "ADK’s web interface exposes agent traces, events, tool calls, timing, and chat history persistence.",
+      "📢 Want to use audio?": "The agent can use Gemini Live audio, enabling spoken exchanges instead of text-rendered responses.",
+      "Want to deploy it as a backend only?": "ADK can run as a backend API server with Uvicorn and interactive Swagger documentation.",
+      "Want to use a non-Gemini LLM?": "Non-Gemini models, including OpenAI models, are configured through ADK’s LiteLlm abstraction.",
+      "Deploying agents as A2A services": "ADK supports deploying agents as Agent-to-Agent services for collaboration across frameworks.",
+      "A quick recap on the A2A protocol": "A2A enables specialist agents to communicate and collaborate, unlike tools or MCP endpoints used by a single agent.",
+      "Deploying an agent as an A2A service": "The section converts an ADK agent into an A2A service and exposes its agent card for discovery.",
+      "Creating a root agent to interact with users": "The project adds a user-facing root agent and deploys currency and weather specialists as A2A services.",
+      "Wiring everything together": "A root agent uses RemoteA2aAgent references and a sub_agents list to delegate requests to remote specialists.",
+      "Deploying the app": "The application combines tracing, audio, A2A interoperability, and backend deployment before discussing deployment choices.",
+      "Deploying to Cloud Run:": "ADK deploys an agent to Cloud Run through a CLI command that configures and packages the managed service.",
+      "Other deployment options": "ADK also supports Vertex AI Agent Engine and GKE deployment through CLI commands, without manually authored manifests.",
+      "Some points of consideration": "The section weighs ADK’s reduced development and deployment effort against its lower adoption than established agent frameworks.",
+      "First, MCP is still the dominant meta — not A2A.": "MCP adoption and agent-as-tool patterns reduce the current need for explicit A2A communication.",
+      "Second, ADK is a later entrant in a crowded ecosystem.": "ADK entered after established frameworks gained adoption, while Python remains dominant despite ADK’s Java and Go support.",
+      "Third, the industry is heavily optimized for the OpenAI ecosystem.": "OpenAI’s early ecosystem advantage and Gemini-specific conventions constrain ADK adoption, while its integrations suit Google Cloud users."
+    }
   },
   {
     "slug": "helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1",
@@ -707,7 +1056,48 @@
       "nginx ingress",
       "autoscaling",
       "deployment"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The section contains only a divider and no technical content.",
+      "What deployment looks like beyond docker compose": "This section motivates Kubernetes and Helm for resilient, scalable deployments across multiple servers rather than one Compose host.",
+      "Introducing Kubernetes": "This section explains Kubernetes cluster orchestration across servers, including control plane and worker node concepts.",
+      "Introducing Helm": "This section introduces Helm as Kubernetes’ package manager and notes that it uses templating inside YAML.",
+      "Interpolation and logic": "This section shows how Helm templates use Go templating for variables, conditionals, functions, loops, and scoped values.",
+      "Rollback and Upgrades": "This section explains Helm releases, repeatable upgrades, and rolling back to a previous deployment version.",
+      "So what exactly is a Helm Chart?": "This section covers installing local Kubernetes tools and generating a chart as a reusable, parameterized resource blueprint.",
+      "So where do we start with our Helm Chart?": "The section is empty and contains no technical content.",
+      "We start with the app we’re building": "This section describes the Chainlit agent, Phoenix observability, PostgreSQL dependency, and steps for pushing its image to Docker Hub.",
+      "Before editing your Helm Chart… check out Artifact Hub": "This section recommends finding dependency charts on Artifact Hub and configuring the Bitnami PostgreSQL chart in Chart.yaml.",
+      "Now onto values.yaml file": "This section configures chart values for Chainlit, Phoenix, PostgreSQL, and the application container image.",
+      "Adding a deployment.yaml file for your search agent": "This section adapts a Helm Deployment template for the search agent, including values, helpers, indentation, and application configuration.",
+      "Adding a service.yaml file for your search agent and phoenix": "This section configures Kubernetes Services for the Chainlit app and Phoenix, including ports, target ports, and helper references.",
+      "The \\_helpers.tpl file: Helm’s secret sauce": "This section defines reusable Helm template helpers for Phoenix names, labels, and selector labels.",
+      "The Phoenix Deployment.yaml": "This section creates Phoenix’s Deployment, configures its ports and database environment variables, and builds its PostgreSQL connection URL.",
+      "Enable autoscaling": "This section configures a Horizontal Pod Autoscaler with two minimum replicas, three maximum replicas, and a 50% CPU target.",
+      "What about our Nginx service?": "This section explains why WebSocket applications need session-aware routing despite Kubernetes providing pod load balancing.",
+      "Deploying Nginx via Helm Ingress": "This section configures Nginx Ingress timeouts, response buffering, and cookie-based session affinity for streaming WebSocket traffic.",
+      "An important note on the “hosts” spec": "This section explains that ingress rules accept only configured hostnames and discusses local hostname access.",
+      "Spinning everything up (safely) 🚀": "The section is empty and contains no technical content.",
+      "Check again": "This section uses Helm lint and template commands to validate charts, inspect rendered manifests, and diagnose template errors.",
+      "Install Minikube add-ons": "This section enables Minikube’s ingress and metrics-server add-ons for traffic routing and horizontal pod autoscaling.",
+      "Kickoff the ingress (Minikube tunnel)": "This section starts a Minikube tunnel to provide local connectivity to cluster ingress.",
+      "Installing the helm chart": "This section installs the application chart as a named Helm release.",
+      "Sanity check: is everything running?": "This section checks Kubernetes pods, services, ingress resources, and Helm releases after installation.",
+      "Accessing the app": "This section port-forwards the Nginx ingress controller to localhost for accessing the Chainlit application.",
+      "Accessing phoenix": "This section port-forwards Phoenix’s Kubernetes Service to localhost on port 6006.",
+      "Accessing Postgresql": "This section port-forwards the PostgreSQL Service for local database access.",
+      "Editing your application (upgrades + rollback)": "This section upgrades a Helm release and enables automatic rollback if deployment fails.",
+      "Stress testing autoscaling": "This section generates concurrent application traffic to test HPA scale-up and explains the stabilization delay before scale-down.",
+      "The Helm Dashboard": "This section installs and runs a Helm dashboard plugin to inspect releases, pods, and revisions.",
+      "Spinning everything down": "This section uninstalls the Helm release and removes persistent volume claims for a clean cluster state.",
+      "Thinking about what we just did 🤔": "The section is empty and contains no technical content.",
+      "The elephant in the room": "This section notes that Minikube validates Kubernetes configurations locally but does not provide production multi-server availability.",
+      "How many servers do you actually need?": "This section introduces a five-server minimum for a self-managed, highly available Kubernetes cluster: three control-plane and two worker nodes.",
+      "The control plane needs 3 nodes": "This section explains how three control-plane nodes provide failure tolerance and etcd quorum for Kubernetes state changes.",
+      "We need at least 2 worker nodes": "This section explains how two worker nodes allow workloads to continue if one server fails.",
+      "The server configuration problem": "This section describes the complexity and failure risks of manually provisioning Kubernetes nodes and configuring their software and networking.",
+      "There must be a better way": "This section introduces infrastructure as code for repeatable provisioning and contrasts its purpose with Helm’s management of Kubernetes resources."
+    }
   },
   {
     "slug": "a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8",
@@ -742,7 +1132,25 @@
       "multi-agent workflows",
       "human-in-the-loop",
       "investment analysis"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The opening contains only a separator and no technical discussion.",
+      "A guide to edgeless graphs — and joy": "Introduces LangGraph’s graph-based workflow model, where nodes operate on shared state, and notes the model’s practical complexity.",
+      "Why LangGraph felt harder than it needed to be": "Explains how conditional edges, repeated node calls, and shared state can make nontrivial LangGraph workflows cumbersome.",
+      "What changed: Command and Send": "Introduces Command and Send as tools for routing work and passing node-specific data in an investment-analysis workflow.",
+      "The planner and replanner": "Defines structured plans as ordered agent actions and describes using an LLM to generate plans.",
+      "Getting human feedback": "Shows how interrupts collect human approval, parse feedback, and update the original query to preserve user intent.",
+      "Command and Send!": "Demonstrates dispatching planned steps to selected nodes with Send payloads, bundled into a Command.",
+      "Constructing the nodes of the graph": "Introduces the need for workflow nodes to handle user approval, rejection, and requests to revise plans.",
+      "The router node": "Describes routing logic for generating plans, incorporating feedback, revising queries, executing approved plans, and limiting replanning.",
+      "Agent nodes in the workflow": "Explains how isolated technical and fundamental analysis nodes invoke tools, record results, and send outputs onward.",
+      "Final nodes: respond and cancel": "Describes response generation from agent messages and cancellation when feedback is absent or replanning limits are reached.",
+      "The Graph’s State": "Defines custom graph state for chat history and tool-call logs, using a reducer to merge concurrent updates.",
+      "Visualizing the graph": "Shows graph compilation and visualization, with Command type hints allowing LangGraph to infer logical destinations.",
+      "The Happy Path": "Demonstrates invoking the workflow for stock analysis, streaming output, and pausing for human approval.",
+      "The replan path": "Demonstrates resuming an interrupted workflow with feedback that removes fundamental-analysis steps and triggers replanning.",
+      "Concluding Thoughts": "Summarizes Command and Send, compares LangGraph with event-driven frameworks, and discusses concurrent node execution."
+    }
   },
   {
     "slug": "langchain4j-building-generative-ai-applications-in-java-670ec3d6167d",
@@ -775,7 +1183,23 @@
       "structured output",
       "retrieval-augmented generation",
       "maven"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section is a divider with no technical content.",
+      "Java developers can now surf the genAI wave too": "Introduces LangChain4j, its community-driven status, and the article’s examples of chat, structured output, and RAG in Java.",
+      "For those who have never coded in Java": "Outlines Java’s static typing, class and file rules, inheritance limits, interfaces, and access modifiers.",
+      "Installing dependencies in Java": "Explains adding dependencies through Maven and the project’s pom.xml file.",
+      "Chatting with an LLM in LangChain4j": "Shows loading an API key, configuring an OpenAI chat model, and sending it a query.",
+      "Streaming an LLM": "Demonstrates streaming model responses through callbacks and waiting for completion with a CompletableFuture.",
+      "Generating Structured Output": "Defines Java classes and an annotated interface for extracting key points as structured output.",
+      "Why an interface?": "Explains how LangChain4j uses AiServices to implement user-defined interfaces and support agent construction.",
+      "Using the KeyPointExtractor": "Shows creating a KeyPointExtractor with AiServices, invoking it on text, and printing the resulting fields.",
+      "Building a simple retrieval augmented generation app": "Introduces a separate Java class for a RAG application and notes limitations in the documentation examples.",
+      "Constructors": "Shows a RAG constructor configuring local Ollama models, loading PDFs, and ingesting document embeddings into an in-memory store.",
+      "To chat with your documents": "Defines a method that sends a query to the assistant and returns its response.",
+      "Creating our application": "Builds a command-line chat loop that reads questions, calls the RAG chatbot, and exits on an end command.",
+      "Initial thoughts on Java for generative AI": "Compares LangChain4j’s strongly typed, interface-based design with Python frameworks and discusses its ecosystem trade-offs."
+    }
   },
   {
     "slug": "langchain-a-second-look-6ed720e27fec",
@@ -816,7 +1240,32 @@
       "context engineering",
       "llm agents",
       "multi-agent systems"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The article introduction is represented only by a separator.",
+      "Rewriting how developers think about context in LLM orchestration": "Introduces LangChain and LangGraph 1.0, contrasting the framework rewrite with backward compatibility.",
+      "TLDR: The core changes at a high level": "Introduces context engineering and developer experience as the article’s two main changes.",
+      "Context engineering": "Explains how middleware supports context isolation and reduces context pollution in agents.",
+      "The developer experience:": "Describes replacing LCEL pipe-based composition with a higher-level framework and improved documentation.",
+      "The LLM": "Shows basic LLM invocation, concurrent batching, streaming completed batch results, and unchanged structured-output usage.",
+      "Callbacks and Configs — extra settings": "Demonstrates configuring rate limits and model reasoning options when invoking an LLM.",
+      "🧠 Agents": "Explains the new LangChain agent creation API and its support for logic around model and tool interactions.",
+      "⚙️ Middleware — the New Heart of LangChain": "Introduces middleware hooks for controlling agent, tool, and model execution before, during, and after interactions.",
+      "LangChain’s default middleware classes": "Shows model-call and tool-call limit middleware configured with per-run and per-thread limits.",
+      "✨ Why This Matters": "Describes middleware as a way to control context flow and enforce execution boundaries.",
+      "The technical analyst agent": "Builds a technical analysis agent with model-call and tool-call limit middleware and streams its updates.",
+      "🤝 Multi-Agent Systems — Simplified, Streamlined": "Introduces defining multi-agent workflows within LangChain, with a supervisor that creates subordinate agents dynamically.",
+      "🧭 Typical Flow": "Outlines a workflow with query screening, history summarization, supervisor planning, user approval, and specialized agents.",
+      "🎨 Decorated middleware": "Defines decorator-based middleware for screening user queries with Llama Guard before model execution.",
+      "🧱 Class-based middleware": "Defines class-based tool middleware that logs tool calls, arguments, results, and errors.",
+      "🧩 Standard Middleware Components": "Configures human approval and conversation summarization middleware, including their execution behavior.",
+      "⚙️ The cool way to create multi-agent systems": "Defines subordinate analysts as tools and assembles them into a supervisor agent with middleware and checkpointing.",
+      "💡 Why dynamically spawn and kill agents?": "Explains how stateless subordinate agents isolate context and why supervisors must clarify their prompts.",
+      "💬 Invoking our multi-agent system": "Demonstrates guardrail screening, supervisor planning, and approval interrupts when invoking the multi-agent system.",
+      "📊 Viewing traces on LangSmith": "Describes tracing middleware execution, approval pauses, subordinate-agent behavior, and model costs in LangSmith.",
+      "🤔 Thinking of what we just did": "Reviews the example’s context-engineered multi-agent design and summarizes the framework’s claimed development changes.",
+      "💻 So… Should You Code Everything in LangChain?": "Compares LangChain for simple agent orchestration with LangGraph for controlled workflows and LlamaIndex for RAG."
+    }
   },
   {
     "slug": "nginx-the-single-server-swiss-army-knife-3445197f8f86",
@@ -856,7 +1305,30 @@
       "load balancing",
       "websockets",
       "chainlit"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The section contains only a divider and no substantive content.",
+      "A Deep Dive into Load Balancing and Reverse Proxying with Docker Compose": "Introduces deployment concerns and motivates learning how Nginx supports web application deployment.",
+      "The problem that Nginx solves": "Explains how Nginx reverse-proxies requests to private backend services through a single public entry point.",
+      "Developing our app": "Introduces a Chainlit search application and shows setup for its agent, session memory, and tracing.",
+      "Deploying our app phase 1 (Docker)": "Shows a Dockerfile that builds a Python image, installs dependencies, copies application code, and runs Chainlit.",
+      "Running the App with Docker Compose": "Configures Chainlit and Phoenix services, shared networking, runtime secrets, and build exclusions with Docker Compose.",
+      "Deploying our app phase 2 (Scaling)": "Explains automatic container restarts and how restarting a shared service can interrupt every user's session.",
+      "Scaling with multiple containers": "Describes port conflicts when scaling containers and motivates using Nginx as a reverse proxy and load balancer.",
+      "Deploying our app phase 3 (Nginx)": "Adds an Nginx container that exposes port 8080 and mounts the repository's Nginx configuration.",
+      "Adjusting the Chainlit service": "Removes Chainlit's host port mapping so Nginx can route traffic to containers privately.",
+      "The magical nginx.conf file": "Introduces Nginx events and HTTP upstream configuration, including least-connections balancing and persistent WebSocket connections.",
+      "Adding the Nginx Server Block": "Configures Nginx to listen on port 8080, forward requests to the Chainlit upstream, and pass WebSocket headers.",
+      "What about all the proxy_set_header lines ?": "Explains forwarded host, client IP, proxy-chain, and protocol headers used to convey request information to the backend.",
+      "Suporting WebSockets (and why it matters for Chainlit)": "Explains HTTP/1.1 and Upgrade and Connection headers needed to proxy Chainlit's WebSocket connections.",
+      "Spin everything up🚀": "Adds code that reports container identity and integrates the information into Chainlit message handling.",
+      "🧭 Why Your Conversation Stays on One Container (TCP Persistence ≠ Sticky Sessions)": "Explains that long-lived WebSocket connections remain on one replica after Nginx selects a backend at connection start.",
+      "⚠️ Note on IP Addresses": "Distinguishes Docker container addresses from host addresses and shows how Python retrieves a container's hostname and IP.",
+      "🔍 Proof that Nginx sees 3 Chainlit replicas": "Verifies running containers and uses DNS lookup inside Nginx to confirm the Chainlit service resolves to three replicas.",
+      "🧠 Thinking of what we just did": "Reviews connection balancing, container failure behavior, gateway-level TLS, and performance considerations for the deployment.",
+      "Summary": "Summarizes Nginx's role in routing, fault tolerance, security, and serving multiple services through upstream and location blocks.",
+      "🎭 Plot Twist": "Explains why single-host container balancing leaves a single point of failure and contrasts it with cluster orchestration."
+    }
   },
   {
     "slug": "a-very-simple-introduction-to-grpc-6a666a039c03",
@@ -889,7 +1361,24 @@
       "fastapi",
       "python",
       "asyncio"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and no substantive technical content.",
+      "PS: I’m still learning as I go too": "Introduces FastAPI, Python concurrency, and gRPC as a potential performance improvement, with a link to the project repository.",
+      "🚀 What Is gRPC?": "Explains gRPC’s use of HTTP/2 and Protocol Buffers, its streaming and language support, and the planned todo-service architecture.",
+      "Starting out in gRPC": "Defines Protobuf messages for todo operations and explains static typing, field tags, and package namespaces.",
+      "Where’s the Python Part?": "Shows how grpc_tools generates Python message classes, client stubs, and server servicer interfaces from proto files.",
+      "⚙️ That Command Looks… Long 😅": "Uses Makefile targets to automate generating and removing files produced by grpc_tools.",
+      "🚫 Hands Off the Generated Files": "Explains that generated gRPC files should not be edited because regeneration overwrites manual changes.",
+      "🧱 Defining Our SQL Schema": "Defines a SQLModel Todo table backed by SQLite and shows how to initialize the database and create sessions.",
+      "Defining our gRPC server": "Implements the generated gRPC servicer with database-backed todo operations and returns Protobuf responses.",
+      "⚖️ If gRPC Is So Fast… Why Isn’t Everyone Using It?": "Compares gRPC’s performance and setup complexity with FastAPI, recommending gRPC for backend services and REST for public APIs.",
+      "🌉 Our FastAPI Layer": "Sets up a FastAPI application with an asynchronous gRPC channel, service stub, request models, and application metadata.",
+      "✨ Defining Our Endpoints": "Shows FastAPI endpoints invoking gRPC methods for individual todo operations and translating RPC errors into HTTP errors.",
+      "⚡ Batch Operations with AsyncIO": "Runs multiple todo creation RPCs concurrently with asyncio.gather and reports successful and failed results.",
+      "Our swagger page": "Reports successful testing of batch todo creation and listing through the Swagger interface.",
+      "🧠 A Brief Moment of Introspection": "Reflects on backend engineering, latency, and multilingual frameworks in data science and generative AI applications."
+    }
   },
   {
     "slug": "a-crash-course-in-asynchronous-python-12e0cc523033",
@@ -928,7 +1417,29 @@
       "threading",
       "process pool",
       "gil"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains no substantive article text.",
+      "How (and when) to undertake task parallelism in Python": "Introduces asynchronous Python, cautions against copying async patterns without understanding concurrency, and links to code examples.",
+      "1\\. The difference between a “normal” and async function": "Defines synchronous functions as thread-blocking, preventing other tasks from starting until they finish.",
+      "Think of it like being at a restaurant.": "Uses restaurant ordering to illustrate how asynchronous tasks can wait while other work proceeds.",
+      "Back to code": "Compares sequential document processing with async functions, showing that awaiting each task sequentially still takes the same time.",
+      "2\\. So why don’t we make every function async?": "Introduces reasons asynchronous functions are not always preferable.",
+      "Synchronous functions have tracebacks that are easier to debug": "Compares straightforward synchronous error tracebacks with more complex async tracebacks caused by tasks resuming at different times.",
+      "Async functions have coding overhead": "Explains async code's mental overhead and shows that calling a coroutine without awaiting it does not execute it.",
+      "3\\. By the way, concurrency does not mean parallelism": "Distinguishes concurrency from parallelism and demonstrates using Python threads to run document-processing tasks concurrently.",
+      "Introducing race conditions": "Shows how concurrent threads can race when printing and uses a lock to protect output, noting asyncio also provides locks.",
+      "Why does threading take the same time as asyncio?": "Explains that Python threads can make concurrent progress but do not necessarily execute tasks in parallel.",
+      "Why no true parallelism in Python threads?": "Describes how the GIL limits Python bytecode execution across threads and recommends asyncio for I/O or threads for synchronous libraries.",
+      "4\\. But Python is still able to achieve true parallelism": "Distinguishes I/O-bound concurrency from CPU-bound parallelism and introduces thread and process executors for comparing workloads.",
+      "🔹results = list(executor.map(cpu\\_intensive\\_work, cpu\\_tasks))": "Explains executor.map results and how process pools use separate interpreters and CPU cores for parallel execution.",
+      "a. ThreadPoolExecutor with limited workers": "Shows how a thread pool with five workers runs ten one-second tasks in two batches.",
+      "b. ThreadPoolExecutor with more workers": "Shows how twenty thread workers can run ten one-second waiting tasks concurrently in about one second.",
+      "c. Asyncio": "Explains how an event loop suspends and resumes waiting tasks, allowing ten one-second sleeps to overlap.",
+      "d. Process Pool (separate kitchens, separate chefs)": "Describes process pools as independent interpreters enabling parallel CPU work, with serialization overhead and little benefit for I/O waits.",
+      "Wrapping up": "Summarizes that concurrency helps I/O tasks, while separate processes enable CPU-bound parallelism despite the GIL.",
+      "Learning by analogies": "Recaps analogies distinguishing asynchronous execution, concurrency, and parallelism, and recommends concurrency for I/O and parallelism for CPU work."
+    }
   },
   {
     "slug": "would-you-like-an-agent-with-that-introducing-the-deep-agents-sdk-c4e0670440ea",
@@ -969,7 +1480,31 @@
       "subagents",
       "react agents",
       "tool calling"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and no technical content.",
+      "Part three of the “Building a Hypermodern GenAI App” series": "The series recap describes deploying an LLM and RAG service before introducing an agent built on those components.",
+      "The Hypermodern Agent": "This section surveys agent frameworks, discusses orchestration costs, and contrasts multi-agent designs with single reasoning agents.",
+      "The idea of a deep agent": "This section traces the shift from ReAct text-based tool use to modern agents that call tools through structured function schemas.",
+      "LangChain writes the next page of the playbook": "LangChain’s deep-agent design combines shallow agents, detailed prompts, tools, and stepwise execution for complex workflows.",
+      "The default planning and file system tools": "Deep agents include todo planning and file-management tools with detailed descriptions and examples, while allowing additional tools.",
+      "Sub Agents": "Sub-agents are TypedDict configurations that instantiate shallow agents, letting a deep agent invoke other agents as tools.",
+      "The system prompt": "The default system prompt requires the agent to use its built-in tools, though developers can override it.",
+      "So…how do we build this?": "This section configures LangSmith tracing to observe token-intensive deep-agent runs before implementation.",
+      "Step 1: Spin up the MCP Services": "The existing RAG MCP service is started and connected to LangChain, which retrieves its endpoints as agent tools.",
+      "Step 2: Setup the model": "The example configures OpenAI’s gpt-oss:20b through Ollama as the agent’s language model.",
+      "Step 3: Define the query and baseline instructions": "This section defines the research question about Alita, MCP tool creation, and MCP Zero, along with baseline instructions.",
+      "Step 4: Establish a baseline with a “shallow” agent": "A LangGraph ReAct agent uses the model and MCP tools to answer the query, stream output, and save a report.",
+      "Step 5: Create a “solo mode” deep agent": "A deep agent without sub-agents runs the query and saves its response; default file tools caused validation errors with the selected model.",
+      "Step 6: Deep agent with sub agents": "This section defines specialized sub-agents and custom report tools, then addresses tool naming and framework integration requirements.",
+      "Observing our agents 🔎": "This section heading introduces observations about agent performance.",
+      "Here was how our react agent (baseline) performed:": "The baseline used about 1,100 tokens and 180 seconds, making one tool call before producing its answer.",
+      "Here was how our “solo mode” deep agent performed:": "The solo deep agent used about 4,800 tokens and took ten seconds longer than the baseline for the same tool call.",
+      "Here was how our deep agent with sub agent crew performed:": "The multi-agent run used nearly 40,000 tokens and over 400 seconds, repeating a documentation query before writing a report.",
+      "How good are the reports?": "An LLM-as-a-judge evaluates generated reports against the query and requirements using structured scores and explanations.",
+      "Thinking of what we just did": "The results show that deep-agent overhead did not proportionally improve report quality, while specialization and model costs remain trade-offs.",
+      "Closing Thoughts": "The conclusion weighs response latency, document parsing quality, and infrastructure complexity against practical user needs in GenAI applications."
+    }
   },
   {
     "slug": "would-you-like-context-with-that-a-rag-as-a-service-drive-thru-2e5a2867102a",
@@ -1007,7 +1542,28 @@
       "qdrant",
       "vector search",
       "composite retrieval"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains a divider and no technical discussion.",
+      "Part two of the “Building a Hypermodern GenAI App” series": "The article recaps serving a Qwen3 model with vLLM and Bento Cloud before introducing a generative AI application.",
+      "The Hypermodern Twist on Retrieval Augmented Generation": "This section introduces retrieval-augmented generation and questions whether building a useful RAG application is as simple as it seems.",
+      "“Easy”?": "This section surveys RAG tuning methods, including query preprocessing, hybrid sparse-dense retrieval, and agent reflection.",
+      "“Quick”?": "This section contrasts basic RAG prototypes with advanced systems and introduces a no-code cloud-based implementation.",
+      "Introducing Qdrant Cloud": "This section describes Qdrant’s vector-search features, Rust implementation, and free cloud tier for hosting a dedicated database.",
+      "Introducing Llama Cloud": "This section outlines LlamaIndex’s evolution from a retrieval framework into a broader platform for LLM orchestration and workflow deployment.",
+      "So how good is LlamaIndex at RAG?": "This section discusses RAG evaluation and explains how LlamaParse preserves document structure in tables, diagrams, and equations.",
+      "A generous free tier": "This section describes LlamaParse’s parsing levels, credit costs, and monthly free credit allowance.",
+      "The Llama Runs: Other Llama Cloud Capabilities": "This section lists Llama Cloud services for structured extraction, managed indexing, and report generation.",
+      "Creating our first Llama Cloud Index": "This section walks through creating an index, connecting Qdrant Cloud, configuring embeddings and parsing, and deploying the index.",
+      "Want to see your documents?": "This section explains how to inspect the indexed documents in a Qdrant Cloud collection.",
+      "But is our RAG advanced?": "This section describes configuring retrieval counts, reranking, metadata filters, and linked source references in the RAG playground.",
+      "Playing with Llama Cloud Index in code": "This section shows how to query a Llama Cloud index in Python using a Qwen model served through Bento Cloud.",
+      "Composite Retrieval": "This section demonstrates combining multiple Llama Cloud indexes into one retriever and using index descriptions to guide retrieval.",
+      "Building a RAG Query Engine": "This section builds a LlamaIndex query engine and describes response synthesis modes for combining retrieved chunks.",
+      "Deployment": "This section explains why query engines can retrieve unnecessarily and shows setup for deploying indexes as MCP services.",
+      "Thinking about what we just did": "This section summarizes the cloud-based RAG workflow and explains how MCP services make retrieval tools reusable across agents.",
+      "Looking forward to Act Three": "This section previews an in-house agentic service that will query the knowledge bases while reducing reliance on cloud orchestration."
+    }
   },
   {
     "slug": "would-you-like-an-llm-with-that-a-bento-cloud-drive-thru-7e70f77277d2",
@@ -1050,7 +1606,33 @@
       "llm deployment",
       "autoscaling",
       "replicas"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains no substantive technical content.",
+      "Part one of the “Building a Hypermodern GenAI App” series": "The author compares common LLM development stacks and introduces the series’ goal of rethinking standard GenAI practices.",
+      "Introducing Hypermodernity": "The series applies a hypermodern strategy to GenAI development, beginning with deploying an open-source LLM on a managed platform.",
+      "Introducing Bento Cloud": "Bento Cloud simplifies production vLLM deployment by handling infrastructure needs such as orchestration, scaling, and server management.",
+      "Getting Started": "The author recommends creating a Bento Cloud account, managing GPU credits, and adapting BentoML’s vLLM examples to deploy Qwen3.",
+      "What is a Bento? 🥡": "A Bento is BentoML’s deployable unit, minimally containing a service and its requirements.",
+      "🛎️ The Service": "A Bento service contains the application source code that Bento Cloud hosts.",
+      "The Input ➡️": "A Pydantic schema defines typed configuration options passed to BentoML and used to configure vLLM serving.",
+      "The App ✨": "The app configures BentoML’s Python image, dependencies, Hugging Face model, FastAPI application, and service deployment settings.",
+      "Start up 🚀": "A Bento startup hook configures vLLM arguments, registers API routes, initializes the engine, and attaches it to the application.",
+      "A vLLM router? 📡": "The service mounts vLLM’s OpenAI-compatible endpoints as a router within Bento’s root FastAPI app to preserve lifecycle management.",
+      "⏻ Shut down": "A Bento shutdown hook closes the vLLM engine stack when replicas restart or scale down.",
+      "Heartbeat ـــــــــــــــﮩ٨ـ❤️ﮩ٨ـﮩﮩ٨ـ": "Readiness and liveness handlers call vLLM ping and health endpoints to report service status.",
+      "📂️ The TOML and requirements file": "The requirements file lists service packages, while pyproject.toml supplies Bento arguments including model, GPU, and parser settings.",
+      "The \".bentoignore\" file 👻": "The .bentoignore file excludes selected files from the Bento build, similarly to Dockerignore or Gitignore.",
+      "Spinning up our service 💫": "The author deploys the service with BentoML CLI, selects L4 GPUs and replica limits, and describes using secrets for gated models.",
+      "Chatting with our LLM": "An OpenAI SDK client sends chat-completion requests to the deployed model through Bento’s OpenAI-compatible API.",
+      "Did we melt our GPUs?": "BentoML dashboards provide deployment monitoring, and the author notes that stronger GPUs could improve speed.",
+      "Thinking of what we just did": "This section contains no substantive technical content.",
+      "The speed to deployment perspective": "The author describes deploying an open-source model in Python without separately configuring infrastructure orchestration tools.",
+      "The performance perspective": "The author notes vLLM’s speed and the added robustness of deploying it through BentoML.",
+      "The cost perspective": "GPU hosting can cost more than API services at low traffic, while self-hosting offers greater control, customization, and privacy.",
+      "The monitoring perspective": "BentoML’s aggregated dashboards lack per-user attribution; a LiteLLM proxy can add project-level API keys and rate limits.",
+      "In closing": "The article summarizes a Python-based vLLM deployment on Bento Cloud and previews a future RAG deployment using the same approach."
+    }
   },
   {
     "slug": "building-prompt-free-generative-ai-applications-with-dspy-cdda61dcc861",
@@ -1084,7 +1666,24 @@
       "ollama",
       "llm workflows",
       "document question answering"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The opening section contains no substantive technical content.",
+      "Can we really do without prompts?": "The section explains LLM output inconsistency and the difficulty of maintaining effective prompts across models.",
+      "Introducing DSPy": "The section introduces DSPy as a framework that declares workflows and automatically generates and tunes model-specific prompts.",
+      "Importing an LLM in DSPy": "The section configures an Ollama-hosted model through DSPy and demonstrates direct calls using OpenAI-compatible messages.",
+      "Can I get your signature please?": "The section demonstrates DSPy signatures for declaring inputs, outputs, and chain-of-thought document summarization.",
+      "Utilizing GPT-OSS’ context window without a vector DB": "The section uses GPT-OSS’s context window to answer document-grounded questions without vector retrieval and inspects DSPy’s generated prompt.",
+      "Coding Custom Signatures for a DSPy Workflow": "The section defines custom answer-generation and question-rewriting signatures for a retrieval-augmented generation pipeline using LlamaIndex.",
+      "Creating our DSPy workflow (PyTorch Style):": "The section builds a DSPy module that rewrites questions, retrieves context, generates sub-answers, and consolidates them.",
+      "Creating agents with DSPy": "The section wraps a RAG workflow in a DSPy ReAct agent with explicit chat history and a clarification tool.",
+      "But we’ve barely scratched the surface": "The section introduces DSPy prompt optimization, evaluation losses, MLflow tracking, and experiments optimizing a local model on GSM8K.",
+      "🧠 What Is the Teacher LLM?": "The section explains how a teacher model supplies reference answers to guide prompt optimization for a target model.",
+      "⚙️ What Is the MIPROv2 Optimizer?": "The section describes MIPROv2’s joint instruction and example optimization using Bayesian search, and mentions alternative DSPy optimizers.",
+      "Running the experiment": "The section compiles an optimized module on a sampled training set and reports the long runtime.",
+      "Evaluating the results": "The section evaluates the optimized model on a development set, reports its score, and saves the module.",
+      "Thinking of what we just did": "The section assesses prompt optimization’s score gains, runtime, token costs, and limitations compared with fine-tuning and RLHF."
+    }
   },
   {
     "slug": "towards-general-discoverability-introducing-nacos-registry-60fa2e1a8731",
@@ -1120,7 +1719,26 @@
       "agent communication protocol",
       "prometheus",
       "grafana"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and introduces no technical content.",
+      "Make any API, MCP and agent interoperability protocol discoverable and usable": "Explains how interoperability protocols enable tool and agent collaboration, motivating service discovery for deployed agent services.",
+      "How do we make these deployed agent services discoverable?": "Introduces Nacos Registry for discovering agent services, checking health, and routing requests.",
+      "Introducing Nacos": "Describes Nacos’s origins and core capabilities, including service discovery, health checks, configuration management, and dynamic DNS.",
+      "Setting up our own Nacos registry": "Shows a Docker Compose setup for Nacos, Prometheus, Grafana, and the MCP router.",
+      "🧭 Visiting the Nacos Registry": "Explains how to log in to Nacos and use namespaces and groups to organize services.",
+      "📊 Connecting Prometheus": "Checks whether Prometheus successfully scrapes metrics from the Nacos service.",
+      "📈 Hooking Up Grafana": "Connects Grafana to Prometheus and imports a dashboard to visualize Nacos metrics.",
+      "Registering our MCP with Nacos": "Demonstrates registering a currency-exchange MCP tool using the Nacos Python MCP wrapper.",
+      "🔍 What’s Different Here?": "Explains the Nacos MCP wrapper setup, its relationship to FastMCP, and potential dependency conflicts.",
+      "🛰️ Registering Our ACP with Nacos": "Shows an ACP search-agent service built with LangGraph and Tavily and registered with Nacos.",
+      "✅ Summary": "Summarizes the running ACP agent and its registration as a discoverable Nacos service.",
+      "The Discovery Channel": "Shows how to list and inspect registered services, extract agent connection details, and call an ACP agent.",
+      "🔁 Nacos and the Magic of MCP Zero": "Describes MCP Zero’s semantic tool selection and Nacos MCP router, which routes requests to registered MCP services.",
+      "Let’s wrap our tools to an agent — MCP zero style.": "Demonstrates using an LLM agent with tools exposed by the Nacos MCP router to handle a currency query.",
+      "So… Why Not Just Convert Everything to an MCP Service?": "Explains how generic tool names from ACP-to-MCP adapters can cause collisions and confuse tool routing.",
+      "🧩 Closing Thoughts": "Discusses Nacos’s tradeoffs and the MCP router’s retrieval-based tool routing, including possible limits for complex use cases."
+    }
   },
   {
     "slug": "building-your-first-multi-agent-system-with-n8n-0c959d7139a1",
@@ -1160,7 +1778,31 @@
       "llama guard",
       "structured output parsing",
       "workflow automation"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and no technical content.",
+      "Powered by coffee, some code, and a lot of drag and drop.": "Introduces an n8n multi-agent workflow with a gatekeeper, manager, specialist agents, generalist, and response consolidation.",
+      "Building a generative AI-powered gatekeeper": "Uses Llama Guard 3 through Ollama to classify incoming questions as safe or unsafe.",
+      "Wiring It Up in n8n": "Connects a chat trigger, agent, Ollama model, memory, IF condition, and unsafe-query response node.",
+      "Building a manager for our multi-agent system": "Routes safe queries through an LLM Chain with a structured output parser.",
+      "Why use a Structured Output Parser?": "Defines a JSON schema for the manager to return one or more assigned agent names.",
+      "Why an LLM Chain and not an Agent?": "Explains that LLM Chain works more reliably with structured output parsing but has no chat history.",
+      "Parsing the output of the manager": "Splits assigned agent names and uses Switch rules to route queries to the corresponding agents.",
+      "Creating subordinate agents": "Introduces the specialist agents that handle routed tasks in the multi-agent workflow.",
+      "a. Our Weather Forecasting Agent": "Configures a weather agent with a JavaScript Code Tool and explains its query parameter and tool naming.",
+      "b. Currency exchange tool": "Connects a currency agent to an MCP service that fetches exchange rates from the Frankfurter API.",
+      "c. Google Calendar Agent": "Reuses a Google Calendar workflow as a subworkflow tool for the calendar agent.",
+      "d. Secretary Agent": "Adds a generalist agent to answer questions outside the other agents’ specializations.",
+      "Consolidation of agent outputs": "Merges agent responses, combines them with the original question, and prepares text for LLM consolidation.",
+      "Time to Chat": "Tests the workflow in n8n’s chat interface with a query requiring multiple parallel tool calls.",
+      "Activating the Workflow": "Activates the workflow and exposes its default chat frontend through the Chat Trigger URL.",
+      "Deploying the workflow": "Replaces the chat trigger with a webhook, configures HTTP methods and URLs, and updates agent input expressions.",
+      "Calling our n8n workflow API": "Sends a POST request to the webhook and observes that the default response only confirms workflow startup.",
+      "Fixing the Immediate Response": "Changes webhook response timing to wait until the final workflow node finishes.",
+      "Wrapping up": "Concludes the tutorial’s progression from a basic n8n agent to a multi-agent workflow.",
+      "What shines isn’t always gold…": "Discusses visual workflow complexity, node-selection tradeoffs, and the development time compared with coding.",
+      "…But what’s gold will always shine": "Describes n8n’s value for enterprise integrations, automation, and deploying workflows across larger systems."
+    }
   },
   {
     "slug": "building-your-first-no-code-agent-with-n8n-e9e9ea0c23d1",
@@ -1193,7 +1835,23 @@
       "llm",
       "google calendar",
       "no-code"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a separator and no substantive article content.",
+      "Part 1: Dragging-and-dropping to create powerful agents": "Introduces n8n and previews building AI agents with its visual workflow interface.",
+      "Introducing n8n": "Describes n8n’s origins as an open-source task automation platform.",
+      "n8n for RPA?": "Compares n8n’s API-driven workflows with UI-focused RPA and explains how they can work together.",
+      "Are n8n and UiPath substitutes?": "Contrasts n8n and UiPath use cases, platforms, and potential roles in hyperautomation.",
+      "Building our first agent with n8n": "Explains how to launch n8n through its cloud service or a self-hosted Docker setup and open an example agent workflow.",
+      "🤖 Add an LLM": "Connects a chat model to the agent and outlines Community Edition limits on collaboration and credential sharing.",
+      "🧠 Add memory": "Adds session-based Simple Memory so the agent can use chat history during a session.",
+      "🛠️ Add Tool — Let’s Integrate Google Calendar!": "Introduces Google Calendar as an agent tool and explains why self-hosted n8n needs a public HTTPS callback URL.",
+      "🌐 Expose Your Self-Hosted Instance with ngrok": "Shows how to configure ngrok to expose local n8n publicly for Google OAuth and Calendar integration.",
+      "Chat with our agent!": "Tests Calendar lookups and event creation, and explains tool naming and model capability considerations.",
+      "Reusing this in other workflows?": "Describes converting the chat workflow into a reusable sub-workflow callable by other workflows or agents.",
+      "Reflecting on what we just did 🤔": "Reviews the no-code agent-building process, its developer tradeoffs, reusable workflows, and built-in integrations.",
+      "But here’s what I’m still asking:": "Raises questions about n8n multi-agent systems, MCP support, and production deployment and scaling."
+    }
   },
   {
     "slug": "service-please-3-ways-to-serve-an-llm-ca5ead2547e6",
@@ -1236,7 +1894,33 @@
       "vllm",
       "openai compatible api",
       "pagedattention"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "Introduces self-hosted LLM serving, its deployment requirements, and reasons to host models instead of using provider APIs.",
+      "1\\. Reliability": "Explains how self-hosting avoids third-party API rate limits that can delay requests from multiple users.",
+      "2\\. Security": "Describes using in-network LLM hosting to protect sensitive data and meet regulatory requirements.",
+      "3\\. Finetuning": "Explains why locally hosting sensitive training data and fine-tuning workflows can be essential.",
+      "LLMs served — 3 ways": "Introduces three local LLM serving approaches—Ollama, Docker Model Runner, and vLLM—and their tradeoffs.",
+      "1\\. My personal favorite — Ollama 🦙": "Covers installing Ollama, downloading models, and running compatible Hugging Face GGUF models locally.",
+      "Invoking Ollama": "Shows calling Ollama through the OpenAI Python SDK and its own SDK, noting compatibility considerations.",
+      "Something Strange (and Cool)": "Notes that Ollama is primarily written in Go and uses llama.cpp for inference.",
+      "2\\. The new, cool way — Docker 🐳": "Introduces Docker Model Runner, its platform support, and how to enable it through Docker Desktop.",
+      "Eerily similar to Ollama": "Shows pulling and invoking models through Docker Model Runner’s OpenAI-compatible API and describes its inference backend.",
+      "Differences with Ollama": "Compares Docker Model Runner’s SDK and model-selection limitations with Ollama, including LlamaIndex integration.",
+      "So… Why even use Docker model runner?": "Explains how Docker Compose can define model services without embedding Ollama in application containers.",
+      "3\\. The “enterprise” way — vLLM ️🖖": "Introduces vLLM and PagedAttention as an approach to improving GPU memory efficiency during LLM serving.",
+      "🚧 How Traditional Memory Storage Works:": "Explains how contiguous storage of token key-value data wastes GPU memory and limits concurrent requests.",
+      "⚙️ How PagedAttention Fixes It:": "Describes PagedAttention’s fixed-size memory pages, reduced memory waste, and resulting improvements in batching and throughput.",
+      "Using vLLM on Colab to serve our own LLM": "Sets up a Google Colab environment with a T4 GPU and installs libraries needed to run vLLM.",
+      "Step 1: Choose and Authenticate for the LLM": "Selects a gated Llama 3.2 model and authenticates with Hugging Face to access it.",
+      "Step 2: Serve the LLM with vllm": "Starts a vLLM API server and configures chat templates, tool-call parsing, authentication, and model length.",
+      "Step 3: Accessing our LLM from a public URL": "Explains why a Colab-hosted server’s localhost address is not directly accessible from a local computer.",
+      "Step 3a: Authorize ngrok": "Uses an ngrok account and authentication token to prepare a public proxy for the Colab server.",
+      "Step 3b: Expose your local vLLM server": "Creates an ngrok tunnel to the vLLM port and checks the deployment through its API documentation.",
+      "Step 4: Use our vLLM deployment!": "Demonstrates invoking the public vLLM endpoint with OpenAI-compatible clients, LangChain, and LlamaIndex.",
+      "Step 5: Clean up": "Terminates the vLLM process before disconnecting the Colab GPU runtime.",
+      "Concluding thoughts": "Summarizes the tradeoffs among Ollama, Docker Model Runner, and vLLM, contrasting ease of use with performance and configuration complexity."
+    }
   },
   {
     "slug": "a-gentle-introduction-to-litellm-649d48a0c2c7",
@@ -1290,7 +1974,44 @@
       "helm",
       "model proxy",
       "usage monitoring"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains a divider and no substantive technical content.",
+      "A useful addition to any LLM technology stack": "The section describes challenges managing multiple LLM providers, tracking costs, and maintaining separate API wrappers.",
+      "About LiteLLM": "The section introduces LiteLLM as an open-source layer for unified provider calls, cost tracking, fallbacks, caching, and proxy deployments.",
+      "Introducing LiteLLM’s Python SDK": "The section shows how LiteLLM’s Python SDK offers an OpenAI-compatible interface for calling hosted and local models.",
+      "Introducing LiteLLM Proxy Server": "The section explains how the proxy centralizes model access, limits, API keys, monitoring, and deployment options.",
+      "What are Helm Charts?": "The section explains Helm charts as reusable, versioned packages for installing and managing Kubernetes applications.",
+      "🛠️ Installing Helm and Kubernetes": "The section lists Helm, kubectl, and Minikube or Kind as prerequisites for local Kubernetes deployment.",
+      "🚀 Now to spin everything up": "This heading introduces the steps for deploying LiteLLM Proxy with Helm on Kubernetes.",
+      "Start by pulling the Helm charts for LiteLLM into your project folder:": "The section gives the Helm command for downloading LiteLLM’s chart package from its OCI registry.",
+      "Unzip the helm package:": "The section shows how to extract the downloaded LiteLLM Helm chart archive.",
+      "🛠️ Configure your values.yaml": "The section configures proxy model names and provider connection details in the Helm chart’s values.yaml file.",
+      "🔐 Add Admin Credentials": "The section sets the proxy master key and dashboard login credentials through Helm environment variables.",
+      "🗄️ About the Database": "The section notes that the Helm chart provisions PostgreSQL using credentials configured in values.yaml.",
+      "⚙️ Start the Kubernetes Cluster": "The section starts and stops the local Kubernetes cluster using Minikube commands.",
+      "📦 Install the Helm Chart": "The section installs the LiteLLM Helm chart into the running Kubernetes cluster.",
+      "🌐 Access the Proxy Server": "The section forwards a local port to the LiteLLM pod and describes accessing its Swagger UI and admin dashboard.",
+      "🗝️ Time to gatekeep our models": "The section creates virtual API keys with model permissions, budgets, rate limits, expiration, and guardrail settings.",
+      "🧪 Test It in the Playground": "The section tests a newly created virtual key and selected model through LiteLLM’s built-in playground.",
+      "In the event of guardrails and MCP servers": "The section summarizes guardrail invocation options and beta MCP server integration, including access controls and usage tracking.",
+      "👨🏻‍💻 Time to call it in code": "The section prepares to use the deployed proxy in code and recommends storing its virtual key in an environment file.",
+      "Using LangChain 🦜": "The section demonstrates routing LangChain ChatOpenAI requests through LiteLLM Proxy with a model name and metadata.",
+      "Using LlamaIndex 🦙": "The section demonstrates connecting LlamaIndex’s AzureOpenAI interface to the LiteLLM proxy endpoint.",
+      "Using the OpenAI SDK — with tools! ֎": "The section uses the OpenAI Python SDK against LiteLLM Proxy to call a model with a function tool.",
+      "🆕 Bonus: OpenAI’s responses.create API": "The section demonstrates using the OpenAI responses.create endpoint through LiteLLM Proxy with tool input.",
+      "🧐 Inspecting our LLM usage": "The section describes the proxy dashboard’s usage breakdown by model, team, and API key for monitoring consumption.",
+      "⚠️ It’s Not All Smooth Sailing": "The section introduces integration problems encountered with LangGraph and LlamaIndex agents.",
+      "🌀 LangGraph: The Tool Loop Spiral": "The section describes a LangGraph agent repeatedly calling a tool through LiteLLM, constrained by a request-per-minute limit.",
+      "🤖 LlamaIndex: Returns Tool Call as Raw JSON": "The section reports that a LlamaIndex agent returned a tool call as JSON text instead of executing it.",
+      "🚨 Why This Happens": "The section attributes integration issues to rapid release cycles across LangGraph, LlamaIndex, and LiteLLM.",
+      "🤔 Thinking About What We Just Did": "The section summarizes LiteLLM Proxy’s role in addressing budget overruns and duplicated provider-specific wrappers.",
+      "🧩 The OpenAI API Compatibility Problem": "The section explains why OpenAI-style APIs still require custom framework wrappers as API behavior evolves.",
+      "🔁 Continuous Change = Continuous Breakage": "The section gives API deprecations and newer endpoints as examples of changes that break compatibility.",
+      "🧘 LiteLLM: Calm in the API Chaos": "The section describes LiteLLM as a normalization layer that routes requests across providers through an OpenAI-compatible interface.",
+      "🛠️ The Centralized Admin Problem": "The section contrasts custom-built proxy administration with LiteLLM’s built-in keys, rate limits, budgets, dashboards, and compatible endpoints.",
+      "⏱️ A Final Thought": "The section concludes that deploying LiteLLM Proxy with Helm is quick when Kubernetes prerequisites are already installed."
+    }
   },
   {
     "slug": "practice-vs-theory-software-development-at-the-workplace-a73e676e58c8",
@@ -1323,7 +2044,23 @@
       "test-driven development",
       "ci/cd",
       "code review"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section is a visual divider and contains no substantive discussion.",
+      "Why coding on the job feels nothing like class": "The author introduces the contrast between classroom software engineering practices and workplace experience.",
+      "Agile Project Management": "The section describes organizing requirements into projects, epics, stories, tasks, backlogs, and sprints.",
+      "And then there’s reality.": "Lean teams often combine development, product ownership, and project management while minimizing formal Agile planning.",
+      "GitHub for version control": "The section outlines a recommended Git workflow using forks, feature branches, pull requests, pre-commit hooks, and separate repositories.",
+      "In reality, everyone commits to the main branch — without forking": "Lean teams often commit directly to main, skip hooks, and sometimes delay or forget to push code.",
+      "“Test-driven development (TDD)”": "Test-driven development begins with test cases to clarify requirements and verify code behavior.",
+      "But in reality, we write test cases after coding — if we write them at all.": "Teams focused on rapid delivery often write tests late or omit them, making tests less effective.",
+      "“Continuous Integration / Continuous Deployment (CI/CD)”": "The section outlines a deployment pipeline with automated tests, code and vulnerability analysis, containerization, infrastructure provisioning, and deployment.",
+      "In reality, none of the above is done": "Time constraints lead developers to run or deploy applications directly, while proper CI/CD can be difficult to implement.",
+      "What about code review and pair programming?": "Code reviews and pair programming are often skipped because teams prioritize individual delivery speed.",
+      "Which parts of the Agile and DevSecOps class made it to the workplace?": "The author discusses code as documentation and describes using docstrings, annotations, and README files to aid maintainability.",
+      "Re-examining the motivation for this article": "The author explains the value of Agile and DevSecOps practices while acknowledging their costs, learning curves, and specialized roles.",
+      "Closing thoughts": "The conclusion contrasts classroom ideals with workplace constraints and advocates adapting practices without abandoning software quality."
+    }
   },
   {
     "slug": "living-with-imposter-syndrome-193adff0a825",
@@ -1356,7 +2093,24 @@
       "feedback",
       "generative ai",
       "api development"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section is a divider and contains no substantive discussion.",
+      "You don’t have to know everything to move forward": "The author describes persistent self-doubt despite academic and career accomplishments, and notes that experience has repeatedly disproved those fears.",
+      "Imposter syndrome is normal": "The section presents imposter syndrome as a common experience rather than a psychological condition and encourages readers to feel less alone.",
+      "Postgrad AI class": "A demanding postgraduate AI class reveals that classmates also feel overwhelmed, prompting the author to reconsider self-doubt.",
+      "What “Fake It Till You Make It” really means": "The phrase means trusting that you can progress without knowing everything, using available resources and affirming success before fully believing it.",
+      "My Go-To Strategies when Imposter Syndrome Hits": "This section introduces practical strategies for responding to imposter syndrome.",
+      "1\\. Be biased to action": "Break daunting tasks into small steps and begin doing something rather than remaining stuck in worry.",
+      "Case study 1: Writing my first API endpoint at work": "The author uses a notebook prototype, FastAPI documentation, and a simple example to build a first working API endpoint.",
+      "2\\. Ask everyone for feedback but don’t take all of it": "The section explains why coding feedback can be blunt and recommends seeking feedback while judging which comments to apply.",
+      "Case Study 2: Deploying a generative AI chatbot over dashboards": "The author describes building a multi-agent dashboard chatbot, receiving critical feedback, and tracing slow responses to calls across many APIs.",
+      "3\\. Remember that your best is all you can give": "Dennis Crowley’s imperfect interview and code review illustrate that useful products can emerge from applying the best available knowledge.",
+      "Case Study 3: Optimizing matches between resumes and job descriptions": "The author builds a resume skills-matching system with manually compiled regular expressions under limited experience and time constraints.",
+      "4\\. Celebrate small wins": "The section recommends recognizing completed tasks and milestones with small rewards to support self-kindness and motivation.",
+      "Case Study 4: Writing Medium Articles": "The author describes celebrating article milestones and improving on existing code and ideas through experimentation, writing, and contributions.",
+      "Putting it all together": "The conclusion recommends taking small steps, choosing useful feedback, recognizing progress, and treating one’s best effort as sufficient for growth."
+    }
   },
   {
     "slug": "how-to-deploy-almost-any-langchain-runnable-in-one-line-70e7ec1240d1",
@@ -1387,7 +2141,21 @@
       "rest api",
       "llama guard",
       "runnables"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The opening section contains only a divider and introduces no technical content.",
+      "Introducing an old friend: LangServe": "This section summarizes LangChain’s adoption and the development of related frameworks, including LangServe.",
+      "Introducing LangServe": "LangServe exposes composable LangChain runnables as REST APIs using FastAPI and provides OpenAPI documentation.",
+      "Writing our LangChain Runnable": "This section introduces a Llama Guard 3 runnable for classifying text as safe or unsafe.",
+      "Serve the app": "This section mounts a prompt, Ollama model, and output parser as a FastAPI endpoint using LangServe’s add_routes.",
+      "Feature #1: An app playground": "LangServe provides a browser playground for invoking deployed runnables and inspecting intermediate steps.",
+      "Feature #2: Plug and play with any framework": "RemoteRunnable lets clients invoke or stream responses from a deployed endpoint without raw HTTP requests.",
+      "❓So Why No New Features in LangServe?": "LangChain now emphasizes LangGraph for stateful multi-step workflows, while LangServe remains maintained for basic deployments.",
+      "🧩 What Kind of Runnables Does LangServe Not Support?": "Basic runnable pipelines work well, while complex chains with branching, retrieval, memory, or custom callables may behave unexpectedly.",
+      "🤖 What About Chat History?": "The playground lacks built-in multi-turn history configuration, and LangChain recommends LangGraph checkpointers for conversation state.",
+      "📢 Good news: Simple runnables still carry real value!": "Simple runnables can implement Llama Guard checks, expose custom models or business logic, and combine components in parallel.",
+      "🏁Conclusion": "LangServe suits lightweight runnable deployments and REST microservices, but complex stateful workflows are better handled with LangGraph."
+    }
   },
   {
     "slug": "how-to-build-your-own-change-data-capture-pipeline-using-apache-airflow-e485fbef82c7",
@@ -1431,7 +2199,34 @@
       "rag",
       "incremental ingestion",
       "llamaindex"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section is an article divider with no technical content.",
+      "⚠️ Health warning: Sleepless nights ahead.": "Explains why fresh data matters for RAG applications and introduces a CDC pipeline built with Apache Airflow.",
+      "Introducing change data capture": "Defines CDC as tracking document changes to ingest incremental updates and introduces orchestration tools including Airflow.",
+      "Cold start: Ingesting documents into a vector database the first time": "Shows initial document ingestion into Qdrant using LlamaIndex, embeddings, and a vector store.",
+      "From Notebook to Pipeline: Coding with Apache Airflow": "Introduces Airflow DAGs and recommends dividing pipeline logic into atomic, testable tasks.",
+      "🧩 Step 1: Serialize Documents": "Defines an Airflow task that loads documents from file paths and serializes them into JSON-compatible dictionaries.",
+      "🧩 Step 2: Ingest into Vector DB": "Defines a task that reconstructs documents, generates embeddings, and stores them in Qdrant.",
+      "🧩 Step 3: Qdrant collection tasks": "Checks whether a Qdrant collection exists and branches to create it only when needed.",
+      "🧩 Step 4: Tracking documents": "Uses a CSV log and file modification timestamps to identify new or changed PDFs and update ingestion records.",
+      "🛠️ Assembling our DAG": "Defines the Airflow DAG schedule, start date, catchup behavior, retries, and metadata tags.",
+      "📁 Step 1: Wait for the Documents Folder": "Uses an Airflow FileSensor to wait for the documents folder before running the pipeline.",
+      "🧭 Step 2: Ensure the Qdrant Collection Exists": "Connects the collection-check branch to either collection creation or a skip task.",
+      "📄 Step 3: Load Logs and Detect Updates": "Chains log loading, changed-file detection, serialization, Qdrant ingestion, and log updates in the DAG.",
+      "🖥️ Interacting with Airflow": "Introduces Airflow’s local web interface and the standalone command used to start it.",
+      "📁 Your DAG Isn’t Being Watched": "Explains how to configure Airflow’s DAG folder so it discovers project DAG files.",
+      "🔄 “Not time to refresh bundle dags-folder”": "Describes forcing Airflow to reserialize DAGs when folder refresh delays prevent discovery.",
+      "🔌 Now… Execution Fails?!": "Explains how to configure an Airflow connection for access to Qdrant.",
+      "🧩 Install Missing Qdrant Provider": "Installs the Airflow Qdrant provider package required for the Qdrant connection.",
+      "💥 One More Failure…": "Configures the default filesystem connection and installs the standard Airflow provider for FileSensor.",
+      "⁉️ Our DAG runs… but so many tasks are skipped?": "Uses the none_failed_min_one_success trigger rule to run file detection when upstream tasks were skipped.",
+      "✅ What success looks like": "Describes a successful DAG run that detects a PDF, ingests it into Qdrant, and stores its chunks and embeddings.",
+      "☕ Ah… The Sweet Taste of Success": "Reports that the pipeline succeeded after several hours of debugging.",
+      "💻→🤯→😤→🥹→😎": "Reflects on learning Airflow and explains that the pipeline makes updated Qdrant documents available to a RAG application.",
+      "🚨 Important: This Is Not Production Ready": "Explains standalone Airflow’s SQLite, worker, and logging limitations and outlines more resilient production deployment options.",
+      "Conclusion": "Summarizes building a RAG ingestion pipeline with Airflow and Qdrant and cautions against production use without appropriate infrastructure."
+    }
   },
   {
     "slug": "agent-memory-the-underrated-superpower-of-agentic-apps-1c16fb47f435",
@@ -1464,7 +2259,24 @@
       "rag",
       "langmem",
       "llamaindex"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The section contains only a divider and presents no technical content.",
+      "Spoiler alert: memory is yet another application of RAG": "The article introduces persistent agent memory as a way to improve agent performance and previews code examples.",
+      "A very brief history of memory": "The section explains why treating memory as a growing chat transcript eventually exceeds context limits and harms retrieval grounding.",
+      "Smarter memory strategies emerged:": "The section describes summarization and recent-token buffering, then explains why session-bound chat history cannot provide persistent memory.",
+      "Introducing Long-term Memory": "The section distinguishes long-term vector memory from chat history and raises questions about storing and retrieving memories.",
+      "🔁 LangMem’s Take": "The section introduces LangMem’s long-term memory approach, including tools for deciding when to update or retrieve memories.",
+      "🦙 Meanwhile, LlamaIndex Evolved Too": "The section outlines LlamaIndex memory blocks and configuration for priorities, token allocation, and transferring chat history into long-term memory.",
+      "🧬 Not Just LangChain and LlamaIndex": "The section presents Mem0AI as a framework focused on persistent memory management across sessions.",
+      "Introducing Mem0AI": "The section describes Mem0’s motivation and its structured approach to retaining relevant knowledge across changing, discontinuous conversations.",
+      "Mem0 AI’s take on memory": "The section explains Mem0’s extraction and update phases, including semantic retrieval and LLM-selected add, update, delete, or no-op actions.",
+      "Coding our app": "The section introduces Mem0 integrations and sets up a LlamaIndex agent with internet search for the coding walkthrough.",
+      "Time to have some fun!": "The section demonstrates invoking a search agent with Mem0 memory across conversations and inspecting the resulting memory graph.",
+      "Taking a closer look at the integration": "The section examines LlamaIndex’s Mem0 integration code for initializing memory and retrieving relevant memories alongside chat history.",
+      "What just happened?": "The section explains that Mem0 retains user context across interactions, updates a graph database, and orchestrates memory through function calling.",
+      "Are there tradeoffs?": "The section discusses memory’s context-window and usage-cost overhead, along with caching, compression, and long-context models as mitigations."
+    }
   },
   {
     "slug": "think-your-rag-app-is-safe-giskard-might-prove-you-wrong-6c88b08c5f7a",
@@ -1497,7 +2309,23 @@
       "llamaindex",
       "prompt injection",
       "llm robustness"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and no substantive technical content.",
+      "⚠️ Health warning: Sleepless nights ahead": "This section explains how RAG grounds LLM answers in retrieved documents and why evaluating RAG systems is difficult.",
+      "Let’s first start by defining our RAG application": "This section builds a LlamaIndex RAG application using Docling to parse a PDF and create a vector index.",
+      "Level 1: Correctness, Relevancy, Faithfulness and Similarity": "This section describes four RAG evaluation metrics and demonstrates generating a question set and evaluating with LlamaIndex.",
+      "But hold on a second…": "This section distinguishes accuracy from robustness and notes that test-set accuracy does not establish resilience to attacks or input variation.",
+      "Level 2: Redteaming with Giskard’s Scan": "This section introduces Giskard scans for hallucination, harmful output, prompt injection, robustness, disclosure, and bias vulnerabilities.",
+      "Level 3: Redteaming with Giskard’s RAGET": "This section describes RAGET’s challenging question categories, including complex, distracting, situational, multi-part, and conversational queries.",
+      "💻 The Code (Surprisingly Simple Again)": "This section generates a Giskard RAG test set and defines a LlamaIndex chat callback that returns answers and source documents.",
+      "Can we actually get a 100% score on all 3 levels?": "This section explains why perfect Level 1 scores are unrealistic, Level 2 scores may be achievable, and Level 3 tests remain difficult.",
+      "Is there a tradeoff to scoring A+ on all 3 tests?": "This section explains that stronger retrieval and query-processing components can improve test scores while adding complexity and latency.",
+      "The hard truth about LLMs": "This section discusses LLM weaknesses as generators, judges, and red-team testers, and warns against using a weaker judge model.",
+      "A smarter defense: Layered LLM Systems": "This section recommends combining different LLMs and non-generative safeguards while noting shared vulnerabilities can still undermine defenses.",
+      "Concluding thoughts": "This section contains no text.",
+      "🛡️ It’s easier to attack than defend.": "This section recommends understanding system limits, disclosing them to users, and improving defenses without waiting for perfect scores."
+    }
   },
   {
     "slug": "text-to-sql-just-got-easier-meet-vanna-ai-your-rag-powered-sql-sidekick-e781c3ffb2c5",
@@ -1535,7 +2363,28 @@
       "chainlit",
       "sqlite",
       "chromadb"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains no substantive content.",
+      "Spoiler alert: Text-to-SQL is powered by retrieval augmented generation (RAG)": "This section introduces the claim that retrieval-augmented generation powers Text-to-SQL systems.",
+      "The Generative AI Revolution": "This section explains RAG’s embedding-based retrieval and context-injection process for grounding language model responses.",
+      "RAG Is Quietly Powering Structured Data Too": "This section describes RAG as an approach used by Text-to-SQL systems to query structured datasets.",
+      "Are LLMs good at SQL?": "This section discusses inconsistent LLM performance on SQL generation and the need for more reliable Text-to-SQL methods.",
+      "Reintroducing RAG: your old friend in a new role": "This section introduces traditional vector-based RAG for structured data and presents Vanna AI as the framework used.",
+      "Why Vanna AI?": "This section explains how Vanna abstracts Text-to-SQL orchestration and outlines a stock-data application built with its Python SDK.",
+      "1\\. Setup — Ingesting data from Yahoo Finance": "This section shows Python code for downloading historical stock prices and storing them in an SQLite database.",
+      "2\\. Now let’s set up Vanna!": "This section configures a Vanna subclass combining ChromaDB vector storage and OpenAI chat components.",
+      "But what exactly are we storing and querying from the vector store?": "This section explains how Vanna retrieves schemas, documentation, and question-SQL examples to generate and execute queries and plots.",
+      "3\\. 🛠️ Loading Your Training Data & Setting Up Vanna": "This section demonstrates storing question-SQL examples in YAML and loading them into Python for Vanna training.",
+      "🧩 Recap": "This section summarizes database connection, schema and documentation setup, training data loading, and Flask app launch.",
+      "4\\. 🧑‍💻 Interacting with our Flask App": "This section describes the Flask interface for editing training examples, submitting natural-language questions, and viewing SQL, results, and charts.",
+      "🧱 But it’s not perfect…": "This section outlines Vanna’s limitations, including missing direct answers, unreliable user-added training data, and constrained interface customization.",
+      "5.💡Bringing Chainlit into the picture": "This section describes replacing Vanna’s frontend with Chainlit and separating SQL generation, execution, plotting, and follow-up suggestions into steps.",
+      "📌 Text-to-SQL Hits Different with RAG": "This section attributes improved SQL accuracy to retrieving schema, documentation, and example queries for the language model.",
+      "🦙 Vanna is Surprisingly Powerful": "This section summarizes a compact Vanna and Chainlit application that generates SQL, performs analysis, and creates plots.",
+      "🧩 Vanna Isn’t the Only Solution": "This section compares RAG-oriented Text-to-SQL approaches from Snowflake and LlamaIndex with LangChain’s reliance on model reasoning.",
+      "🔁 Why RAG Matters": "This section argues that RAG underpins many generative AI workflows and recommends red-teaming applications to assess retrieval quality."
+    }
   },
   {
     "slug": "introducing-the-agent-communication-protocol-acp-abd882114139",
@@ -1566,7 +2415,22 @@
       "llamaindex",
       "beeai",
       "agent interoperability"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The section contains only a divider and introduces no technical content.",
+      "IBM’s Bold Move in Agent Interoperability": "The section compares MCP tool integration with A2A agent interoperability and describes challenges with agent discoverability.",
+      "Introducing ACP": "The section introduces IBM’s ACP, its relationship to BeeAI and A2A, and the article’s plan to build an example.",
+      "A quick note on the broader ecosystem": "The section notes the growing number of agent protocols and questions whether ACP offers distinct practical capabilities.",
+      "Building our own ACP": "The section defines an ACP agent using LlamaIndex, document retrieval, an Ollama model, and a query engine.",
+      "Invoke the ACP": "The section shows how a Python client streams events from a named ACP agent and handles final responses.",
+      "IBM’s take on discoverability — BeeAI": "The section registers an ACP agent with BeeAI and describes how the platform provides agent discovery.",
+      "Calling our discoverable agent on the BeeAI UI": "The section launches BeeAI’s interface, selects discoverable agents, and interacts with the deployed ACP agent.",
+      "💭 Reflecting on what we just did": "The section contains no text or technical content.",
+      "🐝 Using BeeAI": "The section discusses BeeAI’s developer abstractions, their effect on development and debugging, and a Docker issue.",
+      "🧠 Using the ACP framework": "The section describes ACP’s lightweight integration with existing code and its ability to work beyond BeeAI.",
+      "🔍 What About Discoverability?": "The section contrasts MCP tool selection with BeeAI agent selection and notes ACP lacks agent-to-agent collaboration.",
+      "Thinking about what interoperability looks like": "The section distinguishes agent collaboration from tool invocation and considers the limits of current protocols and interoperability."
+    }
   },
   {
     "slug": "a-guide-to-code-testing-rag-agents-without-real-llms-or-vector-dbs-51154ad920be",
@@ -1599,7 +2463,24 @@
       "pytest",
       "mocking",
       "agent testing"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and no substantive article content.",
+      "Test everything, call nothing": "Explains why deterministic tests for GenAI application code should avoid stochastic, costly, or unavailable external services.",
+      "First, the RAG application — to prove it works": "Introduces local LLM and embedding models, Docling document parsing, and Qdrant setup for a RAG application.",
+      "Build the RAG query engine": "Constructs a query engine from a Qdrant-backed vector index and configures retrieval and LLM parameters.",
+      "Using an agent": "Wraps the query engine as a tool for a FunctionAgent and demonstrates regular and streamed responses.",
+      "Testing our agent": "Introduces pytest and mocking or patching to test application code without calling real services.",
+      "Our first unit test: Mocking the Docling Reader": "Demonstrates patching DoclingReader and using a mock document to test the reader’s returned text.",
+      "Our next unit tests: Mocking the entire RAG code": "Shows tests that mock Docling and Qdrant components to verify vector-store and index setup.",
+      "Testing the Agent Setup and Execution": "Tests asynchronous FunctionAgent execution with mocked tools and verifies its returned response.",
+      "🌀Testing the Agent’s streaming response": "Explains how to mock agent streaming events and handlers to test streamed response deltas.",
+      "Running the test in command line": "Runs the test suite from the command line using pytest.",
+      "💭 Thinking About What We Just Did": "Reflects on the limitations and practical reasons for fully mocked tests in constrained DevOps environments.",
+      "🧠 So What Did We Accomplish?": "Summarizes how mocked tests validate component contracts and integration behavior without external services.",
+      "🧪 The Invisible Value: DevOps Compliance": "Describes using tests to satisfy SonarQube coverage requirements and pass CI quality gates.",
+      "💡 Just a Final Note": "Concludes that tests should expose failures, while noting the risk of writing tests that only pass."
+    }
   },
   {
     "slug": "how-to-train-your-llm-simultaneously-with-10-different-teachers-ba556d4ed2c1",
@@ -1636,7 +2517,27 @@
       "large language models",
       "fedavg",
       "differential privacy"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a separator and no substantive content.",
+      "How to train your LLM simultaneously with 10 different “teachers”": "Introduces federated supervised fine-tuning as a way to learn across privacy-sensitive datasets without moving data.",
+      "Introducing Federated Learning": "Explains federated learning, its client-server training loop, local data retention, and aggregation of model updates.",
+      "One more note before we begin coding": "Describes course and notebook resources, code updates, simulation setup, and the distinction between prototyping and deployment.",
+      "Step 1: Load your training configuration 🧑‍🍳": "Defines configuration for the dataset, model, LoRA, training settings, and Flower clients and rounds.",
+      "👨‍🍳 Step 2: Load the Model — Then Estimate Your Grocery Bill": "Loads and quantizes the base model, applies LoRA adapters, and estimates communication savings from parameter-efficient training.",
+      "Where’s Unsloth? 🦥": "Explains that dependency conflicts between Flower and current Unsloth versions led the experiment to omit Unsloth.",
+      "👨‍🍳 Step 3: Prompt Prep — Set the Table for Fine-Tuning": "Formats Alpaca-style prompts and configures a tokenizer and completion-only data collator for supervised fine-tuning.",
+      "🍳 Step 4: Crafting the Flower Client — The Heartbeat of Federated Learning": "Introduces the Flower client implementation, where each participant trains on its own local data.",
+      "🧠 Understanding the Client’s Role": "Describes client model updates and local training, and implements an optional cosine learning-rate schedule.",
+      "🧠 Step 5: Configuring the Federated Server — Directing the Symphony 🎻": "Introduces server-side round configuration, weighted metric aggregation, model persistence, and federated strategy setup.",
+      "🧩 How It All Fits Together": "Summarizes server functions for configuring rounds, aggregating client metrics, and persisting global model state.",
+      "🛠️ Next Step: Define the server": "Configures a Flower server strategy using FedAvg, client sampling, metric aggregation, evaluation callbacks, and optional differential privacy.",
+      "📤 Upload to HuggingFace Hub": "Reloads the base model, attaches and merges the fine-tuned PEFT adapter, then uploads the merged model to Hugging Face Hub.",
+      "And finally, let’s test it!": "Loads the published model through LlamaIndex and tests it with a medical question about antiphospholipid syndrome.",
+      "🚀 Deployment": "Outlines separating client and server scripts, installing Flower tools, starting services, and checking network connectivity.",
+      "🤔 A brief retrospective": "Reviews experimental outcomes and possible causes of poor results, including model capacity, data quality, aggregation, privacy noise, and client sampling.",
+      "Concluding thoughts": "Summarizes federated fine-tuning’s privacy benefits, practical constraints, data-quality needs, and hardware requirements."
+    }
   },
   {
     "slug": "how-to-train-your-llm-to-reason-grpo-reinforcement-learning-using-unsloth-64af5e82ac3c",
@@ -1669,7 +2570,23 @@
       "custom reward functions",
       "llama fine-tuning",
       "rag"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This introductory section contains no substantive technical content.",
+      "Teaching toothless to breathe fire": "The section motivates LLM fine-tuning by discussing hallucinations and prior supervised and retrieval-augmented fine-tuning experiments.",
+      "First, what is GRPO?": "The section introduces GRPO and contrasts reinforcement learning with supervised learning and human-preference-based alignment.",
+      "The PPO algorithm": "The section explains PPO’s actor-critic architecture, reward estimation, policy updates, and KL-divergence constraints.",
+      "The DPO algorithm": "The section describes how DPO optimizes language models from pairwise preferences without a separate reward model.",
+      "Finally the GRPO algorithm": "The section explains GRPO’s group-based response scoring and relative policy updates using programmable rewards without critics or preference labels.",
+      "GRPO with Unsloth!": "The section sets up GRPO fine-tuning of Qwen 2.5 14B and Llama 3.2 1B with Unsloth, TRL, and GSM8K.",
+      "🧠 Why So Many Rewards?": "The section describes modular reward functions for answer correctness and formatting as configurable signals for GRPO training.",
+      "🏋🏻 Training!": "The section configures a GRPO trainer with multiple reward functions and a 250-step training run.",
+      "Give our reasoning model a spin!": "The section loads the fine-tuned Qwen model with Ollama and tests its mathematical reasoning on word problems.",
+      "Does reasoning improve RAG performance?": "The section reports modest improvements in RAG evaluation metrics after 250 GRPO training steps on Qwen 2.5 14B.",
+      "Now back to our tiny Llama 1B LLM 🦙": "The section reports failed initial rewards, adjusted reward functions, and a Llama 1B model that learned formatting but not reliable answers.",
+      "Reasoning about reasoning": "The section compares GRPO outcomes and training costs across model sizes, arguing that larger models are more suited to reasoning fine-tuning.",
+      "Do we even need to finetune anymore?": "The section weighs cloud and local LLM tradeoffs and introduces federated fine-tuning for data distributed across systems and jurisdictions."
+    }
   },
   {
     "slug": "how-to-raft-your-llm-retrieval-augmented-finetuning-using-unsloth-4c3844a9a6e3",
@@ -1699,7 +2616,20 @@
       "retrieval augmented generation",
       "fine-tuning",
       "rag evaluation"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The section contains only a separator and provides no substantive technical content.",
+      "Teaching Toothless to Fly": "The introduction motivates fine-tuning the full RAG system to improve context use and inject domain knowledge.",
+      "0\\. A Quick Recap: What Happened in Our Previous Article": "The recap describes weak prior fine-tuning results, hallucinations, and lessons about dataset quality, RAFT, and evaluation.",
+      "1\\. An introduction to Retrieval Augmented Finetuning (RAFT)": "RAFT trains models with relevant and distracting passages so they learn to use retrieved context and filter irrelevant information.",
+      "2\\. Building the RAFT Dataset": "The dataset uses GPT-4o to generate higher-quality evaluation questions, answers, and context-grounded reasoning examples.",
+      "a. Evaluating the base model in RAG mode": "This section generates a RAG question-answer evaluation dataset from source documents using LlamaIndex and GPT-4o.",
+      "b. Evaluating our untuned LLM": "The untuned Llama 3.2 1B model is evaluated in RAG mode, achieving 0.88 mean faithfulness with GPT-4o-generated data.",
+      "c. Generating the RAFT dataset": "LlamaIndex’s RAFT dataset pack generates examples with chain-of-thought answers, retrieved context, and oracle context.",
+      "d. Finetuning!": "The section splits RAFT data and formats prompts containing questions, retrieved and oracle context, instructions, and reasoning for Unsloth fine-tuning.",
+      "e. Evaluating our finetuned LLM": "The fine-tuned model is evaluated in RAG mode, showing slightly higher correctness but slightly lower relevancy.",
+      "🔍 Reflections on the Experiment": "The reflection reports limited gains and suggests expanding training data or fine-tuning more model weights to improve results."
+    }
   },
   {
     "slug": "how-to-train-your-llm-teaching-toothless-to-bite-8d9f56fe4b2a",
@@ -1732,7 +2662,24 @@
       "unsloth",
       "supervised learning",
       "ollama"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a visual divider and no technical content.",
+      "Teaching toothless to bite": "Introduces the goal of fine-tuning a base language model with domain data and previews the training workflow.",
+      "First, a quick discussion on fine-tuning an LLM": "Explains why fine-tuning language models differs from fine-tuning other machine-learning models.",
+      "The understanding piece": "Discusses LLM capabilities and potential fine-tuning risks, including forgetting, safety degradation, hallucinations, and privacy issues.",
+      "The Fine-Tuning Piece": "Describes parameter-efficient fine-tuning as a way to reduce training and deployment costs by updating few parameters.",
+      "Enter LoRA (Low-Rank Adaptation)": "Introduces LoRA, which freezes pretrained weights and adds trainable low-rank matrices for task adaptation.",
+      "Here’s how it works:": "Outlines how LoRA targets linear layers, trains low-rank matrices, and optionally merges updates into original weights.",
+      "Does LoRA Affect the LLM’s Activations?": "Explains that LoRA changes effective layer weights and therefore alters activations during inference.",
+      "To finetune or not to finetune?": "Argues that fine-tuning smaller models can add domain capabilities at lower cost and with less catastrophic forgetting.",
+      "1) Starting out — Developing your training and testing set": "Shows how to generate question-answer training data from a PDF using LlamaIndex and a local language model.",
+      "2) Always evaluate how good the LLM is without finetuning": "Loads a labeled holdout dataset and establishes a baseline by evaluating the untuned model in a RAG setup.",
+      "3) Finetuning — at last!": "Introduces Unsloth and Hugging Face TRL for resource-efficient supervised fine-tuning with LoRA.",
+      "4) Deploying our model locally using Ollama!": "Explains how to download the fine-tuned model from Hugging Face into a local Ollama installation.",
+      "5) Evaluating the LLM": "Compares the fine-tuned model in RAG and direct-answer evaluations, finding only a small faithfulness improvement in RAG.",
+      "🔍 Reflections on the Experiment": "Reviews the experiment’s weak results and identifies dataset quality, sample size, evaluation, and training tracking as improvement areas."
+    }
   },
   {
     "slug": "graphrag-for-the-win-c19d580debd7",
@@ -1771,7 +2718,29 @@
       "hybrid retrieval",
       "vector search",
       "knowledge graphs"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "Introduces GraphRAG and asks whether knowledge graphs address needs that vector-based retrieval alone does not.",
+      "What is GraphRAG?": "Defines GraphRAG’s knowledge-graph and vector components and outlines how documents, entities, relationships, and metadata enter a graph pipeline.",
+      "What We’ll Explore": "Previews a LangChain and Neo4j GraphRAG implementation, focusing on practical pitfalls and adoption barriers.",
+      "2\\. Crawling Articles with Crawl4AI": "Describes asynchronous article scraping with Crawl4AI and resolving Jupyter’s running-event-loop conflict using nest_asyncio.",
+      "🧪 Notebook Setup:": "Sets up the notebook and lists five articles about whether an MBA is worthwhile in 2025.",
+      "🔍 Asynchronous Web Crawling Code": "Implements asynchronous article extraction with XPath and begins converting scraped content into LangChain document chunks.",
+      "📘 What This Code Does": "Summarizes parallel article crawling, text extraction, document chunking, metadata creation, and execution time.",
+      "⚙️ Why Use asyncio Here?": "Explains how asyncio supports concurrent, nonblocking I/O for crawling multiple URLs.",
+      "Ingest into Neo4j": "Starts Neo4j, configures a Groq language model, and uses LangChain graph transformation to build a knowledge graph.",
+      "So what’s next?": "Queries the constructed graph with GraphCypherQAChain and shows warnings when generated Cypher references missing schema elements.",
+      "Step 1: Add vector search to our graph": "Creates a hybrid Neo4j vector index for embeddings of document nodes in the graph.",
+      "Step 2: Add fuzzy search over detected entities": "Extracts named entities from questions and uses fuzzy full-text matching to find related graph nodes despite spelling variations.",
+      "Step 3: Hybrid Retrieval": "Builds a structured retriever that extracts entities, fuzzy-matches graph nodes, and returns their neighboring relationships.",
+      "Step 4: Constructing our final runnable": "Combines retrieved context and the original question in a LangChain runnable before generating a text answer.",
+      "Let’s chat with our bot!": "Demonstrates an MBA question answered using both graph relationships and vector-retrieved article text.",
+      "❓ Reflection": "Questions whether graph triples materially improve answers over vector-retrieved text and warns that irrelevant graph context can consume the prompt.",
+      "Which brings me to my next gotcha: Cost": "Explains how graph quality depends on capable, costly language models and contrasts sparse graphs from smaller models with richer ones.",
+      "A (painful) personal experience": "Describes high graph-construction costs for Apache Spark documentation and suggests GraphRAG may suit conceptual domains better.",
+      "The last gotcha: domain experience": "Explains that effective GraphRAG requires domain-specific graph design, Cypher expertise, and collaboration beyond typical vector-RAG setup.",
+      "To GraphRAG or not": "Recommends trying advanced vector-retrieval techniques before GraphRAG, whose relationship-based context can help but adds cost and complexity."
+    }
   },
   {
     "slug": "its-2025-take-your-llm-apps-to-the-next-level-with-chainlit-00036c8db1ba",
@@ -1803,7 +2772,22 @@
       "speech-to-text",
       "rag",
       "model context protocol"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and no technical content.",
+      "Part 2": "The article extends an existing Chainlit assistant with image generation, audio, AutoRAG, and Model Context Protocol capabilities.",
+      "1\\. Adding image generation capabilities via Chainlit Commands 🖼️": "This section configures a Chainlit command and begins wiring message handling to OpenAI image generation.",
+      "2\\. Audio capabilities 🎙️": "The section introduces speech-to-text with Whisper and text-to-speech with ElevenLabs.",
+      "📦 Setup Code": "The code initializes audio session state and handles incoming audio chunks.",
+      "🧠 How This Works": "Audio chunks are checked for silence to detect turn completion, and message generation is extracted into a reusable function.",
+      "3\\. 🔗 Auto RAG capabilities — upload any file and chat with it!": "Uploaded files are loaded, indexed in an in-memory vector store, and prepared for document-specific question answering.",
+      "4\\. 🔌 Model Context Protocol: Chat with all tools!": "Model Context Protocol enables agents to access external tools dynamically, with Jira used as the example integration.",
+      "🛠 Step 1: Handle MCP Connections": "The connection handler retrieves tools from an MCP server and rebuilds the agent with those tools.",
+      "🔌 Step 2: Handle Disconnections": "The disconnection handler removes a server’s tools and rebuilds the agent with the remaining tools.",
+      "🐳 Step 3: Run Jira MCP via Docker": "This section runs Jira’s MCP server in Docker and demonstrates using its tools to manage issues and access Confluence.",
+      "It gets better — deployment": "Chainlit apps can be deployed as website copilots or chatbots on Teams, Slack, and Discord, with authentication and integration tradeoffs.",
+      "Concluding thoughts": "The conclusion recaps Chainlit’s flexibility for building LLM applications and includes the publication disclaimer."
+    }
   },
   {
     "slug": "its-2025-start-using-chainlit-for-your-llm-apps-558db1a46315",
@@ -1837,7 +2821,24 @@
       "chat lifecycle",
       "user authentication",
       "llamaindex"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "Introduces a two-part Chainlit application guide covering chat lifecycle, integrations, and custom interfaces.",
+      "1\\. The chat message box": "Builds a streaming chat interface with Chainlit event handlers, an LLM chat engine, and session-based conversation memory.",
+      "⏹️ Bonus 1: The Stop Button": "Uses Chainlit’s stop event handler to respond when users interrupt a running task.",
+      "2\\. User login": "Adds password authentication, user identification, and an authentication secret for protecting the application.",
+      "Bonus 2: Logout Handling": "Deletes request cookies in a logout handler to clean up authentication state.",
+      "3\\. Resuming chats": "Explains persisting conversations with LiteralAI and restoring chat memory through Chainlit’s resume handler.",
+      "Bonus 3: Chat ending handlers": "Uses the chat-end event for cleanup, summaries, memory updates, or logging when a conversation ends.",
+      "4\\. Chat Starters: To help users start chats": "Defines suggested prompts as chat starter buttons that send predefined messages when selected.",
+      "5\\. Chat Settings": "Adds configurable LLM selection, greeting behavior, and temperature controls using Chainlit input widgets.",
+      "6\\. Chat Profiles (Multi-Personality Agents!)": "Defines chat profiles and selects system prompts to vary an agent’s behavior by profile.",
+      "The main app: Chainlit Canvas": "Describes Chainlit custom JSX elements as webpage canvases and introduces a map interface built from a cookbook example.",
+      "🛠 Agent + Canvas Integration": "Creates a map element and agent tool that updates its coordinates through Chainlit’s custom-element and copilot APIs.",
+      "What’s happening here:": "Explains how custom elements, the element sidebar, traced tool steps, and Python-to-JavaScript calls connect the map interface.",
+      "🤖 Integrating the Tool with the Agent": "Initializes a LlamaIndex function agent with a map tool, then handles tool execution and streamed responses.",
+      "Coming up next: Audio, AutoRAG, MCP, Command": "Summarizes the working map-enabled assistant and previews retrieval, command parsing, audio, and MCP features for a later installment."
+    }
   },
   {
     "slug": "agent-to-agent-protocols-a-story-still-being-written-e7e1ffbf3e80",
@@ -1868,7 +2869,21 @@
       "llamaindex",
       "fastmcp",
       "multi-agent systems"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "Introduces A2A’s early state, emerging interest, available examples, and the article’s goal of exploring the protocol through code.",
+      "What is the A2A protocol?": "Defines A2A as a standardized way for independent agents to collaborate asynchronously, and explains its relationship to MCP.",
+      "But what does it look like in code?": "Describes AgentCards, A2A servers and clients, custom task management, and the planned currency-exchange deployment.",
+      "1\\. The MCP tool": "Implements a FastMCP currency-exchange tool that retrieves dated rates from the Frankfurter API and handles request errors.",
+      "2\\. The Currency Exchange Agent": "Builds a LlamaIndex FunctionAgent that connects to the deployed MCP tool and answers exchange-rate questions.",
+      "3\\. Developing the Task Manager": "Introduces a custom CurrencyTaskManager that connects LlamaIndex workflows to Google’s A2A task abstractions.",
+      "a. Explaining the on_send_task() method": "Explains how incoming requests are validated, stored as tasks, and passed to the agent for execution.",
+      "b. Explaining the \\_run\\_agent() method": "Explains session-context restoration, agent execution, response conversion, state saving, task completion, and error handling.",
+      "4\\. “Serving” our agent": "Deploys the currency agent through Uvicorn and configures its A2A server, capabilities, skill, and AgentCard.",
+      "5\\. Interacting with our agent": "Shows how to discover an agent through its AgentCard and initialize an A2A client using the appropriate URLs.",
+      "The end?": "Discusses unresolved challenges in agent discovery, conversation control, and maintaining continuity when agents change MCP connections.",
+      "These are exciting times": "Frames A2A as an evolving interoperability layer and identifies existing agent frameworks working on related challenges."
+    }
   },
   {
     "slug": "model-context-protocol-hype-or-necessity-998874d95bc6",
@@ -1897,7 +2912,20 @@
       "fastapi",
       "ai agents",
       "tool integration"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The article introduces MCP and FastMCP, outlines its coding examples, and asks whether the protocol is useful or necessary.",
+      "1\\. What is a MCP?": "MCP standardizes connections between tools and agents, while LiteLLM standardizes access to different model APIs.",
+      "2\\. Building Protocols with FastMCP": "The section introduces FastMCP and two approaches to building MCPs: from scratch or from FastAPI applications.",
+      "a. Building an MCP from scratch": "A FastMCP tool uses a decorated function to call a local language model and generate a poem.",
+      "b. Bootstrapping an MCP from a FastAPI app": "FastMCP can wrap a FastAPI application to expose its endpoint logic as an MCP server without running the original app.",
+      "c. Composing MCPs": "FastMCP mounts separate MCP servers into one deployment and adds tools to the combined server.",
+      "d. Deploying our MCP in dev mode": "The development command starts an interactive interface for testing MCP tools.",
+      "3\\. Interacting with our MCP deployment (backend)": "The section deploys an MCP server, connects through its client, and explains tool naming for composed and bootstrapped endpoints.",
+      "4\\. Interacting with our MCP deployment (Frontend)": "The section describes connecting MCP servers to a Chainlit frontend using MCP lifecycle handlers and LlamaIndex agents.",
+      "5\\. Back to the Question": "MCP can improve tool access for language models, but tool selection errors, latency, and early-stage limitations remain concerns.",
+      "The era of protocols?": "The section discusses MCP alongside Google’s A2A protocol and considers how agents may collaborate through connected services."
+    }
   },
   {
     "slug": "how-i-became-a-data-scientist-2d8831531a4c",
@@ -1922,7 +2950,15 @@
       "python",
       "sql",
       "data science"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The author introduces a chemical engineering graduate with strong academic and internship credentials who was determined to avoid coding.",
+      "Crash landing back into coding": "An oil and gas hiring freeze led to manual data reformatting and unsupported demand forecasts in a trading-company role.",
+      "Turns out, the cure for coding PTSD is manual labor.": "The author learned VBA to automate reporting and build Holt-Winters forecasts, then began learning Python.",
+      "These learnings opened doors to a few stints as a “data scientist”": "The author describes early machine-learning projects, gaps in statistical foundations, and later roles with business impact.",
+      "The next level: back to school": "The author recounts entering an AI master’s program and struggling with algorithms and data structures before continuing.",
+      "So if I’m really saying anything it’s this": "The conclusion emphasizes the ongoing learning and mathematical modeling behind AI rather than job titles or hype."
+    }
   },
   {
     "slug": "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-4-crewai-147ada6db54c",
@@ -1955,7 +2991,23 @@
       "job search",
       "llm workflows",
       "litellm"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "Introduces the article as the series conclusion and briefly contrasts the multi-agent frameworks covered previously.",
+      "Introducing CrewAI": "Explains CrewAI’s prompt-driven, role-playing approach and positions its abstractions between autonomous and low-level orchestration frameworks.",
+      "Using an LLM in CrewAI": "Describes CrewAI’s migration from LangChain to LiteLLM and how to configure an LLM provider.",
+      "Building our Employment Hero Crew": "Defines CrewAI crews, agents, tasks, and YAML prompt configurations for a job-search application.",
+      "Resume Parser Tool": "Implements a CrewAI tool that locates and parses a PDF resume with LlamaParse.",
+      "Internet Search Tool": "Wraps LlamaIndex’s Tavily search tools for use by CrewAI agents.",
+      "Structuring our output": "Uses Pydantic models to define structured candidate profiles, job listings, scoring, and cover-letter outputs.",
+      "Assembling the crew!": "Loads agent and task configurations, assigns tools and structured outputs, and assembles the job-search crew.",
+      "Training the crew": "Explains CrewAI’s feedback-based training and testing methods for aligning crew outputs with expectations.",
+      "Assembling the job interview preparation crew": "Defines a second crew that generates interview questions, sample answers, and an elevator pitch from job listings and candidate profiles.",
+      "Go with the Flow": "Orchestrates job-search and interview crews with event-triggered Flow steps, including result logging and input preparation.",
+      "Comparing CrewAI, LlamaIndex, Autogen, and LangGraph": "Compares framework control, coding effort, debugging visibility, atomic abstractions, and CrewAI’s training support.",
+      "What about deployment?": "Discusses deploying Crews and Flows through CrewAI+ or implementing a custom FastAPI service.",
+      "Final Thoughts": "Summarizes the author’s framework preferences, recommends CrewAI to beginners, and concludes the multi-agent series."
+    }
   },
   {
     "slug": "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3b-deploying-llamaindex-workflows-df18381d36b9",
@@ -1990,7 +3042,25 @@
       "multi-agent workflows",
       "workflow deployment",
       "authentication"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "Introduces LlamaIndex workflow human-in-the-loop features and deployment with llama-deploy within a multi-agent framework series.",
+      "Human-in-the-loop: Easier done than said": "Sets up dependencies and an OpenAI language model for a LlamaIndex workflow demonstrating human feedback.",
+      "Defining the Workflow": "Defines workflow events and a chat-engine-backed workflow that restricts access to an approved user.",
+      "Prompting User Identification": "Pauses workflow execution with an input-required event when the user has not yet identified themselves.",
+      "Authenticating the User": "Validates the human response, resumes authorized requests, and stops execution for unauthorized users.",
+      "Generating a Response": "Processes an answer event with the chat engine and returns its response as a stop event.",
+      "Running the Workflow": "Runs the workflow in a notebook, handles identity prompts, and displays the final response.",
+      "Key Takeaways": "Summarizes interactive authentication and workflow resumption, then discusses concurrency limits and restarting with external chat history.",
+      "Human-in-the-loop (Part 2): Still easier done than said": "Introduces human review for a self-discovery reasoning workflow and defines prompt templates for selecting, adapting, and implementing reasoning modules.",
+      "The Workflow": "Defines self-discovery workflow events and chat-history handling, then begins a query-judging step for human clarification.",
+      "Deployment Made Easy: The Llama-Deploy Story": "Describes llama-deploy’s control plane, message queue, and workflow services, with code examples for deploying components.",
+      "Composing your deployment": "Explains deployment order and presents a Docker Compose-oriented project structure for backend, frontend, and Kafka components.",
+      "Explanation": "Explains Kafka startup dependencies, bind mounts for persistence and updates, and building the backend image.",
+      "Spinning Up the Backend": "Installs backend dependencies and launches the application stack with Docker Compose.",
+      "Spinning up the frontend": "Uses Chainlit and LlamaDeployClient to create sessions, submit workflow tasks, and display responses with conversation history.",
+      "Concluding Thoughts": "Compares LlamaIndex workflows with other agent frameworks, emphasizing event-driven design, human interaction, deployment flexibility, and agent control."
+    }
   },
   {
     "slug": "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3a-llamaindex-workflows-c0f614c15b88",
@@ -2017,7 +3087,17 @@
       "retrieval-augmented generation",
       "qdrant",
       "hybrid search"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "Introduces event-driven LlamaIndex workflows for coordinating multi-agent LLM systems.",
+      "Building our Stock Subject Matter Expert": "Sets up tracing and outlines a stock subject-matter system with investment-definition and Apple SEC-report agents.",
+      "Ingesting documents into a vector database": "Loads Apple’s 2021 SEC filing, creates embeddings, and indexes it in a hybrid Qdrant vector store.",
+      "Creating the Apple RAG Agent": "Builds an Apple financial RAG agent using hybrid retrieval and a function-calling query tool.",
+      "Defining our first workflow!": "Initializes a stock SME workflow with a manager, agent-routing choices, an Apple agent, and a DSPy definitions service.",
+      "“Avengers Assemble!”": "Defines events and initializes a parent stock-assistant workflow to coordinate specialized agents and language models.",
+      "Key Steps in the Workflow:": "Describes query safety screening, query-quality evaluation, clarification, and routing to suitable agents.",
+      "The end? Not quite": "Compares workflow orchestration approaches and explains LlamaIndex’s reliability, accessibility, and omitted deployment and human-review topics."
+    }
   },
   {
     "slug": "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-2-autogen-5401a0075d75",
@@ -2043,7 +3123,17 @@
       "groupchat",
       "tool calling",
       "stock analysis"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "The article introduces Autogen as the focus of the multi-agent framework series and links to the code repository.",
+      "Introducing Autogen": "Autogen is introduced as a high-level multi-agent framework, with a stock analyst project planned to demonstrate its capabilities.",
+      "Building our stock analyst": "The project compares two Autogen approaches for generating an Illumina stock performance report.",
+      "1\\. The Group Chat Way": "The section sets up an Autogen GroupChat stock-analysis workflow, including LLM configuration, agents, and task orchestration.",
+      "Breakdown of the Interaction": "The section traces how the GroupChat manager routes planning, code execution, user feedback, and report revisions among agents.",
+      "2\\. The tool calling agent way": "The section presents a two-agent Autogen setup and explains registering stock-data tools for assistant calls and proxy execution.",
+      "There is a 3rd way — Autogen Studio": "Autogen Studio provides a UI to configure models, agents, tools, and workflows, but lacks human-in-the-loop support.",
+      "Concluding Thoughts": "The conclusion weighs GroupChat interactivity, deployment options, and production risks, and compares Autogen’s ecosystem with LangGraph’s."
+    }
   },
   {
     "slug": "a-gentle-introduction-to-the-llm-multi-agents-multiverse-part-1-langgraph-2ac56f1b5b3c",
@@ -2074,7 +3164,21 @@
       "stateful workflows",
       "web search",
       "python repl"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section is a divider and contains no technical content.",
+      "A gentle introduction to the LLM Multi-Agents Multiverse": "Introduces multi-agent LLM frameworks and situates Langgraph among prominent orchestration libraries.",
+      "Introducing Langgraph": "Explains Langgraph’s origins, graph-based workflow model, relationship to LangChain, and lower-level design.",
+      "Building a personal assistant": "Begins a Langgraph assistant project combining a manager, web-search agent, and code-execution agent.",
+      "By the way, what is ‘state’?": "Defines graph state as shared workflow data and shows message history and routing fields in an AgentState.",
+      "Let’s start constructing the graph": "Creates worker agents and assembles a StateGraph with supervisor routing, memory, and an execution breakpoint.",
+      "Invoking the graph": "Describes invoking a stateful Langgraph workflow by streaming events and supplying a thread identifier.",
+      "Let’s do some research into the value of generative AI": "Demonstrates streaming a research question through the assistant and displaying the agent’s response.",
+      "Let’s make our assistant write code!": "Shows interrupting execution before code runs, inspecting and editing graph state, then resuming the workflow.",
+      "Deployment": "Explains deploying a Langgraph application with the CLI, Docker image, environment variables, and supporting services.",
+      "Let’s invoke our deployment!": "Demonstrates connecting to a deployed graph with RemoteGraph and streaming a request using a created thread.",
+      "Concluding Thoughts": "Reviews Langgraph’s flexibility, learning curve, deployment options, and educational resources for multi-agent development."
+    }
   },
   {
     "slug": "a-gentle-introduction-to-the-llm-multiverse-part-3-llamaindex-798344050c49",
@@ -2113,7 +3217,29 @@
       "langchain",
       "haystack",
       "tool calling"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "A divider separates sections without adding technical content.",
+      "With just 5 lines to build a fully functioning RAG": "The article introduces LlamaIndex, previews its LLM features, and compares it with LangChain and Haystack.",
+      "Introducing LlamaIndex": "LlamaIndex focuses on data indexing and retrieval for RAG and integrates with LangChain components.",
+      "1\\. Importing an LLM and running it": "The example installs LlamaIndex integrations and calls a Mistral model using its complete interface.",
+      "Chat History!": "A SimpleChatEngine wrapper adds chat history to an LLM.",
+      "2\\. Structured Prediction": "The examples use Pydantic models and LlamaIndex methods to generate structured workout plans.",
+      "Why two approaches?": "The two structured prediction methods trade customization for simplicity, illustrating LlamaIndex’s range of abstraction levels.",
+      "3\\. Zero-Shot Classification (also known as routing in LLM land)": "The section introduces LLM-based classification and routing without task-specific model training.",
+      "3a. The Pydantic Way (Again):": "A Pydantic model constrains document classification to predefined folder labels, with guidance for ambiguous categories.",
+      "3b. Selections as Tools": "ToolMetadata choices and LLMSingleSelector route documents by description and can return selection reasons or multiple classes.",
+      "4\\. Tool Calling": "The section shows how to expose functions or BaseToolSpec class methods as tools for an LLM.",
+      "5\\. RAG": "The example loads a document, creates a vector index and query engine, then answers a question using RAG.",
+      "6\\. Finally here’s how you build an agent": "A ReActAgent uses registered tools to answer a query and includes chat history by default.",
+      "7\\. Comparing LlamaIndex, Haystack and LangChain": "The section compares the three orchestration libraries after demonstrating similar LLM application tasks.",
+      "Where Haystack stands out": "Haystack supports Jinja2 prompting, allowing preprocessing within expressive prompt templates.",
+      "Where LangChain stands out": "LangChain uses the pipe operator to chain low-level components into LLM applications.",
+      "Where LlamaIndex stands out": "The author identifies developer experience and reduced code maintenance as LlamaIndex’s main strengths.",
+      "I) The Developer’s User Experience": "High-level abstractions simplify LlamaIndex application development, including chat history, HyDE transforms, and sub-question queries.",
+      "II) Code Mileage": "LlamaIndex’s high- and low-level abstractions help limit code changes when customizing applications or upgrading versions.",
+      "Of course, you don’t have to take my word for it.": "The article concludes by inviting readers to try the libraries and previews a future discussion of multi-agent systems."
+    }
   },
   {
     "slug": "a-gentle-introduction-to-the-llm-multiverse-part-2-haystack-c6af2548df04",
@@ -2144,7 +3270,21 @@
       "structured prediction",
       "rag",
       "tool calling"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a visual separator and no technical content.",
+      "Introducing Haystack Pipelines": "The article introduces Haystack as an LLM orchestration library and contrasts its approach with LangChain.",
+      "Introducing Haystack": "This section discusses Haystack’s history, adoption, and evolution alongside the growth of generative AI and orchestration tools.",
+      "1\\. Importing an LLM and running it": "The section demonstrates installing a Haystack integration and calling Mistral Large to generate a response.",
+      "Introducing Haystack Pipelines (2)": "This section describes pipeline components and a Pydantic output validator that checks structured LLM responses and supports retries.",
+      "Introducing Haystack Prompts": "The section shows how Haystack’s Jinja2 prompt templates use required placeholders and conditional fields for retry instructions.",
+      "Back to our structured prediction task": "This section connects prompt, generator, and validator components, noting that the example requires OpenAI’s Generator rather than Mistral’s ChatGenerator.",
+      "Zero-shot classification (also known as routing)": "The section demonstrates using an LLM and ConditionalRouter to classify queries into folders without training a classifier.",
+      "3\\. Tool Calling": "This section explains Haystack tool calling through ChatGenerator models and manually specified JSON function definitions.",
+      "4\\. RAG": "The section outlines separate Haystack pipelines for document ingestion and retrieval-augmented generation, including chunking, embedding, and storage.",
+      "5\\. Agents": "The section notes that Haystack 2.0 lacks agent abstractions while the framework migrates from version 1.0.",
+      "Concluding Thoughts": "The conclusion summarizes Haystack’s prompting strengths, gaps in integrations and abstractions, pipeline flexibility, and implementation overhead."
+    }
   },
   {
     "slug": "a-gentle-introduction-to-the-llm-multiverse-part-1-langchain-023a899d294e",
@@ -2175,7 +3315,21 @@
       "tool calling",
       "rag",
       "agents"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section is a divider and contains no technical content.",
+      "A gentle introduction to the LLM Multiverse": "The article series compares LLM orchestration libraries through shared examples, then plans to cover multi-agent frameworks.",
+      "Introducing Langchain": "This section introduces LangChain’s role as a Python library for orchestrating components in LLM applications.",
+      "1\\. Importing an LLM and invoking it": "This section configures a Mistral chat model and demonstrates invoking it with string and message-list inputs.",
+      "2\\. Structured Prediction": "This section uses Pydantic models with LangChain structured output to generate workout plans with specified fields.",
+      "2a. Zero-Shot Classification (Also known as routing in LLM land)": "This section introduces zero-shot classification as a way to route inputs without training or fine-tuning a model.",
+      "2b. The Pydantic Way again": "This section uses a Pydantic Literal field to classify a file into one of several predefined folders.",
+      "2c. The metadata way — semantic similarity": "This section routes queries by embedding descriptive prompt templates and selecting the most similar option using cosine similarity.",
+      "3\\. Tool Calling": "This section defines Python functions as LangChain tools, binds them to an LLM, and demonstrates tool-call generation.",
+      "4\\. Building a basic RAG application": "This section loads an essay, splits it into chunks, embeds them, and stores them in Chroma for a RAG application.",
+      "5\\. Finally, here’s how you build an agent": "This section constructs a tool-calling agent and AgentExecutor, then shows the agent invoking a tool and returning a result.",
+      "Summing Up": "This section reviews LangChain’s learning curve, resources, related products, and topics left for future coverage."
+    }
   },
   {
     "slug": "hyde-and-seek-when-hallucination-leads-the-way-17a9800734fe",
@@ -2200,7 +3354,15 @@
       "dspy",
       "vector search",
       "prompt optimization"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and no technical content.",
+      "When hallucination leads the way": "This section introduces using generated hallucinations as part of retrieval-augmented generation.",
+      "Introducing hypothetical document embeddings (“HyDE”)": "HyDE generates a hypothetical answer and uses it alongside the question to retrieve relevant documents from a knowledge base.",
+      "Introducing a better way to seek: prompt engineering done right": "Question wording affects retrieval, while DSPy optimizes prompts and model-call weights against a chosen metric using training data.",
+      "Coding out our RAG application": "The code configures Gemini and LlamaIndex, then begins defining a custom web-page reader for loading Investopedia articles.",
+      "Zero Shot Performance": "The section tests a RAG answer and uses Giskard to scan the application for hallucination risks."
+    }
   },
   {
     "slug": "video-killed-the-radio-star-a-use-case-for-multimodal-rag-cdb7d5ff3062",
@@ -2221,7 +3383,12 @@
       "lancedb",
       "clip embeddings",
       "video transcription"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "Introduces text RAG’s limitations with non-text content and proposes answering questions about a neural-network video using text and video snippets.",
+      "Now let’s create the multi-modal index": "Builds a multimodal LlamaIndex with LanceDB text and image stores, configures retrieval counts, and begins defining a question-answering prompt.",
+      "Give it a spin!": "Demonstrates the multimodal RAG application with a question comparing ReLU and sigmoid."
+    }
   },
   {
     "slug": "investing-with-llms-does-it-make-cents-496ed6c87458",
@@ -2253,7 +3420,22 @@
       "yfinance",
       "financial ratios",
       "stock analysis"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "Introduces an experiment using LLMs to automate investment research and analysis.",
+      "When investing we typically have a few considerations:": "Outlines investment research tasks and previews a multi-agent system built from tools, agents, orchestration, and a frontend.",
+      "Introducing agents with tools": "Describes dividing investment research among specialized LlamaIndex agents equipped with custom tools.",
+      "Fundamental Analysis Agent": "Uses Yahoo Finance statements and pandas operations to calculate company financial ratios.",
+      "Technical Analysis Agent": "Computes stock volatility, momentum, and trend indicators from Yahoo Finance data using technical-analysis libraries.",
+      "Research Agent": "Combines web search with retrieval-augmented generation over dynamic SEC reports, using reranking and prompt compression.",
+      "Data Analyst Agent": "Supports exploratory stock-data analysis and lightweight forecasting, focusing on volatility models such as GARCH.",
+      "Professor Agent": "Builds a financial terminology question-answering tool using Investopedia articles and hybrid dense-sparse retrieval.",
+      "Reporter Agent": "Generates investment reports and uses a Gmail tool to email them.",
+      "Orchestrating the Multi-Agent System": "Integrates LlamaIndex agents with Autogen group chat and Chainlit for orchestration, user feedback, and frontend interaction.",
+      "Not so fast…what if I want to do my own analysis with LLM support": "Uses VannaAI text-to-SQL with a stock database so users can query market data through natural language.",
+      "At last the app": "Implements Chainlit profiles for multi-agent investment reports and user-directed stock analysis with LLM support.",
+      "Conclusion": "Frames the app as an intellectual exercise, cautions against using it for investment decisions, and links its code repository."
+    }
   },
   {
     "slug": "chain-reaction-how-to-create-an-observable-workflow-using-llamaindex-and-chainlit-2b668fb1cee9",
@@ -2280,6 +3462,17 @@
       "event-driven workflows",
       "tavily search",
       "llm observability"
-    ]
+    ],
+    "sectionNotes": {
+      "(intro)": "This section contains only a divider and no technical content.",
+      "On LlamaIndex": "Introduces LlamaIndex as a modular Python framework for building and orchestrating LLM applications.",
+      "On LlamaIndex’s Workflow Abstraction:": "Explains event-driven workflows, where steps consume and emit events asynchronously until a stop event ends execution.",
+      "On Chainlit applications:": "Describes Chainlit’s chat interface, event handlers, and step-based chain-of-thought display, then proposes combining it with LlamaIndex workflows.",
+      "The Simple Hybrid LLM App": "Outlines a hybrid agent that compares web-search and direct LLM answers, then consolidates the responses using Tavily and OpenAI.",
+      "Now let’s elaborate on the Workflow’s steps!": "Traces how a start event triggers routing, parallel search and direct-answer steps, and final response compilation.",
+      "Did I answer your questions?": "Compares event-based workflow design with shared state and manager-driven routing, highlighting flexibility and routing reliability.",
+      "Oh right the Chainlit app.": "Shows Chainlit handlers that initialize the workflow and process user messages, with workflow steps displayed in the interface.",
+      "Conclusion": "Summarizes how LlamaIndex workflows and Chainlit combine to build a hybrid LLM agent application."
+    }
   }
 ]
