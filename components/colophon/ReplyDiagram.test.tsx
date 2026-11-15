@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { MAX_ARTICLES_PER_REPLY, MAX_TOPICS } from "@/lib/search-config";
+import { MAX_ARTICLES_PER_REPLY, MAX_TOPICS, MIN_SCORE, RELEVANT, SECTION_BUDGET_CHARS, STAGE2_MAX } from "@/lib/search-config";
 import ReplyDiagram from "./ReplyDiagram";
 
 describe("ReplyDiagram", () => {
@@ -150,6 +150,52 @@ describe("ReplyDiagram either route, one call", () => {
       expect(label).toContain("one route per call");
       expect(label).toContain("a reply can use both");
       expect(label).toMatch(/in one call/i);
+    }
+  });
+});
+
+describe("ReplyDiagram names Jev's operations", () => {
+  const desktopSvg = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('svg[role="img"]')).find((s) => s.classList.contains("hidden")) as SVGElement;
+  const mobileSvg = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('svg[role="img"]')).find((s) => s.classList.contains("block")) as SVGElement;
+
+  it("the rank box says score × top N, in both SVGs", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of [desktopSvg(container), mobileSvg(container)]) {
+      expect(svg.textContent ?? "").toContain(`score × top ${STAGE2_MAX}`);
+    }
+  });
+
+  it("the sections box says score per section and what it keeps, in both SVGs", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of [desktopSvg(container), mobileSvg(container)]) {
+      const text = svg.textContent ?? "";
+      expect(text).toContain("score × each section");
+      expect(text).toContain(`keeps the best sections, ≤ ${SECTION_BUDGET_CHARS.toLocaleString("en-GB")} chars an article`);
+    }
+  });
+
+  it("pass labels say what is measured, in both SVGs", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of [desktopSvg(container), mobileSvg(container)]) {
+      const text = svg.textContent ?? "";
+      expect(text).toContain(`p(yes) ≥ ${RELEVANT}`);
+      expect(text).toContain(`≥ ${MIN_SCORE.toFixed(1)} of 3`);
+    }
+  });
+
+  it("the description names noul and score, and each section", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of Array.from(container.querySelectorAll('svg[role="img"]'))) {
+      const label = svg.getAttribute("aria-label") ?? "";
+      expect(label).toContain("noul");
+      expect(label).toContain("score");
+      expect(label).toContain("each section");
     }
   });
 });

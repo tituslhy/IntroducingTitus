@@ -31,9 +31,9 @@ const REPO_URL = 'https://github.com/tituslhy/IntroducingTitus'
 const WALKTHROUGH: [stage: string, what: string][] = [
   ['Guards', 'The request clears the origin check, the rate limit and the size limits before any model sees it.'],
   ['Agent loop', 'GPT reads the question and calls search_writing(["guardrails for AI agents"]): one standalone topic per thing the question asks about. “LiteLLM, Helm and Nginx” would be three topics, each searched separately, so none crowds the others out.'],
-  ['Jev filter', `One yes-or-no probability per article, judged on its card (title, one-line summary, keywords): ${ARTICLE_COUNT_NUMBER} questions, one request. Most fall away.`],
-  ['Jev rank', 'Every survivor is scored 0–3 against a rubric, this time on their outline and opening. The three best go on; if they aren’t enough, GPT asks for the next three from the same ranking.'],
-  ['Jev sections', `Most of my articles run long, so none is handed over whole. Jev scores each section on its heading and a one-line note, and the best sections come back, up to ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} characters an article, with the full outline so GPT knows what it skipped.`],
+  ['Jev filter (noul)', `One yes-or-no probability per article, judged on its card (title, one-line summary, keywords): ${ARTICLE_COUNT_NUMBER} questions, one request. Most fall away.`],
+  ['Jev rank (score)', 'Every survivor is scored 0–3 against a rubric, this time on their outline and opening. The three best go on; if they aren’t enough, GPT asks for the next three from the same ranking.'],
+  ['Jev sections (score)', `Most of my articles run long, so none is handed over whole. Jev scores each section on its heading and a one-line note, and the best sections come back, up to ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} characters an article, with the full outline so GPT knows what it skipped.`],
   ['Agent loop', 'GPT answers from what the articles say, in my voice, citing them as [1], [2] and onward. An article keeps the same number for the whole conversation, and it says when I wrote it; for a framework article more than six months old, it adds that you should check the project’s current docs.'],
   ['Checks', 'Output is capped, and only the numbers the server actually sent can become links.'],
   ['Drawer', 'The reply streams in with superscript footnotes and a Sources row underneath.'],
@@ -231,7 +231,7 @@ export default function ColophonPage() {
             </p>
             <ol className="border-t border-rule">
               {WALKTHROUGH.map(([stage, what], i) => (
-                <li key={i} className="grid grid-cols-[2.2rem_1fr] border-b border-rule py-2.5 min-[560px]:grid-cols-[2.2rem_8.5rem_1fr]">
+                <li key={i} className="grid grid-cols-[2.2rem_1fr] border-b border-rule py-2.5 min-[560px]:grid-cols-[2.2rem_11rem_1fr]">
                   <span className="font-mono text-[11px] text-amber">{String(i + 1).padStart(2, '0')}</span>
                   <span className="font-mono text-[11.5px] font-medium uppercase tracking-[0.08em] text-ink">{stage}</span>
                   <span className="col-start-2 mt-0.5 text-[15px] leading-snug text-ink-soft min-[560px]:col-start-3 min-[560px]:mt-0">
