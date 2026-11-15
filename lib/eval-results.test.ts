@@ -97,11 +97,39 @@ describe("loadScorecard", () => {
       precisionAt2: null,
       abstainAccuracy: 1,
       noInvention: 0,
+      pageSize: null,
     });
   });
 
   it("sets jevModel to null when the model is not recorded", () => {
     const card = loadScorecard(write(JSON.stringify({ ...validFile, model: undefined })));
     expect(card?.jevModel).toBeNull();
+  });
+});
+
+describe("loadScorecard pageSize", () => {
+  it("reads a positive integer pageSize from metrics", () => {
+    expect(loadScorecard(write(withMetrics({ pageSize: 3 })))?.pageSize).toBe(3);
+  });
+
+  it("is null for a file written before pageSize existed, without failing the load", () => {
+    const card = loadScorecard(write(JSON.stringify(validFile)));
+
+    expect(card).not.toBeNull();
+    expect(card?.pageSize).toBeNull();
+  });
+
+  it.each([
+    ["zero", 0],
+    ["negative", -1],
+    ["fractional", 2.5],
+    ["a string", "3"],
+    ["null", null],
+  ])("is null, and the scorecard still loads, when pageSize is %s", (_label, value) => {
+    const card = loadScorecard(write(withMetrics({ pageSize: value })));
+
+    expect(card).not.toBeNull();
+    expect(card?.pageSize).toBeNull();
+    expect(card?.questionCount).toBe(42);
   });
 });

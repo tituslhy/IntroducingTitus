@@ -14,7 +14,10 @@ import {
   SOCIAL,
   type Role,
 } from './profile'
-import { buildSystemPrompt, promptTokens } from './copilot-prompt'
+import { buildSystemPrompt, promptTokens, renderLibrary } from './copilot-prompt'
+import { articleByUrl, formatPublished, mediumPostId } from './citation-ledger'
+import { ARTICLES } from './articles'
+import type { Themes } from './writing-tree'
 
 // Normalises every dash-with-spaces to the en dash the prose renderer uses
 // ("Jul 2026 — Present" → "Jul 2026 – Present"), so assertions compare content
@@ -142,7 +145,9 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
   })
 
   it('no longer mentions web search anywhere in the prompt', () => {
-    expect(rendered).not.toMatch(/web[ -]search/i)
+    // Article summaries in My Library may describe web-search agents; the guard is about the copilot's own claims.
+    const withoutLibrary = rendered.replace(/## My Library[\s\S]*?(?=\n---|\n## |$)/, '')
+    expect(withoutLibrary).not.toMatch(/web[ -]search/i)
   })
 
   it('has an About Me, the Assistant section that links the colophon', () => {
@@ -210,7 +215,7 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
     })
 
     it.each(FEATURED_ARTICLES.map((a) => [a.n, a.href] as const))('includes featured article %s', (_n, href) => {
-      expect(rendered).toContain(href)
+      expect(rendered).toContain(articleByUrl(href)!.url)
     })
 
     it('includes the contact email', () => {
@@ -274,6 +279,11 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
     })
   })
 
+  it('includes the evaluative and comparative questions rule', () => {
+    expect(rendered).toMatch(/I can[’']t see the other candidates/)
+    expect(rendered).toContain('No numbers out of 10')
+  })
+
   describe('voice', () => {
     it('never describes Titus in the third person with "Titus thought"', () => {
       expect(rendered).not.toContain('Titus thought')
@@ -282,5 +292,125 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
     it('does not use other third-person narration verbs for Titus', () => {
       expect(rendered).not.toMatch(/\bTitus (?:thought|was|has|did|says|writes)\b/)
     })
+  })
+})
+
+describe('featured articles and their publish dates', () => {
+  it.each(FEATURED_ARTICLES.map((a) => [a.n, a.href] as const))('featured article %s resolves to a corpus article', (_n, href) => {
+    expect(articleByUrl(href)).toBeDefined()
+  })
+
+  it.each(FEATURED_ARTICLES.map((a) => [a.n, a.title, a.href, a.read] as const))(
+    'renders featured article %s with its publish date and reading time',
+    (_n, title, href, read) => {
+      const article = articleByUrl(href)!
+      expect(rendered).toContain(`[${title}](${article.url}) — published ${formatPublished(article.publishedAt)}, ${read} read`)
+    }
+  )
+
+  it('shows a published date on every featured line', () => {
+    const featuredLines = rendered.split('\n').filter((line) => /^\d+\. \[.+\]\(https:\/\/medium\.com\//.test(line))
+    expect(featuredLines).toHaveLength(FEATURED_ARTICLES.length)
+    for (const line of featuredLines) {
+      expect(line).toMatch(/— published \d{1,2} [A-Za-z]{3,4} \d{4}, \d+ min read$/)
+    }
+  })
+})
+
+describe('featured article links', () => {
+  it.each(FEATURED_ARTICLES.map((a) => [a.n, a.title, a.href] as const))(
+    'links featured article %s to its corpus URL, not the publication URL',
+    (_n, title, href) => {
+      const corpusUrl = articleByUrl(href)!.url
+      expect(corpusUrl).toMatch(/^https:\/\/medium\.com\/@tituslhy\//)
+      expect(rendered).toContain(`[${title}](${corpusUrl})`)
+      if (corpusUrl !== href) expect(rendered).not.toContain(`](${href})`)
+    }
+  )
+
+  it('falls back to the featured href, with no date, when the corpus has no match', async () => {
+    // Stub the lookup to miss, in a fresh module registry so the rest of this file is unaffected.
+    let out = ''
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock('./citation-ledger', () => ({
+        ...jest.requireActual('./citation-ledger'),
+        articleByUrl: () => undefined,
+      }))
+      const fresh = await import('./copilot-prompt')
+      out = fresh.buildSystemPrompt('{{FEATURED_ARTICLES}}')
+    })
+    jest.dontMock('./citation-ledger')
+
+    for (const a of FEATURED_ARTICLES) {
+      expect(out).toContain(`${a.n}. [${a.title}](${a.href}) — ${a.read} read`)
+    }
+    expect(out).not.toContain('published')
+  })
+})
+
+describe('My Library (renderLibrary and the WRITING_TREE token)', () => {
+  const UNAVAILABLE = "(The library tree isn't available right now. Use search_writing.)"
+
+  const allThemed = (reviewed: Record<string, boolean>, themesReviewed = true): Themes => ({
+    themes: [{ id: 't1', name: 'All', description: 'Everything' }],
+    assignments: Object.fromEntries(ARTICLES.map((a) => [a.slug, ['t1']])),
+    reviewed,
+    themesReviewed,
+  })
+  const everyReviewed = Object.fromEntries(ARTICLES.map((a) => [a.slug, true]))
+
+  it('rendered prompt contains the tree with every article\'s post id', () => {
+    const out = renderLibrary(ARTICLES, allThemed(everyReviewed))
+
+    expect(out).not.toBe(UNAVAILABLE)
+    for (const a of ARTICLES) {
+      expect(out).toContain(mediumPostId(a.url) ?? a.slug)
+    }
+  })
+
+  it('returns the unavailable line when the themes are not reviewed', () => {
+    expect(renderLibrary(ARTICLES, allThemed(everyReviewed, false))).toBe(UNAVAILABLE)
+  })
+
+  it('returns the unavailable line when the rendered tree is empty', () => {
+    const empty: Themes = { themes: [], assignments: {}, reviewed: {}, themesReviewed: true }
+
+    expect(renderLibrary(ARTICLES, empty)).toBe(UNAVAILABLE)
+  })
+
+  it('leaves an unreviewed article out of the tree', () => {
+    const [first, second] = ARTICLES
+    const reviewed = { ...everyReviewed, [first.slug]: false }
+
+    const out = renderLibrary(ARTICLES, allThemed(reviewed))
+
+    expect(out).not.toContain(mediumPostId(first.url) ?? first.slug)
+    expect(out).toContain(mediumPostId(second.url) ?? second.slug)
+  })
+
+  it('the My Library section says never cite from it', () => {
+    const start = rendered.indexOf('## My Library')
+    expect(start).toBeGreaterThanOrEqual(0)
+    const rest = rendered.slice(start + '## My Library'.length)
+    const end = rest.search(/\n---|\n## /)
+    const section = end === -1 ? rest : rest.slice(0, end)
+
+    expect(section).toMatch(/never cite/i)
+  })
+
+  it("no-results rule sends the model to the library before saying I haven't written about it", () => {
+    const line = rendered.split('\n').find((l) => l.includes('check My Library'))
+
+    expect(line).toBeDefined()
+    expect(line).toContain('read_writing')
+  })
+
+  it("architecture answers don't invite invented hindsight", () => {
+    expect(rendered).not.toContain('What would I do differently?')
+  })
+
+  it('WRITING_TREE is a template token: exposed by promptTokens and rendered away', () => {
+    expect(promptTokens()).toHaveProperty('WRITING_TREE')
+    expect(rendered).not.toContain('{{WRITING_TREE}}')
   })
 })

@@ -73,6 +73,8 @@ For help on Ralph:
 
 ## Build Pipeline
 
+Publishing an article, changing roles, keys and debugging the copilot: see [MAINTENANCE.md](MAINTENANCE.md).
+
 1. **Claude Code + Ralph Loop** — implement features
 2. **CodeRabbit** (`/coderabbit:code-review`) — AI code audit on the changes
 3. **SonarQube** — static code analysis (configured via `sonar-project.properties`)

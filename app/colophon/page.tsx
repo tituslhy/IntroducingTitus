@@ -8,6 +8,7 @@ import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH } from '@/lib/content'
 import { loadScorecard, type Scorecard } from '@/lib/eval-results'
 import { FIT_LEVEL_LABELS, NOT_ON_FILE_NOTE, type FitBrief } from '@/lib/fit-brief'
 import { SOCIAL } from '@/lib/profile'
+import { SECTION_BUDGET_CHARS } from '@/lib/search-config'
 
 const TITLE = 'How Ask Titus works | Titus Lim'
 const DESCRIPTION =
@@ -29,17 +30,32 @@ const REPO_URL = 'https://github.com/tituslhy/IntroducingTitus'
 
 const WALKTHROUGH: [stage: string, what: string][] = [
   ['Guards', 'The request clears the origin check, the rate limit and the size limits before any model sees it.'],
-  ['Agent loop', 'GPT reads the question and calls search_writing("guardrails for AI agents"), a query it writes to stand on its own.'],
-  ['Jev filter', `One yes-or-no probability per article, judged on its card (title, one-line summary, keywords): ${ARTICLE_COUNT_NUMBER} questions, one request. Most fall away.`],
-  ['Jev rank', 'Every survivor is scored 0–3 against a rubric, this time on their outline and opening. The two best are read in full; if they aren’t enough, GPT asks for the next two from the same ranking.'],
-  ['Agent loop', 'GPT answers from what the articles say, in my voice, citing them as [1], [2] and onward.'],
+  ['Agent loop', 'GPT reads the question and calls search_writing(["guardrails for AI agents"]): one standalone topic per thing the question asks about. “LiteLLM, Helm and Nginx” would be three topics, each searched separately, so none crowds the others out.'],
+  ['Jev filter (noul)', `One yes-or-no probability per article, judged on its card (title, one-line summary, keywords): ${ARTICLE_COUNT_NUMBER} questions, one request. Most fall away.`],
+  ['Jev rank (score)', 'Every survivor is scored 0–3 against a rubric, this time on their outline and opening. The three best go on; if they aren’t enough, GPT asks for the next three from the same ranking.'],
+  ['Jev sections (score)', `Most of my articles run long, so none is handed over whole. Jev scores each section on its heading and a one-line note, and the best sections come back, up to ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} characters an article, with the full outline so GPT knows what it skipped.`],
+  ['Agent loop', 'GPT answers from what the articles say, in my voice, citing them as [1], [2] and onward. An article keeps the same number for the whole conversation, and it says when I wrote it; for a framework article more than six months old, it adds that you should check the project’s current docs.'],
   ['Checks', 'Output is capped, and only the numbers the server actually sent can become links.'],
   ['Drawer', 'The reply streams in with superscript footnotes and a Sources row underneath.'],
 ]
 
+/** How the agent reaches my articles, by kind of question (the routes in the diagram). */
+const QUESTION_KINDS: [question: string, route: string][] = [
+  ['What have you written about guardrails?', 'One topic, searched: the steps above.'],
+  [
+    'How do I use LiteLLM, Helm and Nginx?',
+    'search_writing(["LiteLLM", "Helm", "Nginx"]): one call, three searches inside it (one per topic), merged so each topic’s best article comes first.',
+  ],
+  [
+    'How would you build production-ready agents?',
+    'No search. GPT reads the library map in its prompt, picks up to three articles, and opens them with read_writing.',
+  ],
+]
+
 const GUARDRAILS: [guardrail: string, prevents: string][] = [
   ['Page anchors validated server-side', 'Pointing at things that don’t exist'],
-  ['Article retrieval: relevance filter, graded rerank, known slugs only, at most four', 'Irrelevant or invented sources'],
+  ['Article retrieval: relevance filter, graded rerank, known slugs only, at most six articles a reply', 'Irrelevant or invented sources'],
+  ['Footnote numbers rebuilt server-side from my articles only', 'Forged or shifting sources'],
   ['“Not on file”', 'Overselling, especially in recruiter mode'],
   ['Job descriptions wrapped as data and not stored upstream', 'Prompt injection; keeping confidential postings'],
   ['Fit briefs re-validated after the model writes them', '“Strong” claims without evidence'],
@@ -50,7 +66,9 @@ const GUARDRAILS: [guardrail: string, prevents: string][] = [
 const WONT_DO = [
   'Talk salary, availability or family. Those go to my inbox.',
   'Speculate about my weaknesses, or invent a “balanced” critique to sound objective.',
+  'Rate me, or rank me against candidates it can’t see. It shows the evidence and leaves the judging to you.',
   'Invent a project, a skill or an article. If it isn’t on file, it says so.',
+  'Tell you what I’d use today instead of what an article says. It says when I wrote it and points you to the project’s current docs.',
   'Remember you between visits. The conversation lives in your browser tab and ends with it. Conversations are logged, privately, so I can see where it goes wrong and fix it; they’re never published.',
 ]
 
@@ -105,7 +123,8 @@ function ScorecardTable({ card }: { card: Scorecard }) {
   const rows: [string, string, string][] = [
     ['Tool-call accuracy', percent(card.toolCallAccuracy), 'Searched for writing questions; stayed out of it for CV questions'],
     ['Recall', percent(card.stage1Recall), 'The right article made the shortlist'],
-    ['Precision@2', percent(card.precisionAt2), 'The articles it read were the right ones'],
+    // Runs recorded before pageSize existed read pages of 2.
+    [`Precision@${card.pageSize ?? 2}`, percent(card.precisionAt2), 'The articles it read were the right ones'],
     ['Abstain accuracy', percent(card.abstainAccuracy), 'Said “I haven’t written about that” when I hadn’t'],
     ['No invention', percent(card.noInvention), 'Replies with no made-up titles, links or citations'],
   ]
@@ -212,7 +231,7 @@ export default function ColophonPage() {
             </p>
             <ol className="border-t border-rule">
               {WALKTHROUGH.map(([stage, what], i) => (
-                <li key={i} className="grid grid-cols-[2.2rem_1fr] border-b border-rule py-2.5 min-[560px]:grid-cols-[2.2rem_8.5rem_1fr]">
+                <li key={i} className="grid grid-cols-[2.2rem_1fr] border-b border-rule py-2.5 min-[560px]:grid-cols-[2.2rem_11rem_1fr]">
                   <span className="font-mono text-[11px] text-amber">{String(i + 1).padStart(2, '0')}</span>
                   <span className="font-mono text-[11.5px] font-medium uppercase tracking-[0.08em] text-ink">{stage}</span>
                   <span className="col-start-2 mt-0.5 text-[15px] leading-snug text-ink-soft min-[560px]:col-start-3 min-[560px]:mt-0">
@@ -222,16 +241,56 @@ export default function ColophonPage() {
               ))}
             </ol>
             <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
+              Three kinds of question
+            </p>
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-ink font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-soft">
+                  <th scope="col" className="w-2/5 py-2 pr-4 font-medium">Question</th>
+                  <th scope="col" className="py-2 font-medium">Route</th>
+                </tr>
+              </thead>
+              <tbody>
+                {QUESTION_KINDS.map(([q, route]) => (
+                  <tr key={q} className="border-b border-rule align-top">
+                    <td className="py-2.5 pr-4 font-serif text-[15px] italic leading-snug text-ink">{q}</td>
+                    <td className="py-2.5 text-[14.5px] leading-snug text-ink-soft">{route}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
               Reading in pages
             </p>
             <p className={prose}>
-              I don’t set how many articles it reads; GPT does. A search ranks every article that clears the filter
-              and hands over the best two, plus a count of how many are still waiting. If two don’t cover the
-              question, GPT asks for the next two with <code className="font-mono text-[14px]">more: true</code>,
-              served from the ranking it already holds, so Jev isn’t asked again. It gets two searches per reply, so
-              the second is either the next page or a fresh query, which runs Jev again and replaces the ranking.
-              When the ranking runs out, the tool says so, and GPT answers from what it has read. That caps a reply
-              at four articles.
+              I don’t set how many articles it reads; GPT does. A search runs once per topic, merges the rankings so
+              each topic’s best article comes first, and hands them over three at a time, plus a count of how many
+              are still waiting. If three don’t cover the question, GPT asks for the next three with{' '}
+              <code className="font-mono text-[14px]">more: true</code>, served from the ranking it already holds,
+              so Jev isn’t asked again. It gets two searches per reply, so the second is either the next page or a
+              fresh search, which runs Jev again and replaces the ranking. When the ranking runs out, the tool says
+              so, and GPT answers from what it has read. A reply reads at most six articles, however it found them.
+            </p>
+            <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
+              Reading by theme
+            </p>
+            <p className={prose}>
+              Search answers concrete questions well and broad ones badly. Ask “how would you build production-ready
+              agents?” and every article is a little relevant, so none stands out. For those, GPT doesn’t search. Its
+              prompt carries a map of my library: a handful of themes, each article listed under its theme with a
+              one-line summary. GPT reasons over the themes, picks up to three articles that together answer the
+              question, and opens them with <code className="font-mono text-[14px]">read_writing</code>. Jev then picks
+              their sections, as it does for search. The map is only for choosing what to read: GPT cites what it read,
+              never a summary. The themes are drafted by a model when I publish, and I review them before they ship.
+            </p>
+            <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
+              Long conversations
+            </p>
+            <p className={prose}>
+              It sees the last 20 messages, always starting on one of yours. When a long conversation outgrows its
+              budget, the oldest exchanges drop off first rather than the conversation being cut short. Articles cited
+              earlier keep their numbers: the drawer sends back what it has cited, and the server checks each link
+              against my articles before the model sees it.
             </p>
           </Section>
 
@@ -279,7 +338,10 @@ export default function ColophonPage() {
             <Section folio={next()} title="How it’s tested">
               <p className={`${prose} mb-5`}>
                 A golden set of questions, each with the article it should find, or none, run against the real models.
-                These numbers come straight from the last run.
+                These numbers come straight from the last run. Scripted conversations are replayed through the same
+                loop too: a visitor switching between career and writing questions and back, correcting it, or asking
+                it to rank me against other candidates. Each replay checks that footnotes keep their numbers, that
+                career questions aren’t searched, and that it never rates me.
               </p>
               <ScorecardTable card={scorecard} />
             </Section>
@@ -301,7 +363,7 @@ export default function ColophonPage() {
               Next.js · a ~70-line tool loop on the OpenAI Responses API · Jev (TypeSafe AI) · Vercel
             </p>
             <p className={`${prose} mt-3`}>
-              No agent framework. Two tools and at most four rounds is one loop, and a loop I can read end to end is one
+              No agent framework. Three tools and at most four rounds is one loop, and a loop I can read end to end is one
               I can debug at 2am. The source is on{' '}
               <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-amber underline underline-offset-2">
                 GitHub

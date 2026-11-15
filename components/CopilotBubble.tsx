@@ -13,13 +13,14 @@ import {
 } from "@/lib/fit-brief";
 import {
   citationUrlTransform,
+  collectCitations,
   linkCitations,
   sourceForHref,
   toSource,
   type Source,
 } from "@/lib/citations";
 import { COPILOT_OPEN_EVENT, type CopilotOpenDetail } from "@/lib/copilot-events";
-import { COLOPHON_PATH } from "@/lib/content";
+import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH } from "@/lib/content";
 
 interface Message {
   id: string;
@@ -61,10 +62,11 @@ const SIDE_BY_SIDE_QUERY = "(min-width: 1024px)";
 const SPOTLIGHT_CLASS = "copilot-spotlight";
 const SPOTLIGHT_MS = 2800;
 
+/** One of each kind it handles well: a role, a project, a broad question across my writing, a specific one. */
 const STARTER_PROMPTS = [
   "What did you build at Illumina?",
   "What trade-offs shaped fictional-bassoon?",
-  "Which article should I read first?",
+  "How would you build production-ready agents?",
   "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?",
 ];
 
@@ -298,12 +300,14 @@ export default function CopilotBubble({
 
     // Keep only the last 20 messages to avoid exceeding context limits
     const historyToSend = updatedMessages.slice(-20).map(({ role, content }) => ({ role, content }));
+    // Every article cited this session (not just in the 20 sent), so each keeps its number.
+    const citations = collectCitations(updatedMessages);
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: historyToSend }),
+        body: JSON.stringify({ messages: historyToSend, citations }),
         signal: controller.signal,
       });
 
@@ -697,6 +701,10 @@ export default function CopilotBubble({
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5" style={{ minHeight: 0 }}>
           {messages.length === 0 && !busy && (
             <div>
+              <p className="mb-4 font-serif text-[15px] leading-snug text-ink-soft">
+                Ask about my roles, projects or any of my {ARTICLE_COUNT_NUMBER} articles, or paste a job description to
+                see how I fit.
+              </p>
               <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
                 Start with one of these
               </p>
@@ -733,7 +741,10 @@ export default function CopilotBubble({
             </div>
           )}
 
-          {messages.map((msg) => (
+          {messages.map((msg, i) => {
+            // A reply may cite an article an earlier reply already footnoted, under the same number.
+            const citable = [...(msg.sources ?? []), ...messages.slice(0, i).flatMap((m) => m.sources ?? [])];
+            return (
             <article key={msg.id} id={`copilot-msg-${msg.id}`} className="flex flex-col gap-1.5">
               {msg.role === "user" ? (
                 <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
@@ -775,7 +786,7 @@ export default function CopilotBubble({
                         li: ({ children }) => <li className="leading-relaxed">{children}</li>,
                         a: ({ href, children }) => {
                           if (href?.startsWith("cite:")) {
-                            const source = sourceForHref(href, msg.sources);
+                            const source = sourceForHref(href, citable);
                             // A number the server never sent stays plain text.
                             if (!source) return <>[{children}]</>;
                             return (
@@ -819,7 +830,7 @@ export default function CopilotBubble({
                         h3: ({ children }) => <p className="mb-1.5 font-semibold text-ink">{children}</p>,
                       }}
                     >
-                      {msg.sources?.length ? linkCitations(msg.content) : msg.content}
+                      {citable.length ? linkCitations(msg.content) : msg.content}
                     </ReactMarkdown>
                   </div>
                 )}
@@ -870,7 +881,8 @@ export default function CopilotBubble({
                 </button>
               </div>
             </article>
-          ))}
+            );
+          })}
 
           {isLoading && (
             <TypingIndicator caption={loadingCaption ?? (turningTo && `Turning to ${turningTo}…`)} />

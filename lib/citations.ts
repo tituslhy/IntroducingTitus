@@ -1,10 +1,43 @@
 import { defaultUrlTransform } from "react-markdown";
 
-/** An article footnote, numbered by the server per reply (see search_writing). */
+/**
+ * An article footnote. The server numbers articles once per conversation (see
+ * search_writing), so the same article keeps the same `n` in every reply.
+ */
 export interface Source {
   n: number;
   title: string;
   url: string;
+}
+
+/** What the drawer sends back so the server can keep numbering stable: number and link only. */
+export interface CitationRef {
+  n: number;
+  url: string;
+}
+
+/** Most citations the drawer sends, and the server accepts, per request. */
+export const MAX_CITATIONS = 40;
+
+/**
+ * Every article cited so far in the session, from all messages (not just the
+ * ones sent as history), so an early citation keeps its number. First wins:
+ * a repeated number or a repeated link is skipped.
+ */
+export function collectCitations(messages: readonly { sources?: readonly Source[] }[]): CitationRef[] {
+  const refs: CitationRef[] = [];
+  const seenN = new Set<number>();
+  const seenUrl = new Set<string>();
+  for (const m of messages) {
+    for (const s of m.sources ?? []) {
+      if (seenN.has(s.n) || seenUrl.has(s.url)) continue;
+      seenN.add(s.n);
+      seenUrl.add(s.url);
+      refs.push({ n: s.n, url: s.url });
+      if (refs.length === MAX_CITATIONS) return refs;
+    }
+  }
+  return refs;
 }
 
 /** Validates a streamed `source` event. Only http(s) links are ever rendered. */
