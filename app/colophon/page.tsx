@@ -245,7 +245,7 @@ export default function ColophonPage() {
             <p className={prose}>
               Search answers concrete questions well and broad ones badly. Ask “how would you build production-ready
               agents?” and every article is a little relevant, so none stands out. For those, GPT doesn’t search. Its
-              prompt carries a map of my library: about eight themes, each article listed under its theme with a
+              prompt carries a map of my library: a handful of themes, each article listed under its theme with a
               one-line summary. GPT reasons over the themes, picks up to three articles that together answer the
               question, and opens them with <code className="font-mono text-[14px]">read_writing</code>. Jev then picks
               their sections, as it does for search. The map is only for choosing what to read: GPT cites what it read,

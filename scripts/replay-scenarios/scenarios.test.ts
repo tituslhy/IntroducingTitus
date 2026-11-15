@@ -2,10 +2,10 @@
  * @jest-environment node
  */
 
-import { EMAIL, FEATURED_ARTICLES } from "../../lib/profile";
+import { EMAIL, FEATURED_ARTICLES, PROJECTS } from "../../lib/profile";
 import { SCENARIOS } from "./index";
 import { PEER_CLAIM, RATING, RECORD, SELF_RATING_OPENER, evaluative } from "./evaluative";
-import { langserve } from "./langserve";
+import { DATED, langserve } from "./langserve";
 import { mixedModes } from "./mixed-modes";
 import {
   assistantTurns,
@@ -390,5 +390,84 @@ describe("SCENARIOS", () => {
       expect(s.turns.length).toBeGreaterThan(0);
       expect(s.description.length).toBeGreaterThan(0);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Review fixes: the matchers and the compliment check, against wording they must handle
+// ---------------------------------------------------------------------------
+
+describe("DATED needs a real date, not an ordinary word", () => {
+  it.each(["I may have decided to use Helm.", "I hadn't used Helm, and I decided against it."])(
+    "does not count %s as dated",
+    (sentence) => {
+      expect(DATED.test(sentence)).toBe(false);
+    }
+  );
+
+  it.each(["In June 2025 I hadn't used Helm.", "When I wrote it, I hadn't used Helm.", "Back in 2025 I hadn't used Helm."])(
+    "counts %s as dated",
+    (sentence) => {
+      expect(DATED.test(sentence)).toBe(true);
+    }
+  );
+});
+
+describe("PEER_CLAIM ignores ordinary comparisons", () => {
+  it.each(["It worked better than the old pipeline.", "That was a better than expected result."])(
+    "is not tripped by %s",
+    (sentence) => {
+      expect(PEER_CLAIM.test(sentence)).toBe(false);
+    }
+  );
+
+  it.each(["It's better than most engineers.", "I'm better than other candidates.", "It's unlike most engineers."])(
+    "is tripped by %s",
+    (sentence) => {
+      expect(PEER_CLAIM.test(sentence)).toBe(true);
+    }
+  );
+});
+
+describe("RECORD counts every role and project on file", () => {
+  it.each([
+    "United Overseas Bank",
+    "UOB",
+    "Mastercard",
+    "CK Delta",
+    "Energy Market Authority",
+    "Toyota Tsusho",
+    PROJECTS[0].title,
+  ])("matches %s", (item) => {
+    expect(RECORD.test(item)).toBe(true);
+  });
+
+  it("still does not match 'schema'", () => {
+    expect(RECORD.test("A clean schema.")).toBe(false);
+  });
+});
+
+describe("langserve's compliment check looks at tool calls, not footnotes", () => {
+  const LITELLM = "https://medium.com/mitb-for-all/a-gentle-introduction-to-litellm-649d48a0c2c7";
+  const HELM = "https://medium.com/mitb-for-all/helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1";
+
+  it("fails the compliment check when turn 4 searches without any footnote", () => {
+    const replies: Reply[] = langserve.turns.map(() => ({ content: "Here is my answer." }));
+    replies[5] = { content: `Start with [Agent memory](${FEATURED_ARTICLES[0].href}).` };
+    replies[6] = { content: "Dated: that article is from 2025, when it was true." };
+    replies[8] = { content: "Dated: that article is from 2025, when it was true." };
+    replies[9] = { content: "Dated: that article is from 2025, when it was true." };
+    replies[10] = {
+      content: "Use LiteLLM [1] and Helm [2] for that.",
+      sources: [
+        { n: 1, title: "A gentle introduction to LiteLLM", url: LITELLM },
+        { n: 2, title: "Helm Charts: The Multi-Server Orchestra Conductor", url: HELM },
+      ],
+    };
+    replies[4] = { content: "Thanks, that's kind.", tools: ["search_writing"] };
+
+    const checks = langserve.checks(transcript(langserve.turns, replies));
+
+    expect(find(checks, /turn 4 \(a compliment\) doesn't search/)[0].ok).toBe(false);
   });
 });

@@ -4,11 +4,20 @@ import { SECTION_PICK_MS, SECTION_RUBRIC, pickSections, type PickInput, type Sec
 type Scores = Record<string, number | null>;
 type Opts = NonNullable<Parameters<typeof pickSections>[2]>;
 
-/** A Jev client that scores each question by its section key, and records each request. */
+/**
+ * A Jev client that scores each question by the heading in its payload, whatever the question is keyed by,
+ * and records each request. Scores are given by heading, so tests read like the article.
+ */
 function fakeClient(scores: Scores) {
   return {
     systemOne: jest.fn(async (req: { questions: Record<string, unknown> }) => ({
-      answers: Object.fromEntries(Object.keys(req.questions).map((key) => [key, { type: "score", score: scores[key] ?? null }])),
+      answers: Object.fromEntries(
+        Object.entries(req.questions).map(([key, question]) => {
+          const json = JSON.stringify(question);
+          const heading = Object.keys(scores).find((h) => json.includes(`"heading":${JSON.stringify(h)}`));
+          return [key, { type: "score", score: heading === undefined ? null : scores[heading] }];
+        })
+      ),
     })),
   };
 }
@@ -191,5 +200,56 @@ describe("pickSections", () => {
     const picked = await pickSections(input(body), "q", opts(client, { budget: 10 }));
 
     expect(picked.sections).toEqual([{ heading: "B", text: "bbbbbbbb" }]);
+  });
+});
+
+describe("pickSections review fixes", () => {
+  it("always returns the top-scored section, truncated to the remaining budget when it doesn't fit", async () => {
+    // Budget 30: the intro takes 10 (a third), leaving 20. B is the top section and is 25, so it is cut to 20.
+    const body = ["I".repeat(25), "", section("A", 5), section("B", 25), section("C", 5)].join("\n");
+    const client = fakeClient({ A: 1, B: 3, C: 2 });
+
+    const picked = await pickSections(input(body, { slug: "review-top" }), "q", opts(client, { budget: 30 }));
+
+    expect(picked.sections).toEqual([
+      { heading: null, text: "I".repeat(10) },
+      { heading: "B", text: "b".repeat(20) },
+    ]);
+    expect(picked.truncated).toBe(true);
+  });
+
+  it("keeps filling after the top section when it fits", async () => {
+    // Guard: the top section fits whole, then the next-best sections fill the budget in order.
+    const body = [section("A", 10), section("B", 10), section("C", 10)].join("\n");
+    const client = fakeClient({ A: 3, B: 2, C: 1 });
+
+    const picked = await pickSections(input(body, { slug: "review-fill" }), "q", opts(client, { budget: 25 }));
+
+    expect(picked.sections).toEqual([
+      { heading: "A", text: "a".repeat(10) },
+      { heading: "B", text: "b".repeat(10) },
+    ]);
+    expect(picked.truncated).toBe(true);
+  });
+
+  it("keys Jev questions by position, not heading text", async () => {
+    const body = ["### Final thoughts\naaaaaaaa", "### Final thoughts\nbbbbbbbb", "### Other\ncccccccc"].join("\n");
+    const client = {
+      systemOne: jest.fn(async (_req: { questions: Record<string, unknown> }) => ({
+        answers: { s0: { type: "score", score: 1 }, s1: { type: "score", score: 3 }, s2: { type: "score", score: 2 } },
+      })),
+    };
+    const onTrace = jest.fn<void, [SectionTrace]>();
+
+    const picked = await pickSections(input(body, { slug: "review-keys" }), "q", opts(client, { budget: 10, onTrace }));
+
+    expect(Object.keys(client.systemOne.mock.lastCall?.[0].questions ?? {})).toEqual(["s0", "s1", "s2"]);
+    // s1 is the second "Final thoughts" (the key "Final thoughts (2)"), and it is the best score that fits.
+    expect(picked.sections).toEqual([{ heading: "Final thoughts", text: "bbbbbbbb" }]);
+    expect(onTrace.mock.lastCall?.[0].scored).toEqual([
+      { key: "Final thoughts", score: 1 },
+      { key: "Final thoughts (2)", score: 3 },
+      { key: "Other", score: 2 },
+    ]);
   });
 });

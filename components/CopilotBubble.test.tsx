@@ -946,6 +946,39 @@ describe("CopilotBubble", () => {
       expect(bodyOf(1).citations[0]).not.toHaveProperty("title");
     });
 
+    it("links a citation to an article cited in an earlier reply", async () => {
+      const EARLIER = "https://medium.com/@tituslhy/earlier";
+      const user = userEvent.setup();
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(createStreamingResponse([source(2, "Earlier article", EARLIER), delta("First answer [2].")]))
+        .mockResolvedValueOnce(createStreamingResponse([delta("The most recent is [2].")]));
+      render(<CopilotBubble />);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      const input = screen.getByPlaceholderText(/ask about my work/i);
+
+      await user.type(input, "First question{Enter}");
+      await waitFor(() => expect(screen.getByText("Sources")).toBeInTheDocument());
+      await user.type(input, "Second question{Enter}");
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByText(/The most recent is/)).toBeInTheDocument());
+
+      // One superscript per reply: reply 2 has no footnote of its own, but [2] still points at the earlier article.
+      const links = screen.getAllByRole("link", { name: "Source 2: Earlier article" });
+      expect(links).toHaveLength(2);
+      for (const link of links) expect(link).toHaveAttribute("href", EARLIER);
+    });
+
+    it("a number no reply ever sent stays plain text", async () => {
+      const user = userEvent.setup();
+      (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse([delta("Unknown [9] here.")]));
+      render(<CopilotBubble />);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      await user.type(screen.getByPlaceholderText(/ask about my work/i), "Question{Enter}");
+
+      await waitFor(() => expect(screen.getByText(/Unknown \[9\] here\./)).toBeInTheDocument());
+      expect(screen.queryByRole("link", { name: /^Source 9/ })).not.toBeInTheDocument();
+    });
+
     it("renders a Sources row with one link per article the reply drew on", async () => {
       await askAndWait([source(1, "Your agent needs a bouncer"), source(2, "Teaching Toothless to Bite", "https://medium.com/@tituslhy/lora"), delta("Two pieces cover it.")]);
 

@@ -736,7 +736,10 @@ export default function CopilotBubble({
             </div>
           )}
 
-          {messages.map((msg) => (
+          {messages.map((msg, i) => {
+            // A reply may cite an article an earlier reply already footnoted, under the same number.
+            const citable = [...(msg.sources ?? []), ...messages.slice(0, i).flatMap((m) => m.sources ?? [])];
+            return (
             <article key={msg.id} id={`copilot-msg-${msg.id}`} className="flex flex-col gap-1.5">
               {msg.role === "user" ? (
                 <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
@@ -778,7 +781,7 @@ export default function CopilotBubble({
                         li: ({ children }) => <li className="leading-relaxed">{children}</li>,
                         a: ({ href, children }) => {
                           if (href?.startsWith("cite:")) {
-                            const source = sourceForHref(href, msg.sources);
+                            const source = sourceForHref(href, citable);
                             // A number the server never sent stays plain text.
                             if (!source) return <>[{children}]</>;
                             return (
@@ -822,7 +825,7 @@ export default function CopilotBubble({
                         h3: ({ children }) => <p className="mb-1.5 font-semibold text-ink">{children}</p>,
                       }}
                     >
-                      {msg.sources?.length ? linkCitations(msg.content) : msg.content}
+                      {citable.length ? linkCitations(msg.content) : msg.content}
                     </ReactMarkdown>
                   </div>
                 )}
@@ -873,7 +876,8 @@ export default function CopilotBubble({
                 </button>
               </div>
             </article>
-          ))}
+            );
+          })}
 
           {isLoading && (
             <TypingIndicator caption={loadingCaption ?? (turningTo && `Turning to ${turningTo}…`)} />

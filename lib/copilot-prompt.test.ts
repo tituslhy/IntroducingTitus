@@ -145,7 +145,9 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
   })
 
   it('no longer mentions web search anywhere in the prompt', () => {
-    expect(rendered).not.toMatch(/web[ -]search/i)
+    // Article summaries in My Library may describe web-search agents; the guard is about the copilot's own claims.
+    const withoutLibrary = rendered.replace(/## My Library[\s\S]*?(?=\n---|\n## |$)/, '')
+    expect(withoutLibrary).not.toMatch(/web[ -]search/i)
   })
 
   it('has an About Me, the Assistant section that links the colophon', () => {
@@ -326,15 +328,15 @@ describe('featured article links', () => {
     }
   )
 
-  it('falls back to the featured href, with no date, when the corpus has no match', () => {
+  it('falls back to the featured href, with no date, when the corpus has no match', async () => {
     // Stub the lookup to miss, in a fresh module registry so the rest of this file is unaffected.
     let out = ''
-    jest.isolateModules(() => {
+    await jest.isolateModulesAsync(async () => {
       jest.doMock('./citation-ledger', () => ({
         ...jest.requireActual('./citation-ledger'),
         articleByUrl: () => undefined,
       }))
-      const fresh = require('./copilot-prompt') as typeof import('./copilot-prompt')
+      const fresh = await import('./copilot-prompt')
       out = fresh.buildSystemPrompt('{{FEATURED_ARTICLES}}')
     })
     jest.dontMock('./citation-ledger')
@@ -386,10 +388,25 @@ describe('My Library (renderLibrary and the WRITING_TREE token)', () => {
     expect(out).toContain(mediumPostId(second.url) ?? second.slug)
   })
 
-  it('tree section says never cite from it and points at read_writing', () => {
-    expect(rendered).toContain('## My Library')
-    expect(rendered.toLowerCase()).toContain('never cite')
-    expect(rendered).toContain('read_writing')
+  it('the My Library section says never cite from it', () => {
+    const start = rendered.indexOf('## My Library')
+    expect(start).toBeGreaterThanOrEqual(0)
+    const rest = rendered.slice(start + '## My Library'.length)
+    const end = rest.search(/\n---|\n## /)
+    const section = end === -1 ? rest : rest.slice(0, end)
+
+    expect(section).toMatch(/never cite/i)
+  })
+
+  it("no-results rule sends the model to the library before saying I haven't written about it", () => {
+    const line = rendered.split('\n').find((l) => l.includes('check My Library'))
+
+    expect(line).toBeDefined()
+    expect(line).toContain('read_writing')
+  })
+
+  it("architecture answers don't invite invented hindsight", () => {
+    expect(rendered).not.toContain('What would I do differently?')
   })
 
   it('WRITING_TREE is a template token: exposed by promptTokens and rendered away', () => {
