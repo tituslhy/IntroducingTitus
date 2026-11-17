@@ -1,3 +1,4 @@
+import BackToTop from '@/components/BackToTop'
 import Passions from '@/components/Passions'
 import { ARTICLE_COUNT_WORD } from '@/lib/content'
 
@@ -11,6 +12,7 @@ export default function About() {
             <span className="font-semibold tracking-[0.08em] text-amber">01</span>
             <span className="font-medium text-ink">About</span>
             <span className="h-px flex-1 self-center bg-rule" />
+            <BackToTop />
           </div>
           <h2 className="mt-[22px] max-w-[22ch] font-serif text-[clamp(34px,5vw,68px)] font-medium leading-[1.04] tracking-[-0.025em] [text-wrap:balance]">
             A note on the <em className="italic text-amber">work</em> I take on.

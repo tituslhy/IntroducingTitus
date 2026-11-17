@@ -1,3 +1,4 @@
+import BackToTop from '@/components/BackToTop'
 import { SITE_STACK_GROUPS as STACK_GROUPS } from '@/lib/profile'
 
 export default function TechStack() {
@@ -10,6 +11,7 @@ export default function TechStack() {
             <span className="font-semibold tracking-[0.08em] text-amber">02</span>
             <span className="font-medium text-ink">Stack</span>
             <span className="h-px flex-1 self-center bg-rule" />
+            <BackToTop />
           </div>
           <h2 className="mt-[22px] max-w-[22ch] font-serif text-[clamp(34px,5vw,68px)] font-medium leading-[1.04] tracking-[-0.025em] [text-wrap:balance]">
             What I <em className="italic text-amber">work with</em>.

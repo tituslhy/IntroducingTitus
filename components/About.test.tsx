@@ -2,6 +2,14 @@ import { render, screen } from "@testing-library/react";
 import About from "./About";
 
 describe("About", () => {
+  it("should render a back-to-top link in the section marker row", () => {
+    const { container } = render(<About />);
+    const marker = container.querySelector("section#lede header > div");
+    const link = screen.getByRole("link", { name: /back to top/i });
+    expect(marker).toContainElement(link);
+    expect(link).toHaveAttribute("href", "#masthead");
+  });
+
   it("should render section with lede id", () => {
     const { container } = render(<About />);
     const section = container.querySelector("section#lede");
