@@ -1,0 +1,66 @@
+{
+  "allowManagedPermissionRulesOnly": true,
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(bash .github/issue-agent/thread.sh)",
+      "Bash(bash .github/issue-agent/comment.sh)",
+      "Bash(bash .github/issue-agent/label.sh add *)",
+      "Bash(bash .github/issue-agent/label.sh remove *)",
+      "Edit",
+      "Bash(npm run lint)",
+      "Bash(npm test)",
+      "Bash(npm test -- *)",
+      "Bash(npx jest *)",
+      "Bash(npm run build)",
+      "Bash(git status --short)",
+      "Bash(git diff)",
+      "Bash(git diff main...HEAD)",
+      "Bash(git log --oneline -20)",
+      "Bash(git checkout -b agent/issue-__ISSUE__-*)",
+      "Bash(git checkout agent/issue-__ISSUE__-*)",
+      "Bash(git checkout main)",
+      "Bash(git checkout -)",
+      "Bash(git add -A)",
+      "Bash(git commit -m *)",
+      "Bash(git stash -u)",
+      "Bash(git stash pop)",
+      "Bash(git branch -r --list *)",
+      "Bash(bash .github/issue-agent/push.sh)",
+      "Bash(bash .github/issue-agent/pr.sh *)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(//proc/**)",
+      "Read(~/.claude/**)",
+      "Agent",
+      "Bash(sudo *)",
+      "Bash(docker *)",
+      "Bash(rm -rf *)",
+      "Bash(git push *)",
+      "Bash(* --output*)",
+      "Bash(* --outputFile*)",
+      "Edit(**/.github/**)",
+      "Edit(**/.claude/**)",
+      "Edit(**/.git/**)",
+      "Edit(**/package.json)",
+      "Edit(**/package-lock.json)",
+      "Edit(**/jest.config.*)",
+      "Edit(**/jest.setup.*)",
+      "Edit(**/eslint.config.*)",
+      "Edit(**/.eslintrc*)"
+    ],
+    "denyInsteadOfPrompting": true
+  },
+  "sandbox": {
+    "enabled": false
+  },
+  "env": {
+    "npm_config_cache": "/home/runner/.npm"
+  }
+}

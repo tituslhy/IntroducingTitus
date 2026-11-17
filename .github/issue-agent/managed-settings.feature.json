@@ -1,0 +1,46 @@
+{
+  "allowManagedPermissionRulesOnly": true,
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit(.issue-agent-tmp/**)",
+      "Bash(bash .github/issue-agent/thread.sh)",
+      "Bash(bash .github/issue-agent/comment.sh)",
+      "Bash(bash .github/issue-agent/label.sh add *)",
+      "Bash(bash .github/issue-agent/label.sh remove *)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(//proc/**)",
+      "Read(~/.claude/**)",
+      "Agent",
+      "Bash(sudo *)",
+      "Bash(docker *)",
+      "Bash(rm -rf *)",
+      "Bash(git push *)",
+      "Bash(* --output*)",
+      "Bash(* --outputFile*)",
+      "Edit(**/.github/**)",
+      "Edit(**/.claude/**)",
+      "Edit(**/.git/**)",
+      "Edit(**/package.json)",
+      "Edit(**/package-lock.json)",
+      "Edit(**/jest.config.*)",
+      "Edit(**/jest.setup.*)",
+      "Edit(**/eslint.config.*)",
+      "Edit(**/.eslintrc*)"
+    ],
+    "denyInsteadOfPrompting": true
+  },
+  "sandbox": {
+    "enabled": false
+  },
+  "env": {
+    "npm_config_cache": "/home/runner/.npm"
+  }
+}
