@@ -26,6 +26,23 @@ This site is a professional brand presence and web-form resume. Not a blog. Not 
 
 ---
 
+## Issue Agent (GitHub Actions)
+Opt-in, owner-only. Label **your own** issue to start it (`.github/workflows/issue-agent.yml`):
+- `agent:bug` → Sonnet triages, fixes, runs lint/test/build, one `code-reviewer` pass, opens a PR (`Fixes #N`). Behaviour: `.github/issue-agent/bug.md`.
+- `agent:feature` → Opus asks one question per comment until you reply `approved` to its scope summary, writes a plan in `docs/superpowers/plans/`, has `plan-reviewer` critique it, opens a PR (`Refs #N`). Behaviour: `.github/issue-agent/feature.md`.
+- Status labels `agent:waiting-on-titus`, `agent:pr-open`; `agent:off` stops it on that issue.
+- It reads threads only via `.github/issue-agent/thread.sh` (drops non-owner comments). Runner permissions come from `.github/issue-agent/ci-settings.json` (swapped in on the runner) — edit that, not `.claude/settings.json`, to change them. `__tests__/issue-agent-workflow.test.ts` guards the workflow's security shape.
+
+One-time setup:
+```bash
+claude setup-token                      # copy the token, then:
+gh secret set CLAUDE_CODE_OAUTH_TOKEN
+for l in agent:bug agent:feature agent:waiting-on-titus agent:pr-open agent:off; do gh label create "$l" --force; done
+```
+Plus Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
+
+---
+
 ## Tech Stack
 - **Framework:** Next.js 14 (App Router)
 - **Styling:** Tailwind CSS
