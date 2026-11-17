@@ -18,25 +18,39 @@ to PR in a few minutes. Don't gold-plate.
   `unit-test-writer` agent; no client-sensitive content; no family details.
 - Write comment and PR bodies with the Write tool to `.issue-agent-tmp/<name>.md`
   (gitignored), then pass them with `--body-file`. Don't use heredocs or
-  `$(...)` in commands; only the listed commands are allowed.
-- Never commit `.claude/settings.json` (the runner has a CI-only copy).
+  `$(...)` in commands, and no pipes or `&&` chains.
+- Only these command shapes are allowed (anything else is denied, so don't
+  waste turns): `gh issue comment <N> --body-file .issue-agent-tmp/…`,
+  `gh issue edit <N> --add-label …` / `--remove-label …` (label flags first),
+  `git push -u origin agent/…`, `gh pr create --base main --head agent/…`,
+  `gh pr edit agent/…`, `gh pr list --head agent/…`, `git branch -r …`,
+  plus git status/diff/log/checkout/add/commit/stash and the npm checks below.
+- You cannot edit `.github/`, `.claude/`, `.git/`, `package.json`,
+  `package-lock.json` or jest config. If the fix truly needs one of those
+  (e.g. a dependency bump), say so on the issue and stop.
 - Never merge, never push to `main`, never close an issue or PR.
 - Conventional commit messages: `fix(<area>): …`, `test(<area>): …`.
 
 ## 0. Work out where you are
 
-From the thread and `git ls-remote --heads origin "agent/issue-<N>-*"`:
+From the thread, `git branch -r --list "origin/agent/issue-<N>-*"`, and, if a
+branch exists, `gh pr list --head agent/issue-<N>-<slug> --state all --json number,state,url`:
 
 - **Triggered by the `agent:bug` label and the issue also has
   `agent:feature`** → you're taking over from the feature track. Run
   `gh issue edit <N> --remove-label agent:feature`, and post one comment:
   "Switched to the bug track." If a plan PR is open, leave it alone and
-  mention it.
-- **A PR branch `agent/issue-<N>-*` already exists** → Titus's latest comment
-  is a change request. Check out that branch, make the change, re-run step 3,
-  push, and reply on the issue with what changed. Skip to step 5's comment
-  (don't open a second PR; update the existing one with `gh pr edit` if its
-  description is now wrong).
+  mention it. Then continue with the rules below.
+- **The bug PR is merged or closed** → this issue is done. Run
+  `gh issue edit <N> --remove-label agent:bug --remove-label agent:waiting-on-titus`,
+  comment "PR #<n> is <merged/closed>, so I've stopped. Re-add `agent:bug`
+  with a new comment if there's more to fix." and **stop**.
+- **The bug PR is open** → Titus's latest comment is a change request. If
+  it isn't actionable (thanks, an aside), do nothing and stop. Otherwise
+  `git checkout agent/issue-<N>-<slug>`, make the change, re-run steps 3–4,
+  commit, `git push -u origin agent/issue-<N>-<slug>`, update the PR body
+  with `gh pr edit agent/issue-<N>-<slug> --body-file …` if it's now wrong,
+  and reply on the issue with what changed. Don't open a second PR.
 - **Your last comment was a question and Titus has replied** → carry on from
   where that question blocked you.
 - Otherwise → start at step 1.
@@ -86,24 +100,28 @@ npm test
 npm run build
 ```
 
-Only if something fails: check whether it also fails on `main`
-(`git stash`/`git checkout main`, run the failing command, come back). A
-failure that also happens on `main` is pre-existing — note it, don't fix it.
+Only if something fails: check whether it also fails without your change.
+`git stash -u` (the `-u` matters: it also sets aside your new test file),
+run the failing command, then `git stash pop`. If you've already committed,
+`git checkout main`, run it, `git checkout -` back instead. A failure that
+also happens without your change is pre-existing — note it, don't fix it.
 A failure your change caused — fix it.
 
 Never claim a check passed unless you ran it and read the output.
 
 ## 4. Quick review
 
-Hand `git diff main...HEAD` to the `code-reviewer` agent once. Apply what's
-valid; for what you decline, note one line why. **No second round.**
+Commit first (so the diff is real), then give the `code-reviewer` agent the
+output of `git diff main...HEAD` once, telling it: **report findings only, do
+not edit files.** Apply what's valid yourself and commit again; for what you
+decline, note one line why. **No second round.**
 
 ## 5. Deliver
 
-Commit, `git push -u origin <branch>`, then:
+`git push -u origin agent/issue-<N>-<slug>`, then:
 
 ```
-gh pr create --base main --head <branch> \
+gh pr create --base main --head agent/issue-<N>-<slug> \
   --title "fix: <one line>" --body-file .issue-agent-tmp/<name>.md
 ```
 
