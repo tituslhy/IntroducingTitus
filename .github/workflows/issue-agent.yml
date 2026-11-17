@@ -51,6 +51,10 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Install dependencies (bug track)
+        if: env.TRACK == 'bug'
+        run: npm ci
+
       - name: Install the issue agent's permission policy
         # Managed settings outrank the repo's .claude/settings.json, and
         # allowManagedPermissionRulesOnly makes this file the only source of
@@ -62,6 +66,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - id: claude
+        # Step timeout (inside the 15-min job) so the failure notice below always runs.
+        timeout-minutes: 12
         uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -79,7 +85,7 @@ jobs:
             You are the issue agent. Read and follow `.github/issue-agent/${{ env.TRACK }}.md` exactly.
           claude_args: |
             --model claude-haiku-5-5
-            --max-turns 25
+            --max-turns ${{ env.TRACK == 'bug' && '35' || '15' }}
             --permission-mode default
 
       - name: Tell Titus the run stopped

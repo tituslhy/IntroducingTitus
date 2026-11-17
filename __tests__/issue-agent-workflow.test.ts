@@ -30,56 +30,53 @@ const FEATURE_ALLOW = [
   'Read',
   'Glob',
   'Grep',
-  'Write(**/.issue-agent-tmp/**)',
+  'Edit(.issue-agent-tmp/**)',
   'Bash(bash .github/issue-agent/thread.sh)',
   'Bash(bash .github/issue-agent/comment.sh)',
-  'Bash(bash .github/issue-agent/label.sh add:*)',
-  'Bash(bash .github/issue-agent/label.sh remove:*)',
+  'Bash(bash .github/issue-agent/label.sh add *)',
+  'Bash(bash .github/issue-agent/label.sh remove *)',
 ];
 
 const BUG_EXTRA_ALLOW = [
   'Edit',
-  'Write',
-  'Bash(npm ci)',
   'Bash(npm run lint)',
   'Bash(npm test)',
-  'Bash(npm test -- :*)',
-  'Bash(npx jest :*)',
+  'Bash(npm test -- *)',
+  'Bash(npx jest *)',
   'Bash(npm run build)',
   'Bash(git status --short)',
   'Bash(git diff)',
   'Bash(git diff main...HEAD)',
   'Bash(git log --oneline -20)',
-  'Bash(git checkout -b agent/issue-__ISSUE__-:*)',
-  'Bash(git checkout agent/issue-__ISSUE__-:*)',
+  'Bash(git checkout -b agent/issue-__ISSUE__-*)',
+  'Bash(git checkout agent/issue-__ISSUE__-*)',
   'Bash(git checkout main)',
   'Bash(git checkout -)',
   'Bash(git add -A)',
-  'Bash(git commit -m :*)',
+  'Bash(git commit -m *)',
   'Bash(git stash -u)',
   'Bash(git stash pop)',
-  'Bash(git branch -r --list :*)',
+  'Bash(git branch -r --list *)',
   'Bash(bash .github/issue-agent/push.sh)',
-  'Bash(bash .github/issue-agent/pr.sh :*)',
+  'Bash(bash .github/issue-agent/pr.sh *)',
 ];
 
-const BUG_ALLOW = [...FEATURE_ALLOW, ...BUG_EXTRA_ALLOW];
+const BUG_ALLOW = [...FEATURE_ALLOW.filter((e) => e !== 'Edit(.issue-agent-tmp/**)'), ...BUG_EXTRA_ALLOW];
 
 const DENY = [
   'Read(**/.env)',
   'Read(**/.env.*)',
+  'Read(//proc/**)',
+  'Read(~/.claude/**)',
   'Edit(**/.github/**)',
-  'Write(**/.github/**)',
   'Edit(**/.claude/**)',
-  'Write(**/.claude/**)',
   'Edit(**/.git/**)',
-  'Write(**/.git/**)',
   'Edit(**/package.json)',
-  'Write(**/package.json)',
   'Edit(**/package-lock.json)',
-  'Write(**/package-lock.json)',
   'Edit(**/jest.config.*)',
-  'Write(**/jest.config.*)',
+  'Agent',
+  'Bash(* --output*)',
+  'Bash(* --outputFile*)',
 ];
 
 // Allow entries that would let the agent talk to GitHub or git directly instead of through the helper scripts.
@@ -101,6 +98,20 @@ const BROAD_FORBIDDEN = [
   'WebSearch',
 ];
 
+// Placeholders in the track instructions, replaced with concrete values before matching.
+// Order matters: quoted forms first so the quotes survive.
+const PLACEHOLDER_SUBSTITUTIONS: [string, string][] = [
+  ['"<msg>"', '"fix(nav): stop overlap"'],
+  ['"<pattern>"', '"origin/agent/issue-7-*"'],
+  ['<ISSUE>', '7'],
+  ['<slug>', 'nav-fix'],
+  ['<label>', 'agent:ready'],
+  ['<path>', 'components/Nav.test.tsx'],
+  ['<area>', 'nav'],
+  ['<what>', 'stop overlap'],
+];
+const COMMAND_PREFIXES = ['bash .github/issue-agent/', 'git ', 'npm ', 'npx '];
+
 type Step = {
   id?: string;
   if?: string;
@@ -108,6 +119,7 @@ type Step = {
   run?: string;
   env?: Record<string, string>;
   with?: Record<string, string>;
+  'timeout-minutes'?: number;
 };
 type Concurrency = { group?: string; 'cancel-in-progress'?: boolean };
 type Job = {
@@ -202,6 +214,57 @@ function sorted(xs: string[]): string[] {
   return [...xs].sort();
 }
 
+// Claude Code permission rule semantics for Bash(...) rules:
+// - no `*`: exact match of the whole command
+// - trailing ` *` as the only wildcard: matches `X` exactly, or `X ` followed by anything
+// - trailing `*` with no space: prefix match
+// - a trailing `:*` is the same as a trailing ` *`
+// Any other rule shape (and any non-Bash rule, e.g. Write(path)) never matches a command.
+function ruleMatches(rule: string, cmd: string): boolean {
+  const m = /^Bash\((.*)\)$/.exec(rule);
+  if (!m) return false;
+  let pattern = m[1];
+  if (pattern.endsWith(':*')) pattern = `${pattern.slice(0, -2)} *`;
+  const stars = pattern.split('*').length - 1;
+  if (stars === 0) return cmd === pattern;
+  if (stars === 1 && pattern.endsWith(' *')) {
+    const base = pattern.slice(0, -2);
+    return cmd === base || cmd.startsWith(`${base} `);
+  }
+  if (stars === 1 && pattern.endsWith('*')) {
+    return cmd.startsWith(pattern.slice(0, -1));
+  }
+  return false;
+}
+
+// Compound commands joined with ' && ' are allowed only when every part is allowed.
+function commandAllowed(rules: string[], cmd: string): boolean {
+  return cmd.split(' && ').every((part) => rules.some((r) => ruleMatches(r, part)));
+}
+
+// Inline backtick spans outside fenced code blocks.
+function inlineSpans(md: string): string[] {
+  const spans: string[] = [];
+  let inFence = false;
+  for (const line of md.split('\n')) {
+    if (/^\s*```/.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    for (const m of [...line.matchAll(/`([^`]+)`/g)]) spans.push(m[1]);
+  }
+  return spans;
+}
+
+// Commands the track instructions tell the agent to run, with placeholders filled in.
+function namedCommands(md: string): string[] {
+  return inlineSpans(md)
+    .filter((span) => COMMAND_PREFIXES.some((p) => span.startsWith(p)))
+    .map((span) => PLACEHOLDER_SUBSTITUTIONS.reduce((acc, [from, to]) => acc.split(from).join(to), span))
+    .filter((cmd) => !cmd.includes('<') && !cmd.endsWith('…'));
+}
+
 describe('issue-agent workflow', () => {
   beforeAll(() => {
     raw = readRepoFile(WORKFLOW_PATH);
@@ -252,10 +315,15 @@ describe('issue-agent workflow', () => {
   it('Haiku with caps', () => {
     const args = claudeArgs();
     expect({
-      missing: misses(args, ['--model claude-haiku-5-5', '--max-turns 25', '--permission-mode default']),
+      missing: misses(args, [
+        '--model claude-haiku-5-5',
+        "--max-turns ${{ env.TRACK == 'bug' && '35' || '15' }}",
+        '--permission-mode default',
+      ]),
       present: hits(args, ['--allowedTools', '--dangerously', 'acceptEdits', 'sonnet', 'opus']),
-      timeout: agentJob()['timeout-minutes'],
-    }).toEqual({ missing: [], present: [], timeout: 15 });
+      jobTimeout: agentJob()['timeout-minutes'],
+      stepTimeout: claudeStep()['timeout-minutes'],
+    }).toEqual({ missing: [], present: [], jobTimeout: 15, stepTimeout: 12 });
   });
 
   it('prompt points at the track file', () => {
@@ -317,6 +385,15 @@ describe('issue-agent workflow', () => {
       found: true,
       missing: [],
     });
+  });
+
+  it('bug runs install dependencies before Claude', () => {
+    const before = steps().slice(0, claudeIndex());
+    const install = before.find((s) => (s.run ?? '').includes('npm ci'));
+    expect({
+      found: install !== undefined,
+      missing: misses(install?.if ?? '', ["env.TRACK == 'bug'"]),
+    }).toEqual({ found: true, missing: [] });
   });
 
   it('failure notice tells Titus when a run stops', () => {
@@ -389,6 +466,17 @@ describe('issue-agent workflow', () => {
     expect(sorted(allowOf('bug'))).toEqual(sorted(BUG_ALLOW));
   });
 
+  it('no allow rule relies on Write(path) or a spaced :* suffix', () => {
+    for (const track of TRACKS) {
+      const allow = allowOf(track);
+      expect({
+        track,
+        writeRules: allow.filter((e) => e.startsWith('Write(')),
+        spacedColonStar: allow.filter((e) => /\s:\*\)$/.test(e)),
+      }).toEqual({ track, writeRules: [], spacedColonStar: [] });
+    }
+  });
+
   it('managed policy grants nothing broad', () => {
     for (const track of TRACKS) {
       const allow = allowOf(track);
@@ -401,7 +489,55 @@ describe('issue-agent workflow', () => {
   it('deny rules kept', () => {
     for (const track of TRACKS) {
       const deny = denyOf(track);
-      expect({ track, missing: DENY.filter((d) => !deny.includes(d)) }).toEqual({ track, missing: [] });
+      expect({
+        track,
+        missing: DENY.filter((d) => !deny.includes(d)),
+        writeRules: deny.filter((d) => d.startsWith('Write(')),
+      }).toEqual({ track, missing: [], writeRules: [] });
     }
+  });
+
+  it('ruleMatches follows Claude Code Bash rule semantics', () => {
+    expect({
+      starSpaceSuffixOnTail: ruleMatches('Bash(git checkout -b agent/issue-7-*)', 'git checkout -b agent/issue-7-nav-fix'),
+      spacedColonStar: ruleMatches('Bash(git checkout -b agent/issue-7-:*)', 'git checkout -b agent/issue-7-nav-fix'),
+      lsExact: ruleMatches('Bash(ls *)', 'ls'),
+      lsSpaceStarNotLsof: ruleMatches('Bash(ls *)', 'lsof'),
+      lsPrefixNoSpace: ruleMatches('Bash(ls*)', 'lsof'),
+      exactRuleNoArgs: ruleMatches('Bash(npm test)', 'npm test -- x'),
+      writeRuleNeverMatches: ruleMatches('Write(**/.issue-agent-tmp/**)', '.issue-agent-tmp/pr.md'),
+    }).toEqual({
+      starSpaceSuffixOnTail: true,
+      spacedColonStar: false,
+      lsExact: true,
+      lsSpaceStarNotLsof: false,
+      lsPrefixNoSpace: true,
+      exactRuleNoArgs: false,
+      writeRuleNeverMatches: false,
+    });
+  });
+
+  it('compound commands need every part allowed', () => {
+    const rules = BUG_ALLOW.map((r) => r.split('__ISSUE__').join('7'));
+    expect({
+      bothAllowed: commandAllowed(rules, 'git status --short && git diff'),
+      oneDenied: commandAllowed(rules, 'git status --short && rm -rf x'),
+    }).toEqual({ bothAllowed: true, oneDenied: false });
+  });
+
+  it("every command the instructions name is allowed by that track's policy", () => {
+    const cases: { track: Track; file: string }[] = [
+      { track: 'bug', file: 'bug.md' },
+      { track: 'feature', file: 'feature.md' },
+    ];
+    const emptyFiles: string[] = [];
+    const offending: Record<string, string[]> = {};
+    for (const { track, file } of cases) {
+      const cmds = namedCommands(readRepoFile(['.github', 'issue-agent', file]));
+      if (cmds.length === 0) emptyFiles.push(file);
+      const rules = allowOf(track).map((r) => r.split('__ISSUE__').join('7'));
+      offending[file] = cmds.filter((c) => !commandAllowed(rules, c));
+    }
+    expect({ emptyFiles, offending }).toEqual({ emptyFiles: [], offending: { 'bug.md': [], 'feature.md': [] } });
   });
 });
