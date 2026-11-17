@@ -3,18 +3,45 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 
-// Security-shape guards for the issue agent GitHub Actions workflow and its CI Claude settings.
+// Security-shape guards for the issue agent GitHub Actions workflow and its per-track managed Claude policies.
 const WORKFLOW_PATH = ['.github', 'workflows', 'issue-agent.yml'];
-const SETTINGS_PATH = ['.github', 'issue-agent', 'ci-settings.json'];
+const OLD_CI_SETTINGS_PATH = '.github/issue-agent/ci-settings.json';
 const JOBS = ['bug', 'feature'] as const;
+type Track = (typeof JOBS)[number];
 
 let raw = '';
-type Step = { id?: string; uses?: string; run?: string; with?: Record<string, string> };
-type Job = { if?: string; steps: Step[]; [key: string]: unknown };
+type Step = {
+  id?: string;
+  uses?: string;
+  run?: string;
+  env?: Record<string, string>;
+  with?: Record<string, string>;
+};
+type Concurrency = { group?: string; 'cancel-in-progress'?: boolean };
+type Job = {
+  if?: string;
+  steps: Step[];
+  concurrency?: Concurrency;
+  permissions?: Record<string, string>;
+  [key: string]: unknown;
+};
 type Workflow = {
   on?: unknown;
   jobs?: Record<string, Job>;
-  concurrency?: { group?: string; "cancel-in-progress"?: boolean };
+  concurrency?: Concurrency;
+  permissions?: Record<string, string>;
+  [key: string]: unknown;
+};
+type ManagedSettings = {
+  allowManagedPermissionRulesOnly?: boolean;
+  sandbox?: { enabled?: boolean };
+  permissions?: {
+    allow?: string[];
+    deny?: string[];
+    ask?: string[];
+    defaultMode?: string;
+    denyInsteadOfPrompting?: boolean;
+  };
   [key: string]: unknown;
 };
 
@@ -53,6 +80,10 @@ function jobIf(name: string): string {
   return String(job(name).if ?? '');
 }
 
+function managed(track: Track): ManagedSettings {
+  return JSON.parse(readRepoFile(['.github', 'issue-agent', `managed-settings.${track}.json`])) as ManagedSettings;
+}
+
 describe('issue-agent workflow', () => {
   beforeAll(() => {
     raw = readRepoFile(WORKFLOW_PATH);
@@ -66,9 +97,17 @@ describe('issue-agent workflow', () => {
     });
   });
 
-  it('serialises runs per issue', () => {
-    expect(wf.concurrency?.group).toBe('issue-agent-${{ github.event.issue.number }}');
-    expect(wf.concurrency?.['cancel-in-progress']).toBe(false);
+  it('serialises runs per issue at job level, not workflow level', () => {
+    expect(wf.concurrency).toBeUndefined();
+    for (const name of JOBS) {
+      expect({ job: name, concurrency: job(name).concurrency }).toEqual({
+        job: name,
+        concurrency: {
+          group: 'issue-agent-${{ github.event.issue.number }}',
+          'cancel-in-progress': false,
+        },
+      });
+    }
   });
 
   it('each job gates on owner, issue author, open, not PR, not agent:off', () => {
@@ -116,21 +155,9 @@ describe('issue-agent workflow', () => {
     }).toEqual({ job: 'feature', timeout: 30, model: true, turns: true });
   });
 
-  it('strict permission mode and narrow tools', () => {
-    const required = [
-      '--permission-mode acceptEdits',
-      'Bash(bash .github/issue-agent/thread.sh:*)',
-      'Bash(gh pr create:*)',
-    ];
-    const forbidden = [
-      'Bash(*)',
-      'Bash(npx:*)',
-      'Bash(git:*)',
-      'Bash(npm install',
-      'gh issue view',
-      'WebFetch',
-      'WebSearch',
-    ];
+  it('claude_args keep strict mode but carry no permission rules', () => {
+    const required = ['--permission-mode acceptEdits'];
+    const forbidden = ['--allowedTools', '--dangerously'];
     for (const name of JOBS) {
       const args = claudeArgs(name);
       const missing = required.filter((f) => !args.includes(f));
@@ -139,11 +166,114 @@ describe('issue-agent workflow', () => {
     }
   });
 
-  it('bug job can run checks, feature job cannot', () => {
-    const bugChecks = ['Bash(npm ci)', 'Bash(npm run lint)', 'Bash(npm test:*)', 'Bash(npm run build)'];
-    const featureForbidden = ['Bash(npm ci)', 'Bash(npm test', 'Bash(npm run build)'];
-    const bugMissing = bugChecks.filter((f) => !claudeArgs('bug').includes(f));
-    const featurePresent = featureForbidden.filter((f) => claudeArgs('feature').includes(f));
+  it('managed policy is the only source of permission rules', () => {
+    for (const name of JOBS) {
+      const m = managed(name);
+      expect({
+        job: name,
+        allowManagedPermissionRulesOnly: m.allowManagedPermissionRulesOnly,
+        denyInsteadOfPrompting: m.permissions?.denyInsteadOfPrompting,
+        sandboxEnabled: m.sandbox?.enabled,
+        ask: m.permissions?.ask ?? [],
+        defaultMode: m.permissions?.defaultMode,
+      }).toEqual({
+        job: name,
+        allowManagedPermissionRulesOnly: true,
+        denyInsteadOfPrompting: true,
+        sandboxEnabled: false,
+        ask: [],
+        defaultMode: undefined,
+      });
+    }
+  });
+
+  it('managed policy scopes the agent to its own issue and agent branches', () => {
+    const required = [
+      'Bash(bash .github/issue-agent/thread.sh __ISSUE__)',
+      'Bash(gh issue comment __ISSUE__ --body-file .issue-agent-tmp/:*)',
+      'Bash(gh issue edit __ISSUE__ --add-label:*)',
+      'Bash(gh issue edit __ISSUE__ --remove-label:*)',
+      'Bash(git push -u origin agent/:*)',
+      'Bash(gh pr create --base main --head agent/:*)',
+      'Bash(gh pr edit agent/:*)',
+      'Bash(gh pr list --head agent/:*)',
+    ];
+    for (const name of JOBS) {
+      const allow = managed(name).permissions?.allow ?? [];
+      const missing = required.filter((f) => !allow.includes(f));
+      expect({ job: name, missing }).toEqual({ job: name, missing: [] });
+    }
+  });
+
+  it('managed policy grants nothing broad', () => {
+    const forbiddenExact = [
+      'Bash(*)',
+      'Bash',
+      'Bash(git push:*)',
+      'Bash(git fetch:*)',
+      'Bash(git ls-remote:*)',
+      'Bash(npx:*)',
+      'Bash(npm install:*)',
+      'Bash(gh pr view:*)',
+      'Bash(gh issue view:*)',
+      'Bash(gh issue edit:*)',
+      'Bash(gh issue comment:*)',
+      'WebFetch',
+      'WebSearch',
+    ];
+    for (const name of JOBS) {
+      const allow = managed(name).permissions?.allow ?? [];
+      const present = allow.filter((e) => forbiddenExact.includes(e));
+      const ghApi = allow.filter((e) => e.includes('gh api'));
+      expect({ job: name, present, ghApi }).toEqual({ job: name, present: [], ghApi: [] });
+    }
+  });
+
+  it('managed policy blocks edits to control files and secrets', () => {
+    const required = [
+      'Read(**/.env)',
+      'Read(**/.env.*)',
+      'Edit(**/.github/**)',
+      'Write(**/.github/**)',
+      'Edit(**/.claude/**)',
+      'Write(**/.claude/**)',
+      'Edit(**/.git/**)',
+      'Write(**/.git/**)',
+      'Edit(**/package.json)',
+      'Write(**/package.json)',
+      'Edit(**/package-lock.json)',
+      'Write(**/package-lock.json)',
+      'Edit(**/jest.config.*)',
+      'Write(**/jest.config.*)',
+    ];
+    for (const name of JOBS) {
+      const deny = managed(name).permissions?.deny ?? [];
+      const missing = required.filter((f) => !deny.includes(f));
+      expect({ job: name, missing }).toEqual({ job: name, missing: [] });
+    }
+  });
+
+  it('bug policy can run checks, feature policy cannot', () => {
+    const bugChecks = [
+      'Bash(npm ci)',
+      'Bash(npm run lint)',
+      'Bash(npm test:*)',
+      'Bash(npx jest:*)',
+      'Bash(npm run build)',
+      'Bash(git stash:*)',
+    ];
+    const featureForbidden = [
+      'Bash(npm ci)',
+      'Bash(npm run lint)',
+      'Bash(npm test:*)',
+      'Bash(npx jest:*)',
+      'Bash(npm run build)',
+      'Bash(git stash:*)',
+    ];
+    const bugAllow = managed('bug').permissions?.allow ?? [];
+    const featureAllow = managed('feature').permissions?.allow ?? [];
+    const bugMissing = bugChecks.filter((f) => !bugAllow.includes(f));
+    const featurePresent = featureForbidden.filter((f) => featureAllow.includes(f));
     expect({ bugMissing, featurePresent }).toEqual({ bugMissing: [], featurePresent: [] });
   });
 
@@ -171,7 +301,7 @@ describe('issue-agent workflow', () => {
         oauthToken: step.with?.claude_code_oauth_token,
       }).toEqual({
         job: name,
-        uses: 'anthropics/claude-code-action@v1',
+        uses: expect.stringMatching(/^anthropics\/claude-code-action@[0-9a-f]{40}$/),
         includeComments: 'tituslhy,github-actions[bot]',
         githubToken: '${{ secrets.GITHUB_TOKEN }}',
         oauthToken: '${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}',
@@ -190,28 +320,31 @@ describe('issue-agent workflow', () => {
     }
   });
 
-  it('runner swaps in CI settings and hides the change from git', () => {
-    const copy = 'cp .github/issue-agent/ci-settings.json .claude/settings.json';
-    const skipWorktree = 'git update-index --skip-worktree .claude/settings.json';
+  it('runner installs the track\'s managed policy before Claude runs', () => {
     for (const name of JOBS) {
       const steps: Step[] = job(name).steps;
       const before = steps.slice(0, claudeIndex(name));
+      const managedFile = `.github/issue-agent/managed-settings.${name}.json`;
       const hasSetup = before.some((s) => {
         const run = String(s?.run ?? '');
-        return run.includes(copy) && run.includes(skipWorktree);
+        return (
+          run.includes(managedFile) &&
+          run.includes('/etc/claude-code/managed-settings.json') &&
+          run.includes('__ISSUE__') &&
+          s?.env?.ISSUE === '${{ github.event.issue.number }}'
+        );
       });
-      expect({ job: name, hasSetup }).toEqual({ job: name, hasSetup: true });
+      const touchesTrackedSettings = steps.some((s) => String(s?.run ?? '').includes('.claude/settings.json'));
+      expect({ job: name, hasSetup, touchesTrackedSettings }).toEqual({
+        job: name,
+        hasSetup: true,
+        touchesTrackedSettings: false,
+      });
     }
   });
 
-  it('CI settings never prompt and keep secret-file denies', () => {
-    const settings = JSON.parse(readRepoFile(SETTINGS_PATH));
-    const ask = settings.permissions?.ask ?? [];
-    expect(ask).toEqual([]);
-    expect(settings.sandbox?.autoAllowBashIfSandboxed).not.toBe(true);
-    expect(settings.permissions?.defaultMode).toBeUndefined();
-    const deny: string[] = settings.permissions?.deny ?? [];
-    expect(deny).toEqual(expect.arrayContaining(['Read(./.env)', 'Read(./.env.*)']));
+  it('old CI settings file is gone', () => {
+    expect(fs.existsSync(path.join(process.cwd(), OLD_CI_SETTINGS_PATH))).toBe(false);
   });
 
   it('workflow token permissions are scoped', () => {
@@ -219,7 +352,6 @@ describe('issue-agent workflow', () => {
       contents: 'write',
       'pull-requests': 'write',
       issues: 'write',
-      'id-token': 'write',
     });
   });
 });

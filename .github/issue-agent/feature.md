@@ -21,9 +21,17 @@ that triggered you.
   say so in your comment.
 - Write comment and PR bodies with the Write tool to `.issue-agent-tmp/<name>.md`
   (gitignored), then pass them with `--body-file`. Don't use heredocs or
-  `$(...)` in commands; only the listed commands are allowed.
-- Never commit `.claude/settings.json`. Never merge, never push to `main`,
-  never close an issue or PR.
+  `$(...)` in commands, and no pipes or `&&` chains.
+- Only these command shapes are allowed (anything else is denied, so don't
+  waste turns): `gh issue comment <N> --body-file .issue-agent-tmp/…`,
+  `gh issue edit <N> --add-label …` / `--remove-label …` (label flags first),
+  `git push -u origin agent/…`, `gh pr create --base main --head agent/…`,
+  `gh pr edit agent/…`, `gh pr list --head agent/…`, `git branch -r …`,
+  plus git status/diff/log/checkout/add/commit.
+- You cannot edit `.github/`, `.claude/`, `.git/`, `package.json`,
+  `package-lock.json` or jest config, and you don't need to: you only write
+  the plan file.
+- Never merge, never push to `main`, never close an issue or PR.
 - Comment with `gh issue comment <N> --body-file .issue-agent-tmp/<name>.md`.
 
 ## Read context first
@@ -41,9 +49,17 @@ From the thread, in this order:
    `gh issue edit <N> --remove-label agent:bug` and comment "Switched to the
    feature track." If a bug PR is open, leave it alone and mention it. Then
    continue below.
-2. **A plan PR on `agent/plan-issue-<N>-*` exists**
-   (`git ls-remote --heads origin "agent/plan-issue-<N>-*"`) → Titus's latest
-   comment is a revision request. Go to **Revise**.
+2. **A plan branch exists** (`git branch -r --list "origin/agent/plan-issue-<N>-*"`)
+   → check its PR with
+   `gh pr list --head agent/plan-issue-<N>-<slug> --state all --json number,state,url`.
+   - **Merged or closed** → this issue is done here. Run
+     `gh issue edit <N> --remove-label agent:feature --remove-label agent:waiting-on-titus`,
+     comment "Plan PR #<n> is <merged/closed>, so I've stopped. Implement it
+     with `implement docs/superpowers/plans/<file>.md`, or re-add
+     `agent:feature` with a new comment to plan again." and **stop**.
+   - **Open** → Titus's latest comment is a revision request. If it isn't
+     actionable (thanks, an aside), do nothing and stop. Otherwise go to
+     **Revise**.
 3. **You have posted a scope summary, and Titus's latest comment is exactly
    `approved`** (case-insensitive, ignoring whitespace and a trailing period)
    → go to **Write the plan**.
@@ -124,10 +140,11 @@ rounds.** Anything still open goes in the PR body under **Open points**.
 
 ## Deliver
 
-Commit (`docs(plan): issue #<N> <slug>`), `git push -u origin <branch>`, then:
+Commit (`docs(plan): issue #<N> <slug>`),
+`git push -u origin agent/plan-issue-<N>-<slug>`, then:
 
 ```
-gh pr create --base main --head <branch> \
+gh pr create --base main --head agent/plan-issue-<N>-<slug> \
   --title "plan: <feature in a few words>" --body-file .issue-agent-tmp/<name>.md
 ```
 
@@ -154,7 +171,9 @@ Then comment the PR URL on the issue and
 
 ## Revise
 
-Check out the plan branch, apply Titus's request, re-run `plan-reviewer` once
-if the change touches tasks, waves or acceptance criteria, push, update the PR
-body if it's now wrong (`gh pr edit`), and reply on the issue with what
-changed. Don't re-grill unless he asks.
+`git checkout agent/plan-issue-<N>-<slug>`, apply Titus's request, re-run
+`plan-reviewer` once if the change touches tasks, waves or acceptance
+criteria, commit, `git push -u origin agent/plan-issue-<N>-<slug>`, update
+the PR body if it's now wrong
+(`gh pr edit agent/plan-issue-<N>-<slug> --body-file …`), and reply on the
+issue with what changed. Don't re-grill unless he asks.

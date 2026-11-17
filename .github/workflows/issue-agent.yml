@@ -1,7 +1,7 @@
 # Issue agent: Titus labels his own issue `agent:bug` or `agent:feature`, and
 # Claude fixes the bug (PR) or grills him and writes a reviewed plan (PR).
 # Behaviour lives in .github/issue-agent/{bug,feature}.md; runner permissions
-# in .github/issue-agent/ci-settings.json. See CLAUDE.md → "Issue Agent".
+# in .github/issue-agent/managed-settings.{bug,feature}.json. See CLAUDE.md → "Issue Agent".
 name: Issue agent
 
 on:
@@ -14,11 +14,6 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
-  id-token: write
-
-concurrency:
-  group: issue-agent-${{ github.event.issue.number }}
-  cancel-in-progress: false
 
 jobs:
   bug:
@@ -31,6 +26,10 @@ jobs:
       ((github.event_name == 'issues' && github.event.label.name == 'agent:bug') ||
        (github.event_name == 'issue_comment' && contains(github.event.issue.labels.*.name, 'agent:bug')))
     runs-on: ubuntu-latest
+    # Job-level so skipped runs (e.g. a stranger's comment) never take or cancel a slot.
+    concurrency:
+      group: issue-agent-${{ github.event.issue.number }}
+      cancel-in-progress: false
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -42,15 +41,20 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Use CI Claude settings
+      - name: Install the issue agent's permission policy
+        # Managed settings outrank the repo's .claude/settings.json, and
+        # allowManagedPermissionRulesOnly makes this file the only source of
+        # permission rules. The tracked settings file is never touched.
+        env:
+          ISSUE: ${{ github.event.issue.number }}
         run: |
-          cp .github/issue-agent/ci-settings.json .claude/settings.json
-          git update-index --skip-worktree .claude/settings.json
+          sed "s/__ISSUE__/${ISSUE}/g" .github/issue-agent/managed-settings.bug.json > "$RUNNER_TEMP/managed-settings.json"
+          sudo install -D -m 0644 "$RUNNER_TEMP/managed-settings.json" /etc/claude-code/managed-settings.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - id: claude
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -70,7 +74,6 @@ jobs:
             --model claude-sonnet-5-5
             --max-turns 40
             --permission-mode acceptEdits
-            --allowedTools "Read,Edit,Write,Glob,Grep,Task,Bash(npm ci),Bash(npm run lint),Bash(npm test:*),Bash(npx jest:*),Bash(npm run build),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git ls-remote:*),Bash(git stash:*),Bash(git fetch:*),Bash(bash .github/issue-agent/thread.sh:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr edit:*)"
 
   feature:
     if: >-
@@ -82,21 +85,30 @@ jobs:
       ((github.event_name == 'issues' && github.event.label.name == 'agent:feature') ||
        (github.event_name == 'issue_comment' && contains(github.event.issue.labels.*.name, 'agent:feature')))
     runs-on: ubuntu-latest
+    # Job-level so skipped runs (e.g. a stranger's comment) never take or cancel a slot.
+    concurrency:
+      group: issue-agent-${{ github.event.issue.number }}
+      cancel-in-progress: false
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Use CI Claude settings
+      - name: Install the issue agent's permission policy
+        # Managed settings outrank the repo's .claude/settings.json, and
+        # allowManagedPermissionRulesOnly makes this file the only source of
+        # permission rules. The tracked settings file is never touched.
+        env:
+          ISSUE: ${{ github.event.issue.number }}
         run: |
-          cp .github/issue-agent/ci-settings.json .claude/settings.json
-          git update-index --skip-worktree .claude/settings.json
+          sed "s/__ISSUE__/${ISSUE}/g" .github/issue-agent/managed-settings.feature.json > "$RUNNER_TEMP/managed-settings.json"
+          sudo install -D -m 0644 "$RUNNER_TEMP/managed-settings.json" /etc/claude-code/managed-settings.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - id: claude
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -116,4 +128,3 @@ jobs:
             --model claude-opus-5-5
             --max-turns 80
             --permission-mode acceptEdits
-            --allowedTools "Read,Edit,Write,Glob,Grep,Task,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git ls-remote:*),Bash(git fetch:*),Bash(bash .github/issue-agent/thread.sh:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr edit:*)"

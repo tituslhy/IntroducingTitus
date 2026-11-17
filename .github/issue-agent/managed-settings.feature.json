@@ -1,0 +1,66 @@
+{
+  "allowManagedPermissionRulesOnly": true,
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit",
+      "Write",
+      "Task",
+      "Agent",
+      "Bash(bash .github/issue-agent/thread.sh __ISSUE__)",
+      "Bash(gh issue comment __ISSUE__ --body-file .issue-agent-tmp/:*)",
+      "Bash(gh issue edit __ISSUE__ --add-label:*)",
+      "Bash(gh issue edit __ISSUE__ --remove-label:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch -r:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push -u origin agent/:*)",
+      "Bash(gh pr create --base main --head agent/:*)",
+      "Bash(gh pr edit agent/:*)",
+      "Bash(gh pr list --head agent/:*)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Bash(sudo:*)",
+      "Bash(docker:*)",
+      "Bash(rm -rf:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git diff --output:*)",
+      "Edit(**/.github/**)",
+      "Write(**/.github/**)",
+      "Edit(**/.claude/**)",
+      "Write(**/.claude/**)",
+      "Edit(**/.git/**)",
+      "Write(**/.git/**)",
+      "Edit(**/package.json)",
+      "Write(**/package.json)",
+      "Edit(**/package-lock.json)",
+      "Write(**/package-lock.json)",
+      "Edit(**/jest.config.*)",
+      "Write(**/jest.config.*)",
+      "Edit(**/jest.setup.*)",
+      "Write(**/jest.setup.*)",
+      "Edit(**/eslint.config.*)",
+      "Write(**/eslint.config.*)",
+      "Edit(**/.eslintrc*)",
+      "Write(**/.eslintrc*)"
+    ],
+    "denyInsteadOfPrompting": true
+  },
+  "sandbox": {
+    "enabled": false
+  },
+  "env": {
+    "npm_config_cache": "/home/runner/.npm"
+  }
+}
