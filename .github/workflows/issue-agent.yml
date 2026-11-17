@@ -1,7 +1,9 @@
 # Issue agent: Titus labels his own issue `agent:bug` or `agent:feature`, and
-# Claude fixes the bug (PR) or grills him and writes a reviewed plan (PR).
-# Behaviour lives in .github/issue-agent/{bug,feature}.md; runner permissions
-# in .github/issue-agent/managed-settings.{bug,feature}.json. See CLAUDE.md → "Issue Agent".
+# one Haiku agent triages + fixes the bug (PR), or grills him and posts a to-do
+# comment. Behaviour: .github/issue-agent/{bug,feature}.md. Permissions:
+# .github/issue-agent/managed-settings.{bug,feature}.json. Every outward action
+# goes through the validated scripts in .github/issue-agent/. See CLAUDE.md →
+# "Issue Agent".
 name: Issue agent
 
 on:
@@ -16,27 +18,35 @@ permissions:
   issues: write
 
 jobs:
-  bug:
+  agent:
     if: >-
       github.event.sender.login == github.repository_owner &&
       github.event.issue.user.login == github.repository_owner &&
       github.event.issue.state == 'open' &&
       !github.event.issue.pull_request &&
       !contains(github.event.issue.labels.*.name, 'agent:off') &&
-      ((github.event_name == 'issues' && github.event.label.name == 'agent:bug') ||
-       (github.event_name == 'issue_comment' && contains(github.event.issue.labels.*.name, 'agent:bug')))
+      ((github.event_name == 'issues' &&
+        (github.event.label.name == 'agent:bug' || github.event.label.name == 'agent:feature')) ||
+       (github.event_name == 'issue_comment' &&
+        (contains(github.event.issue.labels.*.name, 'agent:bug') ||
+         contains(github.event.issue.labels.*.name, 'agent:feature'))))
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Job-level so skipped runs (e.g. a stranger's comment) never take or cancel a slot.
     concurrency:
       group: issue-agent-${{ github.event.issue.number }}
       cancel-in-progress: false
-    timeout-minutes: 15
+    env:
+      ISSUE: ${{ github.event.issue.number }}
+      # Bug wins when both labels are present; everything else is a feature.
+      TRACK: ${{ ((github.event_name == 'issues' && github.event.label.name == 'agent:bug') || (github.event_name == 'issue_comment' && contains(github.event.issue.labels.*.name, 'agent:bug'))) && 'bug' || 'feature' }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
+        if: env.TRACK == 'bug'
         with:
           node-version: 24
           cache: npm
@@ -45,10 +55,8 @@ jobs:
         # Managed settings outrank the repo's .claude/settings.json, and
         # allowManagedPermissionRulesOnly makes this file the only source of
         # permission rules. The tracked settings file is never touched.
-        env:
-          ISSUE: ${{ github.event.issue.number }}
         run: |
-          sed "s/__ISSUE__/${ISSUE}/g" .github/issue-agent/managed-settings.bug.json > "$RUNNER_TEMP/managed-settings.json"
+          sed "s/__ISSUE__/${ISSUE}/g" ".github/issue-agent/managed-settings.${TRACK}.json" > "$RUNNER_TEMP/managed-settings.json"
           sudo install -D -m 0644 "$RUNNER_TEMP/managed-settings.json" /etc/claude-code/managed-settings.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -57,74 +65,27 @@ jobs:
         uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          include_comments_by_actor: tituslhy,github-actions[bot]
-          branch_prefix: agent/
           prompt: |
             REPO: ${{ github.repository }}
             ISSUE: ${{ github.event.issue.number }}
+            TRACK: ${{ env.TRACK }}
             EVENT: ${{ github.event_name }}.${{ github.event.action }}
             TRIGGER_LABEL: ${{ github.event.label.name }}
 
-            You are the issue agent's bug track.
-            Read and follow `.github/issue-agent/bug.md` exactly.
+            You are the issue agent. Read and follow `.github/issue-agent/${{ env.TRACK }}.md` exactly.
           claude_args: |
-            --model claude-sonnet-5-5
-            --max-turns 40
-            --permission-mode acceptEdits
+            --model claude-haiku-5-5
+            --max-turns 25
+            --permission-mode default
 
-  feature:
-    if: >-
-      github.event.sender.login == github.repository_owner &&
-      github.event.issue.user.login == github.repository_owner &&
-      github.event.issue.state == 'open' &&
-      !github.event.issue.pull_request &&
-      !contains(github.event.issue.labels.*.name, 'agent:off') &&
-      ((github.event_name == 'issues' && github.event.label.name == 'agent:feature') ||
-       (github.event_name == 'issue_comment' && contains(github.event.issue.labels.*.name, 'agent:feature')))
-    runs-on: ubuntu-latest
-    # Job-level so skipped runs (e.g. a stranger's comment) never take or cancel a slot.
-    concurrency:
-      group: issue-agent-${{ github.event.issue.number }}
-      cancel-in-progress: false
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install the issue agent's permission policy
-        # Managed settings outrank the repo's .claude/settings.json, and
-        # allowManagedPermissionRulesOnly makes this file the only source of
-        # permission rules. The tracked settings file is never touched.
-        env:
-          ISSUE: ${{ github.event.issue.number }}
-        run: |
-          sed "s/__ISSUE__/${ISSUE}/g" .github/issue-agent/managed-settings.feature.json > "$RUNNER_TEMP/managed-settings.json"
-          sudo install -D -m 0644 "$RUNNER_TEMP/managed-settings.json" /etc/claude-code/managed-settings.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - id: claude
-        uses: anthropics/claude-code-action@cc98b3ae241b0fcfb6a42a2690751afffecb4452 # v1.0.278
+      - name: Tell Titus the run stopped
+        if: failure() || cancelled()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          include_comments_by_actor: tituslhy,github-actions[bot]
-          branch_prefix: agent/
-          prompt: |
-            REPO: ${{ github.repository }}
-            ISSUE: ${{ github.event.issue.number }}
-            EVENT: ${{ github.event_name }}.${{ github.event.action }}
-            TRIGGER_LABEL: ${{ github.event.label.name }}
-
-            You are the issue agent's feature track.
-            Read and follow `.github/issue-agent/feature.md` exactly.
-          claude_args: |
-            --model claude-opus-5-5
-            --max-turns 80
-            --permission-mode acceptEdits
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue comment "$ISSUE" --body "The issue agent stopped before finishing (error, turn limit or timeout). Run log: $RUN_URL"
