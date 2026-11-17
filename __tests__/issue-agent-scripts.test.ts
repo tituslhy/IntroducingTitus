@@ -90,6 +90,14 @@ function pushCalls(dir: string): string[] {
   return calls(dir).filter((line) => line.startsWith('git push'));
 }
 
+// gh calls that look up PRs for a branch, restricted to same-repo PRs.
+function sameRepoLookups(dir: string, branch: string): string[] {
+  const prefix = `gh pr list --head ${branch} --state all --json number,state,url,isCrossRepository --jq`;
+  return ghCalls(dir).filter(
+    (c) => c.startsWith(prefix) && c.includes('isCrossRepository == false'),
+  );
+}
+
 function threadJson(issueAuthor: string): string {
   return JSON.stringify({
     title: 'T',
@@ -241,11 +249,11 @@ describe('issue-agent helper scripts', () => {
 
     const updated = makeSandbox();
     writeTmp(updated, 'pr.md', PR_MD);
-    const updateRun = run(updated, 'pr.sh', ['update'], prVars);
+    const updateRun = run(updated, 'pr.sh', ['update'], { ...prVars, FAKE_GH_OUT: '9' });
     expect(updateRun.status).toBe(0);
-    expect(ghCalls(updated)).toContain(
-      `gh pr edit ${BRANCH} --title ${title} --body-file ${bodyFile}`,
-    );
+    expect(sameRepoLookups(updated, BRANCH).length).toBeGreaterThan(0);
+    expect(ghCalls(updated)).toContain(`gh pr edit 9 --title ${title} --body-file ${bodyFile}`);
+    expect(ghCalls(updated).some((c) => c.startsWith('gh pr edit agent/'))).toBe(false);
 
     const wrongBranch = makeSandbox();
     writeTmp(wrongBranch, 'pr.md', PR_MD);
@@ -263,6 +271,18 @@ describe('issue-agent helper scripts', () => {
     const unknownRun = run(unknown, 'pr.sh', ['merge'], prVars);
     expect(unknownRun.status).toBe(5);
     expect(ghCalls(unknown)).toEqual([]);
+  });
+
+  test('pr.sh update refuses when no same-repo PR exists', () => {
+    const dir = makeSandbox();
+    writeTmp(dir, 'pr.md', PR_MD);
+    const r = run(dir, 'pr.sh', ['update'], {
+      ISSUE: '7',
+      FAKE_BRANCH: BRANCH,
+      FAKE_GH_OUT: '',
+    });
+    expect(r.status).toBe(7);
+    expect(ghCalls(dir).some((c) => c.startsWith('gh pr edit'))).toBe(false);
   });
 
   test('pr.sh state reports none without a branch', () => {
@@ -283,9 +303,7 @@ describe('issue-agent helper scripts', () => {
     });
     expect(r.status).toBe(0);
     expect(r.stdout.trim()).toBe('open https://github.com/o/r/pull/9');
-    expect(ghCalls(dir).some((c) => c.startsWith(`gh pr list --head ${BRANCH} --state all`))).toBe(
-      true,
-    );
+    expect(sameRepoLookups(dir, BRANCH).length).toBeGreaterThan(0);
   });
 
   test('thread.sh reads the issue from env', () => {
