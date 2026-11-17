@@ -1,20 +1,13 @@
 #!/usr/bin/env bash
-# Print an issue thread for the issue agent, keeping only text the agent may
-# act on: the issue itself (which must be authored by the owner), the owner's
-# comments, and the agent's own comments. Everyone else's comments are dropped
-# here, in code, so they never reach the agent's context.
-#
-# Usage: bash .github/issue-agent/thread.sh <issue-number>
+# Print issue $ISSUE for the agent, keeping only text it may act on: the issue
+# (which must be authored by $OWNER), $OWNER's comments, and the agent's own
+# comments. Everyone else's comments are dropped here, in code.
 set -euo pipefail
+source "$(dirname "$0")/lib.sh"
+require_issue
+no_args "$@"
 
 OWNER="${OWNER:-tituslhy}"
-ISSUE="${1:-}"
-
-if [[ ! "$ISSUE" =~ ^[0-9]+$ ]]; then
-  echo "usage: thread.sh <issue-number>" >&2
-  exit 2
-fi
-
 json="$(gh issue view "$ISSUE" --json title,body,labels,author,state,comments)"
 
 author="$(jq -r '.author.login' <<<"$json")"
@@ -23,8 +16,8 @@ if [[ "$author" != "$OWNER" ]]; then
   exit 3
 fi
 
-jq -r --arg owner "$OWNER" '
-  "# #\($ARGS.named.issue) \(.title)",
+jq -r --arg owner "$OWNER" --arg issue "$ISSUE" '
+  "# #\($issue) \(.title)",
   "state: \(.state)",
   "labels: \([.labels[].name] | join(", "))",
   "",
@@ -35,4 +28,4 @@ jq -r --arg owner "$OWNER" '
              or .author.login == "github-actions"
              or .author.login == "github-actions[bot]")
     | "--- \(.author.login) @ \(.createdAt)\n\(.body)\n")
-' --arg issue "$ISSUE" <<<"$json"
+' <<<"$json"
