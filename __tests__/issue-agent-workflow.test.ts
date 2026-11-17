@@ -406,6 +406,33 @@ describe('issue-agent workflow', () => {
     }).toEqual({ found: true, missingCond: [], ghToken: GITHUB_TOKEN_EXPR });
   });
 
+  it('records the job start time before Claude runs', () => {
+    const before = steps().slice(0, claudeIndex());
+    const stamp = before.find((s) => (s.run ?? '').includes('STARTED='));
+    expect({
+      found: stamp !== undefined,
+      missing: misses(stamp?.run ?? '', ['date -u', 'GITHUB_ENV']),
+    }).toEqual({ found: true, missing: [] });
+  });
+
+  it('run summary always runs after Claude and gets the execution file', () => {
+    const after = steps().slice(claudeIndex() + 1);
+    const summary = after.find((s) => (s.run ?? '').includes('bash .github/issue-agent/summary.sh'));
+    expect({
+      found: summary !== undefined,
+      always: (summary?.if ?? '').includes('always()'),
+      exec: summary?.env?.EXEC,
+      ghToken: summary?.env?.GH_TOKEN,
+      hasRunUrl: (summary?.env?.RUN_URL ?? '').length > 0,
+    }).toEqual({
+      found: true,
+      always: true,
+      exec: '${{ steps.claude.outputs.execution_file }}',
+      ghToken: GITHUB_TOKEN_EXPR,
+      hasRunUrl: true,
+    });
+  });
+
   it('only the two allowed secrets', () => {
     const allowed = new Set(ALLOWED_SECRETS);
     const used = [...raw.matchAll(/secrets\.(\w+)/g)].map((m) => m[1]);
