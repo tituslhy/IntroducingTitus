@@ -2,6 +2,14 @@ import { render, screen } from "@testing-library/react";
 import TechStack from "./TechStack";
 
 describe("TechStack", () => {
+  it("should render a back-to-top link in the section marker row", () => {
+    const { container } = render(<TechStack />);
+    const marker = container.querySelector("section#stack header > div");
+    const link = screen.getByRole("link", { name: /back to top/i });
+    expect(marker).toContainElement(link);
+    expect(link).toHaveAttribute("href", "#masthead");
+  });
+
   it("should render section with stack id", () => {
     const { container } = render(<TechStack />);
     const section = container.querySelector("section#stack");

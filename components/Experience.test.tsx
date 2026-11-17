@@ -3,6 +3,14 @@ import { AGENT_SUITE_URL } from "@/lib/content";
 import Experience from "./Experience";
 
 describe("Experience", () => {
+  it("should render a back-to-top link in the section marker row", () => {
+    const { container } = render(<Experience />);
+    const marker = container.querySelector("section#dossier header > div");
+    const link = screen.getByRole("link", { name: /back to top/i });
+    expect(marker).toContainElement(link);
+    expect(link).toHaveAttribute("href", "#masthead");
+  });
+
   it("should render experience section with correct heading", () => {
     render(<Experience />);
 
