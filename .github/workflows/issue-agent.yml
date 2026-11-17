@@ -64,6 +64,7 @@ jobs:
           sudo install -D -m 0644 "$RUNNER_TEMP/managed-settings.json" /etc/claude-code/managed-settings.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          echo "STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - id: claude
         # Step timeout (inside the 15-min job) so the failure notice below always runs.
@@ -95,3 +96,14 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           gh issue comment "$ISSUE" --body "The issue agent stopped before finishing (error, turn limit or timeout). Run log: $RUN_URL"
+
+      # After the failure notice, so a failed run isn't reported twice. Prints
+      # turns, cost, blocked actions and the agent's last message to the log and
+      # the run's Summary page, and comments if the agent posted nothing.
+      - name: Run summary
+        if: always()
+        env:
+          EXEC: ${{ steps.claude.outputs.execution_file }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash .github/issue-agent/summary.sh
