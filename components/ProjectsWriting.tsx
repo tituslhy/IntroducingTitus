@@ -1,3 +1,4 @@
+import BackToTop from '@/components/BackToTop'
 import { ARTICLE_COUNT_WORD, BLOCKCHAIN_ARTICLE_COUNT } from '@/lib/content'
 import { FEATURED_ARTICLES as ARTICLES, FEATURED_BY, OPEN_SOURCE, PROJECTS, SOCIAL, type Project } from '@/lib/profile'
 
@@ -8,6 +9,7 @@ function SectionMarker({ folio, kicker, children }: { folio: string; kicker: str
         <span className="font-semibold tracking-[0.08em] text-amber">{folio}</span>
         <span className="font-medium text-ink">{kicker}</span>
         <span className="h-px flex-1 self-center bg-rule" />
+        <BackToTop />
       </div>
       <h2 className="mt-[22px] max-w-[22ch] font-serif text-[clamp(34px,5vw,68px)] font-medium leading-[1.04] tracking-[-0.025em] [text-wrap:balance]">
         {children}

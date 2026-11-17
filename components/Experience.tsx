@@ -1,3 +1,4 @@
+import BackToTop from '@/components/BackToTop'
 import { EDUCATION, ROLES, type Role } from '@/lib/profile'
 
 /** Renders a role's deck, turning `deckLink.text` (first occurrence) into a link. */
@@ -127,6 +128,7 @@ export default function Experience() {
             <span className="font-semibold tracking-[0.08em] text-amber">03</span>
             <span className="font-medium text-ink">Experience</span>
             <span className="h-px flex-1 self-center bg-rule" />
+            <BackToTop />
           </div>
           <h2 className="mt-[22px] max-w-[22ch] font-serif text-[clamp(34px,5vw,68px)] font-medium leading-[1.04] tracking-[-0.025em] [text-wrap:balance]">
             Where I have <em className="italic text-amber">worked</em>, in reverse.

@@ -230,7 +230,7 @@ describe("Navigation", () => {
       });
     });
 
-    it("should require 4px scroll delta when above 80px to change state", async () => {
+    it("should require 4px scroll delta before hiding on scroll-down", async () => {
       render(<Navigation />);
       const nav = screen.getByRole("navigation");
 
@@ -243,15 +243,39 @@ describe("Navigation", () => {
         expect(nav.style.transform).toBe("translateY(-110%)");
       });
 
+      // Reveal first, then a 2px downward nudge must not hide it again
       act(() => {
-        Object.defineProperty(window, "scrollY", { value: 102, configurable: true });
+        Object.defineProperty(window, "scrollY", { value: 90, configurable: true });
         window.dispatchEvent(new Event("scroll"));
       });
 
-      expect(nav.style.transform).toBe("translateY(-110%)");
+      await waitFor(() => {
+        expect(nav.style.transform).toBe("translateY(0)");
+      });
 
       act(() => {
-        Object.defineProperty(window, "scrollY", { value: 97, configurable: true });
+        Object.defineProperty(window, "scrollY", { value: 92, configurable: true });
+        window.dispatchEvent(new Event("scroll"));
+      });
+
+      expect(nav.style.transform).toBe("translateY(0)");
+    });
+
+    it("should reveal on any upward scroll, even by 1px, once hidden", async () => {
+      render(<Navigation />);
+      const nav = screen.getByRole("navigation");
+
+      act(() => {
+        Object.defineProperty(window, "scrollY", { value: 300, configurable: true });
+        window.dispatchEvent(new Event("scroll"));
+      });
+
+      await waitFor(() => {
+        expect(nav.style.transform).toBe("translateY(-110%)");
+      });
+
+      act(() => {
+        Object.defineProperty(window, "scrollY", { value: 299, configurable: true });
         window.dispatchEvent(new Event("scroll"));
       });
 

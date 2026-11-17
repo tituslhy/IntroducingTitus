@@ -44,14 +44,15 @@ export default function Navigation() {
     list.scrollLeft = link.offsetLeft - (list.clientWidth - link.offsetWidth) / 2
   }, [active])
 
-  // Hide on scroll-down, reveal on scroll-up, always visible in top 80px
+  // Hide on scroll-down (after a 4px dead zone so jitter doesn't flicker it),
+  // reveal on ANY upward scroll so the section links are one flick away, always visible in top 80px
   useEffect(() => {
     let lastY = window.scrollY
     const onScroll = () => {
       const y = window.scrollY
       if (y < 80) setHidden(false)
       else if (y > lastY + 4) setHidden(true)
-      else if (y < lastY - 4) setHidden(false)
+      else if (y < lastY) setHidden(false)
       lastY = y
     }
     window.addEventListener('scroll', onScroll, { passive: true })
