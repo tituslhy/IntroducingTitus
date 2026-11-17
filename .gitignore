@@ -1,4 +1,5 @@
-design_handoff_personal_site/
+design_handoff_personal_site/*
+!design_handoff_personal_site/README.md
 
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 .cache/
