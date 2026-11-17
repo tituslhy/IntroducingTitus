@@ -2,6 +2,17 @@ import { render, screen } from "@testing-library/react";
 import ProjectsWriting from "./ProjectsWriting";
 
 describe("ProjectsWriting", () => {
+  it("should render a back-to-top link in both the Projects and Writing marker rows", () => {
+    const { container } = render(<ProjectsWriting />);
+    const projectsMarker = container.querySelector("section#projects header > div");
+    const writingMarker = container.querySelector("section#writing header > div");
+    const links = screen.getAllByRole("link", { name: /back to top/i });
+    expect(links).toHaveLength(2);
+    expect(projectsMarker).toContainElement(links[0]);
+    expect(writingMarker).toContainElement(links[1]);
+    links.forEach((link) => expect(link).toHaveAttribute("href", "#masthead"));
+  });
+
   describe("Projects Section", () => {
     it("should render projects section header", () => {
       render(<ProjectsWriting />);
