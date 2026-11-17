@@ -337,4 +337,124 @@ describe('issue-agent helper scripts', () => {
       expect(ghCalls(positional)).toEqual([]);
     }
   });
+
+  describe('summary.sh (runs in the workflow after the agent)', () => {
+    const STARTED = '2026-11-17T14:35:57Z';
+    const RESULT_WITH_DENIALS = JSON.stringify([
+      { type: 'system', subtype: 'init' },
+      {
+        type: 'result',
+        subtype: 'success',
+        num_turns: 11,
+        total_cost_usd: 0.0082,
+        result: 'I could not post the triage.',
+        permission_denials: [
+          { tool_name: 'Bash', tool_input: { command: 'gh issue view 10' } },
+          { tool_name: 'Write', tool_input: { file_path: '/tmp/x.md', content: 'body' } },
+        ],
+      },
+    ]);
+
+    function summaryVars(dir: string, execJson: string | null, ghOut: string): Vars {
+      const vars: Vars = {
+        ISSUE: '7',
+        STARTED,
+        RUN_URL: 'https://example/run',
+        GITHUB_REPOSITORY: 'o/r',
+        GITHUB_STEP_SUMMARY: path.join(dir, 'step-summary.md'),
+        FAKE_GH_OUT: ghOut,
+      };
+      if (execJson !== null) {
+        const exec = path.join(dir, 'exec.json');
+        fs.writeFileSync(exec, execJson);
+        vars.EXEC = exec;
+      }
+      return vars;
+    }
+
+    it('prints turns, cost, denials and the last message', () => {
+      const dir = makeSandbox();
+      const result = run(dir, 'summary.sh', [], summaryVars(dir, RESULT_WITH_DENIALS, '1'));
+      expect(result.status).toBe(0);
+      for (const text of [
+        'turns: 11',
+        'cost: $0.0082',
+        'blocked: 2',
+        '- Bash: gh issue view 10',
+        '- Write: /tmp/x.md',
+        'I could not post the triage.',
+      ]) {
+        expect(result.stdout).toContain(text);
+      }
+      expect(fs.readFileSync(path.join(dir, 'step-summary.md'), 'utf8')).toContain('blocked: 2');
+      expect(ghCalls(dir).some((c) => c.startsWith('gh issue comment'))).toBe(false);
+    });
+
+    it('comments when the agent posted nothing', () => {
+      const dir = makeSandbox();
+      const result = run(dir, 'summary.sh', [], summaryVars(dir, RESULT_WITH_DENIALS, '0'));
+      expect(result.status).toBe(0);
+      const lookup = ghCalls(dir).find((c) =>
+        c.startsWith('gh api repos/o/r/issues/7/comments --paginate --jq'),
+      );
+      expect(lookup).toBeDefined();
+      expect(lookup).toContain(STARTED);
+      const comment = ghCalls(dir).find((c) => c.startsWith('gh issue comment 7 --body-file '));
+      expect(comment).toBeDefined();
+      const bodyFile = (comment ?? '').split(' ').pop() ?? '';
+      const body = fs.readFileSync(path.resolve(dir, bodyFile), 'utf8');
+      for (const text of [
+        'finished without posting anything',
+        'blocked: 2',
+        'gh issue view 10',
+        'https://example/run',
+      ]) {
+        expect(body).toContain(text);
+      }
+    });
+
+    it('handles a single result object and missing denials', () => {
+      const dir = makeSandbox();
+      const exec = JSON.stringify({
+        type: 'result',
+        subtype: 'error_max_turns',
+        num_turns: 35,
+        total_cost_usd: 0.05,
+        result: 'ran out',
+      });
+      const result = run(dir, 'summary.sh', [], summaryVars(dir, exec, '3'));
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('turns: 35');
+      expect(result.stdout).toContain('blocked: 0');
+      expect(result.stdout).toContain('ran out');
+      expect(ghCalls(dir).some((c) => c.startsWith('gh issue comment'))).toBe(false);
+    });
+
+    it('is a no-op without an execution file', () => {
+      const unset = makeSandbox();
+      const noExec = run(unset, 'summary.sh', [], summaryVars(unset, null, '0'));
+      expect(noExec.status).toBe(0);
+      expect(noExec.stdout).toContain('no execution file');
+      expect(ghCalls(unset)).toEqual([]);
+
+      const missing = makeSandbox();
+      const vars = { ...summaryVars(missing, null, '0'), EXEC: path.join(missing, 'nope.json') };
+      const missingRun = run(missing, 'summary.sh', [], vars);
+      expect(missingRun.status).toBe(0);
+      expect(missingRun.stdout).toContain('no execution file');
+      expect(ghCalls(missing)).toEqual([]);
+    });
+
+    it('refuses a missing or non-numeric ISSUE', () => {
+      for (const issue of [undefined, '5; rm -rf /']) {
+        const dir = makeSandbox();
+        const vars = summaryVars(dir, RESULT_WITH_DENIALS, '0');
+        if (issue === undefined) delete vars.ISSUE;
+        else vars.ISSUE = issue;
+        const result = run(dir, 'summary.sh', [], vars);
+        expect(result.status).not.toBe(0);
+        expect(ghCalls(dir)).toEqual([]);
+      }
+    });
+  });
 });
