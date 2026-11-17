@@ -319,13 +319,13 @@ describe('issue-agent workflow', () => {
     expect({
       missing: misses(args, [
         '--model claude-haiku-5-5',
-        "--max-turns ${{ env.TRACK == 'bug' && '35' || '15' }}",
+        "--max-turns ${{ env.TRACK == 'bug' && '50' || '15' }}",
         '--permission-mode default',
       ]),
       present: hits(args, ['--allowedTools', '--dangerously', 'acceptEdits', 'sonnet', 'opus']),
       jobTimeout: agentJob()['timeout-minutes'],
       stepTimeout: claudeStep()['timeout-minutes'],
-    }).toEqual({ missing: [], present: [], jobTimeout: 15, stepTimeout: 12 });
+    }).toEqual({ missing: [], present: [], jobTimeout: 25, stepTimeout: 20 });
   });
 
   it('prompt points at the track file', () => {
