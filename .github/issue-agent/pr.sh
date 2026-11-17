@@ -23,7 +23,8 @@ if [[ "$cmd" == "state" ]]; then
     echo none
     exit 0
   fi
-  out="$(gh pr list --head "$branch" --state all --json state,url --jq '.[0] // empty | "\(.state) \(.url)"')"
+  # Same-repo PRs only: a fork can open a PR from a branch with the same name.
+  out="$(gh pr list --head "$branch" --state all --json number,state,url,isCrossRepository --jq '[.[] | select(.isCrossRepository == false)][0] // empty | "\(.state) \(.url)"')"
   if [[ -z "$out" ]]; then
     echo none
     exit 0
@@ -49,5 +50,13 @@ tail -n +2 "$src" > "$body"
 case "$cmd" in
   create) gh pr create --base main --head "$branch" --title "$title" --body-file "$body" ;;
   draft)  gh pr create --base main --head "$branch" --title "$title" --body-file "$body" --draft ;;
-  update) gh pr edit "$branch" --title "$title" --body-file "$body" ;;
+  update)
+    # Edit by number, found among same-repo PRs only (never a fork's PR).
+    number="$(gh pr list --head "$branch" --state all --json number,state,url,isCrossRepository --jq '[.[] | select(.isCrossRepository == false)][0] // empty | .number')"
+    if [[ -z "$number" ]]; then
+      echo "no PR from this repo's $branch to update" >&2
+      exit 7
+    fi
+    gh pr edit "$number" --title "$title" --body-file "$body"
+    ;;
 esac
