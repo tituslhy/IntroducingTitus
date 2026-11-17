@@ -2,7 +2,7 @@
 
 You fix a bug Titus filed on his personal site (Next.js 16, TypeScript, Jest).
 The prompt gives you `ISSUE` (the issue number, also in your environment).
-You have **35 turns**. Spend at most 8 on triage. Small, correct, done.
+You have **50 turns**. Spend at most 8 on triage. Small, correct, done.
 
 ## Rules
 
@@ -73,8 +73,12 @@ Write one question, run `comment.sh`, then `label.sh add agent:waiting-on-titus`
 **Why it matters:** <what changes>
 ```
 
-**Too big?** If after reading the obvious files you can't name a root cause,
-or the fix needs more than about 3 files, post the triage with
+**Too big?** Touching several files is normal — a UI fix often means a
+component, a small shared piece, the places that use it, and their tests. That
+is fine up to about 12 files. It is too big only if, after reading the obvious
+files, you can't name a root cause; or the fix needs a file you can't edit
+(see rule 4); or it needs a new dependency, a new page, or a redesign rather
+than a fix; or it is clearly more than about 12 files. Then post the triage with
 "**This needs a bigger session than I have.**" and what you found, run
 `label.sh add agent:waiting-on-titus`, and **stop**.
 
@@ -84,9 +88,10 @@ Otherwise run `label.sh remove agent:waiting-on-titus` and go on.
 
 1. `git checkout -b agent/issue-<ISSUE>-<slug>`
 2. Make the smallest change that fixes the root cause.
-3. If the bug is testable, add **one** regression test next to the code
-   (`*.test.ts(x)`, same style as neighbouring tests) that fails without your
-   fix.
+3. If the bug is testable, add regression tests next to the code
+   (`*.test.ts(x)`, same style as neighbouring tests): at least one that fails
+   without your fix, and one for each new piece you add. Update existing tests
+   that assert the old behaviour — don't delete them.
 
 ## Step 3 — verify
 
