@@ -27,20 +27,19 @@ This site is a professional brand presence and web-form resume. Not a blog. Not 
 ---
 
 ## Issue Agent (GitHub Actions)
-Opt-in, owner-only. Label **your own** issue to start it (`.github/workflows/issue-agent.yml`):
-- `agent:bug` → Sonnet triages, fixes, runs lint/test/build, one `code-reviewer` pass, opens a PR (`Fixes #N`). Behaviour: `.github/issue-agent/bug.md`.
-- `agent:feature` → Opus asks one question per comment until you reply `approved` to its scope summary, writes a plan in `docs/superpowers/plans/`, has `plan-reviewer` critique it, opens a PR (`Refs #N`). Behaviour: `.github/issue-agent/feature.md`.
-- Status labels `agent:waiting-on-titus`, `agent:pr-open`; `agent:off` stops it on that issue.
-- Once its PR is merged or closed, the agent removes the track label and stops; re-add the label with a new comment to start again. Only an exact `approved` reply ends feature questioning.
-- It reads threads only via `.github/issue-agent/thread.sh` (drops non-owner comments) — that script is the only comment filter. Runner permissions come from `.github/issue-agent/managed-settings.{bug,feature}.json`, installed as Claude Code managed policy on the runner (`/etc/claude-code/`), which overrides `.claude/settings.json` and is the only source of permission rules there — edit those files, not `.claude/settings.json`, to change what the agent may run. `__tests__/issue-agent-workflow.test.ts` guards the workflow's security shape.
+One Haiku 5.5 agent, opt-in and owner-only: label **your own** issue (`.github/workflows/issue-agent.yml`, ≤25 turns, 15 min).
+- `agent:bug` → triages, attempts the smallest fix with one regression test, runs lint/test/build, re-reads its diff, opens a PR (`Fixes #N`; draft if not green). Too big → triage comment and stops. Behaviour: `.github/issue-agent/bug.md`.
+- `agent:feature` → one question per run until you reply `approved` to its scope summary, then posts a **to-do comment** on the issue and labels it `agent:ready`. No repo changes. Implement locally with `implement issue #N` (needs `gh`: `brew install gh && gh auth login`). Behaviour: `.github/issue-agent/feature.md`.
+- Status labels `agent:waiting-on-titus`, `agent:pr-open`, `agent:ready`; `agent:off` stops it on that issue. A merged/closed bug PR ends the bug track; re-add the label with a new comment to restart. If a run errors or hits its limit, it comments with the run link.
+- Every outward action goes through validated scripts in `.github/issue-agent/` (`thread.sh` drops non-owner comments; `comment.sh`, `label.sh`, `push.sh`, `pr.sh` act only on this issue and its `agent/issue-N-*` branch). Runner permissions: `managed-settings.{bug,feature}.json`, installed as Claude Code managed policy (overrides `.claude/settings.json`). On the runner the agent writes its own regression test (cost); locally the unit-test-writer rule above still applies. Tests: `__tests__/issue-agent-{workflow,scripts}.test.ts`.
 
 One-time setup:
 ```bash
 claude setup-token                      # copy the token, then:
 gh secret set CLAUDE_CODE_OAUTH_TOKEN
-for l in agent:bug agent:feature agent:waiting-on-titus agent:pr-open agent:off; do gh label create "$l" --force; done
+for l in agent:bug agent:feature agent:waiting-on-titus agent:pr-open agent:ready agent:off; do gh label create "$l" --force; done
 ```
-Plus Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests", and **branch protection on `main`** (Settings → Rules → require a PR before merging) — the real backstop against a push to `main`.
+Plus Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests", and **branch protection on `main`** (Settings → Rules → require a PR before merging).
 
 ---
 
