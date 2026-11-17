@@ -346,7 +346,7 @@ describe('issue-agent helper scripts', () => {
         type: 'result',
         subtype: 'success',
         num_turns: 11,
-        total_cost_usd: 0.0082,
+        total_cost_usd: 0.015101210000000002,
         result: 'I could not post the triage.',
         permission_denials: [
           { tool_name: 'Bash', tool_input: { command: 'gh issue view 10' } },
@@ -376,9 +376,10 @@ describe('issue-agent helper scripts', () => {
       const dir = makeSandbox();
       const result = run(dir, 'summary.sh', [], summaryVars(dir, RESULT_WITH_DENIALS, '1'));
       expect(result.status).toBe(0);
+      // Whole line, so the unrounded 0.015101210000000002 doesn't pass as a substring.
+      expect(result.stdout.split('\n')).toContain('cost: $0.0151');
       for (const text of [
         'turns: 11',
-        'cost: $0.0082',
         'blocked: 2',
         '- Bash: gh issue view 10',
         '- Write: /tmp/x.md',
