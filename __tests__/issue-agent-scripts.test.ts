@@ -302,7 +302,7 @@ describe('issue-agent helper scripts', () => {
       FAKE_GH_OUT: 'OPEN https://github.com/o/r/pull/9',
     });
     expect(r.status).toBe(0);
-    expect(r.stdout.trim()).toBe('open https://github.com/o/r/pull/9');
+    expect(r.stdout.trim()).toBe('open https://github.com/o/r/pull/9 agent/issue-7-nav-fix');
     expect(sameRepoLookups(dir, BRANCH).length).toBeGreaterThan(0);
   });
 

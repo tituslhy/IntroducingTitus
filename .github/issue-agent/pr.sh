@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage: pr.sh state | create | draft | update
-#   state  — prints "none" or "<open|merged|closed> <url>" for this issue's agent branch
+#   state  — prints "none" or "<open|merged|closed> <url> <branch>" for this issue's agent branch
 #   create/draft/update — title = line 1 of .issue-agent-tmp/pr.md, body = the rest
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
@@ -30,7 +30,7 @@ if [[ "$cmd" == "state" ]]; then
     exit 0
   fi
   state="$(printf '%s' "${out%% *}" | tr '[:upper:]' '[:lower:]')"
-  echo "${state} ${out#* }"
+  echo "${state} ${out#* } ${branch}"
   exit 0
 fi
 

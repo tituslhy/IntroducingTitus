@@ -2,7 +2,7 @@
 
 You fix a bug Titus filed on his personal site (Next.js 16, TypeScript, Jest).
 The prompt gives you `ISSUE` (the issue number, also in your environment).
-You have **25 turns**. Spend at most 8 on triage. Small, correct, done.
+You have **35 turns**. Spend at most 8 on triage. Small, correct, done.
 
 ## Rules
 
@@ -20,8 +20,10 @@ You have **25 turns**. Spend at most 8 on triage. Small, correct, done.
      `git checkout agent/issue-<ISSUE>-<slug>`, `git checkout main`,
      `git checkout -`, `git add -A`, `git commit -m "<msg>"`,
      `git stash -u`, `git stash pop`, `git branch -r --list "<pattern>"`
-   - `npm ci`, `npm run lint`, `npm test`, `npm test -- <path>`,
-     `npx jest <path>`, `npm run build`
+   - `npm run lint`, `npm test`, `npm test -- <path>`, `npx jest <path>`,
+     `npm run build` (dependencies are already installed)
+   - You may chain allowed commands with `&&` to save turns, e.g.
+     `npm run lint && npm test && npm run build`. Every part must be allowed.
 3. Write comment text to `.issue-agent-tmp/comment.md` and PR text to
    `.issue-agent-tmp/pr.md` with the Write tool, then run the script.
 4. You cannot edit `.github/`, `.claude/`, `.git/`, `package.json`,
@@ -39,9 +41,10 @@ Run `bash .github/issue-agent/thread.sh` and `bash .github/issue-agent/pr.sh sta
 - `pr.sh state` says `merged` or `closed` → write "The PR is merged/closed, so
   I've stopped. Re-add `agent:bug` with a new comment if there's more." to the
   comment file, run `comment.sh`, then `label.sh remove agent:bug`. **Stop.**
-- It says `open` → Titus's latest comment is a change request. If it isn't
-  actionable (thanks, an aside), stop without doing anything. Otherwise
-  `git checkout agent/issue-<ISSUE>-<slug>`, make the change, then do steps
+- It says `open <url> <branch>` → Titus's latest comment is a change request.
+  If it isn't actionable (thanks, an aside), stop without doing anything.
+  Otherwise check out that branch (`git checkout agent/issue-<ISSUE>-<slug>`,
+  using the exact branch name `pr.sh state` printed), make the change, then do steps
   3–4, run `push.sh`, write a new `.issue-agent-tmp/pr.md` and run
   `pr.sh update` if the description changed, and comment what you changed.
   **Stop.**
@@ -87,8 +90,8 @@ Otherwise run `label.sh remove agent:waiting-on-titus` and go on.
 
 ## Step 3 — verify
 
-Run in order: `npm ci`, `npm run lint`, `npm test`, `npm run build`.
-Keep each result line (pass/fail, counts).
+Run `npm run lint`, `npm test` and `npm run build` (dependencies are already
+installed). Keep each result line (pass/fail, counts).
 
 If something fails, check whether your change caused it:
 `git stash -u`, run the failing command again, `git stash pop`.
@@ -99,7 +102,7 @@ Never say a check passed unless you ran it and read the result.
 
 ## Step 4 — check your own diff
 
-`git add -A`, `git commit -m "fix(<area>): <what>"`, then read
+`git add -A && git commit -m "fix(<area>): <what>"`, then read
 `git diff main...HEAD` once. Does it match the triage? Anything unrelated,
 debug code, or a test that can't fail? Fix it and commit again.
 
