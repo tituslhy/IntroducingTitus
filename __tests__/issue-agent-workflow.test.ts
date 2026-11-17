@@ -37,8 +37,10 @@ const FEATURE_ALLOW = [
   'Bash(bash .github/issue-agent/label.sh remove *)',
 ];
 
+// A bare `Edit` rule does not cover the Write tool (new files) — a live bug run
+// was denied writing .issue-agent-tmp/comment.md. Path-scoped Edit rules do.
 const BUG_EXTRA_ALLOW = [
-  'Edit',
+  'Edit(./**)',
   'Bash(npm run lint)',
   'Bash(npm test)',
   'Bash(npm test -- *)',
@@ -61,7 +63,7 @@ const BUG_EXTRA_ALLOW = [
   'Bash(bash .github/issue-agent/pr.sh *)',
 ];
 
-const BUG_ALLOW = [...FEATURE_ALLOW.filter((e) => e !== 'Edit(.issue-agent-tmp/**)'), ...BUG_EXTRA_ALLOW];
+const BUG_ALLOW = [...FEATURE_ALLOW, ...BUG_EXTRA_ALLOW];
 
 const DENY = [
   'Read(**/.env)',
@@ -491,6 +493,19 @@ describe('issue-agent workflow', () => {
       });
     }
     expect(sorted(allowOf('bug'))).toEqual(sorted(BUG_ALLOW));
+  });
+
+  it('both tracks can write their comment and PR files with a path-scoped Edit rule', () => {
+    // comment.sh / pr.sh read files the agent creates with the Write tool; only
+    // path-scoped Edit rules cover Write, so a bare `Edit` is not enough.
+    for (const track of TRACKS) {
+      const allow = allowOf(track);
+      expect({ track, scoped: allow.includes('Edit(.issue-agent-tmp/**)'), bare: allow.includes('Edit') }).toEqual({
+        track,
+        scoped: true,
+        bare: false,
+      });
+    }
   });
 
   it('no allow rule relies on Write(path) or a spaced :* suffix', () => {
