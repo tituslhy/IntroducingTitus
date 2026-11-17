@@ -19,7 +19,7 @@ result="$(jq -c '(if type == "array" then . else [.] end) | map(select(.type? ==
 
 outcome="$(jq -r '.subtype // "unknown"' <<<"$result")"
 turns="$(jq -r '.num_turns // "?"' <<<"$result")"
-cost="$(jq -r '.total_cost_usd // "?"' <<<"$result")"
+cost="$(jq -r '.total_cost_usd | if type == "number" then (. * 10000 | round / 10000) else "?" end' <<<"$result")"
 blocked="$(jq -r '(.permission_denials // []) | length' <<<"$result")"
 denials="$(jq -r '
   (.permission_denials // [])[]
