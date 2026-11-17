@@ -51,3 +51,6 @@ next-env.d.ts
 
 # superpowers plan workspaces (ledgers, briefs)
 .superpowers/
+
+# Issue agent scratch (comment/PR bodies written on the runner)
+.issue-agent-tmp/
