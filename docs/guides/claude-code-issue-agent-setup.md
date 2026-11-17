@@ -10,7 +10,7 @@ Label one of **your own** issues and a Claude **Haiku 5.5** agent picks it up in
 
 | Label | What the agent does | Output | Cap |
 |---|---|---|---|
-| `agent:bug` | Triages, attempts the smallest fix with one regression test, runs lint/test/build, re-reads its diff | A PR (`Fixes #N`), or a **draft** PR if checks aren't green, or a triage comment if the bug is too big | 35 turns |
+| `agent:bug` | Triages, attempts the smallest fix (up to ~12 files) with regression tests, runs lint/test/build, re-reads its diff | A PR (`Fixes #N`), or a **draft** PR if checks aren't green, or a triage comment if the bug is too big | 50 turns |
 | `agent:feature` | Asks one question per run until you reply `approved` to its scope summary | A **to-do comment** on the issue + `agent:ready` label. No repo changes | 15 turns per run |
 
 If a run errors, hits its turn cap, or times out, it comments the run-log link on the issue.
@@ -173,5 +173,5 @@ After any change, run `npm test` and `actionlint .github/workflows/issue-agent.y
 ## Cost notes
 
 - Runs use your Claude subscription via `CLAUDE_CODE_OAUTH_TOKEN`, so they count against your usage limits.
-- Haiku 5.5 with 35/15 turn caps and a 12-minute agent step keeps a single run small; a feature run is usually one question and stops well under the cap.
+- Haiku 5.5 with 50/15 turn caps and a 20-minute agent step keeps a single run small; a feature run is usually one question and stops well under the cap.
 - GitHub Actions minutes: a feature run is ~2–3 min; a bug run includes `npm ci` + lint/test/build, typically 5–10 min.
