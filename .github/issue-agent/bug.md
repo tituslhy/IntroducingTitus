@@ -16,6 +16,9 @@ to PR in a few minutes. Don't gold-plate.
   bug, don't — say so in your comment.
 - Follow `CLAUDE.md`. In particular: all test writing goes to the
   `unit-test-writer` agent; no client-sensitive content; no family details.
+- Write comment and PR bodies with the Write tool to `.issue-agent-tmp/<name>.md`
+  (gitignored), then pass them with `--body-file`. Don't use heredocs or
+  `$(...)` in commands; only the listed commands are allowed.
 - Never commit `.claude/settings.json` (the runner has a CI-only copy).
 - Never merge, never push to `main`, never close an issue or PR.
 - Conventional commit messages: `fix(<area>): …`, `test(<area>): …`.
@@ -43,7 +46,7 @@ From the thread and `git ls-remote --heads origin "agent/issue-<N>-*"`:
 Restate the bug in one line, find the code, identify the root cause, and rate
 impact (who sees it, how badly: cosmetic / broken feature / site down).
 
-Post a short triage comment (`gh issue comment <N> --body-file <tmp>`):
+Post a short triage comment (`gh issue comment <N> --body-file .issue-agent-tmp/<name>.md`):
 
 ```
 **Triage**
@@ -101,7 +104,7 @@ Commit, `git push -u origin <branch>`, then:
 
 ```
 gh pr create --base main --head <branch> \
-  --title "fix: <one line>" --body-file <tmp>
+  --title "fix: <one line>" --body-file .issue-agent-tmp/<name>.md
 ```
 
 PR body sections, in this order:
