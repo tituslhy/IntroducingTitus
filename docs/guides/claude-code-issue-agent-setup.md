@@ -1,6 +1,6 @@
 # Setting up the Claude Code issue agent (GitHub Actions)
 
-A step-by-step guide to the issue agent in this repo: what it does, how to switch it on, how to use it, and what to do when a run goes wrong.
+A step-by-step guide to the issue agent in this repo: what it does, how to switch it on, how to use it, and what to do when a run goes wrong. Copying it into another repo? See [porting-issue-agent-to-another-repo.md](porting-issue-agent-to-another-repo.md).
 
 ---
 
