@@ -140,6 +140,7 @@ export default function Navigation() {
         >
           <span className="h-1.5 w-1.5 rounded-full bg-amber shadow-[0_0_0_3px_color-mix(in_oklch,var(--amber)_30%,transparent)]" />
           <span className="max-[720px]:hidden">Get in touch</span>
+          <span className="min-[721px]:hidden">Contact</span>
         </a>
       </div>
     </nav>

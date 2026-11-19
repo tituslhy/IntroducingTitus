@@ -674,8 +674,7 @@ export default function CopilotBubble({
               Ask <em className="italic text-amber">Titus</em>
             </p>
             <p className="mt-2 max-w-[34ch] font-mono text-[11px] leading-snug text-ink-faint">
-              Grounded in my public work and writing. It answers about my work. Chats are logged so I can
-              improve it.
+              Grounded in my public work and writing. It answers about my work.
             </p>
             <a
               href={COLOPHON_PATH}
@@ -954,7 +953,7 @@ export default function CopilotBubble({
             </p>
           ) : (
             <p className="mt-2 font-mono text-[10px] leading-snug text-ink-faint">
-              Messages are sent to OpenAI to generate a response. This site does not save your chat history.
+              Messages go to OpenAI to generate a reply and are logged so I can improve answers. Nothing is stored in your browser.
             </p>
           )}
         </div>
