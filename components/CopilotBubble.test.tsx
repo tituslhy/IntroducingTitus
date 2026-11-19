@@ -117,13 +117,15 @@ describe("CopilotBubble", () => {
     expect(screen.getByText(/personal assistant/i)).toBeInTheDocument();
   });
 
-  it("should disclose in the drawer header that chats are logged", async () => {
+  it("should not say in the drawer header that chats are logged, and keep the How this works link", async () => {
     const user = userEvent.setup();
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
 
     const dialog = screen.getByRole("dialog", { name: /ask titus/i });
-    expect(within(dialog).getByText(/chats are logged so i can/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/grounded in my public work and writing\. it answers about my work\./i)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/chats are logged/i)).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("link", { name: /how this works/i })).toHaveAttribute("href", "/colophon");
   });
 
   it("should close chat panel when FAB is clicked again while open", async () => {
@@ -852,7 +854,7 @@ describe("CopilotBubble", () => {
     expect(fab).toHaveFocus();
   });
 
-  it("should display updated disclaimer text about chat history", async () => {
+  it("should display updated chat-mode footer disclosure", async () => {
     // Arrange
     const user = userEvent.setup();
     render(<CopilotBubble />);
@@ -860,8 +862,11 @@ describe("CopilotBubble", () => {
 
     // Assert
     expect(
-      screen.getByText(/messages are sent to openai to generate a response\. this site does not save your chat history\./i)
+      screen.getByText(
+        "Messages go to OpenAI to generate a reply and are logged so I can improve answers. Nothing is stored in your browser."
+      )
     ).toBeInTheDocument();
+    expect(screen.queryByText(/does not save your chat history/i)).not.toBeInTheDocument();
   });
 
   it("should have close button in drawer header that closes the drawer", async () => {
