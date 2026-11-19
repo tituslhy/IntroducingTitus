@@ -810,6 +810,17 @@ describe("Navigation", () => {
       expect(textSpan).toHaveTextContent("Get in touch");
     });
 
+    it("should render a Contact label span after the Get in touch span, hidden at 721px and wider", () => {
+      render(<Navigation />);
+      const cta = screen.getByRole("link", { name: /email titus/i });
+
+      const contactSpan = cta.querySelector("span:nth-child(3)");
+      expect(contactSpan).toBeInTheDocument();
+      expect(contactSpan?.textContent).toBe("Contact");
+      expect(contactSpan).toHaveClass("min-[721px]:hidden");
+      expect(cta).toHaveAccessibleName(/email titus/i);
+    });
+
     it("should have proper border styling on CTA", () => {
       render(<Navigation />);
       const cta = screen.getByRole("link", { name: /email titus/i });
