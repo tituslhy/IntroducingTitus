@@ -1,218 +1,121 @@
 import { render, screen } from '@testing-library/react'
-import { ARTICLE_COUNT_NUMBER, ARTICLE_COUNT_SHORT } from '@/lib/content'
-import { SIGN_OFF_TITLE } from '@/lib/profile'
+import { CURRENT_ROLE, SOCIAL, EMAIL } from '@/lib/profile'
+import { KEEP_OUT_ATTR } from '@/lib/hero-keepout'
 import Hero from './Hero'
 
+// The canvas animation has its own test (components/front/HeroAnimation.test.tsx).
+jest.mock('@/components/front/HeroAnimation', () => ({
+  __esModule: true,
+  default: ({ className }: { className?: string }) => {
+    const React = jest.requireActual<typeof import('react')>('react')
+    return React.createElement('div', { 'data-testid': 'hero-animation', 'aria-hidden': 'true', className })
+  },
+}))
+
 describe('Hero', () => {
-  it('should render the masthead section with correct id', () => {
-    render(<Hero />)
-    const section = screen.getByRole('heading', { name: /lim hsien yong/i }).closest('section')
-    expect(section).toHaveAttribute('id', 'masthead')
+  it('renders the hero stage section', () => {
+    const { container } = render(<Hero />)
+    expect(container.querySelector('section[data-hero-stage]')).toBeInTheDocument()
   })
 
-  it('should render headshot image with correct alt text', () => {
+  it('renders the headshot with its alt text and source', () => {
     render(<Hero />)
     const image = screen.getByRole('img', { name: /portrait of titus lim/i })
-    expect(image).toBeInTheDocument()
     expect(image).toHaveAttribute('src', '/headshot.jpeg')
   })
 
-  it('should render name with three spans (Lim, Hsien Yong, Titus)', () => {
+  it('renders the name as the only h1, with "(Titus)" in an italic amber em', () => {
     render(<Hero />)
-    expect(screen.getByText(/^Lim$/)).toBeInTheDocument()
-    expect(screen.getByText(/Hsien\s+Yong/)).toBeInTheDocument()
-    expect(screen.getByText(/\(titus\)/i)).toBeInTheDocument()
+    const h1 = screen.getByRole('heading', { level: 1 })
+    expect(h1).toHaveTextContent('Lim Hsien Yong (Titus)')
+    const titus = h1.querySelector('em')
+    expect(titus).toHaveTextContent('(Titus)')
+    expect(titus).toHaveClass('italic', 'text-amber')
   })
 
-  it('should render the main tagline "I build AI systems"', () => {
+  it('renders the tagline, with the second half in amber', () => {
     render(<Hero />)
-    expect(screen.getByText(/build ai systems/i)).toBeInTheDocument()
-    expect(screen.getByText(/from architecture to the boardroom/i)).toBeInTheDocument()
+    const tagline = screen.getByText(/I build AI systems/)
+    expect(tagline).toHaveTextContent('I build AI systems — from architecture to the boardroom.')
+    expect(screen.getByText('from architecture to the boardroom.')).toHaveClass('text-amber')
   })
 
-  it('should render sub-tagline about production AI and articles', () => {
+  it('renders the eyebrow from the current role, company and location', () => {
     render(<Hero />)
-    expect(screen.getByText(/8\+ years of production ai/i)).toBeInTheDocument()
-    expect(screen.getByText(new RegExp(ARTICLE_COUNT_SHORT, 'i'))).toBeInTheDocument()
-    expect(screen.getAllByText(/mastercard/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(new RegExp(`${CURRENT_ROLE.role} · ${CURRENT_ROLE.company} · ${CURRENT_ROLE.location}`))).toBeInTheDocument()
   })
 
-  it('should render status bar with location, role, and year', () => {
+  it('links "View experience" to /experience and "Read the writing" to /writing', () => {
     render(<Hero />)
-    expect(screen.getByText('Singapore')).toBeInTheDocument()
-    expect(screen.getAllByText(/Lead AI Engineer/i).length).toBeGreaterThan(0)
-    expect(screen.getByText('2026')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /view experience/i })).toHaveAttribute('href', '/experience')
+    expect(screen.getByRole('link', { name: /read the writing/i })).toHaveAttribute('href', '/writing')
   })
 
-  it('should render "View experience" CTA with correct anchor link', () => {
+  it('does not link the CTAs to old in-page anchors', () => {
     render(<Hero />)
-    const link = screen.getByRole('link', { name: /view experience/i })
-    expect(link).toHaveAttribute('href', '#dossier')
+    const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'))
+    expect(hrefs.some((h) => h?.startsWith('#'))).toBe(false)
   })
 
-  it('should render "Read writing" CTA with correct anchor link', () => {
+  it('renders the CTA buttons with border and padding classes', () => {
     render(<Hero />)
-    const link = screen.getByRole('link', { name: /read writing/i })
-    expect(link).toHaveAttribute('href', '#writing')
+    const experience = screen.getByRole('link', { name: /view experience/i })
+    const writing = screen.getByRole('link', { name: /read the writing/i })
+    expect(experience).toHaveClass('bg-ink')
+    expect(writing).toHaveClass('border', 'border-ink')
   })
 
-  it('should render "Resume on request" link as mailto', () => {
+  it('renders GitHub, LinkedIn and Medium as external links that open in a new tab', () => {
     render(<Hero />)
-    const link = screen.getByRole('link', { name: /resume on request/i })
-    expect(link).toHaveAttribute('href', expect.stringContaining('mailto:tituslhy@gmail.com'))
-    expect(link).toHaveAttribute('href', expect.stringContaining('subject=Resume Request'))
-  })
-
-  it('should render GitHub social link with correct href', () => {
-    render(<Hero />)
-    const links = screen.getAllByRole('link')
-    const githubLink = links.find((a) =>
-      a.getAttribute('href')?.includes('github.com/tituslhy')
-    )
-    expect(githubLink).toHaveAttribute('href', 'https://github.com/tituslhy')
-  })
-
-  it('should render LinkedIn social link with correct href', () => {
-    render(<Hero />)
-    const links = screen.getAllByRole('link')
-    const linkedinLink = links.find((a) =>
-      a.getAttribute('href')?.includes('linkedin.com')
-    )
-    expect(linkedinLink).toHaveAttribute(
-      'href',
-      'https://www.linkedin.com/in/titus-lim-hsien-yong-70223254/'
-    )
-  })
-
-  it('should render Medium social link with correct href', () => {
-    render(<Hero />)
-    const links = screen.getAllByRole('link')
-    const mediumLink = links.find((a) =>
-      a.getAttribute('href')?.includes('medium.com')
-    )
-    expect(mediumLink).toHaveAttribute('href', 'https://medium.com/@tituslhy')
-  })
-
-  it('should render Coffee (Buy Me a Coffee) social link with correct href', () => {
-    render(<Hero />)
-    const links = screen.getAllByRole('link')
-    const coffeeLink = links.find((a) =>
-      a.getAttribute('href')?.includes('buymeacoffee.com')
-    )
-    expect(coffeeLink).toHaveAttribute('href', 'https://buymeacoffee.com/tituslhy')
-  })
-
-  it('should render Email social link with mailto href', () => {
-    render(<Hero />)
-    const links = screen.getAllByRole('link')
-    const emailLinks = links.filter((a) => {
-      const href = a.getAttribute('href')
-      return href?.startsWith('mailto:') && !href.includes('subject=')
-    })
-    expect(emailLinks.length).toBeGreaterThan(0)
-    expect(emailLinks[0]).toHaveAttribute('href', 'mailto:tituslhy@gmail.com')
-  })
-
-  it('should render external social links with target="_blank" and rel="noopener noreferrer"', () => {
-    render(<Hero />)
-    const links = screen.getAllByRole('link')
-    const externalLinks = links.filter((a) => {
-      const href = a.getAttribute('href')
-      return href?.startsWith('https://') && !href?.includes('anchor') && !href?.includes('#')
-    })
-
-    // At least some external links (GitHub, LinkedIn, Medium, Coffee)
-    const externalWithBlank = externalLinks.filter(
-      (a) => a.getAttribute('target') === '_blank'
-    )
-    expect(externalWithBlank.length).toBeGreaterThanOrEqual(4)
-    externalWithBlank.forEach((link) => {
+    expect(screen.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', SOCIAL.github)
+    expect(screen.getByRole('link', { name: 'LinkedIn' })).toHaveAttribute('href', SOCIAL.linkedin)
+    expect(screen.getByRole('link', { name: 'Medium' })).toHaveAttribute('href', SOCIAL.medium)
+    for (const name of ['GitHub', 'LinkedIn', 'Medium']) {
+      const link = screen.getByRole('link', { name })
+      expect(link).toHaveAttribute('target', '_blank')
       expect(link).toHaveAttribute('rel', 'noopener noreferrer')
-    })
-  })
-
-  it('should render three kicker lines with correct labels', () => {
-    render(<Hero />)
-    expect(screen.getByText('8+ years')).toBeInTheDocument()
-    expect(screen.getByText(`${ARTICLE_COUNT_NUMBER} articles`)).toBeInTheDocument()
-    expect(screen.getByText('Currently')).toBeInTheDocument()
-  })
-
-  it('should render kicker text with production AI mention', () => {
-    render(<Hero />)
-    const kickerTexts = screen.getAllByText(/of production ai/i)
-    expect(kickerTexts.length).toBeGreaterThan(0)
-  })
-
-  it('should render kicker text with technical articles mention', () => {
-    render(<Hero />)
-    const elements = screen.getAllByText(/technical articles/i)
-    expect(elements.length).toBeGreaterThan(0)
-  })
-
-  it('should render kicker text with Mastercard mention', () => {
-    render(<Hero />)
-    const elements = screen.getAllByText(/mastercard/i)
-    expect(elements.length).toBeGreaterThan(0)
-  })
-
-  it('should render the role label from the current role, "Lead AI Engineer" today', () => {
-    render(<Hero />)
-    expect(screen.getByText(SIGN_OFF_TITLE)).toBeInTheDocument()
-    expect(SIGN_OFF_TITLE).toBe('Lead AI Engineer')
-  })
-
-  it('should have proper heading hierarchy with h1 for name', () => {
-    render(<Hero />)
-    const h1 = screen.getByRole('heading', { level: 1, name: /lim hsien yong/i })
-    expect(h1).toBeInTheDocument()
-  })
-
-  it('should render CTA buttons with border and padding classes', () => {
-    render(<Hero />)
-    const experienceButton = screen.getByRole('link', { name: /view experience/i })
-    const writingButton = screen.getByRole('link', { name: /read writing/i })
-
-    // Check for button-like styling with border
-    expect(experienceButton).toHaveClass('border')
-    expect(writingButton).toHaveClass('border')
-    // Check they have px padding (tailwind uses px-[value])
-    expect(experienceButton.className).toMatch(/px-\[/)
-    expect(writingButton.className).toMatch(/px-\[/)
-  })
-
-  it('should render "View experience" CTA with arrow icon', () => {
-    render(<Hero />)
-    const experienceButton = screen.getByRole('link', { name: /view experience/i })
-    expect(experienceButton.textContent).toContain('→')
-  })
-
-  it('should render multiple contact/resume links', () => {
-    render(<Hero />)
-    const emailLinks = screen.getAllByRole('link', { name: /email|resume/i })
-    expect(emailLinks.length).toBeGreaterThan(0)
-  })
-
-  it('should have correct kicker grid structure with 3 items', () => {
-    const { container } = render(<Hero />)
-    const kickerList = container.querySelector('ul')
-    if (kickerList) {
-      const kickerItems = kickerList.querySelectorAll('li')
-      expect(kickerItems.length).toBe(3)
     }
   })
 
-  it('should render social links with icon SVGs', () => {
-    const { container } = render(<Hero />)
-    // Find SVGs within the social links section
-    const svgs = container.querySelectorAll('svg[aria-hidden="true"]')
-    // Should have multiple SVGs for social icons (GitHub, LinkedIn, Medium, Coffee, Mail)
-    expect(svgs.length).toBeGreaterThanOrEqual(5)
+  it('uses the LinkedIn URL from lib/profile.ts', () => {
+    expect(SOCIAL.linkedin).toBe('https://www.linkedin.com/in/titus-lim-hsien-yong/')
+    render(<Hero />)
+    expect(screen.getByRole('link', { name: 'LinkedIn' })).toHaveAttribute(
+      'href',
+      'https://www.linkedin.com/in/titus-lim-hsien-yong/'
+    )
   })
 
-  it('should have an aria-label on the h1 identifying name', () => {
+  it('does not show the Coffee link in the hero (it lives in the footer)', () => {
+    render(<Hero />)
+    expect(screen.queryByRole('link', { name: /coffee/i })).not.toBeInTheDocument()
+  })
+
+  it('renders "Resume available on request" as a mailto with a resume subject', () => {
+    render(<Hero />)
+    const link = screen.getByRole('link', { name: /resume available on request/i })
+    expect(link).toHaveAttribute('href', `mailto:${EMAIL}?subject=Resume Request`)
+  })
+
+  it('marks the text, name, buttons, resume line and photo as keep-out for the animation', () => {
     const { container } = render(<Hero />)
-    const h1 = container.querySelector('h1')
-    expect(h1).toHaveAttribute('aria-label', expect.stringContaining('Titus'))
+    const keepOut = container.querySelectorAll(`[${KEEP_OUT_ATTR}]`)
+    // eyebrow, name, tagline, buttons, resume line, photo
+    expect(keepOut.length).toBeGreaterThanOrEqual(6)
+    expect(container.querySelector(`[${KEEP_OUT_ATTR}="name"]`)?.tagName).toBe('H1')
+    expect(container.querySelector(`[${KEEP_OUT_ATTR}="photo"]`)?.tagName).toBe('FIGURE')
+  })
+
+  it('renders the animation behind the text, hidden from assistive tech', () => {
+    render(<Hero />)
+    const animation = screen.getByTestId('hero-animation')
+    expect(animation).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('does not render the old kicker lines or the old sub-tagline', () => {
+    render(<Hero />)
+    expect(screen.queryByText('Currently')).not.toBeInTheDocument()
+    expect(screen.queryByText(/of production ai/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/8\+ years/i)).not.toBeInTheDocument()
   })
 })

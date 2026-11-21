@@ -28,7 +28,7 @@ export const EMAIL = 'tituslhy@gmail.com'
 
 export const SOCIAL = {
   github: 'https://github.com/tituslhy',
-  linkedin: 'https://www.linkedin.com/in/titus-lim-hsien-yong-70223254/',
+  linkedin: 'https://www.linkedin.com/in/titus-lim-hsien-yong/',
   medium: 'https://medium.com/@tituslhy',
   coffee: 'https://buymeacoffee.com/tituslhy',
   email: EMAIL,
@@ -55,11 +55,12 @@ export type Role = {
   techNote?: string
   pullQuote?: string
   incoming?: boolean
-  /** Lower-signal / older roles get a more compact visual footprint. */
-  compact?: boolean
   /** Copilot-only, first-person narrative. Not rendered on the page. */
   copilot?: string
 }
+
+/** The latest roles shown in full; older ones sit under "Earlier roles" (and in the front page's "+ N earlier roles"). */
+export const FEATURED_ROLE_COUNT = 3
 
 export const ROLES: Role[] = [
   {
@@ -71,9 +72,9 @@ export const ROLES: Role[] = [
     dates: 'Jul 2026 — Present',
     deck: "Working on Agent Suite at the R&D Foundry — Mastercard's platform for enterprises to build, test, and deploy AI agents.",
     deckLink: { text: 'Agent Suite', href: AGENT_SUITE_URL },
-    body: 'Architected and built the core SDK and CLI for Agent Suite: a shared foundation that replaces one-off agent builds with a common, governed standard. Teams declare agents in YAML, then chat with them in the terminal or serve them as an API. Assistant skills ship inside the packages, and contributor tooling keeps both codebases consistent.',
+    body: 'Tech lead and anchor contributor for the core SDK behind Agent Suite. Architected and built the SDK and CLI, including a bespoke package-manager setup: a shared foundation that replaces one-off agent builds with a common, governed standard. Agents are built declaratively: teams declare them in YAML, then chat with them in the terminal or serve them as an API. Assistant skills ship inside the packages, and contributor tooling keeps both codebases consistent.',
     tech: ['Python', 'LangChain', 'Typer', 'FastAPI', 'Docker', 'Helm Charts', 'GitHub Actions', 'Apache Jenkins'],
-    copilot: `Agent Suite was publicly announced in January 2026. I do not claim to have launched it; I started in July 2026. The SDK is agent-suite-core, a LangChain-based layer that makes governed, standards-compliant agent-building the default. The CLI is agent-suite-cli, built on Typer, which serves an agent as an ASGI app. I do not discuss internal compliance controls or implementation details beyond this.`,
+    copilot: `Agent Suite was publicly announced in January 2026. I do not claim to have launched it; I started in July 2026. I am the tech lead and an anchor contributor for its core SDK, agent-suite-core, a LangChain-based layer that makes governed, standards-compliant agent-building the default. The CLI is agent-suite-cli, built on Typer, which serves an agent as an ASGI app. I do not discuss internal compliance controls or implementation details beyond this.`,
   },
   {
     slug: 'uob',
@@ -82,10 +83,10 @@ export const ROLES: Role[] = [
     location: 'Singapore',
     role: 'Vice President, Generative AI',
     dates: 'Jun 2025 — Jul 2026',
-    deck: 'Technical lead for a real-time GenAI contact-centre platform supporting in-call and post-call agent assistance under strict latency and accuracy SLAs.',
-    body: "Developed UOB's enterprise multi-agent GenAI platform, enabling teams to build, deploy, and orchestrate agents with cross-framework interoperability and dynamic tool/agent discovery.",
-    tech: ['Java (Spring Boot)', 'React', 'Redis', 'Oracle DB', 'ELK Stack', 'Docker', 'vLLM', 'Helm Charts', 'Apache Jenkins', 'LangChain', 'MCP'],
-    copilot: 'The multi-agent platform is called BYOA (Build Your Own Agents).',
+    deck: 'Sole engineer on a real-time GenAI contact-centre platform: live call transcripts, in-call assistance and policy search for agents, and post-call summaries with red-flag and promise checks.',
+    body: "Picked up Java to take over its Spring Boot microservices, and cut false positives in its post-call checks by 80% with an LLM-driven prompt-optimisation loop on the bank's self-hosted models. Also built the MCP service behind UOB's customer onboarding workflow: a deterministic LangGraph workflow that handles incomplete and inconsistent documents, with LLM reasoning where it helps.",
+    tech: ['Java (Spring Boot)', 'React', 'Redis', 'Oracle DB', 'ELK Stack', 'Splunk', 'Docker', 'Red Hat OpenShift', 'vLLM', 'Helm Charts', 'Apache Jenkins', 'LangChain', 'LangGraph', 'MCP'],
+    copilot: "I also worked on the early design and build of BYOA (Build Your Own Agents), UOB's planned multi-agent platform, meant to let teams build, deploy, and orchestrate agents with cross-framework interoperability and dynamic tool and agent discovery. The customer onboarding workflow app is BYOC (Build Your Own Case): rather than handing an agent full control, it keeps the workflow deterministic and uses the LLM's reasoning at set points. My main part was the MCP server behind it, which connects it to its tools and does the computation. I was not involved in BYOB, UOB's bot builder.",
   },
   {
     slug: 'illumina',
@@ -115,7 +116,6 @@ export const ROLES: Role[] = [
     deck: 'Validated and enhanced MRT station crowdedness forecasting; tightened streaming data pipelines.',
     body: 'Model shipped to the MyTransportSG app.',
     tech: ['Python', 'ML Forecasting', 'Streaming Pipelines'],
-    compact: true,
   },
   {
     slug: 'ema',
@@ -127,7 +127,6 @@ export const ROLES: Role[] = [
     deck: "Developed and presented national electricity and gas demand forecasts to Ministers and Permanent Secretaries; drove the Authority's AI and data strategy roadmap.",
     body: 'Built ML models for power-plant trip prediction and electricity spot-price forecasting with external partners.',
     tech: ['Python', 'XGBoost', 'Neural Networks', 'DataRobot', 'ARIMA'],
-    compact: true,
     copilot: "Those national demand forecasts informed Singapore's climate change policy decisions.",
   },
   {
@@ -140,7 +139,6 @@ export const ROLES: Role[] = [
     deck: 'Built a national-scale skill extraction algorithm using NLP to construct skills graphs from online job portals.',
     body: "Findings published in a Business Insider report on Indonesia's labour market.",
     tech: ['Python', 'NLP', 'Regex Entity Extraction'],
-    compact: true,
   },
   {
     slug: 'toyota-tsusho',
@@ -153,7 +151,6 @@ export const ROLES: Role[] = [
     body: 'Served Toyota automotive distributors across the Asia Pacific region.',
     tech: ['VBA', 'Excel', 'Exponential Smoothing', 'Holt-Winters'],
     pullQuote: 'Improved long-term forecast accuracy by ~25%.',
-    compact: true,
     copilot: 'Where it started.',
   },
 ]
@@ -177,37 +174,110 @@ export const SITE_DESCRIPTION = `${SIGN_OFF_TITLE} with ${YEARS_EXPERIENCE} buil
 // Education & credentials
 // ---------------------------------------------------------------------------
 
-export type Education = {
+/** A programme taken during a degree (an exchange, a summer school), shown inside that degree. */
+export type EducationPart = {
   institution: string
-  degree: string
+  /** Short name for labels, e.g. "UConn". */
+  short: string
+  programme: string
   dates: string
   honors: string[]
-  /** Copilot-only honours — true, but not given page space. */
-  copilotHonors?: string[]
+}
+
+export type Education = {
+  /** Stable id: the page anchor is `edu-${slug}`. */
+  slug: string
+  /** The year in the rail. */
+  years: string
+  institution: string
+  /** Short name for labels, e.g. "SMU". */
+  short: string
+  degree: string
+  dates: string
+  location: string
+  /**
+   * Everything here was selected, ranked or awarded; taking part alone doesn't make the list.
+   * Write the result first: the text before the first comma is shown large, the rest as its context.
+   */
+  honors: string[]
+  parts?: EducationPart[]
 }
 
 export const EDUCATION: Education[] = [
   {
+    slug: 'smu',
+    years: '2021',
     institution: 'Singapore Management University',
-    degree: 'Master of IT in Business — AI Track',
+    short: 'SMU',
+    degree: 'Master of IT in Business, AI track',
     dates: '2021 — 2022',
-    honors: ['GPA 3.98 / 4.0', "Dean's List", 'SMU AI Talent Development Grant'],
-    copilotHonors: ['MITB Scholarship'],
+    location: 'Singapore',
+    honors: [
+      'GPA 3.98 / 4.0',
+      "Dean's List",
+      'SMU AI Talent Development Grant',
+      'MITB Scholarship',
+      '1st place, Food Image Classification',
+      '3rd place, Recommender Systems',
+    ],
   },
   {
+    slug: 'nus',
+    years: '2011',
     institution: 'National University of Singapore',
+    short: 'NUS',
     degree: 'BEng Chemical Engineering, 2nd Upper Honours',
     dates: '2011 — 2015',
-    honors: ['NUS Undergraduate Scholarship'],
-    copilotHonors: [
-      'Barco-Santander Scholarship',
-      'IE Singapore Young Talent Program Market Immersion Award',
+    location: 'Singapore',
+    honors: [
+      'NUS Undergraduate Scholarship',
+      'IE Singapore Young Talent Programme Market Immersion Award',
+      '1 of 3 chemical engineers selected, NUS Suzhou winter programme',
+      'Selected to present, Shell Global Energy, Water & Food Security Roundtable',
+      '88th percentile globally, Bloomberg Aptitude Test',
+    ],
+    parts: [
+      {
+        institution: 'University of Connecticut',
+        short: 'UConn',
+        programme: 'Exchange, Chemical & Biomolecular Engineering',
+        dates: '2013',
+        honors: [
+          'First Class with Distinction',
+          'Top of the class in two modules, Process Kinetics and Heat & Mass Transfer',
+          'Top 10 in two PhD modules, taken in year 2',
+          '"Most Inspiring Student", AIChE UConn chapter',
+        ],
+      },
+      {
+        institution: 'University of Oxford',
+        short: 'Oxford',
+        programme: 'IARU Global Summer School, Global Challenges of the 21st Century',
+        dates: '2014',
+        honors: ['First Class with Distinction', '1 of 14 selected worldwide', 'IARU-Santander Scholarship', 'NUS Scholars Enrichment Grant'],
+      },
+    ],
+  },
+  {
+    slug: 'ajc',
+    years: '2007',
+    institution: 'Anderson Junior College',
+    short: 'AJC',
+    degree: "GCE 'A' Levels, Physical Sciences",
+    dates: '2007 — 2008',
+    location: 'Singapore',
+    honors: [
+      'Top Student Award',
+      'Chess Club President, College Colours',
+      'Certificate of Distinction, Alpha Students Programme',
+      'Platinum Award, Community Involvement Programme',
+      'Sports Leaders Award',
     ],
   },
 ]
 
-/** Copilot-only credentials that have no section on the page. */
-export const OTHER_CREDENTIALS = ['Oxford IARU Global Summer Programme — 1 of 14 selected worldwide.']
+/** Shown at the foot of the Education page. */
+export const CERTIFICATIONS = ['Certified ScrumMaster']
 
 // ---------------------------------------------------------------------------
 // Stack
@@ -279,6 +349,8 @@ export type Project = {
   figure: { label: string; value: string }
   secondary: { label: string; value: string }
   tags: string[]
+  /** One short line for the front page's Projects door. */
+  preview: string
   github?: string | null
   demo?: string | null
   accent: 'amber' | 'blue'
@@ -296,6 +368,7 @@ export const PROJECTS: Project[] = [
     figure: { label: 'containers', value: '54' },
     secondary: { label: 'test coverage', value: FICTIONAL_BASSOON_COVERAGE },
     tags: ['Python', 'LangGraph', 'Postgres', 'ClickHouse', 'Docker', 'Langfuse', 'Next.js'],
+    preview: 'an LLM platform in 54 containers',
     github: 'https://github.com/tituslhy/fictional-bassoon',
     accent: 'amber',
     marginNote: {
@@ -313,6 +386,7 @@ export const PROJECTS: Project[] = [
     figure: { label: 'components', value: '16' },
     secondary: { label: 'anticipated savings', value: ILLUMINA_SAVINGS_FIGURE },
     tags: ['LlamaIndex', 'Qdrant', 'AWS Bedrock', 'Docker+CUDA', 'Grafana', 'SonarQube'],
+    preview: 'a 16-part retrieval platform',
     github: null,
     accent: 'blue',
     marginNote: {
@@ -330,6 +404,7 @@ export const PROJECTS: Project[] = [
     figure: { label: 'agents', value: '6' },
     secondary: { label: 'modes', value: 'II' },
     tags: ['Python', 'Autogen', 'LlamaIndex', 'Qdrant', 'RAG', 'Tavily', 'Gmail'],
+    preview: 'six agents arguing about your portfolio',
     github: 'https://github.com/tituslhy/TheMarginCall',
     demo: 'https://www.youtube.com/watch?v=uLtMD3J4U40',
     accent: 'amber',
@@ -381,12 +456,34 @@ export const WRITING_TOPICS = [
 ]
 
 // ---------------------------------------------------------------------------
+// Site pages — the nav, in order. Ask Titus (the colophon) comes last.
+// ---------------------------------------------------------------------------
+
+export type SitePath = '/experience' | '/education' | '/projects' | '/writing' | '/about'
+
+export const SITE_PAGES: { path: SitePath; label: string; folio: string }[] = [
+  { path: '/experience', label: 'Experience', folio: '01' },
+  { path: '/education', label: 'Education', folio: '02' },
+  { path: '/projects', label: 'Projects', folio: '03' },
+  { path: '/writing', label: 'Writing', folio: '04' },
+  { path: '/about', label: 'About', folio: '05' },
+]
+
+/** Ask Titus (the colophon) comes after the pages, in the nav and on the front page. */
+export const ASK_FOLIO = String(SITE_PAGES.length + 1).padStart(2, '0')
+
+/** A page's number, as the nav shows it; the page's own section marker uses the same one. */
+export const pageFolio = (path: SitePath) => SITE_PAGES.find((p) => p.path === path)!.folio
+
+// ---------------------------------------------------------------------------
 // Page targets — what the copilot's show_on_page tool may point at
 // ---------------------------------------------------------------------------
 
 export type PageTarget = {
-  /** DOM id on the page. */
+  /** DOM id on its page. */
   id: string
+  /** The route the anchor lives on; show_on_page navigates there first. */
+  path: SitePath
   /** Short label for the "See on page" control, e.g. "Illumina, 2023". */
   label: string
   /** What lives there, for the model. */
@@ -398,19 +495,26 @@ export type PageTarget = {
  * page renders, so a new role or project is targetable the moment it exists.
  */
 export const PAGE_TARGETS: PageTarget[] = [
-  { id: 'lede', label: 'About', about: 'my short bio and how I work' },
-  { id: 'stack', label: 'Stack', about: 'the tools, languages, and platforms I work with' },
-  { id: 'dossier', label: 'Experience', about: 'my full career timeline' },
+  { id: 'lede', path: '/about', label: 'About', about: 'my short bio and how I work' },
+  { id: 'stack', path: '/about', label: 'Stack', about: 'the tools, languages, and platforms I work with' },
+  { id: 'dossier', path: '/experience', label: 'Experience', about: 'my full career timeline' },
   ...ROLES.map((r) => ({
     id: `role-${r.slug}`,
+    path: '/experience' as const,
     label: `${r.company}, ${r.years}`,
     about: `my ${r.role} role at ${r.company} (${r.dates})`,
   })),
-  { id: 'education', label: 'Education', about: 'my degrees and honours' },
-  { id: 'projects', label: 'Projects', about: 'the things I have built on my own' },
-  ...PROJECTS.map((p) => ({ id: `project-${p.slug}`, label: p.title, about: `${p.title}: ${p.sub}` })),
-  { id: 'open-source', label: 'Open source', about: 'my open-source contributions' },
-  { id: 'writing', label: 'Writing', about: 'my featured Medium articles' },
+  { id: 'education', path: '/education', label: 'Education', about: 'my degrees, honours and certifications' },
+  ...EDUCATION.map((e) => ({
+    id: `edu-${e.slug}`,
+    path: '/education' as const,
+    label: `${e.short}, ${e.years}`,
+    about: `${e.degree} at ${e.institution} (${e.dates})${e.parts?.length ? `, including ${e.parts.map((p) => p.institution).join(' and ')}` : ''}`,
+  })),
+  { id: 'projects', path: '/projects', label: 'Projects', about: 'the things I have built on my own' },
+  ...PROJECTS.map((p) => ({ id: `project-${p.slug}`, path: '/projects' as const, label: p.title, about: `${p.title}: ${p.sub}` })),
+  { id: 'open-source', path: '/projects', label: 'Open source', about: 'my open-source contributions' },
+  { id: 'writing', path: '/writing', label: 'Writing', about: 'my featured Medium articles' },
 ]
 
 export const PAGE_TARGET_IDS = PAGE_TARGETS.map((t) => t.id)

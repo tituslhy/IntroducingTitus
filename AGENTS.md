@@ -66,17 +66,15 @@ Do not deviate from this stack unless explicitly instructed.
 - **Aesthetic:** Editorial broadsheet — typography-forward, hairline rules, folios,
   drop-caps, pull quotes, single muted amber accent. No rounded cards, no shadows
   on type, no glow.
-- **Animation:** Subtle scroll-triggered reveals. Sticky year rail. Quiet looping
-  micro-motion (amber pulse-dot, coffee-cup steam, typing dots) — all gated behind
-  `prefers-reduced-motion`. No page transitions that make users wait. No particle
-  backgrounds.
-- **Layout:** Single long-scroll column with sticky anchor nav. Desktop-first.
-  Fully responsive.
+- **Layout:** A short front page plus six routes (`/experience`, `/education`, `/projects`, `/writing`,
+  `/about`, `/colophon`), with a sticky nav. Desktop-first. Fully responsive.
+  Front page design: `docs/superpowers/specs/2026-11-21-front-page-redesign-design.md`.
 - **Headshot:** Profile photo in masthead. File: `/public/headshot.jpeg` —
   rectangular 3:4, 1px ink border, `object-position: 50% 30%`, subtle saturate/
   contrast filter. No circle crop, no amber ring/glow.
-- **No stock photos. No illustrations. No brand/tech logos.** Typography, headshot,
-  and hairline structure carry the weight.
+- **No stock photos. No illustrations. Tech logos only in the front-page hero animation**
+  (files in `public/logos/`, credits in `public/logos/CREDITS.md`, never a tool I haven't used).
+  Elsewhere, typography, headshot, and hairline structure carry the weight.
 
 ### What This Site Is NOT
 - NOT a purple gradient SaaS template
@@ -88,11 +86,11 @@ Do not deviate from this stack unless explicitly instructed.
 
 ## Site Structure
 
-### Navigation (sticky top nav, anchor links)
-`About` | `Stack` | `Experience` | `Projects` | `Writing` + `Get in touch` CTA
-- Scroll-spy underlines the active item in amber; nav hides on scroll-down,
-  reappears on scroll-up. Folio numbers prefix each item (e.g. "01 About").
-- Brand "T·L" at left scrolls to top. Mobile: horizontal scroll list.
+### Navigation (sticky top nav, page links)
+`T·L` | `01 Experience` | `02 Education` | `03 Projects` | `04 Writing` | `05 About` | `06 Ask Titus` (→ `/colophon`) + `Get in touch` CTA
+- The current page's item is underlined in amber; nav is opaque, hides on scroll-down,
+  reappears on scroll-up. Pages live in `SITE_PAGES` (`lib/profile.ts`).
+- Brand "T·L" at left goes to the front page. Mobile: two rows, all links visible.
 
 ### Page 1 — Home
 **Hero / Masthead:**
@@ -121,7 +119,7 @@ Grouped tag grid (NO skill bars):
 
 **Social links:**
 - GitHub: https://github.com/tituslhy
-- LinkedIn: https://www.linkedin.com/in/titus-lim-hsien-yong-70223254/
+- LinkedIn: https://www.linkedin.com/in/titus-lim-hsien-yong/
 - Medium: https://medium.com/@tituslhy
 - Email: tituslhy@gmail.com
 
@@ -139,7 +137,7 @@ Reverse chronological timeline/card layout. Each card:
 ---
 
 ### Satellite page — `/colophon` ("How Ask Titus works")
-One satellite page, linked from the drawer ("How this works") and the footer, **not the main nav**.
+One satellite page, linked from the drawer ("How this works"), the footer, and the main nav (last item, "Ask Titus").
 The production note for the copilot: same editorial system, ~68ch reading column. Its "How it's tested"
 scorecard reads `content/eval-results.json` (written only by `npm run eval:writing`) and is hidden when that
 file is missing. Never show a number a script didn't produce; never publish the system prompt verbatim.

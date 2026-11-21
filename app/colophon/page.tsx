@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import Footer from '@/components/Footer'
 import Reveal from '@/components/Reveal'
 import ReplyDiagram from '@/components/colophon/ReplyDiagram'
@@ -76,7 +75,7 @@ const WONT_DO = [
 const EXAMPLE_BRIEF: FitBrief = {
   roleTitle: 'Staff GenAI Engineer',
   company: 'An example company',
-  verdict: 'A strong match on production retrieval and multi-agent platforms; the Rust requirement isn’t on my site, so ask me.',
+  verdict: 'A strong match on production retrieval and agent platforms; the Rust requirement isn’t on my site, so ask me.',
   requirements: [
     {
       requirement: 'Shipped retrieval-augmented generation to production',
@@ -85,9 +84,9 @@ const EXAMPLE_BRIEF: FitBrief = {
       targets: [],
     },
     {
-      requirement: 'Designed a platform for multiple agents',
+      requirement: 'Built a platform for building and serving agents',
       fit: 'strong',
-      evidence: 'At UOB I architected BYOA, the enterprise multi-agent platform, for cross-framework interoperability and dynamic tool discovery.',
+      evidence: 'At Mastercard I am tech lead for the core SDK behind Agent Suite: teams declare agents in YAML, then chat with them in the terminal or serve them as an API.',
       targets: [],
     },
     { requirement: 'Production services in Rust', fit: 'not_on_file', evidence: '', targets: [] },
@@ -190,16 +189,6 @@ export default function ColophonPage() {
   return (
     <main className="text-ink">
       <div className="mx-auto max-w-[1280px] px-[clamp(18px,4vw,56px)]">
-        {/* Top bar: the way home (this page is a satellite, not in the main nav) */}
-        <nav aria-label="Site" className="flex items-center justify-between border-b border-rule py-4 font-mono text-[11px] uppercase tracking-[0.12em]">
-          <Link href="/" className="font-serif text-[20px] font-medium normal-case tracking-[-0.01em] text-ink transition-colors hover:text-amber">
-            T·L
-          </Link>
-          <Link href="/" className="text-ink-soft transition-colors hover:text-amber">
-            <span aria-hidden="true">← </span>Back to the site
-          </Link>
-        </nav>
-
         <article className="mx-auto max-w-[68ch] pb-[clamp(32px,5vw,64px)]">
           {/* Masthead */}
           <header className="border-b border-ink pt-[clamp(40px,6vw,88px)] pb-[clamp(24px,3vw,36px)]">
@@ -373,6 +362,9 @@ export default function ColophonPage() {
                 Medium
               </a>
               .
+            </p>
+            <p className="mt-4 font-mono text-[11px] leading-relaxed tracking-[0.02em] text-ink-faint">
+              Tool logos are trademarks of their owners, shown to indicate tools I&apos;ve used.
             </p>
           </Section>
         </article>

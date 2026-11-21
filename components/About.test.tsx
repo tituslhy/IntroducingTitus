@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { pageFolio } from "@/lib/profile";
 import About from "./About";
 
 describe("About", () => {
@@ -7,7 +8,7 @@ describe("About", () => {
     const marker = container.querySelector("section#lede header > div");
     const link = screen.getByRole("link", { name: /back to top/i });
     expect(marker).toContainElement(link);
-    expect(link).toHaveAttribute("href", "#masthead");
+    expect(link).toHaveAttribute("href", "#top");
   });
 
   it("should render section with lede id", () => {
@@ -22,9 +23,11 @@ describe("About", () => {
     expect(heading).toBeInTheDocument();
   });
 
-  it("should render section marker with '01'", () => {
-    render(<About />);
-    expect(screen.getByText("01")).toBeInTheDocument();
+  it("should render section marker with the About folio", () => {
+    const { container } = render(<About />);
+    const marker = container.querySelector("section#lede header > div");
+    expect(marker).toContainElement(screen.getByText(pageFolio("/about")));
+    expect(pageFolio("/about")).toBe("05");
   });
 
   it("should render section label 'About'", () => {

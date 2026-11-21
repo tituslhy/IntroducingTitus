@@ -40,20 +40,19 @@ const nextConfig = {
 ### Visual Direction
 - **Mode:** Light (warm cream paper) by default. Optional dark toggle, OFF by default — skip for now.
 - **Aesthetic:** Editorial broadsheet — typography-forward, hairline rules, folios, drop-caps, pull quotes. Single muted amber accent. No rounded cards, no shadows on type, no glow.
-- **NOT:** Purple gradients. Generic SaaS look. Particle backgrounds. Overused fonts (Inter, Roboto, Space Grotesk). Glowing dark-terminal look.
+- **NOT:** Purple gradients. Generic SaaS look. Overused fonts (Inter, Roboto, Space Grotesk). Glowing dark-terminal look.
 - **Font pairing:** Newsreader (headings/name — variable serif) + IBM Plex Mono (body/code/tags). DM Serif Display dropped.
 - **Accent color:** Aged amber `oklch(0.62 0.155 55)` (≈ `#b76a23`). Replaces `#F59E0B` everywhere.
 - **Second accent:** Indigo `oklch(0.34 0.10 254)` — Illumina project only.
-- **Animation:** Subtle scroll-triggered reveals. Sticky year rail. Quiet looping micro-motion (pulse-dot, coffee steam, typing dots), all behind `prefers-reduced-motion`. No page transitions that make you wait. No particle backgrounds.
-- **Layout:** Single long-scroll column with sticky anchor nav. Desktop-first. Fully responsive.
+- **Layout:** A short front page plus six routes (/experience, /education, /projects, /writing, /about, /colophon) with a sticky nav. Desktop-first. Fully responsive.
 - **Headshot:** Profile photo in masthead. File: `/public/headshot.jpeg`. Rectangular 3:4, 1px ink border, `object-position: 50% 30%`, subtle saturate/contrast filter. No circle crop, no amber ring/glow.
-- **No stock photos. No illustrations. No brand/tech logos.** Typography, headshot, and hairline structure carry the weight.
+- **No stock photos. No illustrations. Tech logos only in the front-page hero animation** (tools I've actually used; credits in public/logos/CREDITS.md). Elsewhere, typography, headshot, and hairline structure carry the weight.
 
 ### Navigation
-- Sticky top nav with anchor links + scroll-spy (active item underlined amber) and scroll-hide
-- Nav items: About | Stack | Experience | Projects | Writing, plus a "Get in touch" CTA
-- Folio numbers prefix each item (e.g. "01 About"); brand "T·L" scrolls to top
-- On mobile: horizontal scroll list
+- Sticky, opaque top nav with page links; the current page is underlined amber; hides on scroll-down
+- Nav items: 01 Experience | 02 Education | 03 Projects | 04 Writing | 05 About | 06 Ask Titus (→ /colophon), plus a "Get in touch" CTA
+- Brand "T·L" goes to the front page
+- On mobile: two rows, all links visible
 
 ---
 
@@ -89,7 +88,7 @@ const nextConfig = {
 
 #### Social Links
 - GitHub: https://github.com/tituslhy
-- LinkedIn: https://www.linkedin.com/in/titus-lim-hsien-yong-70223254/
+- LinkedIn: https://www.linkedin.com/in/titus-lim-hsien-yong/
 - Medium: https://medium.com/@tituslhy
 - Email: tituslhy@gmail.com
 
@@ -115,7 +114,7 @@ Tech: Python, LangChain, Typer, FastAPI, Docker, Helm Charts, GitHub Actions, Ap
 
 **United Overseas Bank — Singapore**
 *Vice President, Generative AI* | Jun 2025 – Jul 2026
-> Technical lead for a real-time GenAI-driven contact centre platform supporting in-call and post-call agent assistance under strict latency and accuracy SLAs. Architected and delivered UOB's enterprise multi-agent platform (BYOA) enabling cross-framework agent interoperability and dynamic tool discovery.
+> Sole engineer on a real-time GenAI contact-centre platform: live call transcripts, in-call assistance and policy search for agents, and post-call summaries with red-flag and promise checks. Picked up Java to take over its Spring Boot microservices, and cut false positives in its post-call checks by 80% with an LLM-driven prompt-optimisation loop on the bank's self-hosted models. Also built the MCP service behind UOB's customer onboarding workflow (BYOC). (BYOA, UOB's planned multi-agent platform, which I worked on early, is known to Ask Titus but not shown on the page.)
 Tech: Java (Spring Boot), React, Redis, Oracle DB, ELK Stack, Docker, vLLM, Helm, Jenkins, LangChain, MCP
 
 ---
@@ -155,9 +154,13 @@ Tech: VBA, Excel, Exponential Smoothing, Holt-Winters
 
 ---
 
-#### Education
-- **Singapore Management University** — Master of IT in Business (AI Track) | 2021–2022 | GPA 3.98/4.0 | Dean's List | SMU AI Talent Development Grant
-- **National University of Singapore** — BEng Chemical Engineering (2nd Upper Hons) | 2011–2015 | NUS Undergraduate Scholarship
+#### Education (its own page, `/education`)
+Content lives in `EDUCATION` and `CERTIFICATIONS` (`lib/profile.ts`); honours listed are only things selected, ranked or awarded.
+- **Singapore Management University** — Master of IT in Business (AI track) | 2021–2022 | GPA 3.98, Dean's List, scholarships, competition placings
+- **National University of Singapore** — BEng Chemical Engineering (2nd Upper Hons) | 2011–2015 | with the UConn exchange (2013) and Oxford IARU summer school (2014) inside it
+- **Anderson Junior College** — GCE 'A' Levels | 2007–2008 | Top Student Award
+- **Certifications:** Certified ScrumMaster
+- A results row at the top (`educationResults()` in `lib/education.ts`) is derived from the honours, never typed in.
 
 ---
 
@@ -244,7 +247,7 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 ---
 
 ### Satellite page — `/colophon` (How Ask Titus works)
-- One satellite page, linked from the drawer and footer, **not the main nav**
+- One satellite page, linked from the drawer, the footer and the main nav (last item, "Ask Titus")
 - Sections: the short version, anatomy of a reply, one source of truth, guardrails, recruiter mode, how it's tested (hidden until `content/eval-results.json` exists), what it won't do, stack
 - Spec: `drawer-plans/ask-titus-agent.md` (Phase 3)
 
@@ -298,7 +301,7 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 - [x] Featured Medium articles: **7 hardcoded**
 - [x] Copilot: **Phase 2, now in scope**
 - [x] Deployment: **Vercel** (migrated from GitHub Pages)
-- [x] `/colophon`: **one satellite page, linked from the drawer and footer, not the main nav**
+- [ ] `/colophon`: one satellite page, linked from the drawer, the footer and the main nav (last item, "Ask Titus")
 - [x] Headshot: **Yes, in hero** → `/public/headshot.jpeg`
 - [x] fictional-bassoon: **Public** → https://github.com/tituslhy/fictional-bassoon
 - [x] Tagline updated: **"I build AI systems — from architecture to the boardroom."**

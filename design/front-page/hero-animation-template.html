@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Moving piece, round 6</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+  :root { --paper:#f7f2e9; --deep:#efe7d8; --ink:#1c1813; --soft:#5d554a; --faint:#8f8677; --rule:#d9cfbd; --amber:#b76a23; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#ecebe8; font-family:system-ui,sans-serif; color:#222; padding:28px 32px 60px; }
+  h1 { font-size:22px; margin:0 0 6px; } .sub { color:#666; margin:0 0 18px; font-size:15px; line-height:1.5; max-width:1040px; }
+  .modes { display:flex; gap:8px; margin:0 0 12px; flex-wrap:wrap; }
+  .modes button { font:500 14px system-ui; padding:9px 14px; border:2px solid #ddd; background:#fff; border-radius:8px; cursor:pointer; }
+  .modes button.on { border-color:#2f6fed; }
+  .stage { position:relative; height:600px; background:var(--paper); border:1px solid var(--rule); overflow:hidden; margin-bottom:12px; font-family:'Newsreader',serif; color:var(--ink); }
+  canvas { position:absolute; inset:0; }
+  .k { font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); }
+  .k:before { content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--amber); margin-right:9px; vertical-align:1px; }
+  .front { position:absolute; left:64px; top:64px; z-index:3; pointer-events:none; }
+  .name { font-size:64px; font-weight:500; letter-spacing:-.035em; line-height:.95; margin:14px 0 16px; } .name em { color:var(--amber); font-weight:400; }
+  .tag { font-size:24px; line-height:1.3; } .tag i { color:var(--amber); }
+  .photo { position:absolute; right:64px; top:64px; width:270px; aspect-ratio:3/4; border:1px solid var(--ink); z-index:3; background:var(--deep); }
+  .photo img { width:100%; height:100%; object-fit:cover; object-position:50% 30%; filter:saturate(.85) contrast(1.04); display:block; }
+  .why { font-size:14px; color:#555; line-height:1.6; margin:0 0 14px; max-width:1040px; } .why b { color:#222; }
+  .hint { position:absolute; right:16px; bottom:12px; font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); z-index:4; }
+</style></head>
+<body>
+<h1>Round 6: real logos, plain captions, a work beat</h1>
+<p class="sub">Logos drift in ink and take colour when they assemble. Chains come from your Medium articles and public GitHub repos; the second beat gathers the tools you use at work, with no employer or project named. Logos now come in close around your name.</p>
+
+
+<div class="stage" id="jStage"><canvas id="jC"></canvas>
+  <div class="front"><span class="k">Lead AI Engineer · Mastercard · Singapore</span><div class="name">Lim Hsien Yong <em>(Titus)</em></div><div class="tag">I build AI systems — <i>from architecture to the boardroom.</i></div></div>
+  <div class="photo"><img src="/files/headshot.jpeg" alt="Portrait of Titus Lim"></div>
+</div>
+<p class="why"><b>The loop (45 beats, newest and featured articles first):</b> it opens with every logo lighting up at once over the counts, then fictional-bassoon, then the work beat, then 42 articles and repos. Each tool comes from the article's summary or the repo's own description. On the real site, each caption is a link to its article or repo.</p>
+
+<script>
+/*LOGOS*/
+const IMG={}; for(const [k,v] of Object.entries(LOGO_SRC)){ const m=new Image(), c=new Image(); m.src=v.m; c.src=v.c; IMG[k]={m,c}; }
+const MODE='mix';
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+function setup(c,st){ const dpr=devicePixelRatio||1, W=st.clientWidth, H=st.clientHeight; c.width=W*dpr; c.height=H*dpr; c.style.width=W+'px'; c.style.height=H+'px'; const x=c.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); return {x,W,H}; }
+
+const SYSTEMS=[{"all": true, "tools": [], "cap": "65 articles and 122 repos, all public", "sub": "Medium \u00b7 GitHub"},
+{"tools": ["FastAPI", "LangGraph", "RabbitMQ", "Redis", "PostgreSQL", "ClickHouse", "Langfuse", "Next.js"], "cap": "A production-style AI platform in 54 containers", "sub": "GitHub \u00b7 fictional-bassoon"},
+{"grid": true, "tools": ["Python", "LangChain", "LlamaIndex", "FastAPI", "Typer", "FastMCP", "Java", "Spring", "React", "Docker", "Kubernetes", "Helm", "GitHub Actions", "Jenkins", "Redis", "Elastic", "Qdrant", "vLLM"], "cap": "I build agents at work with these", "sub": "At work \u00b7 across my roles"},
+{"tools": ["TypeSafe", "LangChain", "Tavily"], "cap": "Your AI Agent Needs a Bouncer", "sub": "Medium \u00b7 Agentic Systems"},
+{"chain": true, "tools": ["Python"], "cap": "Blockchains from scratch, in Python", "sub": "Medium \u00b7 Blockchain Systems \u00b7 8 articles"},
+{"tools": ["LangChain", "LangGraph"], "cap": "A field guide to multi-agent architectures", "sub": "Medium \u00b7 Agentic Systems"},
+{"tools": ["Autogen", "LlamaIndex", "Chainlit", "Qdrant"], "cap": "A multi-agent investment research crew", "sub": "GitHub \u00b7 TheMarginCall"},
+{"tools": ["LlamaIndex", "Autogen", "CrewAI", "Haystack", "Chainlit", "Qdrant", "LangChain", "OpenAI", "Apache Kafka"], "cap": "A gentle introduction to the LLM multiverse", "sub": "GitHub \u00b7 the repo behind the Medium series"},
+{"tools": ["PyTorch", "Ultralytics", "TensorFlow", "Streamlit"], "cap": "You Only Edit Once: auto-editing dive videos", "sub": "GitHub \u00b7 3rd place, hackathon"},
+{"tools": ["PyTorch"], "cap": "Catching backdoors hidden in AI models", "sub": "GitHub \u00b7 AI security"},
+{"tools": ["Giskard", "LlamaIndex"], "cap": "Think your RAG app is safe? Giskard might prove you wrong", "sub": "Medium \u00b7 Model Training and Evaluation"},
+{"tools": ["TensorFlow", "OpenAI"], "cap": "A Song for Singapore: LSTMs, GPT-2 and OpenAI Jukebox", "sub": "GitHub \u00b7 featured on an SMU poster"},
+{"tools": ["TensorFlow", "NetworkX"], "cap": "A coffee recommender built on embeddings", "sub": "GitHub \u00b7 Recommender systems"},
+{"tools": ["TensorFlow", "Google Cloud", "Streamlit"], "cap": "Face mask classification, quantised for edge devices", "sub": "GitHub \u00b7 Computer vision"},
+{"tools": ["TensorFlow", "FastAPI", "Streamlit"], "cap": "Skimlit: making medical abstracts skimmable", "sub": "GitHub \u00b7 Natural language processing"},
+{"tools": ["TensorFlow"], "cap": "FoodVision: classifying food photos", "sub": "GitHub \u00b7 Computer vision"},
+{"tools": ["Claude"], "cap": "How I use Claude Code", "sub": "Medium \u00b7 Agentic Systems"},
+{"tools": ["Gemini"], "cap": "Ground control to Antigravity", "sub": "Medium \u00b7 Agentic Systems"},
+{"tools": ["Mem0", "LlamaIndex", "Qdrant", "Neo4j"], "cap": "Agent Memory: the underrated superpower of agentic apps", "sub": "Medium \u00b7 Agentic Systems"},
+{"tools": ["Unsloth", "Python", "Ollama"], "cap": "How to Train Your LLM: LoRA with Unsloth", "sub": "Medium \u00b7 Model Training and Evaluation"},
+{"tools": ["LangGraph"], "cap": "A second look at LangGraph", "sub": "Medium \u00b7 Agentic Systems"},
+{"tools": ["LangChain", "Tavily", "Chainlit", "Docker", "Kubernetes", "Helm"], "cap": "Helm Charts: the multi-server orchestra conductor", "sub": "Medium \u00b7 LLM Operations"},
+{"tools": ["LiteLLM", "Kubernetes", "Helm"], "cap": "A gentle introduction to LiteLLM", "sub": "Medium \u00b7 LLM Operations"},
+{"tools": ["Unsloth", "Python"], "cap": "How to RAFT your LLM: retrieval augmented finetuning", "sub": "Medium \u00b7 Model Training and Evaluation"},
+{"tools": ["Liquibase", "PostgreSQL"], "cap": "Introducing Liquibase: version control for your database", "sub": "Medium \u00b7 Software Engineering"},
+{"tools": ["ADK", "Python"], "cap": "Introducing the ADK framework", "sub": "Medium \u00b7 Agentic Systems"},
+{"tools": ["Java", "LangChain4j"], "cap": "LangChain4j: generative AI applications in Java", "sub": "Medium \u00b7 LLM Application Development"},
+{"tools": ["Nginx", "Docker", "Chainlit", "LangChain", "Tavily"], "cap": "Nginx: the single-server Swiss Army knife", "sub": "Medium \u00b7 Software Engineering"},
+{"tools": ["gRPC", "Python", "FastAPI"], "cap": "A very simple introduction to gRPC", "sub": "Medium \u00b7 Software Engineering"},
+{"tools": ["LangChain"], "cap": "Introducing the Deep Agents SDK", "sub": "Medium \u00b7 Agentic Systems"},
+{"tools": ["FastMCP", "Python"], "cap": "The MCP tooling layer for stocks", "sub": "GitHub \u00b7 StockMCPService"},
+{"tools": ["LlamaIndex", "Qdrant"], "cap": "A RAG-as-a-service drive-thru", "sub": "Medium \u00b7 Retrieval and Knowledge"},
+{"tools": ["BentoML", "vLLM"], "cap": "A Bento Cloud drive-thru", "sub": "Medium \u00b7 LLM Operations"},
+{"tools": ["DSPy", "Ollama"], "cap": "Building prompt-free generative AI applications with DSPy", "sub": "Medium \u00b7 LLM Application Development"},
+{"tools": ["Nacos", "LangChain", "Prometheus", "Grafana"], "cap": "The Discovery Channel: introducing Nacos registry", "sub": "Medium \u00b7 LLM Operations"},
+{"tools": ["n8n"], "cap": "Building your first multi-agent system with n8n", "sub": "Medium \u00b7 Agentic Systems"},
+{"tools": ["Ollama", "Docker", "vLLM"], "cap": "Service please: 3 ways to serve an LLM", "sub": "Medium \u00b7 LLM Operations"},
+{"tools": ["LangServe"], "cap": "How to deploy (almost) any LangChain runnable in one line", "sub": "Medium \u00b7 LLM Operations \u00b7 written before LangServe was deprecated"},
+{"tools": ["Apache Airflow", "LlamaIndex", "Qdrant"], "cap": "Build your own change data capture pipeline", "sub": "Medium \u00b7 Retrieval and Knowledge"},
+{"tools": ["LangChain", "Neo4j", "Python"], "cap": "GraphRAG for the win?", "sub": "Medium \u00b7 Retrieval and Knowledge"},
+{"tools": ["FastMCP", "FastAPI", "Python"], "cap": "Model Context Protocol: hype or necessity?", "sub": "Medium \u00b7 Agentic Systems"},
+{"tools": ["CrewAI", "LiteLLM"], "cap": "CrewAI: part 4 of the multi-agent series", "sub": "Medium \u00b7 Agentic Systems"},
+{"tools": ["LlamaIndex", "Chainlit", "Tavily"], "cap": "Chain reaction: an observable LlamaIndex workflow", "sub": "Medium \u00b7 Agentic Systems"},
+{"tools": ["Vanna", "Chainlit"], "cap": "Text-to-SQL with Vanna AI", "sub": "Medium \u00b7 Retrieval and Knowledge"},
+{"tools": ["LlamaIndex", "FastMCP"], "cap": "Agent-to-Agent protocols: a story still being written", "sub": "Medium \u00b7 Agentic Systems"}];
+const EXTRA=["GitHub Actions","Snowflake","MongoDB","TypeScript","Langfuse"];
+
+const jSt=document.getElementById('jStage'), jC=document.getElementById('jC'); let J, jNodes=[], jPhase={i:0,t0:0};
+// keep-out boxes are measured from the real name/tagline and photo, plus a small margin
+let KEEP=[], BOUND=[0,0,0,0];
+function measure(){ const sr=jSt.getBoundingClientRect(), pad=46;
+  const box=el=>{ const r=el.getBoundingClientRect(); return [r.left-sr.left-pad, r.top-sr.top-pad, r.right-sr.left+pad, r.bottom-sr.top+pad]; };
+  KEEP=[...jSt.querySelectorAll('.front .k, .front .name, .front .tag, .photo')].map(box);
+  const nm=jSt.querySelector('.front .name').getBoundingClientRect(), ph=jSt.querySelector('.photo').getBoundingClientRect();
+  BOUND=[nm.left-sr.left+40, 60, (ph.width?ph.right:sr.right-64)-sr.left-40, jSt.clientHeight-56];
+ }
+function inBlock(px,py){ return KEEP.some(([l,t,r,b])=>px>l&&px<r&&py>t&&py<b); }
+function jInit(){ J=setup(jC,jSt); measure(); const names=[...new Set(SYSTEMS.flatMap(s=>s.tools).concat(EXTRA))];
+  // spread homes on a jittered grid so logos never clump
+  let cells=[], cw=96, ch=84; do{ cells=[]; const [bl,bt,br,bb]=BOUND; for(let gy=bt;gy<=bb;gy+=ch) for(let gx=bl;gx<=br;gx+=cw){ const hx=Math.min(br,gx+Math.random()*cw*.45), hy=Math.min(bb,gy+Math.random()*ch*.4); if(!inBlock(hx,hy)) cells.push([hx,hy]); } cw*=.94; ch*=.94; }while(cells.length<names.length && cw>50);
+  // take evenly spaced cells (not a random subset) so no patch is left empty, then shuffle which logo sits where
+  const stepC=cells.length/names.length, picked=names.map((_,i)=>cells[Math.floor(i*stepC)]).sort(()=>Math.random()-.5);
+  jNodes=names.map((n,i)=>{ const [hx,hy]=picked[i]; return {n,hx,hy,ph:Math.random()*6.28,x:hx,y:hy}; });
+  jPhase={i:0,t0:performance.now()}; }
+
+// square marks fill the box; wider marks keep their shape, up to twice as wide
+function dims(n,size){ const r=(LOGO_SRC[n]&&LOGO_SRC[n].r)||1; if(r<=1.1) return [size,size]; const w=Math.min(size*2,size*r); return [w,w/r]; }
+function logo(x,nd,size,alpha,colour){ const im=IMG[nd.n]; if(!im) return; const img=colour?im.c:im.m; if(!img.complete) return;
+  const [w,h]=dims(nd.n,size); x.globalAlpha=alpha; x.drawImage(img, nd.x-w/2, nd.y-h/2, w, h); x.globalAlpha=1; }
+
+function jDraw(now){ const {x,W,H}=J; x.clearRect(0,0,W,H);
+  const CYCLE=5400, el=now-jPhase.t0; if(el>CYCLE){ jPhase={i:(jPhase.i+1)%SYSTEMS.length,t0:now}; }
+  const s=SYSTEMS[jPhase.i], e=now-jPhase.t0;
+  const inP=ease(Math.min(1,Math.max(0,(e-250)/1100))), outP=ease(Math.min(1,Math.max(0,(e-4300)/900))), on=inP*(1-outP);
+  const n=s.tools.length, chainY=H-120, x0=110, span=Math.min(W-64-270-140-x0, 140*(n-1)), step=n>1?span/(n-1):0;
+  const slot={};
+  if(s.grid){ const cols=Math.ceil(n/2), gs=Math.min(96,(W-64-270-140-x0)/(cols-1)); s.tools.forEach((t,i)=>slot[t]={x:x0+(i%cols)*gs, y:chainY-26+Math.floor(i/cols)*74}); }
+  else s.tools.forEach((t,i)=>slot[t]={x:x0+i*step, y:s.chain?chainY:chainY+(i%2?22:-30)});
+  jNodes.forEach(nd=>{ const fx=nd.hx+Math.cos(now/2300+nd.ph)*14, fy=nd.hy+Math.sin(now/2900+nd.ph)*10; const sl=slot[nd.n];
+    nd.x=sl?fx+(sl.x-fx)*on:fx; nd.y=sl?fy+(sl.y-fy)*on:fy; nd.hot=s.all||!!sl; });
+  // amber thread drawn first, under the logos
+  if(on>.05 && !s.grid && !s.all){ x.strokeStyle='#b76a23'; x.lineWidth=1.4; const prog=Math.min(1,Math.max(0,(e-1000)/700));
+    const pts=s.tools.map(t=>jNodes.find(q=>q.n===t)); const segs=(pts.length-1)*prog;
+    x.globalAlpha=1-outP; x.beginPath(); x.moveTo(pts[0].x,pts[0].y);
+    for(let i=1;i<pts.length;i++){ const f=Math.min(1,Math.max(0,segs-(i-1))); if(f<=0)break; x.lineTo(pts[i-1].x+(pts[i].x-pts[i-1].x)*f, pts[i-1].y+(pts[i].y-pts[i-1].y)*f); } x.stroke(); x.globalAlpha=1; }
+  const restA = MODE==='colour' ? .42-.3*on : .3-.2*on;
+  // resting logos under the caption step aside (fade) while it shows, instead of a permanently empty band
+  const capA=Math.min(1,Math.max(0,(e-1300)/500))*(1-outP);
+  x.font='italic 30px "Newsreader"'; const cw=x.measureText(s.cap).width, CR=[x0-60, chainY-160, x0+cw+24, chainY-50];
+  const BR=s.chain?[x0-60,chainY-56,x0+64+5*128,chainY+56]:null;
+  const under=nd=>(nd.x>CR[0]&&nd.x<CR[2]&&nd.y>CR[1]&&nd.y<CR[3])||(BR&&nd.x>BR[0]&&nd.x<BR[2]&&nd.y>BR[1]&&nd.y<BR[3]);
+  const capFade=nd=>under(nd)?Math.max(capA, Math.min(1,Math.max(0,(e-900)/400))*(1-outP)):0;
+  jNodes.filter(q=>!q.hot).forEach(nd=>logo(x,nd,28,restA*(1-capFade(nd)),MODE==='colour'));
+  jNodes.filter(q=>q.hot).forEach(nd=>{
+    const colourNow = MODE==='colour' || (MODE==='mix' && on>.5);
+    const size=28+(s.all?6:s.grid?8:14)*on, a=restA+(1-restA)*on;
+    // paper disc so the thread doesn't run through the mark
+    if(on>.05 && !s.all){ x.globalAlpha=on; x.fillStyle='#f7f2e9'; x.beginPath(); x.arc(nd.x,nd.y,size*.72,0,6.29); x.fill(); x.globalAlpha=1; }
+    logo(x,nd,size,s.all?a*(1-capFade(nd)):a,colourNow);
+    if(on>.5 && !s.all){ x.globalAlpha=(on-.5)*2; x.fillStyle='#5d554a'; x.font=(s.grid?'500 9.5px':'500 10.5px')+' "IBM Plex Mono"'; x.textAlign='center'; x.textBaseline='top'; x.fillText(nd.n, nd.x, nd.y+dims(nd.n,size)[1]/2+(s.grid?5:8)); x.globalAlpha=1; }
+  });
+  if(s.chain && on>.05) drawChain(x,e,outP,x0,chainY,W);
+  if(capA>0){ x.globalAlpha=capA; x.textAlign='left'; x.textBaseline='alphabetic'; x.fillStyle='#1c1813'; x.font='italic 30px "Newsreader"'; x.fillText(s.cap, x0-20, chainY-82);
+    x.fillStyle='#b76a23'; x.font='500 10.5px "IBM Plex Mono"'; x.fillText(s.sub.toUpperCase(), x0-20, chainY-112); x.globalAlpha=1; }
+}
+// blockchain beat: blocks are mined one after another (hash scrambles, then locks with leading zeros) and linked to the previous one
+function drawChain(x,e,outP,x0,cy,W){
+  const bw=98,bh=56,gap=30,bx0=x0+64,nb=Math.max(3,Math.min(5,Math.floor((W-64-270-140-bx0+60+gap)/(bw+gap))));
+  const hex=k=>{let v=(k*2654435761)>>>0,o='';for(let j=0;j<6;j++){v=(Math.imul(v,1103515245)+12345)>>>0;o+='0123456789abcdef'[(v>>>16)&15];}return o;};
+  const rnd=()=>{let o='';for(let j=0;j<10;j++)o+='0123456789abcdef'[Math.random()*16|0];return o;};
+  for(let i=0;i<nb;i++){
+    const t0=1300+i*520, a=Math.min(1,Math.max(0,(e-t0)/250))*(1-outP); if(a<=0) break;
+    const mined=e>t0+420, bx=bx0+i*(bw+gap), by=cy-bh/2;
+    x.globalAlpha=a; x.strokeStyle='#b76a23'; x.fillStyle='#b76a23'; x.lineWidth=1.4;
+    x.beginPath(); x.moveTo(i?bx-gap:x0+30,cy); x.lineTo(bx-3,cy); x.stroke();
+    x.beginPath(); x.moveTo(bx-2,cy); x.lineTo(bx-9,cy-4); x.lineTo(bx-9,cy+4); x.closePath(); x.fill();
+    x.fillStyle='#f7f2e9'; x.fillRect(bx,by,bw,bh); x.strokeStyle=mined?'#1c1813':'#b76a23'; x.lineWidth=1; x.strokeRect(bx+.5,by+.5,bw,bh);
+    x.textAlign='left'; x.textBaseline='top';
+    x.fillStyle='#5d554a'; x.font='500 9px "IBM Plex Mono"'; x.fillText(i?'BLOCK '+i:'GENESIS', bx+8, by+7);
+    x.fillStyle=mined?'#1c1813':'#b76a23'; x.font='500 11px "IBM Plex Mono"'; x.fillText(mined?'0000'+hex(i+1):rnd(), bx+8, by+22);
+    x.fillStyle='#8a8174'; x.font='9px "IBM Plex Mono"'; x.fillText('prev '+(i?'0000'+hex(i).slice(0,3):'0000000')+'\u2026', bx+8, by+39);
+    x.globalAlpha=1;
+  }
+}
+function loop(now){ jDraw(now); requestAnimationFrame(loop); }
+document.fonts.ready.then(()=>{ jInit(); requestAnimationFrame(loop); });
+addEventListener('resize',jInit);
+</script>
+</body></html>

@@ -1,6 +1,6 @@
 import BackToTop from '@/components/BackToTop'
 import { ARTICLE_COUNT_WORD, BLOCKCHAIN_ARTICLE_COUNT } from '@/lib/content'
-import { FEATURED_ARTICLES as ARTICLES, FEATURED_BY, OPEN_SOURCE, PROJECTS, SOCIAL, type Project } from '@/lib/profile'
+import { FEATURED_ARTICLES as ARTICLES, FEATURED_BY, OPEN_SOURCE, PROJECTS, SOCIAL, pageFolio, type Project } from '@/lib/profile'
 
 function SectionMarker({ folio, kicker, children }: { folio: string; kicker: string; children: React.ReactNode }) {
   return (
@@ -125,12 +125,12 @@ function ProjectFeature({ project, index }: { project: Project; index: number })
   )
 }
 
-function Projects() {
+export function Projects() {
   return (
     <section id="projects" className="text-ink">
       <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
-        <SectionMarker folio="05" kicker="Projects">
-          Things I have <em className="italic text-amber">built</em>.
+        <SectionMarker folio={pageFolio('/projects')} kicker="Projects">
+          Selected <em className="italic text-amber">projects</em>.
         </SectionMarker>
 
         <div>
@@ -142,7 +142,6 @@ function Projects() {
         {/* Open-source contributions */}
         <div id="open-source" className="relative mt-[clamp(40px,5vw,64px)] scroll-mt-24">
           <div className="mb-[18px] flex items-baseline gap-4">
-            <span className="font-mono text-[10.5px] font-semibold tracking-[0.08em] text-amber">06</span>
             <h3 className="m-0 font-serif text-[28px] font-medium tracking-[-0.015em] text-ink">
               Open-source contributions
             </h3>
@@ -173,11 +172,11 @@ function Projects() {
   )
 }
 
-function Writing() {
+export function Writing() {
   return (
     <section id="writing" className="bg-paper-deep text-ink">
       <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
-        <SectionMarker folio="07" kicker="Writing">
+        <SectionMarker folio={pageFolio('/writing')} kicker="Writing">
           Seven articles, of <em className="italic text-amber">{ARTICLE_COUNT_WORD}</em>.
         </SectionMarker>
 

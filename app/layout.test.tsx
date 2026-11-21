@@ -3,6 +3,13 @@ import { ARTICLE_COUNT_SHORT } from '@/lib/content'
 import { SIGN_OFF_TITLE, SITE_DESCRIPTION, SITE_TITLE } from '@/lib/profile'
 import RootLayout, { metadata } from './layout'
 
+// The layout mounts Navigation (usePathname) and CopilotBubble (useRouter, usePathname).
+// Outside the App Router neither hook has a context, so give them plain stand-ins.
+jest.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn(), back: jest.fn() }),
+}))
+
 describe('RootLayout metadata', () => {
   it('should export correct page title', () => {
     expect(metadata.title).toBe(SITE_TITLE)
@@ -123,6 +130,30 @@ describe('RootLayout component', () => {
     const head = document.head
     const noscriptElements = head.querySelectorAll('noscript')
     expect(noscriptElements.length).toBeGreaterThan(0)
+  })
+
+  it('should render the site navigation once, above the page content', () => {
+    render(
+      <RootLayout>
+        <div>Page body</div>
+      </RootLayout>
+    )
+    const navs = screen.getAllByRole('navigation', { name: 'Site navigation' })
+    expect(navs).toHaveLength(1)
+    const body = document.body
+    const nav = navs[0]
+    const page = screen.getByText('Page body')
+    expect(nav.compareDocumentPosition(page) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(body.contains(nav)).toBe(true)
+  })
+
+  it('should mount the Ask Titus drawer button on every page', () => {
+    render(
+      <RootLayout>
+        <div>Page body</div>
+      </RootLayout>
+    )
+    expect(screen.getByRole('button', { name: /open ask titus/i })).toBeInTheDocument()
   })
 
   it('should render children prop correctly', () => {

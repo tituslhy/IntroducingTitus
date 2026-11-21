@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import { pageFolio } from "@/lib/profile";
 import ProjectsWriting from "./ProjectsWriting";
 
 describe("ProjectsWriting", () => {
@@ -10,7 +11,7 @@ describe("ProjectsWriting", () => {
     expect(links).toHaveLength(2);
     expect(projectsMarker).toContainElement(links[0]);
     expect(writingMarker).toContainElement(links[1]);
-    links.forEach((link) => expect(link).toHaveAttribute("href", "#masthead"));
+    links.forEach((link) => expect(link).toHaveAttribute("href", "#top"));
   });
 
   describe("Projects Section", () => {
@@ -19,17 +20,18 @@ describe("ProjectsWriting", () => {
 
       // The heading has <em> tags embedded, so check with multiple text fragments
       const heading = screen.getAllByRole("heading", { level: 2 })[0];
-      expect(heading).toHaveTextContent("Things I have");
-      expect(heading).toHaveTextContent("built");
+      expect(heading).toHaveTextContent("Selected");
+      expect(heading).toHaveTextContent("projects");
+      expect(heading.querySelector("em")).toHaveTextContent("projects");
       expect(heading.querySelector("em")).toHaveClass("italic", "text-amber");
     });
 
-    it("should render projects folio and kicker", () => {
-      render(<ProjectsWriting />);
+    it("should render projects folio from pageFolio and kicker", () => {
+      const { container } = render(<ProjectsWriting />);
+      const marker = container.querySelector("section#projects header > div") as HTMLElement;
 
-      const projectsSection = document.querySelector("section#projects");
-      expect(projectsSection?.textContent).toMatch(/05/);
-      expect(projectsSection?.textContent).toMatch(/Projects/);
+      expect(within(marker).getByText(pageFolio("/projects"))).toBeInTheDocument();
+      expect(within(marker).getByText("Projects")).toBeInTheDocument();
     });
 
     describe("Project Cards", () => {
@@ -163,9 +165,9 @@ describe("ProjectsWriting", () => {
       it("should render open-source contributions header", () => {
         render(<ProjectsWriting />);
 
-        const projectsSection = document.querySelector("section#projects");
-        expect(projectsSection?.textContent).toMatch(/06/);
-        expect(projectsSection?.textContent).toMatch(/open-source contributions/i);
+        const heading = screen.getByRole("heading", { name: /open-source contributions/i });
+        // Secondary headings carry no folio number.
+        expect(heading.parentElement?.textContent).toBe("Open-source contributions");
       });
 
       it("should render LlamaIndex contributions", () => {
@@ -218,12 +220,12 @@ describe("ProjectsWriting", () => {
       expect(heading.querySelector("em")).toHaveClass("italic", "text-amber");
     });
 
-    it("should render writing folio and kicker", () => {
-      render(<ProjectsWriting />);
+    it("should render writing folio from pageFolio and kicker", () => {
+      const { container } = render(<ProjectsWriting />);
+      const marker = container.querySelector("section#writing header > div") as HTMLElement;
 
-      const writingSection = document.querySelector("section#writing");
-      expect(writingSection?.textContent).toMatch(/07/);
-      expect(writingSection?.textContent).toMatch(/Writing/);
+      expect(within(marker).getByText(pageFolio("/writing"))).toBeInTheDocument();
+      expect(within(marker).getByText("Writing")).toBeInTheDocument();
     });
 
     it("should render featured by section", () => {

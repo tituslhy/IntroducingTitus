@@ -3,6 +3,22 @@ import userEvent from "@testing-library/user-event";
 import { TextEncoder, TextDecoder } from "util";
 import CopilotBubble from "./CopilotBubble";
 import { ARTICLE_COUNT_NUMBER } from "@/lib/content";
+import { openCopilot } from "@/lib/copilot-events";
+import { STARTER_PROMPTS } from "@/lib/starter-prompts";
+
+// The drawer routes show_on_page to another page with the App Router. Tests give it a
+// router they can inspect, and a pathname they can set.
+const mockPush = jest.fn();
+let mockPathname = "/";
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: (...args: unknown[]) => mockPush(...args),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+    back: jest.fn(),
+  }),
+  usePathname: () => mockPathname,
+}));
 
 const INTRO = `Ask about my roles, projects or any of my ${ARTICLE_COUNT_NUMBER} articles, or paste a job description to see how I fit.`;
 
@@ -66,6 +82,8 @@ function messagesScroller(): HTMLElement {
 
 describe("CopilotBubble", () => {
   beforeEach(() => {
+    mockPush.mockReset();
+    mockPathname = "/";
     if (!global.TextDecoder) {
       global.TextDecoder = TextDecoder as typeof global.TextDecoder;
     }
@@ -968,6 +986,44 @@ describe("CopilotBubble", () => {
       expect(await screen.findByRole("textbox", { name: "Job description" })).toBeInTheDocument();
     });
 
+    it("sends the prompt as the visitor's question when opened with one", async () => {
+      const PROMPT = "What did you build at Illumina?";
+      (global.fetch as jest.Mock).mockResolvedValue(
+        createStreamingResponse([`{"type":"delta","text":"Prompt answer"}\n`])
+      );
+      render(<CopilotBubble />);
+
+      act(() => {
+        openCopilot("chat", PROMPT);
+      });
+
+      expect(await screen.findByText("Prompt answer")).toBeInTheDocument();
+      expect(screen.getByText(PROMPT)).toBeInTheDocument();
+      const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+      expect(body.messages).toEqual([{ role: "user", content: PROMPT }]);
+    });
+
+    it("opens without sending anything when the event carries no prompt", async () => {
+      render(<CopilotBubble />);
+
+      act(() => {
+        openCopilot("chat");
+      });
+
+      expect(await screen.findByRole("dialog", { name: /ask titus/i })).toBeInTheDocument();
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("lists the same starter prompts as the front page band (one shared list)", async () => {
+      const user = userEvent.setup();
+      render(<CopilotBubble />);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+
+      for (const prompt of STARTER_PROMPTS) {
+        expect(screen.getByText(prompt)).toBeInTheDocument();
+      }
+    });
+
     it("shows a How this works link to /colophon in the drawer header", async () => {
       const user = userEvent.setup();
       render(<CopilotBubble />);
@@ -1111,7 +1167,7 @@ describe("CopilotBubble", () => {
   describe("recruiter mode", () => {
     const JD =
       "Staff GenAI Engineer at Acme. Build production RAG and multi-agent platforms on Kubernetes. Rust a plus. Lead a small team.";
-    const TARGETS = [{ id: "role-illumina", label: "Illumina, 2023" }];
+    const TARGETS = [{ id: "role-illumina", label: "Illumina, 2023", path: "/experience" }];
     const BRIEF = {
       roleTitle: "Staff GenAI Engineer",
       company: "Acme",
@@ -1190,7 +1246,7 @@ describe("CopilotBubble", () => {
 
   describe("show_on_page from the model", () => {
     const TARGET_ID = "role-illumina";
-    const TARGETS = [{ id: TARGET_ID, label: "Illumina, 2023" }];
+    const TARGETS = [{ id: TARGET_ID, label: "Illumina, 2023", path: "/experience" }];
     const SIDE_BY_SIDE = "(min-width: 1024px)";
     const WIDE = "(min-width: 1440px)";
     let originalMatchMedia: typeof window.matchMedia;
@@ -1263,6 +1319,139 @@ describe("CopilotBubble", () => {
       const target = await askModelToShowTarget({ expanded: false, matching: [SIDE_BY_SIDE] });
 
       expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  describe("show_on_page to another page", () => {
+    const TARGET_ID = "role-illumina";
+    const PATH = "/experience";
+    const TARGETS = [{ id: TARGET_ID, label: "Illumina, 2023", path: PATH }];
+    const SIDE_BY_SIDE = "(min-width: 1024px)";
+    let originalMatchMedia: typeof window.matchMedia;
+    let arrivedEl: HTMLElement | null = null;
+
+    beforeEach(() => {
+      originalMatchMedia = window.matchMedia;
+      arrivedEl = null;
+      // The router renders the target page: its anchor appears once the route changes.
+      mockPush.mockImplementation(() => {
+        const el = document.createElement("div");
+        el.id = TARGET_ID;
+        el.textContent = "Illumina entry";
+        el.scrollIntoView = jest.fn();
+        document.body.appendChild(el);
+        arrivedEl = el;
+      });
+    });
+
+    afterEach(() => {
+      window.matchMedia = originalMatchMedia;
+      document.getElementById(TARGET_ID)?.remove();
+      window.history.replaceState({}, "", "/");
+    });
+
+    function mockMatchMedia(matchingQueries: string[]) {
+      window.matchMedia = jest.fn((query: string) => ({
+        matches: matchingQueries.includes(query),
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(() => true),
+      }));
+    }
+
+    // The model asks to show a target that is not rendered on this page yet.
+    async function askModelToShow({ matching, expanded = false }: { matching: string[]; expanded?: boolean }) {
+      mockMatchMedia(matching);
+      (global.fetch as jest.Mock).mockResolvedValue(
+        createStreamingResponse([
+          `{"type":"action","target":"${TARGET_ID}"}\n`,
+          `{"type":"delta","text":"Here it is."}\n`,
+        ])
+      );
+      render(<CopilotBubble targets={TARGETS} />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      if (expanded) await user.click(screen.getByRole("button", { name: /expand chat/i }));
+      await user.type(screen.getByPlaceholderText(/ask about my work/i), "Show me Illumina{Enter}");
+      await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
+    }
+
+    it("navigates to the target's page, then scrolls to the anchor once it has rendered", async () => {
+      await askModelToShow({ matching: [SIDE_BY_SIDE] });
+
+      expect(mockPush).toHaveBeenCalledWith(PATH, { scroll: false });
+      await waitFor(() => expect(arrivedEl).not.toBeNull());
+      await waitFor(() => {
+        expect(arrivedEl!.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+      });
+      expect(arrivedEl!.classList.contains("copilot-spotlight")).toBe(true);
+    });
+
+    it("does not navigate when the page is too narrow to show it beside the drawer", async () => {
+      await askModelToShow({ matching: [] });
+
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it("does not navigate for a target already on this page when its anchor is missing", async () => {
+      // The target's route is the page the visitor is on, so there is nowhere else to go.
+      window.history.replaceState({}, "", PATH);
+      mockPathname = PATH;
+      await askModelToShow({ matching: [SIDE_BY_SIDE] });
+
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it("navigates from a See on page control on another page, even when the drawer is narrow", async () => {
+      mockMatchMedia([]);
+      (global.fetch as jest.Mock).mockResolvedValue(
+        createStreamingResponse([
+          `{"type":"action","target":"${TARGET_ID}"}\n`,
+          `{"type":"delta","text":"Here it is."}\n`,
+        ])
+      );
+      render(<CopilotBubble targets={TARGETS} />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      await user.type(screen.getByPlaceholderText(/ask about my work/i), "Show me Illumina{Enter}");
+      await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
+      expect(mockPush).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole("button", { name: "Illumina, 2023" }));
+
+      expect(mockPush).toHaveBeenCalledWith(PATH, { scroll: false });
+      await waitFor(() => expect(arrivedEl).not.toBeNull());
+    });
+
+    it("marks a See on page target on another route with an arrow, and one on this page with a down arrow", async () => {
+      mockMatchMedia([]);
+      mockPathname = "/";
+      (global.fetch as jest.Mock).mockResolvedValue(
+        createStreamingResponse([
+          `{"type":"action","target":"role-illumina"}\n`,
+          `{"type":"action","target":"open-source"}\n`,
+          `{"type":"delta","text":"Two things."}\n`,
+        ])
+      );
+      render(
+        <CopilotBubble
+          targets={[
+            { id: "role-illumina", label: "Illumina, 2023", path: "/experience" },
+            { id: "open-source", label: "Open source", path: "/" },
+          ]}
+        />
+      );
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      await user.type(screen.getByPlaceholderText(/ask about my work/i), "Two things{Enter}");
+      await waitFor(() => expect(screen.getByText("Two things.")).toBeInTheDocument());
+
+      expect(screen.getByRole("button", { name: "Illumina, 2023" })).toHaveTextContent("→ Illumina, 2023");
+      expect(screen.getByRole("button", { name: "Open source" })).toHaveTextContent("↓ Open source");
     });
   });
 });

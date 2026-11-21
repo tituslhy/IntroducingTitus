@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import FitBriefCard from "./FitBriefCard";
@@ -21,6 +22,8 @@ import {
 } from "@/lib/citations";
 import { COPILOT_OPEN_EVENT, type CopilotOpenDetail } from "@/lib/copilot-events";
 import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH } from "@/lib/content";
+import { STARTER_PROMPTS } from "@/lib/starter-prompts";
+import { waitForElement } from "@/lib/wait-for-element";
 
 interface Message {
   id: string;
@@ -55,6 +58,8 @@ const FIT_ERRORS: Record<string, string> = {
 export interface CopilotTarget {
   id: string;
   label: string;
+  /** The route the anchor lives on. */
+  path: string;
 }
 
 /** At this width and up, the collapsed drawer leaves the page visible beside it. */
@@ -64,13 +69,6 @@ const EXPANDED_SIDE_BY_SIDE_QUERY = "(min-width: 1440px)";
 const SPOTLIGHT_CLASS = "copilot-spotlight";
 const SPOTLIGHT_MS = 2800;
 
-/** One of each kind it handles well: a role, a project, a broad question across my writing, a specific one. */
-const STARTER_PROMPTS = [
-  "What did you build at Illumina?",
-  "What trade-offs shaped fictional-bassoon?",
-  "How would you build production-ready agents?",
-  "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?",
-];
 
 const AssistantAvatar = () => (
   // eslint-disable-next-line @next/next/no-img-element
@@ -255,22 +253,13 @@ export default function CopilotBubble({
   }, []);
 
   const targetLabels = useMemo(() => new Map(targets.map((t) => [t.id, t.label])), [targets]);
+  const targetPaths = useMemo(() => new Map(targets.map((t) => [t.id, t.path])), [targets]);
+  const router = useRouter();
+  const pathname = usePathname();
 
-  /**
-   * Scrolls the page to a copilot target and gives it a brief highlighter
-   * wash. "auto" (the model called show_on_page) only fires when the page is
-   * visible beside the drawer; "click" (the visitor tapped "See on page")
-   * tucks the drawer away first when it would cover the page.
-   * Returns whether the page actually moved.
-   */
-  const showOnPage = useCallback(
-    (id: string, source: "auto" | "click"): boolean => {
-      const el = document.getElementById(id);
-      if (!el) return false;
-      const sideBySide = window.matchMedia(isExpanded ? EXPANDED_SIDE_BY_SIDE_QUERY : SIDE_BY_SIDE_QUERY).matches;
-      if (source === "auto" && !sideBySide) return false;
-      if (source === "click" && !sideBySide) setIsOpen(false);
-
+  /** Scrolls to an anchor that is on the page now; single entries get the highlighter wash. */
+  const revealOnPage = useCallback(
+    (el: HTMLElement) => {
       el.scrollIntoView({ behavior: prefersReducedMotion ? "instant" : "smooth", block: "start" });
 
       // Whole sections just scroll; a single entry also gets the highlight.
@@ -287,9 +276,37 @@ export default function CopilotBubble({
         }, SPOTLIGHT_MS);
         spotlightRef.current = { el, timer };
       }
+    },
+    [prefersReducedMotion]
+  );
+
+  /**
+   * Scrolls the page to a copilot target and gives it a brief highlighter
+   * wash. "auto" (the model called show_on_page) only fires when the page is
+   * visible beside the drawer; "click" (the visitor tapped "See on page")
+   * tucks the drawer away first when it would cover the page.
+   * Returns whether the page actually moved.
+   */
+  const showOnPage = useCallback(
+    (id: string, source: "auto" | "click"): boolean => {
+      const el = document.getElementById(id);
+      const path = targetPaths.get(id);
+      // Not on this page: its route is another page (the drawer lives in the root layout, so it stays open).
+      const elsewhere = !el && !!path && path !== window.location.pathname;
+      if (!el && !elsewhere) return false;
+      const sideBySide = window.matchMedia(isExpanded ? EXPANDED_SIDE_BY_SIDE_QUERY : SIDE_BY_SIDE_QUERY).matches;
+      if (source === "auto" && !sideBySide) return false;
+      if (source === "click" && !sideBySide) setIsOpen(false);
+
+      if (el) {
+        revealOnPage(el);
+      } else {
+        router.push(path!, { scroll: false });
+        void waitForElement(id).then((found) => found && revealOnPage(found));
+      }
       return true;
     },
-    [isExpanded, prefersReducedMotion]
+    [isExpanded, revealOnPage, router, targetPaths]
   );
 
   const sendMessage = useCallback(async (textOverride?: string) => {
@@ -476,6 +493,11 @@ export default function CopilotBubble({
       setTurningTo(null);
     }
   }, [input, busy, messages, targetLabels, showOnPage]);
+  // The open event (e.g. a prompt clicked on the front page) always sends with the latest sendMessage.
+  const sendMessageRef = useRef(sendMessage);
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
 
   const enterFitMode = useCallback(() => {
     setMode("fit");
@@ -487,9 +509,10 @@ export default function CopilotBubble({
   // Other pages (e.g. /colophon) open the drawer via openCopilot().
   useEffect(() => {
     const onOpen = (e: Event) => {
-      const mode = (e as CustomEvent<CopilotOpenDetail>).detail?.mode;
+      const detail = (e as CustomEvent<CopilotOpenDetail>).detail;
       setIsOpen(true);
-      if (mode === "fit") enterFitMode();
+      if (detail?.mode === "fit") enterFitMode();
+      else if (detail?.prompt) sendMessageRef.current(detail.prompt);
     };
     window.addEventListener(COPILOT_OPEN_EVENT, onOpen);
     return () => window.removeEventListener(COPILOT_OPEN_EVENT, onOpen);
@@ -624,10 +647,11 @@ export default function CopilotBubble({
 
   // Collapsed is tall enough for the intro and every starter prompt without
   // scrolling, but never taller than the space above the FAB.
-  const panelHeight = isExpanded ? "min(80vh, 740px)" : "min(700px, calc(100dvh - 7rem))";
+  const panelHeight = isExpanded ? "min(80vh, 740px)" : "min(700px, calc(100dvh - 9rem))";
 
+  // 44px up (plus the safe area), so the button clears the page footer and the browser's bottom bar.
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
+    <div className="fixed bottom-[calc(44px+env(safe-area-inset-bottom))] right-4 z-50 flex flex-col items-end gap-3 sm:right-6">
       {/* Drawer */}
       <div
         ref={drawerRef}
@@ -856,7 +880,7 @@ export default function CopilotBubble({
                         onClick={() => showOnPage(t, "click")}
                         className="font-mono text-[11px] text-amber underline decoration-dotted underline-offset-[3px] transition-colors hover:text-ink"
                       >
-                        <span aria-hidden="true">↓ </span>
+                        <span aria-hidden="true">{targetPaths.get(t) && targetPaths.get(t) !== pathname ? "→ " : "↓ "}</span>
                         {targetLabels.get(t) ?? t}
                       </button>
                     ))}
@@ -964,7 +988,7 @@ export default function CopilotBubble({
       <button
         ref={fabRef}
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-2.5 rounded-full border border-ink bg-ink p-3.5 text-paper transition-colors hover:border-amber hover:bg-amber sm:px-4 sm:py-3"
+        className="flex items-center gap-2.5 rounded-full border border-ink bg-ink p-3.5 text-paper shadow-[0_0_0_1px_rgba(247,242,233,.28),0_6px_18px_rgba(29,24,18,.18)] transition-colors hover:border-amber hover:bg-amber sm:px-4 sm:py-3"
         aria-label={isOpen ? "Close chat" : "Open Ask Titus"}
         aria-expanded={isOpen}
       >

@@ -1,5 +1,9 @@
+import Link from 'next/link'
+import { Fragment } from 'react'
 import BackToTop from '@/components/BackToTop'
-import { EDUCATION, ROLES, type Role } from '@/lib/profile'
+import TechHighlight from '@/components/TechHighlight'
+import { FEATURED_ROLE_COUNT, ROLES, pageFolio, type Role } from '@/lib/profile'
+import { TAG_CLASS, techKey } from '@/lib/tech-key'
 
 /** Renders a role's deck, turning `deckLink.text` (first occurrence) into a link. */
 function Deck({ role }: { role: Role }) {
@@ -23,8 +27,8 @@ function Deck({ role }: { role: Role }) {
   )
 }
 
-function RoleEntry({ role }: { role: Role }) {
-  const compact = Boolean(role.compact)
+/** `compact`: an earlier role (after the latest FEATURED_ROLE_COUNT), drawn smaller. */
+function RoleEntry({ role, compact }: { role: Role; compact: boolean }) {
   return (
     <article
       id={`role-${role.slug}`}
@@ -60,10 +64,10 @@ function RoleEntry({ role }: { role: Role }) {
                 </span>
               )}
             </h3>
-            <p className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-[12px] tracking-[0.04em] text-ink-soft">
-              <span>{role.role}</span>
-              <span className="inline-block h-[3px] w-[3px] rounded-full bg-ink-faint" />
-              <span>{role.location}</span>
+            <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+              <span className="font-serif text-[clamp(17px,1.6vw,20px)] leading-[1.2] tracking-[-0.01em] text-ink">{role.role}</span>
+              <span className="inline-block h-[3px] w-[3px] self-center rounded-full bg-ink-faint" />
+              <span className="font-mono text-[12px] tracking-[0.04em] text-ink-soft">{role.location}</span>
             </p>
           </div>
           <p className="m-0 whitespace-nowrap font-mono text-[11.5px] tracking-[0.08em] text-ink-faint">
@@ -105,7 +109,8 @@ function RoleEntry({ role }: { role: Role }) {
               {role.tech.map((t) => (
                 <li
                   key={t}
-                  className="relative pl-3.5 before:absolute before:-top-px before:left-1 before:text-amber before:content-['·']"
+                  data-tech={techKey(t)}
+                  className={TAG_CLASS}
                 >
                   {t}
                 </li>
@@ -125,7 +130,7 @@ export default function Experience() {
         {/* Section marker */}
         <header className="mb-[clamp(28px,4vw,56px)]">
           <div className="flex items-baseline gap-3.5 pb-[18px] font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
-            <span className="font-semibold tracking-[0.08em] text-amber">03</span>
+            <span className="font-semibold tracking-[0.08em] text-amber">{pageFolio('/experience')}</span>
             <span className="font-medium text-ink">Experience</span>
             <span className="h-px flex-1 self-center bg-rule" />
             <BackToTop />
@@ -136,40 +141,26 @@ export default function Experience() {
         </header>
 
         {/* Roles */}
-        <div>
-          {ROLES.map((r) => (
-            <RoleEntry key={r.slug} role={r} />
+        <TechHighlight>
+          {ROLES.map((r, i) => (
+            <Fragment key={r.slug}>
+              {i === FEATURED_ROLE_COUNT && (
+                <h3 className="mb-0 mt-[clamp(28px,4vw,48px)] flex items-center gap-4 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-ink-soft">
+                  Earlier roles
+                  <span aria-hidden="true" className="h-px flex-1 bg-rule" />
+                </h3>
+              )}
+              <RoleEntry role={r} compact={i >= FEATURED_ROLE_COUNT} />
+            </Fragment>
           ))}
-        </div>
+        </TechHighlight>
 
-        {/* Education */}
-        <div id="education" className="relative mt-[clamp(40px,5vw,64px)] scroll-mt-24">
-          <div className="mb-5 flex items-baseline gap-4">
-            <span className="font-mono text-[10.5px] font-semibold tracking-[0.08em] text-amber">04</span>
-            <h3 className="m-0 font-serif text-[28px] font-medium tracking-[-0.015em] text-ink">
-              Education
-            </h3>
-            <span className="h-px flex-1 bg-rule" />
-          </div>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-[clamp(16px,2vw,28px)]">
-            {EDUCATION.map((e) => (
-              <div key={e.institution} className="border border-rule bg-paper p-[22px]">
-                <p className="mb-2 font-mono text-[11.5px] tracking-[0.06em] text-ink-faint">{e.dates}</p>
-                <h4 className="mb-1.5 font-serif text-[19px] font-semibold tracking-[-0.01em] text-ink">
-                  {e.institution}
-                </h4>
-                <p className="mb-3.5 text-[14.5px] italic text-ink-soft">{e.degree}</p>
-                <ul className="flex flex-wrap gap-x-2.5 gap-y-1.5 font-mono text-[11px] text-ink-soft">
-                  {e.honors.map((h) => (
-                    <li key={h} className="border border-rule bg-paper-deep px-2 py-[3px]">
-                      {h}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Link
+          href="/education"
+          className="mt-[clamp(32px,4vw,48px)] inline-flex items-baseline gap-2 font-mono text-[12.5px] text-ink-soft transition-colors hover:text-ink"
+        >
+          Next: Education <span className="text-amber">→</span>
+        </Link>
       </div>
     </section>
   )

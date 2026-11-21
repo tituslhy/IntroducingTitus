@@ -133,10 +133,18 @@ describe("ColophonPage content", () => {
     expect(screen.getByRole("link", { name: "GitHub" })).toHaveAttribute("href", REPO_URL);
   });
 
-  it("links back to the home page", () => {
+  it("has no page-level back link: the site nav carries the way home", () => {
     render(<ColophonPage />);
 
-    expect(screen.getByRole("link", { name: /back to the site/i })).toHaveAttribute("href", "/");
+    expect(screen.queryByRole("link", { name: /back to the site/i })).not.toBeInTheDocument();
+  });
+
+  it("credits the tool logos as trademarks of their owners", () => {
+    render(<ColophonPage />);
+
+    expect(
+      screen.getByText("Tool logos are trademarks of their owners, shown to indicate tools I've used.")
+    ).toBeInTheDocument();
   });
 
   it("offers the recruiter-mode entry point", () => {
@@ -242,6 +250,14 @@ describe("ColophonPage three tools and themes", () => {
     const text = document.body.textContent ?? "";
     expect(text).toMatch(/three best go on/i);
     expect(text).not.toMatch(/two best/i);
+  });
+});
+
+describe("ColophonPage does not name BYOA", () => {
+  it("does not render BYOA anywhere on the page", () => {
+    render(<ColophonPage />);
+
+    expect(document.body.textContent ?? "").not.toMatch(/BYOA/);
   });
 });
 

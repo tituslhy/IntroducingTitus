@@ -1,5 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { AGENT_SUITE_URL } from "@/lib/content";
+import { FEATURED_ROLE_COUNT, ROLES, pageFolio } from "@/lib/profile";
 import Experience from "./Experience";
 
 describe("Experience", () => {
@@ -8,7 +9,7 @@ describe("Experience", () => {
     const marker = container.querySelector("section#dossier header > div");
     const link = screen.getByRole("link", { name: /back to top/i });
     expect(marker).toContainElement(link);
-    expect(link).toHaveAttribute("href", "#masthead");
+    expect(link).toHaveAttribute("href", "#top");
   });
 
   it("should render experience section with correct heading", () => {
@@ -22,11 +23,12 @@ describe("Experience", () => {
     expect(heading.querySelector("em")).toHaveClass("italic", "text-amber");
   });
 
-  it("should render section folio number 03 and kicker", () => {
-    render(<Experience />);
+  it("should render section folio from pageFolio and kicker", () => {
+    const { container } = render(<Experience />);
+    const marker = container.querySelector("section#dossier header > div");
 
-    expect(screen.getByText("03")).toBeInTheDocument();
-    expect(screen.getByText("Experience")).toBeInTheDocument();
+    expect(within(marker as HTMLElement).getByText(pageFolio("/experience"))).toBeInTheDocument();
+    expect(within(marker as HTMLElement).getByText("Experience")).toBeInTheDocument();
   });
 
   describe("Role Entries", () => {
@@ -70,8 +72,14 @@ describe("Experience", () => {
     it("should render Mastercard body describing the core SDK and CLI", () => {
       render(<Experience />);
 
-      expect(screen.getByText(/built the core SDK and CLI for Agent Suite/i)).toBeInTheDocument();
-      expect(screen.getByText(/declare agents in YAML/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Tech lead and anchor contributor for the core SDK behind Agent Suite/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Architected and built the SDK and CLI, including a bespoke package-manager setup/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Agents are built declaratively/i)).toBeInTheDocument();
+      expect(screen.getByText(/teams declare them in YAML/i)).toBeInTheDocument();
     });
 
     it("should render Mastercard tech tags", () => {
@@ -94,8 +102,49 @@ describe("Experience", () => {
     it("should render UOB role with deck and body text", () => {
       render(<Experience />);
 
-      expect(screen.getByText(/Technical lead for a real-time GenAI contact-centre platform/i)).toBeInTheDocument();
-      expect(screen.getByText(/Developed UOB's enterprise multi-agent GenAI platform/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Sole engineer on a real-time GenAI contact-centre platform: live call transcripts, in-call assistance and policy search for agents, and post-call summaries with red-flag and promise checks/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Picked up Java to take over its Spring Boot microservices, and cut false positives in its post-call checks by 80%/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Also built the MCP service behind UOB's customer onboarding workflow: a deterministic LangGraph workflow that handles incomplete and inconsistent documents/i)
+      ).toBeInTheDocument();
+    });
+
+    it("should not carry the removed 'Technical lead', 'Sole owner' or 'multi-agent GenAI platform' wording on the UOB card", () => {
+      render(<Experience />);
+
+      const section = screen.getByRole("heading", { name: /united overseas bank/i }).closest("article");
+      expect(section).not.toBeNull();
+      expect(section?.textContent).not.toMatch(/Technical lead/i);
+      expect(section?.textContent).not.toMatch(/Sole owner/i);
+      expect(section?.textContent).not.toMatch(/multi-agent GenAI platform/i);
+      expect(section?.textContent).not.toMatch(/maintaining/i);
+      expect(section?.textContent).not.toMatch(/BYOA/);
+      expect(section?.textContent).not.toMatch(/BYOC/);
+      expect(section?.textContent).not.toMatch(/including the MCP tool/i);
+    });
+
+    it("should render the job title in a serif element separate from the location", () => {
+      render(<Experience />);
+
+      const section = screen.getByRole("heading", { name: /united overseas bank/i }).closest("article");
+      expect(section).not.toBeNull();
+      const title = within(section as HTMLElement).getByText("Vice President, Generative AI");
+      const location = within(section as HTMLElement).getByText("Singapore");
+
+      expect(title.tagName).toBe("SPAN");
+      expect(title).toHaveClass("font-serif", "text-ink");
+      expect(title.textContent).toBe("Vice President, Generative AI");
+
+      expect(location.tagName).toBe("SPAN");
+      expect(location).toHaveClass("font-mono");
+      expect(location).not.toBe(title);
+      expect(title).not.toContainElement(location);
+      expect(location).not.toContainElement(title);
+      expect(title.parentElement).toBe(location.parentElement);
     });
 
     it("should render Illumina with pull quote (branch coverage line 159-167)", () => {
@@ -187,42 +236,91 @@ describe("Experience", () => {
     });
   });
 
-  describe("Education Section", () => {
-    it("should render education section header", () => {
+  describe("Tech highlighting", () => {
+    it("marks the same tech in other roles when a Mastercard Docker tag is hovered", () => {
       render(<Experience />);
 
-      expect(screen.getByText("04")).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: /education/i })).toBeInTheDocument();
+      const mastercard = screen.getByRole("heading", { name: /mastercard/i }).closest("article") as HTMLElement;
+      const uob = screen.getByRole("heading", { name: /united overseas bank/i }).closest("article") as HTMLElement;
+      const illumina = screen.getByRole("heading", { name: /illumina/i }).closest("article") as HTMLElement;
+
+      fireEvent.mouseOver(within(mastercard).getByText("Docker"));
+
+      expect(within(mastercard).getByText("Docker")).toHaveAttribute("data-on");
+      expect(within(uob).getByText("Docker")).toHaveAttribute("data-on");
+      // Illumina lists "Docker+CUDA", a different tool key, so it stays unmarked.
+      expect(within(illumina).getByText("Docker+CUDA")).not.toHaveAttribute("data-on");
     });
 
-    it("should render all education entries", () => {
+    it("does not mark a different tech such as Python when Docker is hovered", () => {
       render(<Experience />);
 
-      expect(screen.getByText("Singapore Management University")).toBeInTheDocument();
-      expect(screen.getByText("National University of Singapore")).toBeInTheDocument();
+      const mastercard = screen.getByRole("heading", { name: /mastercard/i }).closest("article") as HTMLElement;
+      const uob = screen.getByRole("heading", { name: /united overseas bank/i }).closest("article") as HTMLElement;
+      const illumina = screen.getByRole("heading", { name: /illumina/i }).closest("article") as HTMLElement;
+
+      fireEvent.mouseOver(within(mastercard).getByText("Docker"));
+
+      expect(within(mastercard).getByText("Python")).not.toHaveAttribute("data-on");
+      expect(within(illumina).getByText("Python")).not.toHaveAttribute("data-on");
+      expect(within(uob).queryByText("Python")).toBeNull();
     });
 
-    it("should render correct degrees", () => {
-      render(<Experience />);
+    it("clears the Docker highlight when the pointer leaves the roles", () => {
+      const { container } = render(<Experience />);
 
-      expect(screen.getByText(/Master of IT in Business/i)).toBeInTheDocument();
-      expect(screen.getByText(/BEng Chemical Engineering/i)).toBeInTheDocument();
+      const mastercard = screen.getByRole("heading", { name: /mastercard/i }).closest("article") as HTMLElement;
+      const uob = screen.getByRole("heading", { name: /united overseas bank/i }).closest("article") as HTMLElement;
+      const wrapper = mastercard.parentElement as HTMLElement;
+      expect(wrapper).toContainElement(uob);
+
+      fireEvent.mouseOver(within(mastercard).getByText("Docker"));
+      expect(within(uob).getByText("Docker")).toHaveAttribute("data-on");
+
+      fireEvent.mouseLeave(wrapper);
+      expect(within(uob).getByText("Docker")).not.toHaveAttribute("data-on");
+      expect(within(mastercard).getByText("Docker")).not.toHaveAttribute("data-on");
+      expect(container.querySelectorAll("[data-on]")).toHaveLength(0);
     });
 
-    it("should render education dates", () => {
+    it("gives each tech tag the highlight classes and a normalised data-tech key", () => {
       render(<Experience />);
 
-      expect(screen.getByText("2021 — 2022")).toBeInTheDocument();
-      expect(screen.getByText("2011 — 2015")).toBeInTheDocument();
+      const uob = screen.getByRole("heading", { name: /united overseas bank/i }).closest("article") as HTMLElement;
+      const tag = within(uob).getByText("Java (Spring Boot)");
+      expect(tag).toHaveAttribute("data-tech", "java (spring boot)");
+      expect(tag).toHaveClass("data-[on]:text-ink", "data-[on]:underline");
+    });
+  });
+
+  describe("Education moved to its own page", () => {
+    it("no longer renders an education section or any degree on the experience page", () => {
+      const { container } = render(<Experience />);
+
+      expect(container.querySelector("#education")).toBeNull();
+      expect(container.querySelector("[id^='edu-']")).toBeNull();
+      expect(screen.queryByRole("heading", { name: /education/i })).not.toBeInTheDocument();
+      expect(screen.queryByText("Singapore Management University")).not.toBeInTheDocument();
+      expect(screen.queryByText("GPA 3.98 / 4.0")).not.toBeInTheDocument();
     });
 
-    it("should render honors (branch coverage line 206-209)", () => {
+    it("ends with a link to /education, labelled as the next page", () => {
       render(<Experience />);
 
-      expect(screen.getByText("GPA 3.98 / 4.0")).toBeInTheDocument();
-      expect(screen.getByText(/Dean's List/)).toBeInTheDocument();
-      expect(screen.getByText("SMU AI Talent Development Grant")).toBeInTheDocument();
-      expect(screen.getByText("NUS Undergraduate Scholarship")).toBeInTheDocument();
+      const next = screen.getByRole("link", { name: /next: education/i });
+      expect(next).toHaveAttribute("href", "/education");
+      expect(next).toHaveTextContent("→");
+    });
+
+    it("places the link after the last role, as the final content of the section", () => {
+      const { container } = render(<Experience />);
+      const section = container.querySelector("section#dossier") as HTMLElement;
+      const next = screen.getByRole("link", { name: /next: education/i });
+      const lastRole = container.querySelectorAll("article[id^='role-']");
+
+      expect(section).toContainElement(next);
+      expect(next.compareDocumentPosition(lastRole[lastRole.length - 1]) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+      expect(section.lastElementChild?.querySelector("a[href='/education']")).toBe(next);
     });
   });
 
@@ -239,6 +337,57 @@ describe("Experience", () => {
 
       const mastercardHeading = screen.getByRole("heading", { name: /mastercard/i });
       expect(mastercardHeading.tagName).toBe("H3");
+    });
+  });
+
+  describe("Earlier roles", () => {
+    const roleArticles = (container: HTMLElement) =>
+      Array.from(container.querySelectorAll<HTMLElement>("article[id^='role-']"));
+    const yearOf = (article: HTMLElement) => article.querySelector<HTMLElement>("div.sticky > span");
+
+    it("renders exactly one Earlier roles heading, as an h3", () => {
+      render(<Experience />);
+
+      const headings = screen.getAllByRole("heading", { name: "Earlier roles" });
+      expect(headings).toHaveLength(1);
+      expect(headings[0].tagName).toBe("H3");
+    });
+
+    it("sits after the 3rd role article and before the 4th, in DOM order", () => {
+      const { container } = render(<Experience />);
+      const articles = roleArticles(container);
+      const heading = screen.getByRole("heading", { name: "Earlier roles" });
+
+      expect(articles).toHaveLength(ROLES.length);
+      expect(FEATURED_ROLE_COUNT).toBe(3);
+
+      const featuredLast = articles[FEATURED_ROLE_COUNT - 1];
+      const firstEarlier = articles[FEATURED_ROLE_COUNT];
+      expect(featuredLast).toHaveAttribute("id", `role-${ROLES[FEATURED_ROLE_COUNT - 1].slug}`);
+      expect(firstEarlier).toHaveAttribute("id", `role-${ROLES[FEATURED_ROLE_COUNT].slug}`);
+
+      // Exactly the featured roles come before the heading; the rest come after it.
+      const before = articles.filter((a) => a.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING);
+      const after = articles.filter((a) => a.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_PRECEDING);
+      expect(before).toHaveLength(FEATURED_ROLE_COUNT);
+      expect(after).toHaveLength(ROLES.length - FEATURED_ROLE_COUNT);
+
+      expect(heading.previousElementSibling).toBe(featuredLast);
+      expect(heading.nextElementSibling).toBe(firstEarlier);
+    });
+
+    it("draws the first FEATURED_ROLE_COUNT years at text-[44px] and the earlier ones at text-[32px]", () => {
+      const { container } = render(<Experience />);
+      const articles = roleArticles(container);
+
+      expect(articles).toHaveLength(ROLES.length);
+      articles.forEach((article, i) => {
+        const year = yearOf(article);
+        const large = i < FEATURED_ROLE_COUNT;
+        expect(year?.textContent).toBe(ROLES[i].years);
+        expect(year).toHaveClass(large ? "text-[44px]" : "text-[32px]");
+        expect(year).not.toHaveClass(large ? "text-[32px]" : "text-[44px]");
+      });
     });
   });
 });

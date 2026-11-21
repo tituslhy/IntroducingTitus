@@ -1,500 +1,272 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { act, render, screen, within } from "@testing-library/react";
 import Navigation from "./Navigation";
+import { EMAIL } from "@/lib/profile";
+
+// The nav reads the current route. Each test sets the pathname it wants before rendering.
+let mockPathname = "/";
+jest.mock("next/navigation", () => ({
+  usePathname: () => mockPathname,
+}));
+
+const NAV_HREFS = ["/experience", "/education", "/projects", "/writing", "/about", "/colophon"];
+
+function setScrollY(value: number) {
+  Object.defineProperty(window, "scrollY", { value, configurable: true, writable: true });
+}
+
+function scrollTo(value: number) {
+  act(() => {
+    setScrollY(value);
+    window.dispatchEvent(new Event("scroll"));
+  });
+}
 
 describe("Navigation", () => {
   beforeEach(() => {
-    // Reset scroll position and mocks
-    Object.defineProperty(window, "scrollY", {
-      writable: true,
-      value: 0,
-      configurable: true,
-    });
+    mockPathname = "/";
+    setScrollY(0);
   });
 
   describe("Rendering", () => {
-    it("should render the brand link with T·L text", () => {
+    it("renders the brand as a link home with the T·L mark", () => {
       render(<Navigation />);
-      const brandLink = screen.getByRole("link", { name: /back to top/i });
-      expect(brandLink).toBeInTheDocument();
-      expect(brandLink.textContent).toContain("T");
-      expect(brandLink.textContent).toContain("L");
+      const brand = screen.getByRole("link", { name: "Titus Lim, home" });
+      expect(brand).toHaveAttribute("href", "/");
+      expect(brand.textContent).toContain("T");
+      expect(brand.textContent).toContain("L");
     });
 
-    it("should render brand subtitle on larger screens", () => {
-      render(<Navigation />);
-      expect(screen.getByText("Titus Lim · Personal site")).toBeInTheDocument();
-    });
-
-    it("should render all navigation items with correct labels", () => {
-      render(<Navigation />);
-      const expectedLabels = ["About", "Stack", "Experience", "Projects", "Writing"];
-      expectedLabels.forEach((label) => {
-        expect(screen.getByText(label)).toBeInTheDocument();
-      });
-    });
-
-    it("should render only the label for each nav item, with no folio numbers", () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation", { name: /section navigation/i });
-      const folios = ["01", "02", "03", "05", "07"];
-      folios.forEach((folio) => {
-        expect(within(nav).queryByText(folio)).not.toBeInTheDocument();
-      });
-    });
-
-    it("should render Get in touch CTA link", () => {
-      render(<Navigation />);
-      const cta = screen.getByRole("link", { name: /email titus/i });
-      expect(cta).toBeInTheDocument();
-      expect(cta).toHaveAttribute(
-        "href",
-        expect.stringContaining("mailto:tituslhy@gmail.com")
-      );
-    });
-
-    it("should have correct email in CTA href", () => {
-      render(<Navigation />);
-      const cta = screen.getByRole("link", { name: /email titus/i }) as HTMLAnchorElement;
-      expect(cta.href).toContain("tituslhy@gmail.com");
-      // URL encoding converts spaces to %20
-      expect(cta.href).toContain("subject");
-      expect(cta.href).toContain("Resume");
-    });
-
-    it("should have nav with correct ARIA label", () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation", { name: /section navigation/i });
-      expect(nav).toBeInTheDocument();
-    });
-  });
-
-  describe("Scroll-Spy Active State", () => {
-    it("should initialize with masthead as active section", () => {
-      render(<Navigation />);
-      expect(screen.getByRole("navigation")).toBeInTheDocument();
-    });
-
-    it("should have active link with aria-current attribute when section becomes active", () => {
-      render(<Navigation />);
-      const navLinks = screen.getAllByRole("link");
-      expect(navLinks.length).toBeGreaterThan(0);
-    });
-
-    it("should render underline indicator span for active nav item", () => {
-      const { container } = render(<Navigation />);
-      const underlines = container.querySelectorAll("span[class*='bg-amber']");
-      expect(underlines.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it("should trigger IntersectionObserver with intersecting section", () => {
-      let capturedCallback: IntersectionObserverCallback | null = null;
-
-      class MockIntersectionObserver {
-        constructor(callback: IntersectionObserverCallback) {
-          capturedCallback = callback;
-        }
-        observe = jest.fn();
-        unobserve = jest.fn();
-        disconnect = jest.fn();
-      }
-
-      global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
-
-      render(<Navigation />);
-
-      // Simulate an intersecting section
-      if (capturedCallback) {
-        act(() => {
-          const mockEntries = [
-            {
-              isIntersecting: true,
-              target: { id: "lede" } as unknown as Element,
-            } as IntersectionObserverEntry,
-          ];
-          capturedCallback!(mockEntries, {} as IntersectionObserver);
-        });
-      }
-
-      // After triggering the callback with an intersecting element,
-      // the active state should be updated to "lede"
-      const aboutLink = screen.getAllByText("About")[0].closest("a");
-      expect(aboutLink?.getAttribute("aria-current")).toBe("true");
-    });
-
-    it("should handle non-intersecting sections in observer", () => {
-      let capturedCallback: IntersectionObserverCallback | null = null;
-
-      class MockIntersectionObserver {
-        constructor(callback: IntersectionObserverCallback) {
-          capturedCallback = callback;
-        }
-        observe = jest.fn();
-        unobserve = jest.fn();
-        disconnect = jest.fn();
-      }
-
-      global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
-
-      render(<Navigation />);
-
-      // Simulate a non-intersecting section
-      if (capturedCallback) {
-        act(() => {
-          const mockEntries = [
-            {
-              isIntersecting: false,
-              target: { id: "stack" } as unknown as Element,
-            } as IntersectionObserverEntry,
-          ];
-          capturedCallback!(mockEntries, {} as IntersectionObserver);
-        });
-      }
-
-      // State should not be updated for non-intersecting entries
-      const stackLink = screen.getAllByText("Stack")[0].closest("a");
-      expect(stackLink?.getAttribute("aria-current")).not.toBe("true");
-    });
-  });
-
-  describe("Scroll Behavior (Hide/Show)", () => {
-    it("should remain visible when scrollY is less than 80px", () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 50, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      expect(nav.style.transform).not.toContain("translateY(-110%)");
-    });
-
-    it("should hide when scrolling down past 80px", async () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 100, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      await waitFor(() => {
-        expect(nav.style.transform).toBe("translateY(-110%)");
-      });
-    });
-
-    it("should show when scrolling up after being hidden", async () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 200, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      await waitFor(() => {
-        expect(nav.style.transform).toBe("translateY(-110%)");
-      });
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 100, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      await waitFor(() => {
-        expect(nav.style.transform).toBe("translateY(0)");
-      });
-    });
-
-    it("should show immediately when scrolling back to top (scrollY < 80)", async () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 200, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      await waitFor(() => {
-        expect(nav.style.transform).toBe("translateY(-110%)");
-      });
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 50, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      await waitFor(() => {
-        expect(nav.style.transform).toBe("translateY(0)");
-      });
-    });
-
-    it("should require 4px scroll delta before hiding on scroll-down", async () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 100, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      await waitFor(() => {
-        expect(nav.style.transform).toBe("translateY(-110%)");
-      });
-
-      // Reveal first, then a 2px downward nudge must not hide it again
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 90, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      await waitFor(() => {
-        expect(nav.style.transform).toBe("translateY(0)");
-      });
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 92, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      expect(nav.style.transform).toBe("translateY(0)");
-    });
-
-    it("should reveal on any upward scroll, even by 1px, once hidden", async () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 300, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      await waitFor(() => {
-        expect(nav.style.transform).toBe("translateY(-110%)");
-      });
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 299, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      await waitFor(() => {
-        expect(nav.style.transform).toBe("translateY(0)");
-      });
-    });
-  });
-
-  describe("Click Handlers", () => {
-    it("should call scrollTo when brand link is clicked", async () => {
-      const user = userEvent.setup();
-      render(<Navigation />);
-
-      const mockMasthead = document.createElement("div");
-      mockMasthead.id = "masthead";
-      document.body.appendChild(mockMasthead);
-
-      const brandLink = screen.getByRole("link", { name: /back to top/i });
-      const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
-
-      await user.click(brandLink);
-
-      expect(scrollToSpy).toHaveBeenCalled();
-      scrollToSpy.mockRestore();
-      mockMasthead.remove();
-    });
-
-    it("should call scrollTo when About nav item link is clicked", async () => {
-      const user = userEvent.setup();
-      render(<Navigation />);
-
-      const mockLede = document.createElement("div");
-      mockLede.id = "lede";
-      document.body.appendChild(mockLede);
-
-      const navList = document.querySelector("nav ul") as HTMLElement;
-      const aboutLink = within(navList).getAllByRole("link")[0];
-
-      const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
-
-      await user.click(aboutLink);
-
-      expect(scrollToSpy).toHaveBeenCalled();
-      scrollToSpy.mockRestore();
-      mockLede.remove();
-    });
-
-    it("should call scrollTo for Stack nav item", async () => {
-      const user = userEvent.setup();
-      render(<Navigation />);
-
-      const mockStack = document.createElement("div");
-      mockStack.id = "stack";
-      document.body.appendChild(mockStack);
-
-      const navList = document.querySelector("nav ul") as HTMLElement;
-      const stackLink = within(navList).getAllByRole("link")[1];
-
-      const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
-
-      await user.click(stackLink);
-
-      expect(scrollToSpy).toHaveBeenCalled();
-      scrollToSpy.mockRestore();
-      mockStack.remove();
-    });
-
-    it("should call scrollTo for Experience nav item", async () => {
-      const user = userEvent.setup();
-      render(<Navigation />);
-
-      const mockDossier = document.createElement("div");
-      mockDossier.id = "dossier";
-      document.body.appendChild(mockDossier);
-
-      const navList = document.querySelector("nav ul") as HTMLElement;
-      const expLink = within(navList).getAllByRole("link")[2];
-
-      const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
-
-      await user.click(expLink);
-
-      expect(scrollToSpy).toHaveBeenCalled();
-      scrollToSpy.mockRestore();
-      mockDossier.remove();
-    });
-
-    it("should call scrollTo for Projects nav item", async () => {
-      const user = userEvent.setup();
-      render(<Navigation />);
-
-      const mockProjects = document.createElement("div");
-      mockProjects.id = "projects";
-      document.body.appendChild(mockProjects);
-
-      const navList = document.querySelector("nav ul") as HTMLElement;
-      const projLink = within(navList).getAllByRole("link")[3];
-
-      const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
-
-      await user.click(projLink);
-
-      expect(scrollToSpy).toHaveBeenCalled();
-      scrollToSpy.mockRestore();
-      mockProjects.remove();
-    });
-
-    it("should call scrollTo for Writing nav item", async () => {
-      const user = userEvent.setup();
-      render(<Navigation />);
-
-      const mockWriting = document.createElement("div");
-      mockWriting.id = "writing";
-      document.body.appendChild(mockWriting);
-
-      const navList = document.querySelector("nav ul") as HTMLElement;
-      const writeLink = within(navList).getAllByRole("link")[4];
-
-      const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
-
-      await user.click(writeLink);
-
-      expect(scrollToSpy).toHaveBeenCalled();
-      scrollToSpy.mockRestore();
-      mockWriting.remove();
-    });
-  });
-
-  describe("Styling and Layout", () => {
-    it("should have sticky positioning", () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-      expect(nav.className).toContain("sticky");
-      expect(nav.className).toContain("top-0");
-    });
-
-    it("should have high z-index for layering", () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-      expect(nav.className).toContain("z-50");
-    });
-
-    it("should have border-bottom styling", () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-      expect(nav.className).toContain("border-b");
-      expect(nav.className).toContain("border-rule");
-    });
-
-    it("should have backdrop blur and saturate effects", () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-      expect(nav.className).toContain("backdrop-blur");
-      expect(nav.className).toContain("backdrop-saturate");
-    });
-
-    it("should have transition for smooth hide/show animation", () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-      expect(nav.className).toContain("transition-transform");
-    });
-
-    it("should use paper background color with transparency", () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-      expect(nav.className).toContain("bg-[color-mix(in_oklch,var(--paper)_88%,transparent)]");
-    });
-  });
-
-  describe("Responsive Behavior", () => {
-    it("should hide brand subtitle on screens smaller than 1080px", () => {
+    it("renders the brand subtitle, hidden below 1080px", () => {
       render(<Navigation />);
       const subtitle = screen.getByText("Titus Lim · Personal site");
       expect(subtitle.className).toContain("max-[1080px]:hidden");
     });
 
-    it("should hide CTA text on screens smaller than 720px", () => {
+    it("renders the six links in order with their labels", () => {
       render(<Navigation />);
-      const ctaLink = screen.getByRole("link", { name: /email titus/i });
-      const textSpan = ctaLink.querySelector("span:nth-child(2)");
-      expect(textSpan?.className).toContain("max-[720px]:hidden");
+      const list = screen.getByRole("navigation", { name: "Site navigation" }).querySelector("ul") as HTMLElement;
+      const links = within(list).getAllByRole("link");
+      expect(links.map((a) => a.textContent)).toEqual([
+        "01Experience",
+        "02Education",
+        "03Projects",
+        "04Writing",
+        "05About",
+        "06Ask Titus",
+      ]);
     });
 
-    it("should center nav items on screens 721px and wider", () => {
+    it("links each item to its route, with 06 Ask Titus going to the colophon", () => {
       render(<Navigation />);
-      const navList = screen.getByRole("navigation").querySelector("ul");
-      expect(navList?.className).toContain("min-[721px]:[justify-content:safe_center]");
-      expect(navList?.className).not.toContain("min-[1080px]:justify-center");
+      const list = screen.getByRole("navigation", { name: "Site navigation" }).querySelector("ul") as HTMLElement;
+      const hrefs = within(list)
+        .getAllByRole("link")
+        .map((a) => a.getAttribute("href"));
+      expect(hrefs).toEqual(NAV_HREFS);
     });
 
-    it("should let the nav list scroll horizontally with smooth motion", () => {
+    it("prefixes each item with its folio number", () => {
       render(<Navigation />);
-      const navList = screen.getByRole("navigation").querySelector("ul");
-      expect(navList?.classList.contains("relative")).toBe(true);
-      expect(navList?.classList.contains("overflow-x-auto")).toBe(true);
-      expect(navList?.classList.contains("scroll-smooth")).toBe(true);
-      expect(navList?.classList.contains("motion-reduce:scroll-auto")).toBe(true);
+      const list = screen.getByRole("navigation", { name: "Site navigation" }).querySelector("ul") as HTMLElement;
+      const folios = within(list)
+        .getAllByRole("link")
+        .map((a) => a.querySelector("span")?.textContent);
+      expect(folios).toEqual(["01", "02", "03", "04", "05", "06"]);
     });
 
-    it("should render no edge fade overlays", () => {
-      const { container } = render(<Navigation />);
-      const fades = container.querySelectorAll("nav div[aria-hidden='true']");
-      expect(fades).toHaveLength(0);
+    it("renders the Get in touch CTA as a resume-request mailto", () => {
+      render(<Navigation />);
+      const cta = screen.getByRole("link", { name: /email titus/i }) as HTMLAnchorElement;
+      expect(cta.getAttribute("href")).toBe(`mailto:${EMAIL}?subject=Resume Request`);
+      expect(cta.href).toContain(EMAIL);
+      expect(cta.href).toContain("subject");
+      expect(cta.href).toContain("Resume");
+    });
+
+    it("labels the nav landmark", () => {
+      render(<Navigation />);
+      expect(screen.getByRole("navigation", { name: "Site navigation" })).toBeInTheDocument();
     });
   });
 
-  describe("Phone Layout (720px and narrower)", () => {
-    // Asserts each class token is present on the element (exact token match, no substring false positives)
+  describe("Active page", () => {
+    it("marks the current page with aria-current and an amber underline", () => {
+      mockPathname = "/experience";
+      render(<Navigation />);
+      const list = screen.getByRole("navigation", { name: "Site navigation" }).querySelector("ul") as HTMLElement;
+      const links = within(list).getAllByRole("link");
+
+      expect(links[0]).toHaveAttribute("aria-current", "page");
+      links.slice(1).forEach((link) => expect(link).not.toHaveAttribute("aria-current"));
+
+      const underline = links[0].querySelector("span.bg-amber");
+      expect(underline).toBeInTheDocument();
+      links.slice(1).forEach((link) => expect(link.querySelector("span.bg-amber")).toBeNull());
+    });
+
+    it("marks Education as current on /education", () => {
+      mockPathname = "/education";
+      render(<Navigation />);
+      expect(screen.getByRole("link", { name: /education/i })).toHaveAttribute("aria-current", "page");
+      expect(screen.getByRole("link", { name: /experience/i })).not.toHaveAttribute("aria-current");
+    });
+
+    it("marks Ask Titus as current on the colophon", () => {
+      mockPathname = "/colophon";
+      render(<Navigation />);
+      expect(screen.getByRole("link", { name: /ask titus/i })).toHaveAttribute("aria-current", "page");
+    });
+
+    it("keeps the item active on a nested path", () => {
+      mockPathname = "/projects/fictional-bassoon";
+      render(<Navigation />);
+      expect(screen.getByRole("link", { name: /projects/i })).toHaveAttribute("aria-current", "page");
+    });
+
+    it("does not mark a prefix of another route as current", () => {
+      mockPathname = "/experiences-archive";
+      render(<Navigation />);
+      expect(screen.getByRole("link", { name: /experience/i })).not.toHaveAttribute("aria-current");
+    });
+
+    it("marks nothing as current on the front page", () => {
+      mockPathname = "/";
+      const { container } = render(<Navigation />);
+      expect(container.querySelector('[aria-current="page"]')).toBeNull();
+    });
+
+    it("uses route links, not in-page anchors, and never tracks sections with an observer", () => {
+      const observerSpy = jest.fn();
+      const original = global.IntersectionObserver;
+      global.IntersectionObserver = class {
+        constructor() {
+          observerSpy();
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      } as unknown as typeof IntersectionObserver;
+      try {
+        render(<Navigation />);
+        const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
+        expect(hrefs.some((h) => h?.startsWith("#"))).toBe(false);
+        expect(observerSpy).not.toHaveBeenCalled();
+      } finally {
+        global.IntersectionObserver = original;
+      }
+    });
+  });
+
+  describe("Scroll behaviour (hide on scroll-down, reveal on scroll-up)", () => {
+    it("remains visible when scrollY is less than 80px", () => {
+      render(<Navigation />);
+      const nav = screen.getByRole("navigation", { name: "Site navigation" });
+      scrollTo(50);
+      expect(nav.style.transform).toBe("translateY(0)");
+    });
+
+    it("hides when scrolling down past 80px", () => {
+      render(<Navigation />);
+      const nav = screen.getByRole("navigation", { name: "Site navigation" });
+      scrollTo(100);
+      expect(nav.style.transform).toBe("translateY(-110%)");
+    });
+
+    it("shows again on any upward scroll after being hidden", () => {
+      render(<Navigation />);
+      const nav = screen.getByRole("navigation", { name: "Site navigation" });
+      scrollTo(200);
+      expect(nav.style.transform).toBe("translateY(-110%)");
+      scrollTo(100);
+      expect(nav.style.transform).toBe("translateY(0)");
+    });
+
+    it("shows immediately when back near the top (scrollY < 80)", () => {
+      render(<Navigation />);
+      const nav = screen.getByRole("navigation", { name: "Site navigation" });
+      scrollTo(200);
+      expect(nav.style.transform).toBe("translateY(-110%)");
+      scrollTo(50);
+      expect(nav.style.transform).toBe("translateY(0)");
+    });
+
+    it("requires a 4px downward move before hiding", () => {
+      render(<Navigation />);
+      const nav = screen.getByRole("navigation", { name: "Site navigation" });
+      scrollTo(100);
+      expect(nav.style.transform).toBe("translateY(-110%)");
+      scrollTo(90);
+      expect(nav.style.transform).toBe("translateY(0)");
+      scrollTo(92);
+      expect(nav.style.transform).toBe("translateY(0)");
+    });
+
+    it("reveals on an upward scroll of 1px once hidden", () => {
+      render(<Navigation />);
+      const nav = screen.getByRole("navigation", { name: "Site navigation" });
+      scrollTo(300);
+      expect(nav.style.transform).toBe("translateY(-110%)");
+      scrollTo(299);
+      expect(nav.style.transform).toBe("translateY(0)");
+    });
+
+    it("removes its scroll listener on unmount", () => {
+      const removeSpy = jest.spyOn(window, "removeEventListener");
+      const { unmount } = render(<Navigation />);
+      unmount();
+      expect(removeSpy.mock.calls.some(([type]) => type === "scroll")).toBe(true);
+      removeSpy.mockRestore();
+    });
+  });
+
+  describe("Styling and layout", () => {
+    it("is sticky at the top, above the page", () => {
+      render(<Navigation />);
+      const nav = screen.getByRole("navigation", { name: "Site navigation" });
+      expect(nav.className).toContain("sticky");
+      expect(nav.className).toContain("top-0");
+      expect(nav.className).toContain("z-50");
+    });
+
+    it("is fully opaque paper, with no blur or see-through background", () => {
+      render(<Navigation />);
+      const nav = screen.getByRole("navigation", { name: "Site navigation" });
+      expect(nav.className).toContain("bg-paper");
+      expect(nav.className).not.toContain("backdrop-blur");
+      expect(nav.className).not.toMatch(/color-mix/);
+    });
+
+    it("has a hairline bottom rule and animates its transform", () => {
+      render(<Navigation />);
+      const nav = screen.getByRole("navigation", { name: "Site navigation" });
+      expect(nav.className).toContain("border-b");
+      expect(nav.className).toContain("border-rule");
+      expect(nav.className).toContain("transition-transform");
+    });
+
+    it("centres the links from 721px and wider, and lets the list scroll only as a fallback", () => {
+      render(<Navigation />);
+      const navList = screen.getByRole("navigation", { name: "Site navigation" }).querySelector("ul") as HTMLElement;
+      expect(navList.className).toContain("min-[721px]:[justify-content:safe_center]");
+      expect(navList.classList.contains("overflow-x-auto")).toBe(true);
+      expect(navList.classList.contains("relative")).toBe(true);
+    });
+
+    it("renders no decorative fade overlays", () => {
+      const { container } = render(<Navigation />);
+      expect(container.querySelectorAll("nav div[aria-hidden='true']")).toHaveLength(0);
+    });
+  });
+
+  describe("Phone layout (720px and narrower)", () => {
     const expectClasses = (el: HTMLElement, classes: string[]) => {
-      classes.forEach((cls) => {
-        expect(el.classList.contains(cls)).toBe(true);
-      });
+      classes.forEach((cls) => expect(el.classList.contains(cls)).toBe(true));
     };
 
-    it("should stack brand and email on the top row of a two-column grid", () => {
+    it("puts brand and email on the top row of a two-column grid", () => {
       render(<Navigation />);
-      const grid = screen.getByRole("navigation").querySelector("div") as HTMLElement;
-      const brand = screen.getByRole("link", { name: /back to top/i });
+      const grid = screen.getByRole("navigation", { name: "Site navigation" }).querySelector("div") as HTMLElement;
+      const brand = screen.getByRole("link", { name: "Titus Lim, home" });
       const cta = screen.getByRole("link", { name: /email titus/i });
 
       expectClasses(grid, ["max-[720px]:h-auto", "max-[720px]:grid-cols-[1fr_auto]"]);
@@ -502,56 +274,35 @@ describe("Navigation", () => {
       expectClasses(cta, ["max-[720px]:col-start-2", "max-[720px]:row-start-1"]);
     });
 
-    it("should give the link list its own full-width second row", () => {
+    it("gives the link list its own full-width second row", () => {
       render(<Navigation />);
-      const navList = screen.getByRole("navigation").querySelector("ul") as HTMLElement;
+      const navList = screen.getByRole("navigation", { name: "Site navigation" }).querySelector("ul") as HTMLElement;
       const listWrapper = navList.parentElement as HTMLElement;
 
-      expectClasses(listWrapper, [
-        "max-[720px]:col-span-2",
-        "max-[720px]:row-start-2",
-        "max-[720px]:-mx-1.5",
-        "max-[360px]:-mx-1",
-      ]);
-      expectClasses(navList, [
-        "max-[720px]:flex-wrap",
-        "max-[720px]:justify-between",
-        "max-[720px]:gap-0",
-        "max-[720px]:px-0",
-      ]);
+      expectClasses(listWrapper, ["max-[720px]:col-span-2", "max-[720px]:row-start-2", "max-[720px]:-mx-1.5", "max-[360px]:-mx-1"]);
+      expectClasses(navList, ["max-[720px]:flex-wrap", "max-[720px]:justify-between", "max-[720px]:gap-0", "max-[720px]:px-0"]);
     });
 
-    it("should tighten link padding and type on small phones", () => {
+    it("tightens link padding and type on small phones", () => {
       render(<Navigation />);
-      const navList = screen.getByRole("navigation").querySelector("ul") as HTMLElement;
+      const navList = screen.getByRole("navigation", { name: "Site navigation" }).querySelector("ul") as HTMLElement;
       const links = within(navList).getAllByRole("link");
+      expect(links).toHaveLength(6);
+      links.forEach((link) => expectClasses(link, ["max-[720px]:px-1.5", "max-[360px]:px-1", "max-[360px]:text-[11px]"]));
+    });
 
-      expect(links).toHaveLength(5);
-      links.forEach((link) => {
-        expectClasses(link, ["max-[720px]:px-1.5", "max-[360px]:px-1", "max-[360px]:text-[11px]"]);
-      });
+    it("hides the CTA text under 720px and shows the short Contact label instead", () => {
+      render(<Navigation />);
+      const cta = screen.getByRole("link", { name: /email titus/i });
+      expect(cta.querySelector("span:nth-child(2)")).toHaveClass("max-[720px]:hidden");
+      const contact = cta.querySelector("span:nth-child(3)");
+      expect(contact).toHaveTextContent("Contact");
+      expect(contact).toHaveClass("min-[721px]:hidden");
     });
   });
 
-  describe("Active Link Centering", () => {
-    let capturedCallback: IntersectionObserverCallback | null = null;
-
-    beforeEach(() => {
-      capturedCallback = null;
-
-      class MockIntersectionObserver {
-        constructor(callback: IntersectionObserverCallback) {
-          capturedCallback = callback;
-        }
-        observe = jest.fn();
-        unobserve = jest.fn();
-        disconnect = jest.fn();
-      }
-
-      global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
-    });
-
-    // jsdom has no layout engine, so stub the geometry the effect reads
+  describe("Active link centring on phones", () => {
+    // jsdom has no layout engine: stub the geometry the effect reads, then change the route so the effect runs.
     const stubLayout = (
       list: HTMLElement,
       link: HTMLElement,
@@ -563,292 +314,69 @@ describe("Navigation", () => {
       Object.defineProperty(link, "offsetWidth", { value: geometry.offsetWidth, configurable: true });
     };
 
-    // Fire the scroll-spy observer so the section with this id becomes active
-    const activateSection = (id: string) => {
-      if (!capturedCallback) throw new Error("IntersectionObserver was not created");
-      act(() => {
-        capturedCallback!(
-          [{ isIntersecting: true, target: { id } as unknown as Element } as IntersectionObserverEntry],
-          {} as IntersectionObserver
-        );
-      });
-    };
-
-    it("should centre the active link when the list overflows", () => {
-      const { container } = render(<Navigation />);
+    it("centres the active link when the list overflows", () => {
+      const { container, rerender } = render(<Navigation />);
       const navList = container.querySelector("nav ul") as HTMLElement;
-      const stackLink = within(navList).getAllByRole("link")[1];
-      stubLayout(navList, stackLink, { scrollWidth: 600, clientWidth: 300, offsetLeft: 400, offsetWidth: 60 });
-      const scrollToSpy = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
+      const writingLink = within(navList).getAllByRole("link")[3];
+      stubLayout(navList, writingLink, { scrollWidth: 600, clientWidth: 300, offsetLeft: 400, offsetWidth: 60 });
 
-      activateSection("stack");
+      mockPathname = "/writing";
+      rerender(<Navigation />);
 
-      expect(stackLink.getAttribute("aria-current")).toBe("true");
+      expect(writingLink).toHaveAttribute("aria-current", "page");
       // offsetLeft - (clientWidth - offsetWidth) / 2 = 400 - 120
       expect(navList.scrollLeft).toBe(280);
-      expect(scrollToSpy).not.toHaveBeenCalled();
-      scrollToSpy.mockRestore();
     });
 
-    it("should inset the active underline more tightly on phones", () => {
-      const { container } = render(<Navigation />);
+    it("leaves scrollLeft at 0 when the list fits without overflowing", () => {
+      const { container, rerender } = render(<Navigation />);
       const navList = container.querySelector("nav ul") as HTMLElement;
-      const stackLink = within(navList).getAllByRole("link")[1];
+      const writingLink = within(navList).getAllByRole("link")[3];
+      stubLayout(navList, writingLink, { scrollWidth: 300, clientWidth: 300, offsetLeft: 400, offsetWidth: 60 });
 
-      activateSection("stack");
+      mockPathname = "/writing";
+      rerender(<Navigation />);
 
-      const underline = stackLink.querySelector("span[class*='bg-amber']") as HTMLElement;
+      expect(writingLink).toHaveAttribute("aria-current", "page");
+      expect(navList.scrollLeft).toBe(0);
+    });
+
+    it("insets the active underline more tightly on phones", () => {
+      mockPathname = "/about";
+      const { container } = render(<Navigation />);
+      const aboutLink = within(container.querySelector("nav ul") as HTMLElement).getAllByRole("link")[4];
+      const underline = aboutLink.querySelector("span.bg-amber") as HTMLElement;
       expect(underline).toBeInTheDocument();
       expect(underline.classList.contains("max-[720px]:inset-x-1.5")).toBe(true);
       expect(underline.classList.contains("max-[360px]:inset-x-1")).toBe(true);
     });
-
-    it("should leave scrollLeft at 0 when the list fits without overflowing", () => {
-      const { container } = render(<Navigation />);
-      const navList = container.querySelector("nav ul") as HTMLElement;
-      const stackLink = within(navList).getAllByRole("link")[1];
-      // Same link geometry as the overflow case, so the centring formula would give 280 if it ran
-      stubLayout(navList, stackLink, { scrollWidth: 300, clientWidth: 300, offsetLeft: 400, offsetWidth: 60 });
-
-      activateSection("stack");
-
-      expect(stackLink.getAttribute("aria-current")).toBe("true");
-      expect(navList.scrollLeft).toBe(0);
-    });
   });
 
   describe("Accessibility", () => {
-    it("should have proper ARIA labels on brand link", () => {
+    it("gives the brand link an accessible name and a home href", () => {
       render(<Navigation />);
-      const brandLink = screen.getByRole("link", { name: /back to top/i });
-      expect(brandLink).toHaveAttribute("aria-label", "Back to top");
+      expect(screen.getByRole("link", { name: "Titus Lim, home" })).toHaveAttribute("href", "/");
     });
 
-    it("should have href on brand link", () => {
+    it("gives the CTA an accessible name", () => {
       render(<Navigation />);
-      const brandLink = screen.getByRole("link", { name: /back to top/i });
-      expect(brandLink).toHaveAttribute("href", "#masthead");
+      expect(screen.getByRole("link", { name: "Email Titus" })).toBeInTheDocument();
     });
 
-    it("should have href on all nav item links", () => {
-      const { container } = render(<Navigation />);
-      const navList = container.querySelector("nav ul");
-      const links = navList?.querySelectorAll("a");
-      expect(links?.length).toBe(5);
-      links?.forEach((link) => {
-        expect(link).toHaveAttribute("href");
-        expect(link.getAttribute("href")).toMatch(/^#/);
-      });
-    });
-
-    it("should render nav list in a semantically correct list structure", () => {
-      const { container } = render(<Navigation />);
-      const navList = container.querySelector("nav ul");
-      expect(navList).toBeInTheDocument();
-
-      const listItems = navList?.querySelectorAll("li");
-      expect(listItems?.length).toBe(5);
-    });
-  });
-
-  describe("Navigation Link Structure", () => {
-    it("should have correct structure for each nav item", () => {
-      const { container } = render(<Navigation />);
-      const listItems = container.querySelectorAll("nav ul li");
-
-      expect(listItems.length).toBe(5);
-
-      listItems.forEach((li) => {
-        const link = li.querySelector("a");
-        expect(link).toBeInTheDocument();
-        expect(link?.getAttribute("href")).toMatch(/^#/);
-      });
-    });
-
-    it("should render nav items with label only", () => {
-      const { container } = render(<Navigation />);
-      const listItems = container.querySelectorAll("nav ul li");
-
-      const expectedLabels = ["About", "Stack", "Experience", "Projects", "Writing"];
-
-      listItems.forEach((li, index) => {
-        expect(li.textContent).toBe(expectedLabels[index]);
-      });
-    });
-  });
-
-  describe("Cleanup", () => {
-    it("should remove scroll event listener on unmount", () => {
-      const removeEventListenerSpy = jest.spyOn(
-        window,
-        "removeEventListener"
-      );
-      const { unmount } = render(<Navigation />);
-
-      unmount();
-
-      expect(removeEventListenerSpy).toHaveBeenCalledWith(
-        "scroll",
-        expect.any(Function)
-      );
-
-      removeEventListenerSpy.mockRestore();
-    });
-
-    it("should disconnect IntersectionObserver on unmount", () => {
-      const mockDisconnect = jest.fn();
-
-      class MockIntersectionObserver {
-        observe = jest.fn();
-        unobserve = jest.fn();
-        disconnect = mockDisconnect;
-      }
-
-      global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
-
-      const { unmount } = render(<Navigation />);
-      unmount();
-
-      expect(mockDisconnect).toHaveBeenCalled();
-    });
-  });
-
-  describe("Edge Cases and Integration", () => {
-    it("should handle rapid scroll events gracefully", () => {
+    it("renders the page links as a list inside the nav", () => {
       render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-
-      act(() => {
-        for (let i = 100; i < 200; i += 5) {
-          Object.defineProperty(window, "scrollY", { value: i, configurable: true });
-          window.dispatchEvent(new Event("scroll"));
-        }
-      });
-
-      expect(nav.style.transform).toBe("translateY(-110%)");
+      const nav = screen.getByRole("navigation", { name: "Site navigation" });
+      const list = nav.querySelector("ul");
+      expect(list).toBeInTheDocument();
+      expect(list?.querySelectorAll(":scope > li")).toHaveLength(6);
     });
 
-    it("should maintain nav structure during scroll state changes", () => {
-      render(<Navigation />);
-
-      expect(screen.getByText("About")).toBeInTheDocument();
-      expect(screen.getByText("Stack")).toBeInTheDocument();
-      expect(screen.getByText("Experience")).toBeInTheDocument();
-      expect(screen.getByText("Projects")).toBeInTheDocument();
-      expect(screen.getByText("Writing")).toBeInTheDocument();
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 500, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      expect(screen.getByText("About")).toBeInTheDocument();
-      expect(screen.getByText("Stack")).toBeInTheDocument();
-    });
-
-    it("should render all nav items in document order", () => {
-      const { container } = render(<Navigation />);
-      const navList = container.querySelector("nav ul");
-      const links = navList?.querySelectorAll("a");
-
-      const expectedOrder = ["About", "Stack", "Experience", "Projects", "Writing"];
-      links?.forEach((link, idx) => {
-        expect(link.textContent).toContain(expectedOrder[idx]);
-      });
-    });
-  });
-
-  describe("Scroll Position Edge Cases", () => {
-    it("should handle scroll position below 80px threshold", async () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 79, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      expect(nav.style.transform).toBe("translateY(0)");
-    });
-
-    it("should handle scroll position above 80px without hidden state initially", async () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 100, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      await waitFor(() => {
-        expect(nav.style.transform).toBe("translateY(-110%)");
-      });
-    });
-
-    it("should handle zero scroll position", async () => {
-      render(<Navigation />);
-      const nav = screen.getByRole("navigation");
-
-      act(() => {
-        Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
-        window.dispatchEvent(new Event("scroll"));
-      });
-
-      expect(nav.style.transform).toBe("translateY(0)");
-    });
-  });
-
-  describe("CTA Link Rendering", () => {
-    it("should render CTA with correct visual structure", () => {
+    it("keeps the CTA styled as an outlined button that fills on hover", () => {
       render(<Navigation />);
       const cta = screen.getByRole("link", { name: /email titus/i });
-
-      const amberDot = cta.querySelector("span[class*='bg-amber']");
-      expect(amberDot).toBeInTheDocument();
-
-      const textSpan = cta.querySelector("span:nth-child(2)");
-      expect(textSpan).toHaveTextContent("Get in touch");
-    });
-
-    it("should render a Contact label span after the Get in touch span, hidden at 721px and wider", () => {
-      render(<Navigation />);
-      const cta = screen.getByRole("link", { name: /email titus/i });
-
-      const contactSpan = cta.querySelector("span:nth-child(3)");
-      expect(contactSpan).toBeInTheDocument();
-      expect(contactSpan?.textContent).toBe("Contact");
-      expect(contactSpan).toHaveClass("min-[721px]:hidden");
-      expect(cta).toHaveAccessibleName(/email titus/i);
-    });
-
-    it("should have proper border styling on CTA", () => {
-      render(<Navigation />);
-      const cta = screen.getByRole("link", { name: /email titus/i });
-
-      expect(cta.className).toContain("border");
       expect(cta.className).toContain("border-ink");
-    });
-
-    it("should have hover state styling on CTA", () => {
-      render(<Navigation />);
-      const cta = screen.getByRole("link", { name: /email titus/i });
-
       expect(cta.className).toContain("hover:bg-ink");
       expect(cta.className).toContain("hover:text-paper");
-    });
-  });
-
-  describe("Brand Link Interactive", () => {
-    it("should have correct styling and structure on brand link", () => {
-      render(<Navigation />);
-      const brandLink = screen.getByRole("link", { name: /back to top/i });
-
-      expect(brandLink.className).toContain("flex");
-      expect(brandLink.className).toContain("items-baseline");
-      expect(brandLink.className).toContain("gap-2.5");
-
-      const serif = brandLink.querySelector(".font-serif");
-      expect(serif).toBeInTheDocument();
     });
   });
 });

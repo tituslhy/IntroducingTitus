@@ -10,7 +10,8 @@
     "test": "jest",
     "articles:build": "node --env-file-if-exists=.env.local --import tsx scripts/build-articles.ts",
     "eval:writing": "node --env-file-if-exists=.env.local --import tsx scripts/eval-writing.ts",
-    "eval:replay": "node --env-file-if-exists=.env.local --import tsx scripts/replay-citations.ts"
+    "eval:replay": "node --env-file-if-exists=.env.local --import tsx scripts/replay-citations.ts",
+    "github:meta": "node --import tsx scripts/github-meta.ts"
   },
   "dependencies": {
     "@typesafe-ai/sdk": "0.7.0",

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import TechStack from "./TechStack";
 
 describe("TechStack", () => {
@@ -7,7 +7,14 @@ describe("TechStack", () => {
     const marker = container.querySelector("section#stack header > div");
     const link = screen.getByRole("link", { name: /back to top/i });
     expect(marker).toContainElement(link);
-    expect(link).toHaveAttribute("href", "#masthead");
+    expect(link).toHaveAttribute("href", "#top");
+  });
+
+  it("should render the stack marker with no folio number", () => {
+    const { container } = render(<TechStack />);
+    const marker = container.querySelector("section#stack header > div") as HTMLElement;
+    expect(within(marker).getByText("Stack")).toBeInTheDocument();
+    expect(marker.textContent).not.toMatch(/\d/);
   });
 
   it("should render section with stack id", () => {

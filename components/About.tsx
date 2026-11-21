@@ -1,6 +1,7 @@
 import BackToTop from '@/components/BackToTop'
 import Passions from '@/components/Passions'
 import { ARTICLE_COUNT_WORD } from '@/lib/content'
+import { pageFolio } from '@/lib/profile'
 
 export default function About() {
   return (
@@ -9,7 +10,7 @@ export default function About() {
         {/* Section marker */}
         <header className="mb-[clamp(28px,4vw,56px)]">
           <div className="flex items-baseline gap-3.5 pb-[18px] font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
-            <span className="font-semibold tracking-[0.08em] text-amber">01</span>
+            <span className="font-semibold tracking-[0.08em] text-amber">{pageFolio('/about')}</span>
             <span className="font-medium text-ink">About</span>
             <span className="h-px flex-1 self-center bg-rule" />
             <BackToTop />

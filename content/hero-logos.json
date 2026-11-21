@@ -1,0 +1,270 @@
+{
+  "Python": {
+    "file": "python",
+    "r": 1.0
+  },
+  "LangChain": {
+    "file": "langchain",
+    "r": 1.0
+  },
+  "LangGraph": {
+    "file": "langgraph",
+    "r": 2.0
+  },
+  "CrewAI": {
+    "file": "crewai",
+    "r": 1
+  },
+  "Qdrant": {
+    "file": "qdrant",
+    "r": 1
+  },
+  "Docker": {
+    "file": "docker",
+    "r": 1
+  },
+  "PostgreSQL": {
+    "file": "postgresql",
+    "r": 1.0
+  },
+  "ClickHouse": {
+    "file": "clickhouse",
+    "r": 1
+  },
+  "Next.js": {
+    "file": "next-js",
+    "r": 1
+  },
+  "FastAPI": {
+    "file": "fastapi",
+    "r": 1
+  },
+  "Redis": {
+    "file": "redis",
+    "r": 1
+  },
+  "RabbitMQ": {
+    "file": "rabbitmq",
+    "r": 1
+  },
+  "Kubernetes": {
+    "file": "kubernetes",
+    "r": 1
+  },
+  "Helm": {
+    "file": "helm",
+    "r": 1
+  },
+  "Neo4j": {
+    "file": "neo4j",
+    "r": 1
+  },
+  "Ollama": {
+    "file": "ollama",
+    "r": 1
+  },
+  "vLLM": {
+    "file": "vllm",
+    "r": 1
+  },
+  "Apache Airflow": {
+    "file": "apache-airflow",
+    "r": 1.0
+  },
+  "Hugging Face": {
+    "file": "hugging-face",
+    "r": 1.0
+  },
+  "PyTorch": {
+    "file": "pytorch",
+    "r": 1
+  },
+  "GitHub Actions": {
+    "file": "github-actions",
+    "r": 1
+  },
+  "Grafana": {
+    "file": "grafana",
+    "r": 1
+  },
+  "Prometheus": {
+    "file": "prometheus",
+    "r": 1
+  },
+  "Snowflake": {
+    "file": "snowflake",
+    "r": 1
+  },
+  "MongoDB": {
+    "file": "mongodb",
+    "r": 1
+  },
+  "n8n": {
+    "file": "n8n",
+    "r": 1
+  },
+  "Haystack": {
+    "file": "haystack",
+    "r": 1
+  },
+  "Java": {
+    "file": "java",
+    "r": 1.0
+  },
+  "Spring": {
+    "file": "spring",
+    "r": 1
+  },
+  "Hibernate": {
+    "file": "hibernate",
+    "r": 1
+  },
+  "BentoML": {
+    "file": "bentoml",
+    "r": 1
+  },
+  "OpenTelemetry": {
+    "file": "opentelemetry",
+    "r": 1.0
+  },
+  "LlamaIndex": {
+    "file": "llamaindex",
+    "r": 1.0
+  },
+  "Langfuse": {
+    "file": "langfuse",
+    "r": 1.0
+  },
+  "Tavily": {
+    "file": "tavily",
+    "r": 1.0
+  },
+  "Unsloth": {
+    "file": "unsloth",
+    "r": 1.0
+  },
+  "Jenkins": {
+    "file": "jenkins",
+    "r": 1.0
+  },
+  "Elastic": {
+    "file": "elastic",
+    "r": 1.0
+  },
+  "React": {
+    "file": "react",
+    "r": 1
+  },
+  "Typer": {
+    "file": "typer",
+    "r": 1
+  },
+  "Autogen": {
+    "file": "autogen",
+    "r": 1.129
+  },
+  "DSPy": {
+    "file": "dspy",
+    "r": 1.0
+  },
+  "Chainlit": {
+    "file": "chainlit",
+    "r": 1.0
+  },
+  "LiteLLM": {
+    "file": "litellm",
+    "r": 1.002
+  },
+  "FastMCP": {
+    "file": "fastmcp",
+    "r": 1.0
+  },
+  "Nginx": {
+    "file": "nginx",
+    "r": 1
+  },
+  "Liquibase": {
+    "file": "liquibase",
+    "r": 1
+  },
+  "TypeScript": {
+    "file": "typescript",
+    "r": 1
+  },
+  "TypeSafe": {
+    "file": "typesafe",
+    "r": 1
+  },
+  "gRPC": {
+    "file": "grpc",
+    "r": 2.333
+  },
+  "ADK": {
+    "file": "adk",
+    "r": 1
+  },
+  "Nacos": {
+    "file": "nacos",
+    "r": 5.125
+  },
+  "Mem0": {
+    "file": "mem0",
+    "r": 1.0
+  },
+  "TensorFlow": {
+    "file": "tensorflow",
+    "r": 1
+  },
+  "Streamlit": {
+    "file": "streamlit",
+    "r": 1.0
+  },
+  "Google Cloud": {
+    "file": "google-cloud",
+    "r": 1.0
+  },
+  "Apache Kafka": {
+    "file": "apache-kafka",
+    "r": 1
+  },
+  "OpenAI": {
+    "file": "openai",
+    "r": 1.0
+  },
+  "NetworkX": {
+    "file": "networkx",
+    "r": 1.008
+  },
+  "LangChain4j": {
+    "file": "langchain4j",
+    "r": 1
+  },
+  "LangServe": {
+    "file": "langserve",
+    "r": 1
+  },
+  "Ultralytics": {
+    "file": "ultralytics",
+    "r": 1
+  },
+  "Vanna": {
+    "file": "vanna",
+    "r": 1.0
+  },
+  "Giskard": {
+    "file": "giskard",
+    "r": 1
+  },
+  "Claude": {
+    "file": "claude",
+    "r": 1.0
+  },
+  "Gemini": {
+    "file": "gemini",
+    "r": 1.0
+  },
+  "DeepSeek": {
+    "file": "deepseek",
+    "r": 1.0
+  }
+}

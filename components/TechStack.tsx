@@ -8,7 +8,6 @@ export default function TechStack() {
         {/* Section marker */}
         <header className="mb-[clamp(28px,4vw,56px)]">
           <div className="flex items-baseline gap-3.5 pb-[18px] font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
-            <span className="font-semibold tracking-[0.08em] text-amber">02</span>
             <span className="font-medium text-ink">Stack</span>
             <span className="h-px flex-1 self-center bg-rule" />
             <BackToTop />

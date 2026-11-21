@@ -26,4 +26,31 @@ describe("openCopilot", () => {
 
     expect((listener.mock.calls[0][0] as CustomEvent<CopilotOpenDetail>).detail).toEqual({ mode: "chat" });
   });
+
+  it("carries the prompt in the detail when one is given", () => {
+    openCopilot("chat", "What did you build at Illumina?");
+
+    expect((listener.mock.calls[0][0] as CustomEvent<CopilotOpenDetail>).detail).toEqual({
+      mode: "chat",
+      prompt: "What did you build at Illumina?",
+    });
+  });
+
+  it("leaves the prompt out of the detail when it is an empty string", () => {
+    openCopilot("chat", "");
+
+    expect((listener.mock.calls[0][0] as CustomEvent<CopilotOpenDetail>).detail).toEqual({ mode: "chat" });
+  });
+
+  it("dispatches on window with the copilot:open type, so the drawer's listener hears it", () => {
+    const seen: string[] = [];
+    const onEvent = (e: Event) => seen.push(e.type);
+    window.addEventListener(COPILOT_OPEN_EVENT, onEvent);
+    try {
+      openCopilot("chat", "hello");
+      expect(seen).toEqual(["copilot:open"]);
+    } finally {
+      window.removeEventListener(COPILOT_OPEN_EVENT, onEvent);
+    }
+  });
 });

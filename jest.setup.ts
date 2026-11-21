@@ -2,9 +2,11 @@ import "@testing-library/jest-dom";
 
 jest.mock("next/image", () => ({
   __esModule: true,
-  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => {
+  default: (props: React.ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean; priority?: boolean }) => {
     const React = require("react");
-    return React.createElement("img", { ...props, alt: props.alt ?? "" });
+    // next/image's boolean-only props (fill, priority) are not DOM attributes; drop them.
+    const { fill: _fill, priority: _priority, ...rest } = props;
+    return React.createElement("img", { ...rest, alt: rest.alt ?? "" });
   },
 }));
 

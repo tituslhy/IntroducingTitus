@@ -73,7 +73,7 @@ function createShowOnPageTool(): CopilotTool<string> {
       type: "function",
       name: "show_on_page",
       description:
-        "Scroll the visitor's page to the entry your answer is about and briefly highlight it. Call at most once per answer, before writing the answer.",
+        "Take the visitor to the entry your answer is about: open its page if they are on another one, scroll to it and briefly highlight it. Call at most once per answer, before writing the answer.",
       strict: true,
       parameters: {
         type: "object",

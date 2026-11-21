@@ -117,3 +117,15 @@ body {
     animation: copilot-spotlight 2600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 }
+
+/* Front page: the logo field fades out over the hero's bottom ~14%, with no rule line under it. */
+.hero-anim canvas {
+  -webkit-mask-image: linear-gradient(to bottom, #000 86%, transparent);
+  mask-image: linear-gradient(to bottom, #000 86%, transparent);
+}
+
+/* The front page's scroll-down button. */
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(5px); }
+}

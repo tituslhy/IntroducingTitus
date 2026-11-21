@@ -2,11 +2,11 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { ARTICLE_COUNT_NUMBER, BLOCKCHAIN_ARTICLE_COUNT, SITE_URL } from './content'
 import {
+  CERTIFICATIONS,
   EDUCATION,
   EMAIL,
   FEATURED_ARTICLES,
   OPEN_SOURCE,
-  OTHER_CREDENTIALS,
   PROFICIENCY_SEPARATOR,
   PROJECTS,
   ROLES,
@@ -190,6 +190,18 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
       }
     })
 
+    it('mentions BYOC (the UOB onboarding workflow app) in the built prompt', () => {
+      expect(rendered).toContain('BYOC')
+    })
+
+    it('does not say Titus built BYOA in the built prompt', () => {
+      expect(rendered).not.toMatch(/built BYOA/i)
+    })
+
+    it('describes BYOA as UOB\'s planned multi-agent platform in the built prompt', () => {
+      expect(rendered).toContain('planned multi-agent platform')
+    })
+
     it('includes the Mastercard Agent Suite link inline in the deck', () => {
       const deckLink = ROLES[0].deckLink
       expect(deckLink).toBeDefined()
@@ -237,18 +249,35 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
       }
     })
 
-    it('includes copilot-only honours that are not on the page', () => {
+    it('includes every honour of every degree', () => {
       for (const e of EDUCATION) {
-        for (const honor of e.copilotHonors ?? []) {
+        for (const honor of e.honors) {
           expect(rendered).toContain(honor)
         }
       }
     })
 
-    it('includes the other credentials', () => {
-      for (const credential of OTHER_CREDENTIALS) {
-        expect(rendered).toContain(credential)
+    it('includes every honour of every programme taken during a degree', () => {
+      for (const e of EDUCATION) {
+        for (const part of e.parts ?? []) {
+          expect(rendered).toContain(part.programme)
+          for (const honor of part.honors) {
+            expect(rendered).toContain(honor)
+          }
+        }
       }
+    })
+
+    it('introduces each programme as taken during its degree, with its dates', () => {
+      for (const e of EDUCATION) {
+        for (const part of e.parts ?? []) {
+          expect(rendered).toContain(`During this degree, ${part.institution} — ${part.programme} (${part.dates}):`)
+        }
+      }
+    })
+
+    it('lists the certifications in a labelled line at the foot of the section', () => {
+      expect(rendered).toContain(`**Certifications:** ${CERTIFICATIONS.join(', ')}.`)
     })
   })
 

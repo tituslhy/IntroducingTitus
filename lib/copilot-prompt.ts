@@ -24,7 +24,7 @@ import {
   FEATURED_ARTICLES,
   FEATURED_BY,
   OPEN_SOURCE,
-  OTHER_CREDENTIALS,
+  CERTIFICATIONS,
   PAGE_TARGETS,
   PROFICIENCY_SEPARATOR,
   PROJECTS,
@@ -75,10 +75,12 @@ function renderProjects(): string {
 
 function renderEducation(): string {
   const degrees = EDUCATION.map((e) => {
-    const honors = [...e.honors, ...(e.copilotHonors ?? [])]
-    return `**${e.institution}** — ${e.degree} (${proseDates(e.dates)}). ${honors.join(', ')}.`
+    const parts = (e.parts ?? []).map(
+      (p) => `During this degree, ${p.institution} — ${p.programme} (${p.dates}): ${p.honors.join(', ')}.`,
+    )
+    return [`**${e.institution}** — ${e.degree} (${proseDates(e.dates)}). ${e.honors.join(', ')}.`, ...parts].join(' ')
   })
-  return [...degrees, ...OTHER_CREDENTIALS.map((c) => `**${c}**`)].join('\n\n')
+  return [...degrees, `**Certifications:** ${CERTIFICATIONS.join(', ')}.`].join('\n\n')
 }
 
 function renderTechStack(): string {
@@ -145,7 +147,7 @@ function renderLinks(): string {
 }
 
 function renderPageTargets(): string {
-  return PAGE_TARGETS.map((t) => `- \`${t.id}\` — ${t.about}`).join('\n')
+  return PAGE_TARGETS.map((t) => `- \`${t.id}\` (${t.path}) — ${t.about}`).join('\n')
 }
 
 /** Every token the template may use, mapped to its rendered value. */

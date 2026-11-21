@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import './globals.css'
 import CopilotBubble from '@/components/CopilotBubble'
+import Navigation from '@/components/Navigation'
 import { EMAIL, PAGE_TARGETS, SITE_DESCRIPTION, SITE_TITLE } from '@/lib/profile'
 import { SITE_URL } from '@/lib/content'
 
@@ -78,9 +79,11 @@ export default function RootLayout({
         </noscript>
       </head>
       <body className="bg-paper text-ink font-serif antialiased">
+        <Navigation />
         {children}
-        {/* Only id + label cross to the client; copilot-only narrative stays server-side. */}
-        <CopilotBubble targets={PAGE_TARGETS.map(({ id, label }) => ({ id, label }))} email={EMAIL} />
+        {/* The drawer lives here, so it keeps the conversation while the visitor moves between pages.
+            Only id, label and path cross to the client; copilot-only narrative stays server-side. */}
+        <CopilotBubble targets={PAGE_TARGETS.map(({ id, label, path }) => ({ id, label, path }))} email={EMAIL} />
       </body>
     </html>
   )
