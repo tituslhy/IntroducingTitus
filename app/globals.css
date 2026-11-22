@@ -304,13 +304,26 @@ body {
   .projector-frame:not([hidden]) .dg-node, .projector-frame:not([hidden]) .dg-loop { animation-duration: 0s; animation-delay: 0s; }
 }
 
-/* Projects: open source rolls up through a sticky stage as the section scrolls (CreditsRoll sets data-rolling;
-   without it, or for reduced motion, it is a still list). */
-.credits-stage { padding: 48px 0 52px; }
-.credits-roll[data-rolling] { height: 190vh; }
-.credits-roll[data-rolling] .credits-stage { position: sticky; top: 70px; height: min(600px, calc(100vh - 100px)); overflow: hidden; padding: 0; }
-.credits-roll[data-rolling] .credits-window { position: absolute; inset: 0; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent); }
-.credits-roll[data-rolling] .credits-list { position: absolute; left: 0; right: 0; top: 0; will-change: transform; }
+/* Projects: open source as closing credits. The heading stays put; the credits stream up through a window by
+   themselves and loop (the list is printed twice, the second copy hidden from screen readers). Hovering holds
+   them; tabbing to a credit stops the roll and lets the window scroll to it. Reduced motion: one still list. */
+.credits-window {
+  height: 360px; overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
+}
+.credits-track { animation: credits-up var(--roll, 30s) linear infinite; will-change: transform; }
+.credits-copy { padding: 26px 0; }
+.credits-window:hover .credits-track { animation-play-state: paused; }
+.credits-window:focus-within { overflow-y: auto; }
+.credits-window:focus-within .credits-track { animation: none; }
+@keyframes credits-up { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+@media (max-width: 720px) { .credits-window { height: 420px; } }
+@media (prefers-reduced-motion: reduce) {
+  .credits-window { height: auto; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+  .credits-track { animation: none; }
+  .credits-copy[aria-hidden='true'] { display: none; }
+}
 
 /* Projects: fictional-bassoon's architecture (BassoonArchitecture). One message's path lights up in order (--d),
    numbered; the supporting cast lights up after it. Amber, where Illumina's diagrams are indigo. */

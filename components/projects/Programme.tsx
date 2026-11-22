@@ -36,7 +36,7 @@ export default function Programme({ stops }: { stops: ProgrammeStop[] }) {
     <nav
       ref={row}
       aria-label="On this page"
-      className="sticky top-0 z-40 -mx-[clamp(18px,4vw,56px)] mb-2 flex gap-2 overflow-x-auto border-b border-rule bg-[color-mix(in_srgb,var(--paper)_92%,transparent)] px-[clamp(18px,4vw,56px)] py-2.5 backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="sticky top-0 z-40 -mx-[clamp(18px,4vw,56px)] mb-2 flex gap-2 overflow-x-auto max-[820px]:flex-wrap max-[820px]:gap-1 max-[820px]:py-2 border-b border-rule bg-[color-mix(in_srgb,var(--paper)_92%,transparent)] px-[clamp(18px,4vw,56px)] py-2.5 backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {stops.map((s) => {
         const on = s.id === current
@@ -46,7 +46,7 @@ export default function Programme({ stops }: { stops: ProgrammeStop[] }) {
             href={`#${s.id}`}
             data-stop={s.id}
             aria-current={on ? 'true' : undefined}
-            className={`inline-flex shrink-0 items-baseline gap-2 rounded-full px-3.5 py-2 font-mono text-[13px] transition-colors ${
+            className={`inline-flex shrink-0 items-baseline gap-2 rounded-full px-3.5 py-2 font-mono text-[13px] max-[820px]:gap-1.5 max-[820px]:px-2 max-[820px]:py-1 max-[820px]:text-[11px] transition-colors ${
               on ? 'bg-ink text-paper' : 'bg-paper-deep text-ink hover:bg-ink hover:text-paper'
             }`}
           >

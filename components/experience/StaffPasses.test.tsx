@@ -596,6 +596,153 @@ describe("StaffPasses", () => {
     });
   });
 
+  describe("centring the picked pass in the phone swipe row", () => {
+    // jsdom has no layout: the row is 300px wide and 1200px long, and each pass sits in its own 220px slot.
+    const ROW = { scrollWidth: 1200, clientWidth: 300 };
+    const SLOTS: Record<string, { left: number; width: number }> = {
+      "toyota-tsusho": { left: 40, width: 220 },
+      jobtech: { left: 300, width: 220 },
+      ema: { left: 560, width: 220 },
+      mastercard: { left: 820, width: 220 },
+    };
+    /** offsetLeft - clientWidth / 2 + offsetWidth / 2: the value the component should scroll to. */
+    const centredLeft = (slug: string, clientWidth = ROW.clientWidth) =>
+      SLOTS[slug].left - clientWidth / 2 + SLOTS[slug].width / 2;
+
+    const originalMatchMedia = window.matchMedia;
+    const originalScrollTo = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTo");
+    const savedLayout: Array<[object, string, PropertyDescriptor | undefined]> = [];
+
+    /** Puts the row's geometry on the prototypes; each pass reads its own slot by id (pass-<slug>). */
+    function stubLayout(row: { scrollWidth: number; clientWidth: number }) {
+      const define = (proto: object, prop: string, get: () => number) => {
+        savedLayout.push([proto, prop, Object.getOwnPropertyDescriptor(proto, prop)]);
+        Object.defineProperty(proto, prop, { configurable: true, get });
+      };
+      const isRow = (el: Element) => el.getAttribute("role") === "tablist";
+      const slotOf = (el: HTMLElement) => SLOTS[el.id.replace(/^pass-/, "")];
+      define(Element.prototype, "scrollWidth", function (this: Element) {
+        return isRow(this) ? row.scrollWidth : 0;
+      });
+      define(Element.prototype, "clientWidth", function (this: Element) {
+        return isRow(this) ? row.clientWidth : 0;
+      });
+      define(HTMLElement.prototype, "offsetLeft", function (this: HTMLElement) {
+        return slotOf(this)?.left ?? 0;
+      });
+      define(HTMLElement.prototype, "offsetWidth", function (this: HTMLElement) {
+        return slotOf(this)?.width ?? 0;
+      });
+    }
+
+    function restoreLayout() {
+      // Undo in reverse, so a stub made on top of another restores the one underneath.
+      for (const [proto, prop, desc] of savedLayout.splice(0).reverse()) {
+        if (desc) Object.defineProperty(proto, prop, desc);
+        else delete (proto as Record<string, unknown>)[prop];
+      }
+    }
+
+    function stubScrollTo(): jest.Mock {
+      const scrollTo = jest.fn();
+      Object.defineProperty(Element.prototype, "scrollTo", { configurable: true, writable: true, value: scrollTo });
+      return scrollTo;
+    }
+
+    function removeScrollTo() {
+      delete (Element.prototype as Partial<Element>).scrollTo;
+    }
+
+    function setReducedMotion(on: boolean) {
+      window.matchMedia = jest.fn((query: string) => ({
+        matches: on && query === "(prefers-reduced-motion: reduce)",
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(() => true),
+      })) as unknown as typeof window.matchMedia;
+    }
+
+    afterEach(() => {
+      restoreLayout();
+      if (originalScrollTo) Object.defineProperty(Element.prototype, "scrollTo", originalScrollTo);
+      else removeScrollTo();
+      window.matchMedia = originalMatchMedia;
+    });
+
+    it("on first render, scrolls the row so the picked pass is centred, with behavior 'auto'", () => {
+      stubLayout(ROW);
+      const scrollTo = stubScrollTo();
+      render(<Desk />);
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenCalledWith({ left: centredLeft("mastercard"), behavior: "auto" });
+    });
+
+    it("centres the pass picked on load, not the newest, when it is not the last", () => {
+      stubLayout(ROW);
+      const scrollTo = stubScrollTo();
+      render(<Desk initial="ema" />);
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenCalledWith({ left: centredLeft("ema"), behavior: "auto" });
+    });
+
+    it("on a later pick change, scrolls to the new pass with behavior 'smooth'", () => {
+      stubLayout(ROW);
+      const scrollTo = stubScrollTo();
+      render(<Desk />);
+      scrollTo.mockClear();
+      fireEvent.click(tabFor("toyota-tsusho"));
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenCalledWith({ left: centredLeft("toyota-tsusho"), behavior: "smooth" });
+    });
+
+    it("keeps behavior 'auto' on later picks when reduced motion is asked for", () => {
+      stubLayout(ROW);
+      const scrollTo = stubScrollTo();
+      setReducedMotion(true);
+      render(<Desk />);
+      scrollTo.mockClear();
+      fireEvent.click(tabFor("jobtech"));
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenCalledWith({ left: centredLeft("jobtech"), behavior: "auto" });
+    });
+
+    it("does not scroll at all when the row is not scrollable", () => {
+      stubLayout({ scrollWidth: 300, clientWidth: 300 });
+      const scrollTo = stubScrollTo();
+      render(<Desk />);
+      fireEvent.click(tabFor("ema"));
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when scrollTo is missing, on first render or on a later pick", () => {
+      stubLayout(ROW);
+      removeScrollTo();
+      expect(() => render(<Desk />)).not.toThrow();
+      expect(() => fireEvent.click(tabFor("jobtech"))).not.toThrow();
+      expect(tabFor("jobtech")).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("does not scroll when nothing is picked", () => {
+      stubLayout(ROW);
+      const scrollTo = stubScrollTo();
+      const { rerender } = render(<StaffPasses passes={passes} name={NAME} picked={null} onPick={() => {}} />);
+      rerender(<StaffPasses passes={passes} name={NAME} picked={null} onPick={() => {}} />);
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+
+    it("does not scroll when the picked slug matches no pass", () => {
+      stubLayout(ROW);
+      const scrollTo = stubScrollTo();
+      const { rerender } = render(<StaffPasses passes={passes} name={NAME} picked="not-a-pass" onPick={() => {}} />);
+      rerender(<StaffPasses passes={passes} name={NAME} picked="also-not-a-pass" onPick={() => {}} />);
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+  });
+
   describe("an empty desk", () => {
     it("renders no tabs and picks nothing, without throwing", () => {
       render(<Desk list={[]} />);

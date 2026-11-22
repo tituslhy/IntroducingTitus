@@ -311,7 +311,7 @@ describe("aboutBio", () => {
     const bio = aboutBio();
     expect(bio).toContain("NUS chemical engineering");
     expect(bio).toContain("a Master's in AI at SMU");
-    expect(bio).toContain("(GPA 3.98)");
+    expect(bio).toContain("(GPA 3.98/4.0)");
   });
 
   it("reads as two sentences", () => {

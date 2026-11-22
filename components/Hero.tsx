@@ -21,20 +21,20 @@ export default function Hero() {
       className="relative mx-auto max-w-[1280px] overflow-hidden px-4 pt-9 text-ink min-[900px]:h-[600px] min-[900px]:p-0"
     >
       <div className="relative z-[3] min-[900px]:absolute min-[900px]:left-16 min-[900px]:right-[calc(clamp(270px,30vw,390px)+104px)] min-[900px]:top-16">
-        <p {...keep()} className="inline-flex items-center font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink-faint">
+        <p {...keep()} className="inline-flex items-center font-mono text-[clamp(10.5px,1.5vw,12.5px)] uppercase tracking-[0.16em] text-ink-faint min-[900px]:text-[10.5px]">
           <span aria-hidden="true" className="mr-[9px] inline-block h-1.5 w-1.5 rounded-full bg-amber" />
           {CURRENT_ROLE.role} · {CURRENT_ROLE.company} · {CURRENT_ROLE.location}
         </p>
         <h1
           {...keep('name')}
-          className="mb-4 mt-3.5 w-fit font-serif text-[clamp(40px,5vw,64px)] font-medium leading-[0.95] tracking-[-0.035em]"
+          className="mb-4 mt-3.5 w-fit font-serif text-[clamp(40px,6.4vw,58px)] font-medium min-[900px]:text-[clamp(40px,5vw,64px)] leading-[0.95] tracking-[-0.035em]"
         >
           Lim Hsien Yong <em className="font-normal italic text-amber">(Titus)</em>
         </h1>
-        <p {...keep()} className="w-fit font-serif text-[20px] leading-[1.3] min-[900px]:text-[24px]">
+        <p {...keep()} className="w-fit font-serif text-[clamp(20px,3vw,26px)] leading-[1.3] min-[900px]:text-[24px]">
           I build AI systems — <i className="text-amber">from architecture to the boardroom.</i>
         </p>
-        <div {...keep()} className="mt-[26px] flex w-fit flex-wrap items-center gap-x-3 gap-y-3 font-mono text-[12.5px]">
+        <div {...keep()} className="mt-[26px] flex w-fit flex-wrap items-center gap-x-3 gap-y-3 font-mono text-[clamp(12.5px,1.7vw,15px)] min-[900px]:text-[12.5px]">
           <Link href="/experience" className="bg-ink px-4 py-[11px] text-paper transition-colors hover:bg-amber">
             View experience <b className="font-medium text-amber-line">→</b>
           </Link>
@@ -56,7 +56,7 @@ export default function Hero() {
         <a
           {...keep()}
           href={`mailto:${SOCIAL.email}?subject=Resume Request`}
-          className="mt-3 block w-fit font-mono text-[11px] text-ink-faint transition-colors hover:text-ink"
+          className="mt-3 block w-fit font-mono text-[clamp(11px,1.5vw,13px)] text-ink-faint min-[900px]:text-[11px] transition-colors hover:text-ink"
         >
           Resume available <u className="decoration-amber underline-offset-[3px]">on request</u>
         </a>
@@ -64,7 +64,7 @@ export default function Hero() {
 
       <figure
         {...keep('photo')}
-        className="relative z-[3] mx-auto mb-0 mt-8 aspect-[3/4] w-[min(300px,75vw)] border border-ink bg-paper-deep min-[900px]:absolute min-[900px]:right-12 min-[900px]:top-10 min-[900px]:mt-0 min-[900px]:w-[clamp(270px,30vw,390px)]"
+        className="relative z-[3] mx-auto mb-0 mt-8 aspect-[3/4] w-[min(75vw,clamp(300px,48vw,420px))] border border-ink bg-paper-deep min-[900px]:absolute min-[900px]:right-12 min-[900px]:top-10 min-[900px]:mt-0 min-[900px]:w-[clamp(270px,30vw,390px)]"
       >
         <Image
           src="/headshot.jpeg"

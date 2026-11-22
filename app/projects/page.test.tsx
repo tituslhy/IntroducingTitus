@@ -17,7 +17,8 @@ describe('Projects page (/projects)', () => {
     expect(container.querySelector('main section#earlier-work')).toBeInTheDocument()
     expect(container.querySelector('main section#open-source')).toBeInTheDocument()
     expect(container.querySelectorAll('main section#earlier-work [data-reveal]')).toHaveLength(EARLIER_PROJECTS.length)
-    expect(container.querySelectorAll('main section#open-source dt')).toHaveLength(OPEN_SOURCE.length)
+    // The credits are printed twice; the hidden copy is aria-hidden, so only the real list counts.
+    expect(container.querySelectorAll('main section#open-source dl:not([aria-hidden]) dt')).toHaveLength(OPEN_SOURCE.length)
   })
 
   it('ends with the footer, after the projects', () => {

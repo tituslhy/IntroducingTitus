@@ -27,7 +27,7 @@ I am not a framework chaser. When I pick a tool, it's because I've understood it
 
 I currently work as {{CURRENT_ROLE}}. Before that, I was VP Generative AI at UOB Singapore, where I was the sole engineer on a production contact-centre AI platform, built the MCP service behind BYOC (UOB's customer onboarding workflow app), and worked on the early design and build of BYOA, UOB's planned multi-agent platform. Before that, Illumina, where I solo-built a 16-component agentic RAG system anticipated to save {{ILLUMINA_SAVINGS}}, as the company's only data scientist.
 
-I have a 3.98 GPA from SMU's AI Master's programme. I was selected for the Oxford IARU Global Summer Programme — one of 14 selected worldwide. I didn't need these credentials to get into rooms. They confirm what the work already showed.
+I have a 3.98/4.0 GPA from SMU's AI Master's programme. I was selected for the Oxford IARU Global Summer Programme — one of 14 selected worldwide. I didn't need these credentials to get into rooms. They confirm what the work already showed.
 
 ---
 

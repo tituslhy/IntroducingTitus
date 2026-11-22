@@ -1,6 +1,6 @@
 'use client'
 
-import type { KeyboardEvent } from 'react'
+import { useEffect, useRef, type KeyboardEvent } from 'react'
 
 export type Pass = {
   slug: string
@@ -78,6 +78,19 @@ export default function StaffPasses({
   /** Sits under the desk, on the right: PassDesk's "Show all roles" switch. */
   footer?: React.ReactNode
 }) {
+  // On phones the passes are a swipe row. Bring the picked pass to its middle: at once on load (so it opens on
+  // the pass that's picked, not the oldest), and smoothly after that, unless reduced motion is asked for.
+  const row = useRef<HTMLDivElement>(null)
+  const firstScroll = useRef(true)
+  useEffect(() => {
+    const r = row.current
+    const el = r && Array.from(r.children).find((c): c is HTMLElement => c.id === `pass-${picked}`)
+    if (!r || !el || r.scrollWidth <= r.clientWidth || typeof r.scrollTo !== 'function') return
+    const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    r.scrollTo({ left: el.offsetLeft - r.clientWidth / 2 + el.offsetWidth / 2, behavior: firstScroll.current || reduce ? 'auto' : 'smooth' })
+    firstScroll.current = false
+  }, [picked])
+
   const onKey = (e: KeyboardEvent) => {
     const i = passes.findIndex((p) => p.slug === picked)
     const next = e.key === 'ArrowLeft' ? i - 1 : e.key === 'ArrowRight' ? i + 1 : -2
@@ -98,10 +111,11 @@ export default function StaffPasses({
         <span>Pick one up to read about it</span>
       </p>
       <div
+        ref={row}
         role="tablist"
         aria-label="One staff pass per role"
         onKeyDown={onKey}
-        className="relative mx-[46px] mt-8 h-[410px] max-[820px]:-mx-4 max-[820px]:flex max-[820px]:h-auto max-[820px]:snap-x max-[820px]:snap-mandatory max-[820px]:gap-3.5 max-[820px]:overflow-x-auto max-[820px]:px-4 max-[820px]:pb-2.5 max-[820px]:pt-16"
+        className="relative mx-[46px] mt-14 h-[410px] max-[820px]:mt-8 max-[820px]:-mx-4 max-[820px]:flex max-[820px]:h-auto max-[820px]:snap-x max-[820px]:snap-mandatory max-[820px]:gap-3.5 max-[820px]:overflow-x-auto max-[820px]:px-4 max-[820px]:pb-2.5 max-[820px]:pt-16"
       >
         {passes.map((p, i) => {
           const pose = fanPose(i, passes.length)
@@ -128,7 +142,7 @@ export default function StaffPasses({
                 } as React.CSSProperties
               }
             >
-              {on && <Lanyard pass={p} height={pose.top + 50} />}
+              {on && <Lanyard pass={p} height={pose.top + 10} />}
               <span className="staff-pass-face absolute inset-0 flex flex-col overflow-hidden rounded-[18px] border-[3px] border-[var(--brand)] bg-paper shadow-[0_1px_0_oklch(0_0_0/0.06),0_10px_26px_oklch(0.3_0.03_60/0.16)]">
                 <span aria-hidden="true" className="absolute left-1/2 top-3 z-[2] h-[9px] w-[52px] -translate-x-1/2 rounded-[5px] bg-paper-deep shadow-[inset_0_1px_2px_oklch(0_0_0/0.18)]" />
                 {!p.to && (

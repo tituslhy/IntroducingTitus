@@ -5,6 +5,7 @@
 import githubMeta from '@/content/github-meta.json'
 import articleThemes from '@/content/article-themes.json'
 import { ARTICLE_COUNT_NUMBER, YEARS_EXPERIENCE_NUMBER, numberToWords } from './content'
+import { gpaWithScale } from './education'
 import { EDUCATION, FEATURED_ROLE_COUNT, OPEN_SOURCE, PROJECTS, ROLES, type Role } from './profile'
 
 export const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
@@ -84,6 +85,6 @@ export function themeCounts(): { id: string; name: string; count: number }[] {
 
 /** The About door's two sentences, from EDUCATION. */
 export function aboutBio(): string {
-  const gpa = EDUCATION.find((e) => /^GPA\b/.test(e.standing.caption))?.standing.figure
-  return `NUS chemical engineering, then a Master's in AI at SMU${gpa ? ` (GPA ${gpa})` : ''}. I write to explain complex systems to people, and I send fixes upstream to the frameworks I use.`
+  const standing = EDUCATION.find((e) => /^GPA\b/.test(e.standing.caption))?.standing
+  return `NUS chemical engineering, then a Master's in AI at SMU${standing ? ` (GPA ${gpaWithScale(standing)})` : ''}. I write to explain complex systems to people, and I send fixes upstream to the frameworks I use.`
 }

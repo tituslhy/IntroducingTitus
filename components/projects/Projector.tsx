@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { REVEAL_EVENT } from '@/lib/reveal'
 
 export type ProjectorFrame = {
@@ -134,7 +134,8 @@ export default function Projector({
             onClick={() => pick(i)}
             className="projector-thumb"
           >
-            {f.thumb}
+            {/* Keyed: a thumb made on the server sits beside the bar, and React checks keys on it. */}
+            <Fragment key="thumb">{f.thumb}</Fragment>
             {i === at && (
               <span
                 key={at}

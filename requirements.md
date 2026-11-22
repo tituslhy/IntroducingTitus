@@ -158,7 +158,7 @@ Tech: VBA, Excel, Exponential Smoothing, Holt-Winters
 
 #### Education (its own page, `/education`)
 Content lives in `EDUCATION` and `CERTIFICATIONS` (`lib/profile.ts`); honours listed are only things selected, ranked or awarded. Every school reads in the same order: **Results** (class or GPA, on the dark tile) → **Scholarships** → **Achievements**, then an Ask pill.
-- **Singapore Management University** — Master of IT in Business (AI track) | 2021–2022 | GPA 3.98 (Dean's List), scholarships, two competition placings
+- **Singapore Management University** — Master of IT in Business (AI track) | 2021–2022 | GPA 3.98/4.0 (Dean's List), scholarships, two competition placings
 - **National University of Singapore** — BEng Chemical Engineering | 2011–2015 | 2nd Upper Class Honours; "During NUS" latte boxes: UConn exchange (2013), Oxford IARU summer school (2014), NUS Suzhou Research Institute winter school (Dec 2014)
 - **Anderson Junior College** — GCE 'A' Levels | 2007–2008 | Top Student Award
 - **Certifications:** Certified ScrumMaster
@@ -174,11 +174,11 @@ Display (/projects, redesigned 2026-11-22; mock `design/rethink/projects-reel.ht
 - Each featured project has a **projector**: a screen over a strip of film. Its title card (the project's figure, on the
   dark tile) plays first, then its frames (`frames` in `lib/profile.ts`): fictional-bassoon's bear, then its README
   architecture redrawn as a diagram (one chat message, start to finish; `components/projects/BassoonArchitecture`,
-  sized to the projector's own width), then its README screenshots; TheMarginCall's YouTube demo (plays on the page); Illumina, built at work, two diagrams (getting ready;
+  sized to the projector's own width); TheMarginCall's YouTube demo (plays on the page); Illumina, built at work, two diagrams (getting ready;
   answering: fan out, fan in) instead of screenshots, full width.
 - It plays by itself while half on screen, loops, pauses on mouse hover, a frame pick or Pause, and starts paused for
   reduced motion. Off-screen frames are `hidden`, so the results row can ask for the title card (lib/reveal).
-- Earlier work shares one projector; the frame on screen is written up beside it. Open source is the closing credits.
+- Earlier work shares one projector; the frame on screen is written up beside it. Open source is the closing credits, streaming up by themselves under a fixed heading (hover holds them).
 - A sticky programme row (1 fictional-bassoon, 2 Illumina, 3 TheMarginCall, Earlier work, Open source) jumps between
   sections and fills in the one being read.
 

@@ -1,4 +1,4 @@
-import { allHonors, educationDoor, educationResults, honorGroups, numberParts, splitHonor, standingKey } from './education'
+import { allHonors, educationDoor, educationResults, gpaWithScale, honorGroups, numberParts, splitHonor, standingKey } from './education'
 import { EDUCATION, type Education, type EducationPart } from './profile'
 import { techKey } from './tech-key'
 
@@ -225,7 +225,7 @@ describe('educationResults', () => {
       expect(results[0]).toEqual({
         figure: '3.98',
         label: 'GPA at SMU',
-        brief: 'GPA 3.98',
+        brief: 'GPA 3.98/4.0',
         slug: 'smu',
         key: techKey('3.98 GPA out of 4.0'),
       })
@@ -390,7 +390,7 @@ describe('educationDoor', () => {
 
   it('gives each degree its first result as the note: GPA, First Class ×2, Top Student', () => {
     expect(educationDoor()).toEqual([
-      { lead: '2021', text: 'Singapore Management University', end: 'GPA 3.98' },
+      { lead: '2021', text: 'Singapore Management University', end: 'GPA 3.98/4.0' },
       { lead: '2011', text: 'National University of Singapore', end: 'First Class ×2' },
       { lead: '2007', text: 'Anderson Junior College', end: 'Top Student' },
     ])
@@ -414,5 +414,20 @@ describe('educationDoor', () => {
 
   it('returns no rows for no degrees', () => {
     expect(educationDoor([])).toEqual([])
+  })
+})
+
+describe('gpaWithScale', () => {
+  it('joins the figure to the scale in the caption, as "figure/scale"', () => {
+    expect(gpaWithScale({ figure: '3.98', caption: 'GPA out of 4.0' })).toBe('3.98/4.0')
+  })
+
+  it('returns just the figure when the caption has no "out of N"', () => {
+    expect(gpaWithScale({ figure: '3.98', caption: 'GPA' })).toBe('3.98')
+    expect(gpaWithScale({ figure: '2nd Upper', caption: 'Class Honours' })).toBe('2nd Upper')
+  })
+
+  it('reads a decimal scale such as "out of 5.0", keeping its decimal point', () => {
+    expect(gpaWithScale({ figure: '4.5', caption: 'GPA out of 5.0' })).toBe('4.5/5.0')
   })
 })

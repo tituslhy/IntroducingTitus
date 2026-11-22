@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import Projector from '@/components/projects/Projector'
 import { ITEM, SIDE_LABEL, SIDE_TITLE } from '@/components/projects/layout'
 import type { EarlierProject } from '@/lib/profile'
@@ -58,7 +58,7 @@ export default function EarlierReel({ projects, footer }: { projects: EarlierPro
       </div>
       <div className="col-start-2 row-span-2 row-start-1 min-w-0 max-[820px]:col-start-1 max-[820px]:row-span-1 max-[820px]:row-start-2">
         <Projector label="Earlier work" frames={frames} onFrame={setAt} />
-        {footer}
+        <Fragment key="footer">{footer}</Fragment>
       </div>
     </section>
   )

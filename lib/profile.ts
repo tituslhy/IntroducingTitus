@@ -444,8 +444,6 @@ export type Project = {
   wide?: boolean
 }
 
-const BASSOON_IMG = 'https://raw.githubusercontent.com/tituslhy/fictional-bassoon/HEAD/images'
-
 export const PROJECTS: Project[] = [
   {
     slug: 'fictional-bassoon',
@@ -472,10 +470,6 @@ export const PROJECTS: Project[] = [
       // The one illustration on the site (see CLAUDE.md): the name, as a bear.
       { kind: 'image', src: '/projects/bassoon-bear.webp', caption: 'The name: a woodwind instrument I once thought was a bear', ms: 5000 },
       { kind: 'diagram', diagram: 'bassoon-architecture', label: 'Architecture', caption: 'The architecture: one chat message, start to finish', ms: 11000 },
-      { kind: 'image', src: `${BASSOON_IMG}/app.png`, caption: 'The app answering a question' },
-      { kind: 'image', src: `${BASSOON_IMG}/a2ui-interactive.png`, caption: 'A2UI: cards the model lays out, with a choice to make' },
-      { kind: 'image', src: `${BASSOON_IMG}/langfuse.png`, caption: 'Langfuse tracing the same answer' },
-      { kind: 'image', src: `${BASSOON_IMG}/prometheus.png`, caption: 'Prometheus: all 26 targets up' },
     ],
   },
   {

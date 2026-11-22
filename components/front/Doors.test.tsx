@@ -188,7 +188,7 @@ describe('Doors ("On this site")', () => {
         educationDoor().map((r) => r.end)
       )
       expect(rows.map((li) => li.querySelector('span:last-child')?.textContent)).toEqual([
-        'GPA 3.98',
+        'GPA 3.98/4.0',
         'First Class ×2',
         'Top Student',
       ])

@@ -58,7 +58,7 @@ export default function Navigation() {
             T<span className="mx-0.5 not-italic text-amber">·</span>L
           </span>
           {/* Below 1080px the tagline gives its room to the page links, so all five fit */}
-          <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-soft max-[1080px]:hidden">
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-soft max-[1180px]:hidden">
             Titus Lim · Personal site
           </span>
         </Link>
@@ -79,13 +79,13 @@ export default function Navigation() {
                   <Link
                     href={n.path}
                     aria-current={isActive ? 'page' : undefined}
-                    className={`relative inline-flex items-baseline gap-1.5 px-3 py-2 font-mono text-[12px] tracking-[0.04em] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 max-[720px]:px-1.5 max-[360px]:px-1 max-[360px]:text-[11px] ${
+                    className={`relative inline-flex items-baseline gap-1.5 px-3 max-[1000px]:px-2 py-2 font-mono text-[12px] tracking-[0.04em] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 max-[720px]:px-1.5 max-[360px]:px-1 max-[360px]:text-[11px] ${
                       isActive ? 'text-ink' : 'text-ink-soft hover:text-ink'
                     }`}
                   >
-                    <span className="text-ink-faint max-[720px]:hidden">{n.folio}</span>
+                    <span className="text-ink-faint max-[1000px]:hidden">{n.folio}</span>
                     <span>{n.label}</span>
-                    {isActive && <span className="absolute inset-x-3 bottom-0.5 h-0.5 bg-amber max-[720px]:inset-x-1.5 max-[360px]:inset-x-1" />}
+                    {isActive && <span className="absolute inset-x-3 bottom-0.5 h-0.5 bg-amber max-[1000px]:inset-x-2 max-[720px]:inset-x-1.5 max-[360px]:inset-x-1" />}
                   </Link>
                 </li>
               )
@@ -100,8 +100,8 @@ export default function Navigation() {
           className="inline-flex min-h-0 min-w-0 items-center justify-center gap-2 whitespace-nowrap border border-ink px-3.5 py-[7px] font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink transition-colors duration-150 hover:bg-ink hover:text-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 max-[720px]:col-start-2 max-[720px]:row-start-1 max-[720px]:min-h-11 max-[720px]:min-w-11"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-amber shadow-[0_0_0_3px_color-mix(in_oklch,var(--amber)_30%,transparent)]" />
-          <span className="max-[720px]:hidden">Get in touch</span>
-          <span className="min-[721px]:hidden">Contact</span>
+          <span className="max-[860px]:hidden">Get in touch</span>
+          <span className="min-[861px]:hidden">Contact</span>
         </a>
       </div>
     </nav>

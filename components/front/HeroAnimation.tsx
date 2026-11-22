@@ -120,8 +120,9 @@ function placeNodes(L: Layout, names: string[]): LogoNode[] {
     const [bl, bt, br, bb] = L.bound
     for (let gy = bt; gy <= bb; gy += ch)
       for (let gx = bl; gx <= br; gx += cw) {
-        const hx = Math.min(br, gx + Math.random() * cw * 0.45)
-        const hy = Math.min(bb, gy + Math.random() * ch * 0.4)
+        // Phones pack the logos tighter, so they wander less from their cell.
+        const hx = Math.min(br, gx + Math.random() * cw * (L.narrow ? 0.2 : 0.45))
+        const hy = Math.min(bb, gy + Math.random() * ch * (L.narrow ? 0.2 : 0.4))
         if (!inBlock(hx, hy)) cells.push([hx, hy])
       }
     cw *= 0.94
@@ -179,9 +180,12 @@ function drawFrame(
     const rows = L.narrow ? 3 : 2
     const cols = Math.ceil(n / rows)
     const gs = Math.min(96, (L.right - x0) / Math.max(1, cols - 1))
-    const rowH = L.narrow ? 52 : 74
-    const top = chainY - (L.narrow ? 50 : 26)
-    s.tools.forEach((t, i) => (slot[t] = { x: x0 + (i % cols) * gs, y: top + Math.floor(i / cols) * rowH }))
+    const rowH = L.narrow ? 60 : 74
+    const top = chainY - (L.narrow ? 68 : 26)
+    // Phones: each logo sits in the middle of its own column, so the outer labels stay on screen.
+    const cw = (W - 28) / cols
+    const colX = (c: number) => (L.narrow ? 14 + cw * (c + 0.5) : x0 + c * gs)
+    s.tools.forEach((t, i) => (slot[t] = { x: colX(i % cols), y: top + Math.floor(i / cols) * rowH }))
   } else {
     // Phones: tools sit closer together, so the zig-zag opens wider to keep labels off the next row's logos.
     const [up, down] = L.narrow ? [-44, 26] : [-30, 22]
@@ -189,8 +193,9 @@ function drawFrame(
   }
 
   nodes.forEach((nd) => {
-    const fx = nd.hx + Math.cos(now / 2300 + nd.ph) * 14
-    const fy = nd.hy + Math.sin(now / 2900 + nd.ph) * 10
+    const amp = L.narrow ? 0.5 : 1
+    const fx = nd.hx + Math.cos(now / 2300 + nd.ph) * 14 * amp
+    const fy = nd.hy + Math.sin(now / 2900 + nd.ph) * 10 * amp
     const sl = slot[nd.n]
     nd.x = sl ? fx + (sl.x - fx) * on : fx
     nd.y = sl ? fy + (sl.y - fy) * on : fy
@@ -224,19 +229,25 @@ function drawFrame(
   const lineH = Math.round(capFont * 1.15)
   const capLines = wrapText(x, s.cap, L.capRight - (x0 - 20))
   const capW = Math.max(...capLines.map((l) => x.measureText(l).width))
-  const capBase = chainY - 82 - (capLines.length - 1) * lineH
+  // Phones' zig-zag puts the top row's labels above their logos, so the caption sits a little higher.
+  const zig = L.narrow && !s.grid && !s.chain && !s.all
+  const capBase = chainY - (zig ? 96 : L.narrow && s.grid ? 104 : 82) - (capLines.length - 1) * lineH
   const CR: Box = [x0 - 60, capBase - 78, x0 + capW + 24, chainY - 50]
   const blocks = s.chain ? chainLayout(L) : null
   const BR: Box | null = blocks ? [x0 - 60, chainY - 56, blocks.bx0 + blocks.nb * (blocks.bw + blocks.gap), chainY + 56] : null
   const within = (nd: LogoNode, [l, t, r, b]: Box) => nd.x > l && nd.x < r && nd.y > t && nd.y < b
-  const under = (nd: LogoNode) => within(nd, CR) || (!!BR && within(nd, BR))
+  // Phones: resting logos also step aside from the scene's own rows, so they don't drift through its logos and labels.
+  const ys = Object.values(slot).map((p) => p.y)
+  const TR: Box | null = L.narrow && ys.length ? [0, Math.min(...ys) - 44, W, Math.max(...ys) + 44] : null
+  const under = (nd: LogoNode) => within(nd, CR) || (!!BR && within(nd, BR)) || (!!TR && within(nd, TR))
   const capFade = (nd: LogoNode) => (under(nd) ? Math.max(capA, clamp01((e - 900) / 400) * (1 - outP)) : 0)
 
-  nodes.filter((q) => !q.hot).forEach((nd) => drawLogo(x, imgs, nd, 28, restA * (1 - capFade(nd)), false))
+  const rest = L.narrow ? 22 : 28
+  nodes.filter((q) => !q.hot).forEach((nd) => drawLogo(x, imgs, nd, rest, restA * (1 - capFade(nd)), false))
   nodes
     .filter((q) => q.hot)
     .forEach((nd) => {
-      const size = 28 + (s.all ? 6 : s.grid || L.narrow ? 8 : 14) * on
+      const size = s.all ? rest + (L.narrow ? 4 : 6) * on : 28 + (s.grid && L.narrow ? 4 : s.grid || L.narrow ? 8 : 14) * on
       const a = restA + (1 - restA) * on
       // Paper disc so the thread doesn't run through the mark.
       if (on > 0.05 && !s.all) {
@@ -251,10 +262,22 @@ function drawFrame(
       if (on > 0.5 && !s.all) {
         x.globalAlpha = (on - 0.5) * 2
         x.fillStyle = P.soft
-        x.font = `500 ${s.grid ? 9.5 : 10.5}px ${P.mono}`
+        x.font = `500 ${s.grid ? (L.narrow ? 8.5 : 9.5) : 10.5}px ${P.mono}`
         x.textAlign = 'center'
-        x.textBaseline = 'top'
-        x.fillText(nd.n, nd.x, nd.y + dims(nd.n, size)[1] / 2 + (s.grid ? 5 : 8))
+        // Kept on screen; on phones the zig-zag's top row is labelled above, so the thread never crosses a label.
+        const tw = x.measureText(nd.n).width
+        const lx = Math.min(Math.max(nd.x, tw / 2 + 4), W - tw / 2 - 4)
+        const half = dims(nd.n, size)[1] / 2
+        const above = zig && s.tools.indexOf(nd.n) % 2 === 0
+        x.textBaseline = above ? 'bottom' : 'top'
+        const ly = above ? nd.y - half - 6 : nd.y + half + (s.grid ? 5 : 8)
+        // Phones' grid: a long two-word name ("GitHub Actions") goes on two lines so it stays in its column.
+        const cell = (W - 28) / Math.ceil(n / 3)
+        const sp = nd.n.indexOf(' ')
+        if (L.narrow && s.grid && tw > cell - 6 && sp > 0) {
+          x.fillText(nd.n.slice(0, sp), nd.x, ly)
+          x.fillText(nd.n.slice(sp + 1), nd.x, ly + 10)
+        } else x.fillText(nd.n, lx, ly)
         x.globalAlpha = 1
       }
     })
@@ -276,10 +299,11 @@ function drawFrame(
 type ChainLayout = { bw: number; bh: number; gap: number; bx0: number; nb: number }
 
 function chainLayout(L: Layout): ChainLayout {
-  const bw = L.narrow ? 84 : 98
-  const gap = L.narrow ? 20 : 30
-  const bx0 = L.x0 + (L.narrow ? 24 : 64)
-  const fit = Math.floor((L.right - bx0 + 60 + gap) / (bw + gap))
+  const bw = L.narrow ? 80 : 98
+  const gap = L.narrow ? 14 : 30
+  const bx0 = L.x0 + (L.narrow ? 22 : 64)
+  // Phones: only as many blocks as fit inside the band; wider screens may run a little under the photo's margin.
+  const fit = L.narrow ? Math.floor((L.W - 6 - bx0 + gap) / (bw + gap)) : Math.floor((L.right - bx0 + 60 + gap) / (bw + gap))
   return { bw, bh: 56, gap, bx0, nb: Math.max(L.narrow ? 2 : 3, Math.min(5, fit)) }
 }
 

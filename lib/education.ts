@@ -40,12 +40,18 @@ export function allHonors(education: Education[] = EDUCATION) {
   ])
 }
 
+/** A GPA figure with its scale, e.g. "3.98/4.0" (from the caption "GPA out of 4.0"), since other schools mark out of 5. */
+export function gpaWithScale(standing: { figure: string; caption: string }): string {
+  const scale = standing.caption.match(/out of ([\d.]+)/)?.[1]
+  return scale ? `${standing.figure}/${scale}` : standing.figure
+}
+
 export type EducationResult = {
   /** The big figure, e.g. "3.98". */
   figure: string
   /** What it is, e.g. "GPA at SMU". */
   label: string
-  /** Short form for the front page door, e.g. "GPA 3.98". */
+  /** Short form for the front page door, e.g. "GPA 3.98/4.0". */
   brief: string
   /** The degree it belongs to. */
   slug: string
@@ -60,7 +66,7 @@ export function educationResults(education: Education[] = EDUCATION): EducationR
   const gpa = education.find((e) => /^GPA\b/.test(e.standing.caption))
   if (gpa) {
     const f = gpa.standing.figure
-    results.push({ figure: f, label: `GPA at ${gpa.short}`, brief: `GPA ${f}`, slug: gpa.slug, key: standingKey(gpa) })
+    results.push({ figure: f, label: `GPA at ${gpa.short}`, brief: `GPA ${gpaWithScale(gpa.standing)}`, slug: gpa.slug, key: standingKey(gpa) })
   }
 
   const top = education.find((e) => e.standing.figure === 'Top Student')

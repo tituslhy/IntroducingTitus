@@ -36,10 +36,10 @@ describe("Navigation", () => {
       expect(brand.textContent).toContain("L");
     });
 
-    it("renders the brand subtitle, hidden below 1080px", () => {
+    it("renders the brand subtitle, hidden below 1180px", () => {
       render(<Navigation />);
       const subtitle = screen.getByText("Titus Lim · Personal site");
-      expect(subtitle.className).toContain("max-[1080px]:hidden");
+      expect(subtitle.className).toContain("max-[1180px]:hidden");
     });
 
     it("renders the six links in order with their labels", () => {
@@ -291,13 +291,13 @@ describe("Navigation", () => {
       links.forEach((link) => expectClasses(link, ["max-[720px]:px-1.5", "max-[360px]:px-1", "max-[360px]:text-[11px]"]));
     });
 
-    it("hides the CTA text under 720px and shows the short Contact label instead", () => {
+    it("hides the CTA text under 860px and shows the short Contact label instead", () => {
       render(<Navigation />);
       const cta = screen.getByRole("link", { name: /email titus/i });
-      expect(cta.querySelector("span:nth-child(2)")).toHaveClass("max-[720px]:hidden");
+      expect(cta.querySelector("span:nth-child(2)")).toHaveClass("max-[860px]:hidden");
       const contact = cta.querySelector("span:nth-child(3)");
       expect(contact).toHaveTextContent("Contact");
-      expect(contact).toHaveClass("min-[721px]:hidden");
+      expect(contact).toHaveClass("min-[861px]:hidden");
     });
   });
 

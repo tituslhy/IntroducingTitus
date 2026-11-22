@@ -150,12 +150,14 @@ describe('featured projects', () => {
     expect(articleFor(container, bassoon).querySelector('[data-reveal="1"] img')).toHaveAttribute('src', '/projects/bassoon-bear.webp')
   })
 
-  it('gives fictional-bassoon’s projector seven thumbs: the title card, the bear, the Architecture, then four images', () => {
+  it('gives fictional-bassoon’s projector three thumbs: the title card, the bear, then the Architecture', () => {
     const { container } = render(<Projects />)
     const thumbs = articleFor(container, bassoon).querySelectorAll('.projector-strip button')
-    expect(thumbs).toHaveLength(7)
+    expect(thumbs).toHaveLength(3)
     expect(thumbs).toHaveLength(bassoon.frames.length + 1)
-    expect(bassoon.frames.map((f) => f.kind)).toEqual(['image', 'diagram', 'image', 'image', 'image', 'image'])
+    expect(bassoon.frames.map((f) => f.kind)).toEqual(['image', 'diagram'])
+    expect(bassoon.frames[0]).toMatchObject({ kind: 'image', src: '/projects/bassoon-bear.webp' })
+    expect(bassoon.frames[1]).toMatchObject({ kind: 'diagram', diagram: 'bassoon-architecture' })
   })
 
   it('shows the Architecture as the words “Architecture” on its thumb, the second frame after the bear', () => {
@@ -396,10 +398,12 @@ describe('open source', () => {
   })
 
   it('shows each contribution’s receipt: its repository with the pull request or commit', () => {
-    render(<Projects />)
-    expect(screen.getByText('run-llama/llama_index · PR #17531')).toBeInTheDocument()
-    expect(screen.getByText('run-llama/llama_index · commit d5c0fe1')).toBeInTheDocument()
-    expect(screen.getByText('Chainlit/cookbook · PR #138')).toBeInTheDocument()
+    const { container } = render(<Projects />)
+    // The copy that makes the loop is printed a second time, aria-hidden; the receipts are checked on the real list.
+    const realList = container.querySelector('section#open-source dl.credits-copy:not([aria-hidden])') as HTMLElement
+    expect(within(realList).getByText('run-llama/llama_index · PR #17531')).toBeInTheDocument()
+    expect(within(realList).getByText('run-llama/llama_index · commit d5c0fe1')).toBeInTheDocument()
+    expect(within(realList).getByText('Chainlit/cookbook · PR #138')).toBeInTheDocument()
   })
 
   it('closes with an Ask pill about open source work', () => {
