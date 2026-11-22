@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Education — three styles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" />
+<style>
+  :root {
+    --paper: oklch(0.972 0.012 78); --paper-deep: oklch(0.945 0.014 78); --paper-band: oklch(0.928 0.018 78);
+    --ink: oklch(0.16 0.012 60); --ink-soft: oklch(0.42 0.012 60); --ink-faint: oklch(0.6 0.012 60);
+    --rule: oklch(0.8 0.012 78); --amber: oklch(0.62 0.155 55); --amber-soft: oklch(0.93 0.04 70);
+    --serif: 'Newsreader', Georgia, serif; --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+  .num { color: var(--amber); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+  /* switcher */
+  .switch { position: sticky; top: 0; z-index: 20; background: color-mix(in oklch, var(--paper) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--rule); }
+  .switch .wrap { display: flex; gap: 8px; align-items: center; padding-top: 12px; padding-bottom: 12px; flex-wrap: wrap; }
+  .switch span { font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint); margin-right: 8px; }
+  .switch button { font: 13px var(--mono); border: 1px solid var(--rule); background: var(--paper); color: var(--ink-soft); padding: 8px 14px; border-radius: 999px; cursor: pointer; transition: .2s; }
+  .switch button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .note { font: 12px/1.6 var(--mono); color: var(--ink-faint); padding: 14px 0 0; max-width: 820px; }
+  .style { display: none; padding: 40px 0 120px; } .style.on { display: block; }
+  .kicker { font: 500 11px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+  .kicker b { color: var(--amber); font-weight: 600; margin-right: 10px; }
+  h1 { font-weight: 500; font-size: clamp(40px, 6vw, 72px); letter-spacing: -.03em; line-height: 1.02; margin: 18px 0 36px; }
+  h1 em { color: var(--amber); }
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
+
+  /* ---------- A: soft cards ---------- */
+  .A .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .A .stat { background: var(--paper-deep); border-radius: 20px; padding: 22px 22px 20px; transition: transform .25s, background .25s; cursor: pointer; }
+  .A .stat:hover { transform: translateY(-3px); background: var(--paper-band); }
+  .A .stat .fig { font-size: clamp(30px, 3.4vw, 44px); font-weight: 500; letter-spacing: -.025em; line-height: 1; white-space: nowrap; }
+  .A .stat .lab { font: 11.5px/1.45 var(--mono); color: var(--ink-soft); margin-top: 10px; }
+  .A .card { background: var(--paper-deep); border-radius: 28px; padding: 32px 34px 30px; margin-bottom: 16px; }
+  .A .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .A .chip { font: 11.5px var(--mono); background: var(--paper); color: var(--ink-soft); padding: 5px 11px; border-radius: 999px; }
+  .A .chip.amber { background: var(--amber-soft); color: oklch(0.45 0.12 55); }
+  .A h2 { font-size: clamp(26px, 2.8vw, 34px); font-weight: 600; letter-spacing: -.02em; margin: 0; }
+  .A .deg { font-size: 19px; color: var(--ink-soft); margin: 6px 0 22px; }
+  .A .rows { border-top: 1px solid var(--rule); }
+  .A .row { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: baseline; padding: 13px 2px; border-bottom: 1px solid var(--rule); transition: background .2s; }
+  .A .row:hover { background: color-mix(in oklch, var(--paper) 60%, transparent); }
+  .A .row .r { font-size: 18.5px; font-weight: 500; }
+  .A .row .c { font: 12px var(--mono); color: var(--ink-soft); text-align: right; }
+  .A .inner { background: var(--paper); border-radius: 20px; padding: 22px 24px 18px; margin-top: 16px; }
+  .A .inner h3 { margin: 0; font-size: 21px; font-weight: 600; } .A .inner .deg { font-size: 16px; margin: 3px 0 12px; font-style: italic; }
+  .A .inners { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .A .inner .row .r { font-size: 16.5px; } .A .inner .row { grid-template-columns: 1fr; gap: 2px; } .A .inner .row .c { text-align: left; }
+
+  /* ---------- B: showcase ---------- */
+  .B .school { display: grid; grid-template-columns: 300px 1fr; gap: 48px; padding: 56px 0; border-top: 1px solid var(--rule); }
+  .B .side { position: sticky; top: 90px; align-self: start; }
+  .B .label { font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--amber); }
+  .B .side h2 { font-size: 34px; font-weight: 500; letter-spacing: -.02em; line-height: 1.08; margin: 10px 0 10px; }
+  .B .side p { font-size: 17px; color: var(--ink-soft); margin: 0; line-height: 1.4; }
+  .B .hero { position: relative; overflow: hidden; background: var(--ink); color: var(--paper); border-radius: 28px; padding: 40px 40px 34px; min-height: 230px; display: flex; flex-direction: column; justify-content: flex-end; }
+  .B .hero::before { content: ''; position: absolute; inset: -40%; background: radial-gradient(closest-side, oklch(0.62 0.155 55 / .35), transparent 70%); animation: drift 14s ease-in-out infinite alternate; }
+  @keyframes drift { from { transform: translate(-18%, -10%); } to { transform: translate(22%, 14%); } }
+  @media (prefers-reduced-motion: reduce) { .B .hero::before { animation: none; } }
+  .B .hero > * { position: relative; }
+  .B .hero .fig { font-size: clamp(56px, 8vw, 104px); font-weight: 500; letter-spacing: -.04em; line-height: .9; color: oklch(0.8 0.12 65); }
+  .B .hero .cap { font-size: 22px; margin-top: 12px; font-style: italic; color: oklch(0.88 0.02 78); }
+  .B .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 12px; }
+  .B .tile { background: var(--paper-deep); border-radius: 20px; padding: 20px 22px; transition: transform .25s, background .25s; }
+  .B .tile:hover { transform: translateY(-3px); background: var(--paper-band); }
+  .B .tile .r { font-size: 19px; font-weight: 500; line-height: 1.25; } .B .tile .c { font: 11.5px/1.45 var(--mono); color: var(--ink-soft); margin-top: 6px; }
+  .B .glabel { font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); margin: 26px 0 10px; }
+  .B .school > div > .glabel:first-child { margin-top: 0; }
+  .B .hero .chip2 { position: absolute; top: 26px; right: 28px; font: 12px var(--mono); color: var(--paper); border: 1px solid oklch(1 0 0 / .3); border-radius: 999px; padding: 6px 12px; }
+  .B .tiles { margin-top: 0; }
+  .B .glabel.during { color: oklch(0.45 0.08 50); margin-top: 40px; }
+  .B .prog { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .B .prog .p { color: var(--p-ink); background: var(--p-bg); border-radius: 28px; padding: 28px 26px 26px; }
+  .B .prog .p .sub { font: 500 11px var(--mono); letter-spacing: .1em; color: var(--p-accent); }
+  .B .prog .p h3 { margin: 6px 0 0; font-size: 24px; font-weight: 500; letter-spacing: -.015em; }
+  .B .prog .p .pdeg { font-size: 16px; font-style: italic; color: var(--p-soft); margin-top: 4px; line-height: 1.35; }
+  .B .prog .p .big { font-size: clamp(26px, 2.6vw, 34px); font-weight: 500; letter-spacing: -.025em; line-height: 1.05; color: var(--p-accent); margin-top: 20px; }
+  .B .in-p .glabel { margin: 20px 0 8px; color: var(--p-accent); }
+  .B .in-p .tiles { grid-template-columns: 1fr; gap: 8px; }
+  .B .in-p .tile { color: var(--p-ink); background: var(--p-tile); border-radius: 16px; padding: 14px 16px; }
+  .B .in-p .tile:hover { background: var(--p-tile-hover); } .B .in-p .tile .c { color: var(--p-soft); }
+  .B .in-p .tile .r { font-size: 17px; } .B .in-p .num { color: var(--p-accent); }
+
+  /* part tiles (UConn, Oxford): three coffee shades to compare */
+  .B { --p-bg: oklch(0.885 0.035 68); --p-ink: var(--ink); --p-soft: oklch(0.4 0.03 55); --p-accent: oklch(0.45 0.08 50); --p-tile: oklch(0.935 0.022 72); --p-tile-hover: oklch(0.96 0.015 75); }
+  .B[data-shade="mocha"] { --p-bg: oklch(0.52 0.05 50); --p-ink: oklch(0.97 0.012 78); --p-soft: oklch(0.86 0.025 70); --p-accent: oklch(0.86 0.09 70); --p-tile: oklch(0.58 0.045 52); --p-tile-hover: oklch(0.62 0.045 54); }
+  .B[data-shade="espresso"] { --p-bg: oklch(0.32 0.035 50); --p-ink: oklch(0.96 0.012 78); --p-soft: oklch(0.8 0.025 65); --p-accent: oklch(0.8 0.12 65); --p-tile: oklch(0.39 0.035 52); --p-tile-hover: oklch(0.43 0.035 54); }
+  .B .shades { display: inline-flex; gap: 6px; margin-left: 14px; vertical-align: middle; }
+  .B .shades button { font: 11px var(--mono); letter-spacing: .04em; text-transform: none; border: 1px solid var(--rule); background: var(--paper); color: var(--ink-soft); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+  .B .shades button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  /* ---------- C: scroll story ---------- */
+  .C .story { display: grid; grid-template-columns: 170px 1fr; gap: 56px; }
+  .C .rail { position: sticky; top: 110px; align-self: start; height: 420px; }
+  .C .track { position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; background: var(--rule); border-radius: 2px; }
+  .C .fill { position: absolute; left: 7px; top: 8px; width: 2px; background: var(--amber); border-radius: 2px; height: 0; transition: height .15s linear; }
+  .C .stop { position: absolute; left: 0; display: flex; gap: 14px; align-items: center; font: 12px var(--mono); color: var(--ink-faint); cursor: pointer; transition: color .3s; }
+  .C .stop i { width: 16px; height: 16px; border-radius: 50%; background: var(--paper); border: 2px solid var(--rule); transition: .3s; }
+  .C .stop.on { color: var(--ink); } .C .stop.on i { border-color: var(--amber); background: var(--amber); box-shadow: 0 0 0 5px var(--amber-soft); }
+  .C .scene { min-height: 78vh; display: flex; flex-direction: column; justify-content: center; padding: 40px 0; }
+  .C .where { font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+  .C .scene h2 { font-size: clamp(30px, 3.4vw, 44px); font-weight: 500; letter-spacing: -.025em; margin: 10px 0 4px; }
+  .C .scene .deg { font-size: 19px; font-style: italic; color: var(--ink-soft); }
+  .C .count { font-size: clamp(72px, 11vw, 150px); font-weight: 500; letter-spacing: -.05em; line-height: .95; color: var(--amber); margin: 28px 0 6px; }
+  .C .countcap { font-size: 22px; margin-bottom: 24px; }
+  .C .pills { display: flex; flex-wrap: wrap; gap: 10px; }
+  .C .pill { background: var(--paper-deep); border-radius: 999px; padding: 10px 16px; font-size: 16.5px; opacity: 0; transform: translateY(10px) scale(.98); transition: opacity .5s, transform .5s, background .2s; }
+  .C .pill small { font: 11px var(--mono); color: var(--ink-soft); margin-left: 8px; }
+  .C .pill:hover { background: var(--paper-band); }
+  .C .scene.in .pill { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .C .pill { opacity: 1; transform: none; } }
+
+  @media (max-width: 820px) {
+    .A .stats { grid-template-columns: 1fr 1fr; } .A .inners, .B .tiles, .B .prog { grid-template-columns: 1fr; }
+    .A .row { grid-template-columns: 1fr; gap: 2px; } .A .row .c { text-align: left; }
+    .B .school { grid-template-columns: 1fr; gap: 20px; } .B .side { position: static; }
+    .C .story { grid-template-columns: 1fr; } .C .rail { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="switch"><div class="wrap">
+  <span>Education, three ways</span>
+  <button data-s="A" aria-pressed="true">A · Soft cards</button>
+  <button data-s="B">B · Showcase</button>
+  <button data-s="C">C · Scroll story</button>
+</div></div>
+
+<div class="wrap">
+  <p class="note" id="note"></p>
+  <section class="style A on" id="A"></section>
+  <section class="style B" id="B"></section>
+  <section class="style C" id="C"></section>
+</div>
+
+<script>
+const NOTES = {
+  A: 'A · Soft cards (from Anthropic). Each school is a rounded card; honours are tidy rows — result left, detail right. Hover lifts the boxes. Calm and organised; closest to today, with life added.',
+  B: 'B · Showcase, grouped (from Meta and CrewAI). Each school reads the same way: Results first (class, GPA) on the dark tile, then Scholarships, then Achievements. UConn and Oxford sit in their own coffee-toned tiles under "During NUS": try Latte, Mocha and Espresso there.',
+  C: 'C · Scroll story (from LangChain). A timeline pinned on the left fills in amber as you scroll; each stop is its own screen, the headline number counts up, and the honours pop in as pills. The most motion; UConn and Oxford become their own stops.',
+}
+const ED = [
+  { y: '2021 — 2022', yr: '2021', inst: 'Singapore Management University', short: 'SMU', deg: 'Master of IT in Business, AI track', kind: "Master's",
+    hero: ['3.98', 'GPA, on the Dean’s List'],
+    h: [['GPA 3.98 / 4.0'], ["Dean's List"], ['1st place', 'Food Image Classification'], ['3rd place', 'Recommender Systems'], ['SMU AI Talent Development Grant'], ['MITB Scholarship']] },
+  { y: '2011 — 2015', yr: '2011', inst: 'National University of Singapore', short: 'NUS', deg: 'BEng Chemical Engineering, 2nd Upper Honours', kind: "Bachelor's",
+    hero: ['1 of 3', 'chemical engineers selected for the NUS Suzhou winter programme'],
+    h: [['1 of 3 chemical engineers selected', 'NUS Suzhou winter programme'], ['88th percentile globally', 'Bloomberg Aptitude Test'], ['Selected to present', 'Shell Global Energy, Water & Food Security Roundtable'], ['NUS Undergraduate Scholarship'], ['Market Immersion Award', 'IE Singapore Young Talent Programme']],
+    parts: [
+      { yr: '2013', inst: 'University of Connecticut', deg: 'Exchange, Chemical & Biomolecular Engineering', big: 'First Class with Distinction',
+        h: [['First Class with Distinction'], ['Top of the class in two modules', 'Process Kinetics and Heat & Mass Transfer'], ['Top 10 in two PhD modules', 'taken in year 2'], ['"Most Inspiring Student"', 'AIChE UConn chapter']] },
+      { yr: '2014', inst: 'University of Oxford', deg: 'IARU Global Summer School', big: '1 of 14 selected worldwide',
+        h: [['First Class with Distinction'], ['1 of 14 selected worldwide'], ['IARU-Santander Scholarship'], ['NUS Scholars Enrichment Grant']] },
+    ] },
+  { y: '2007 — 2008', yr: '2007', inst: 'Anderson Junior College', short: 'AJC', deg: "GCE 'A' Levels, Physical Sciences", kind: 'A Levels',
+    hero: ['Top Student', 'Award, Anderson Junior College'],
+    h: [['Top Student Award'], ['Chess Club President', 'College Colours'], ['Certificate of Distinction', 'Alpha Students Programme'], ['Platinum Award', 'Community Involvement Programme'], ['Sports Leaders Award']] },
+]
+const STATS = [['3.98', 'GPA at SMU'], ['Top Student', 'Award at AJC'], ['1st', 'Food Image Classification competition, SMU'], ['2×', 'First Class with Distinction (UConn, Oxford)']]
+const amb = (t) => t.replace(/(\d+(?:\.\d+)?(?:(?:st|nd|rd|th)\b)?)/g, '<span class="num">$1</span>')
+const head = '<div class="kicker"><b>02</b>Education</div><h1>Where I have <em>studied</em>, in reverse.</h1>'
+
+// A
+document.getElementById('A').innerHTML = head +
+  `<div class="stats">${STATS.map(([f, l]) => `<div class="stat reveal"><div class="fig">${f}</div><div class="lab">${l}</div></div>`).join('')}</div>` +
+  ED.map((e) => `<article class="card reveal">
+    <div class="chips"><span class="chip amber">${e.kind}</span><span class="chip">${e.y}</span><span class="chip">Singapore</span></div>
+    <h2>${e.inst}</h2><div class="deg">${e.deg}</div>
+    <div class="rows">${e.h.map(([r, c]) => `<div class="row"><span class="r">${amb(r)}</span><span class="c">${c || ''}</span></div>`).join('')}</div>
+    ${e.parts ? `<div class="inners">${e.parts.map((p) => `<div class="inner"><div class="chips" style="margin-bottom:10px"><span class="chip">${p.yr}</span><span class="chip">During NUS</span></div><h3>${p.inst}</h3><div class="deg">${p.deg}</div>
+      <div class="rows">${p.h.map(([r, c]) => `<div class="row"><span class="r">${amb(r)}</span>${c ? `<span class="c">${c}</span>` : ''}</div>`).join('')}</div></div>`).join('')}</div>` : ''}
+  </article>`).join('')
+
+// B — grouped: Results (class / GPA) first, then Scholarships, then Achievements
+const BG = [
+  { y: '2021 — 2022', inst: 'Singapore Management University', deg: 'Master of IT in Business, AI track', kind: "Master's",
+    hero: ['3.98', 'GPA out of 4.0', "Dean's List"],
+    groups: [['Scholarships', [['MITB Scholarship'], ['SMU AI Talent Development Grant']]],
+             ['Achievements', [['1st place', 'Food Image Classification competition'], ['3rd place', 'Recommender Systems competition']]]] },
+  { y: '2011 — 2015', inst: 'National University of Singapore', deg: 'BEng Chemical Engineering', kind: "Bachelor's",
+    hero: ['2nd Upper', 'Class Honours'],
+    groups: [['Scholarships', [['NUS Undergraduate Scholarship']]],
+             ['Achievements', [['Selected to present', 'Shell Global Energy, Water & Food Security Roundtable'], ['88th percentile globally', 'Bloomberg Aptitude Test']]]],
+    parts: [
+      { yr: '2013', inst: 'University of Connecticut', deg: 'Exchange, Chemical & Biomolecular Engineering', big: 'First Class with Distinction',
+        groups: [['Scholarships', [['NUS Scholars Enrichment Grant']]], ['Achievements', [['Top of the class in two modules', 'Process Kinetics and Heat & Mass Transfer'], ['Top 10 in two PhD modules', 'taken in year 2'], ['"Most Inspiring Student"', 'AIChE UConn chapter']]]] },
+      { yr: '2014', inst: 'University of Oxford', deg: 'IARU Global Summer School, Global Challenges of the 21st Century', big: 'First Class with Distinction',
+        groups: [['Scholarships', [['IARU-Santander Scholarship']]], ['Achievements', [['1 of 14 selected worldwide']]]] },
+      { yr: '2014', inst: 'NUS Suzhou Research Institute', deg: 'Winter school, immersion in Chinese business culture', big: '1 of 3 chemical engineers selected',
+        groups: [['Scholarships', [['Market Immersion Award', 'IE Singapore Young Talent Programme']]]] },
+    ] },
+  { y: '2007 — 2008', inst: 'Anderson Junior College', deg: "GCE 'A' Levels, Physical Sciences", kind: 'A Levels',
+    hero: ['Top Student', 'Award'],
+    groups: [['Achievements', [['Certificate of Distinction', 'Alpha Students Programme'], ['Chess Club President', 'College Colours'], ['Platinum Award', 'Community Involvement Programme'], ['Sports Leaders Award']]]] },
+]
+const tile = ([r, c]) => `<div class="tile reveal"><div class="r">${amb(r)}</div>${c ? `<div class="c">${c}</div>` : ''}</div>`
+const groups = (gs, cls = '') => gs.map(([name, hs]) => `<div class="grp ${cls}"><div class="glabel">${name}</div><div class="tiles">${hs.map(tile).join('')}</div></div>`).join('')
+document.getElementById('B').innerHTML = head + BG.map((e) => `<div class="school">
+    <div class="side"><div class="label">${e.kind} · ${e.y}</div><h2>${e.inst}</h2><p>${e.deg}</p></div>
+    <div>
+      <div class="glabel">Results</div>
+      <div class="hero reveal"><div class="fig">${e.hero[0]}</div><div class="cap">${e.hero[1]}</div>${e.hero[2] ? `<div class="chip2">${e.hero[2]}</div>` : ''}</div>
+      ${groups(e.groups)}
+      ${e.parts ? `<div class="glabel during">During NUS</div><div class="prog">${e.parts.map((p) => `<div class="p reveal">
+        <div class="sub">${p.yr}</div><h3>${p.inst}</h3><div class="pdeg">${p.deg}</div>
+        <div class="big">${p.big}</div>${groups(p.groups, 'in-p')}</div>`).join('')}</div>` : ''}
+    </div></div>`).join('')
+
+const shades = document.createElement('span'); shades.className = 'shades'
+shades.innerHTML = ['latte', 'mocha', 'espresso'].map((k, i) => `<button data-k="${k}" aria-pressed="${!i}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')
+document.querySelector('#B .glabel.during').append(shades)
+shades.addEventListener('click', (ev) => { const k = ev.target.dataset.k; if (!k) return
+  document.getElementById('B').dataset.shade = k; shades.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === k)) })
+
+// C
+const SC = [
+  { ...ED[0], c: ['3.98', 'GPA, Dean’s List'] },
+  { yr: '2014', inst: 'University of Oxford', deg: 'IARU Global Summer School, during NUS', c: ['1 of 14', 'selected worldwide'], h: ED[1].parts[1].h },
+  { yr: '2013', inst: 'University of Connecticut', deg: 'Exchange, during NUS', c: ['Top 10', 'in two PhD modules, in year 2'], h: ED[1].parts[0].h },
+  { ...ED[1], c: ['88th', 'percentile globally, Bloomberg Aptitude Test'] },
+  { ...ED[2], c: ['Top', 'Student Award'] },
+]
+document.getElementById('C').innerHTML = head + `<div class="story"><div class="rail"><div class="track"></div><div class="fill"></div>
+  ${SC.map((s, i) => `<div class="stop" data-i="${i}" style="top:${i * 25}%"><i></i>${s.yr} · ${s.short || s.inst.split(' ').slice(-1)[0]}</div>`).join('')}</div>
+  <div>${SC.map((s, i) => `<section class="scene" data-i="${i}"><div class="where">${s.yr}${s.y ? ' — ' + s.y.slice(-4) : ''}</div><h2>${s.inst}</h2><div class="deg">${s.deg}</div>
+    <div class="count" data-to="${s.c[0]}">${s.c[0]}</div><div class="countcap">${s.c[1]}</div>
+    <div class="pills">${s.h.map(([r, c], j) => `<span class="pill" style="transition-delay:${j * 70}ms">${amb(r)}${c ? `<small>${c}</small>` : ''}</span>`).join('')}</div></section>`).join('')}</div></div>`
+
+// shared: reveal on scroll
+const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && e.target.classList.add('in')), { threshold: 0.15 })
+const watch = () => document.querySelectorAll('.style.on .reveal:not(.in), .style.on .scene').forEach((el) => io.observe(el))
+
+// C: count up + rail
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+const countIO = new IntersectionObserver((es) => es.forEach((e) => {
+  if (!e.isIntersecting) return
+  const el = e.target.querySelector('.count'); if (el.dataset.done) return; el.dataset.done = 1
+  const m = el.dataset.to.match(/^([\d.]+)(.*)$/); if (!m || reduce) return
+  const to = parseFloat(m[1]), dp = (m[1].split('.')[1] || '').length, t0 = performance.now()
+  const tick = (t) => { const k = Math.min(1, (t - t0) / 1100), v = to * (1 - Math.pow(1 - k, 3)); el.innerHTML = v.toFixed(dp) + m[2]; if (k < 1) requestAnimationFrame(tick) }
+  requestAnimationFrame(tick)
+}), { threshold: 0.4 })
+document.querySelectorAll('#C .scene').forEach((s) => countIO.observe(s))
+const scenes = [...document.querySelectorAll('#C .scene')], stops = [...document.querySelectorAll('#C .stop')], fill = document.querySelector('#C .fill')
+addEventListener('scroll', () => {
+  if (!document.getElementById('C').classList.contains('on')) return
+  let cur = 0; scenes.forEach((s, i) => { if (s.getBoundingClientRect().top < innerHeight * 0.5) cur = i })
+  stops.forEach((s, i) => s.classList.toggle('on', i === cur)); fill.style.height = `calc(${cur * 25}% + 8px)`
+}, { passive: true })
+stops.forEach((s) => s.addEventListener('click', () => scenes[s.dataset.i].scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' })))
+
+// switcher
+const show = (k) => {
+  document.querySelectorAll('.style').forEach((s) => s.classList.toggle('on', s.id === k))
+  document.querySelectorAll('.switch button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.s === k))
+  document.getElementById('note').textContent = NOTES[k]; scrollTo(0, 0); watch(); dispatchEvent(new Event('scroll'))
+}
+document.querySelectorAll('.switch button').forEach((b) => b.addEventListener('click', () => show(b.dataset.s)))
+show('A')
+</script>
+</body>
+</html>

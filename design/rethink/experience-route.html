@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experience route map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tiles.css">
+<style>
+  :root { --l-fc: oklch(0.45 0.08 50); --l-lang: oklch(0.56 0.13 32); --l-gen: oklch(0.66 0.15 62); }
+  .page { display: block; padding-top: 40px; }
+
+  /* ---------- the map card ---------- */
+  .mapcard { position: relative; background: var(--paper-deep); border-radius: 28px; padding: 22px 24px 14px; margin-top: 8px; }
+  .maphead { display: flex; align-items: center; gap: 10px 18px; flex-wrap: wrap; }
+  .maphead .ttl { font: 600 11px var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+  .legend { display: flex; gap: 8px; flex-wrap: wrap; }
+  .legend button { display: inline-flex; align-items: center; gap: 8px; font: 12px var(--mono); color: var(--ink); background: var(--paper); border: 0; border-radius: 999px; padding: 6px 12px 6px 8px; cursor: pointer; transition: background .2s, color .2s; }
+  .legend button i { width: 22px; height: 6px; border-radius: 3px; display: inline-block; }
+  .legend button:hover, .legend button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .maphead .sp { flex: 1; }
+  .ride { display: inline-flex; align-items: center; gap: 8px; font: 13px var(--mono); color: var(--paper); background: var(--ink); border: 0; border-radius: 999px; padding: 9px 16px; cursor: pointer; }
+  .ride b { color: var(--amber-hi); font-weight: 600; }
+  .ride:disabled { opacity: .5; cursor: default; }
+
+  .scroller { overflow-x: auto; margin: 6px -8px 0; padding: 0 8px; scrollbar-width: thin; }
+  svg.metro { display: block; width: 100%; min-width: 760px; height: auto; overflow: visible; }
+  .ln { fill: none; stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; transition: opacity .3s; }
+  .walk { fill: none; stroke: var(--ink-faint); stroke-width: 2.5; stroke-dasharray: 2 7; stroke-linecap: round; transition: opacity .3s; }
+  .ext { fill: none; stroke: var(--l-gen); stroke-width: 10; stroke-dasharray: 10 10; opacity: .55; }
+  .draw { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); }
+  .go .draw { animation: draw 1.4s cubic-bezier(.3,.7,.2,1) forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .fade .ln:not(.hot), .fade .walk, .fade .ext:not(.hot) { opacity: .15; }
+  .fade .stn:not(.hot) { opacity: .3; }
+
+  .stn { cursor: pointer; transition: opacity .3s; }
+  .stn .ring { fill: var(--paper); stroke: var(--ink); stroke-width: 4; transition: transform .2s; transform-box: fill-box; transform-origin: center; }
+  .stn:hover .ring, .stn:focus-visible .ring { transform: scale(1.18); }
+  .stn[aria-selected="true"] .ring { fill: var(--ink); }
+  .stn:focus { outline: none; }
+  .stn:focus-visible .nm { text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 2px; }
+  .stn .nm { font: 500 19px var(--serif); fill: var(--ink); letter-spacing: -.01em; }
+  .stn[aria-selected="true"] .nm { fill: var(--amber); }
+  .stn .yr { font: 500 11px var(--mono); fill: var(--ink-faint); letter-spacing: .08em; }
+  .stn .ro { font: 11px var(--mono); fill: var(--ink-soft); }
+  .pulse { fill: none; stroke: var(--l-gen); stroke-width: 3; transform-box: fill-box; transform-origin: center; animation: ping 2.2s ease-out infinite; }
+  @keyframes ping { from { transform: scale(.7); opacity: 1; } to { transform: scale(1.9); opacity: 0; } }
+  .now { font: 600 10px var(--mono); letter-spacing: .16em; fill: var(--paper); }
+  .chg { font: italic 15px var(--serif); fill: var(--ink-soft); }
+  .linetag { font: 600 10px var(--mono); letter-spacing: .14em; fill: var(--paper); }
+
+  .train { pointer-events: none; opacity: 0; transition: opacity .3s; }
+  .riding .train { opacity: 1; }
+  .train rect { fill: var(--ink); } .train circle { fill: var(--amber-hi); }
+
+  /* ---------- the station board ---------- */
+  .board { margin-top: 26px; border-top: 3px solid var(--ink); }
+  .sign { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 0; border-bottom: 1px solid var(--rule); font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+  .sign .badge { display: inline-flex; align-items: center; gap: 8px; background: var(--ink); color: var(--paper); border-radius: 999px; padding: 6px 12px 6px 7px; letter-spacing: .12em; }
+  .sign .badge i { width: 16px; height: 16px; border-radius: 50%; border: 3px solid var(--paper); display: inline-block; }
+  .sign .lines { display: inline-flex; gap: 6px; }
+  .sign .lines span { color: var(--paper); border-radius: 999px; padding: 4px 9px; letter-spacing: .1em; font-size: 10px; }
+  .sign .sp { flex: 1; }
+  .sign button { font: 12px var(--mono); letter-spacing: .04em; text-transform: none; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); border-radius: 999px; padding: 7px 13px; cursor: pointer; }
+  .sign button:hover:not(:disabled) { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .sign button:disabled { opacity: .35; cursor: default; }
+  .item { border-top: 0; padding-top: 34px; }
+  .item.turn { animation: turn .45s ease; }
+  @keyframes turn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .side .co2 { font-size: 34px; font-weight: 500; letter-spacing: -.02em; line-height: 1.08; margin: 10px 0; }
+  .side .ro2 { font-size: 19px; line-height: 1.3; }
+  .story .lead a { color: inherit; text-decoration-color: var(--amber); text-underline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } .item.turn { animation: none; } .go .draw { animation: none; stroke-dashoffset: 0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="page">
+  <div class="kicker"><b>01</b>Experience</div>
+  <h1>Where I have <em>worked</em>, and how I got here.</h1>
+
+  <div class="results">
+    <button class="rt" data-go="mastercard"><span class="fig">8+</span><span class="lab">years building production AI <i>→</i></span></button>
+    <button class="rt" data-go="uob"><span class="fig">80%</span><span class="lab">fewer false positives, UOB <i>→</i></span></button>
+    <button class="rt" data-go="illumina"><span class="fig">$9M</span><span class="lab">anticipated savings, Illumina <i>→</i></span></button>
+    <button class="rt" data-go="toyota-tsusho"><span class="fig">~25%</span><span class="lab">better forecast accuracy, Toyota Tsusho <i>→</i></span></button>
+  </div>
+
+  <div class="mapcard" id="mapcard">
+    <div class="maphead">
+      <span class="ttl">Network map</span>
+      <div class="legend" id="legend"></div>
+      <span class="sp"></span>
+      <button class="ride" id="ride">Ride the line <b>▶</b></button>
+    </div>
+    <div class="scroller">
+      <svg class="metro" id="metro" viewBox="0 0 1240 520" role="tablist" aria-label="Career map: one station per role">
+        <g id="lines"></g>
+        <g id="walks"></g>
+        <g id="labels"></g>
+        <g id="stations"></g>
+        <g class="train" id="train"><rect x="-17" y="-9" width="34" height="18" rx="9"/><circle cx="9" cy="0" r="3.5"/></g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="sign">
+      <span class="badge" id="badge"></span>
+      <span class="lines" id="signlines"></span>
+      <span id="signdates"></span>
+      <span class="sp"></span>
+      <button id="prev">← Earlier stop</button>
+      <button id="next">Later stop →</button>
+    </div>
+    <div id="panel" role="tabpanel"></div>
+  </div>
+</section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const ROLES = [
+    { slug: 'toyota-tsusho', company: 'Toyota Tsusho Asia Pacific', short: 'Toyota Tsusho', role: 'Demand & Supply Analyst', start: [2015, 6], end: [2017, 4], dates: 'Jun 2015 — Apr 2017', loc: 'Singapore',
+      deck: 'Overhauled sales planning into a centralised automated forecasting tool using VBA and operational research techniques.', body: 'Served Toyota automotive distributors across the Asia Pacific region.',
+      tech: ['VBA', 'Excel', 'Exponential Smoothing', 'Holt-Winters'], hl: { figure: '~25%', caption: 'better long-term forecast accuracy' } },
+    { slug: 'jobtech', company: 'JobTech Pte Ltd', short: 'JobTech', role: 'Data Scientist', start: [2017, 4], end: [2017, 8], dates: 'Apr 2017 — Aug 2017', loc: 'Singapore',
+      deck: 'Built a national-scale skill extraction algorithm using NLP to construct skills graphs from online job portals.', body: "Findings published in a Business Insider report on Indonesia's labour market.",
+      tech: ['Python', 'NLP', 'Regex Entity Extraction'] },
+    { slug: 'ema', company: 'Energy Market Authority', short: 'EMA', role: 'Principal Engineer, Research & Statistics', start: [2018, 4], end: [2022, 8], dates: 'Apr 2018 — Aug 2022', loc: 'Singapore',
+      deck: "Developed and presented national electricity and gas demand forecasts to Ministers and Permanent Secretaries; drove the Authority's AI and data strategy roadmap.", body: 'Built ML models for power-plant trip prediction and electricity spot-price forecasting with external partners.',
+      tech: ['Python', 'XGBoost', 'Neural Networks', 'DataRobot', 'ARIMA'] },
+    { slug: 'ck-delta', company: 'CK Delta', short: 'CK Delta', role: 'Data Scientist', start: [2022, 9], end: [2023, 1], dates: 'Sep 2022 — Jan 2023', loc: 'Singapore',
+      deck: 'Validated and enhanced MRT station crowdedness forecasting; tightened streaming data pipelines.', body: 'Model shipped to the MyTransportSG app.',
+      tech: ['Python', 'ML Forecasting', 'Streaming Pipelines'] },
+    { slug: 'illumina', company: 'Illumina', short: 'Illumina', role: 'Senior Data Scientist', start: [2023, 1], end: [2025, 6], dates: 'Jan 2023 — Jun 2025', loc: 'Singapore', gen: true,
+      deck: "Solo-architected and shipped two production AI systems as the company's sole data scientist.", body: 'An agentic document-retrieval platform for global field service engineers — sixteen components: semantic chunking, HyDE, hybrid search, Cohere reranking, prompt compression, an iterative agentic retrieval loop, blue-green vector collection swap. Plus a separate Generative BI assistant covering 800+ business metrics with human-in-the-loop design.',
+      tech: ['Python', 'LlamaIndex', 'Qdrant', 'AWS Bedrock', 'RabbitMQ', 'Docker+CUDA', 'GitHub Actions', 'SonarQube', 'Grafana', 'Prometheus', 'Loki', 'Chainlit', 'DSPy', 'Giskard'], hl: { figure: '$9M', caption: 'anticipated savings upon full deployment' }, ask: ['the retrieval platform', 'How does the Illumina retrieval platform work?'] },
+    { slug: 'uob', company: 'United Overseas Bank', short: 'UOB', role: 'Vice President, Generative AI', start: [2025, 6], end: [2026, 7], dates: 'Jun 2025 — Jul 2026', loc: 'Singapore', gen: true,
+      deck: 'Sole engineer on a real-time GenAI contact-centre platform: live call transcripts, in-call assistance and policy search for agents, and post-call summaries with red-flag and promise checks.', body: "Picked up Java to take over its Spring Boot microservices, and cut false positives in its post-call checks by 80% with an LLM-driven prompt-optimisation loop on the bank's self-hosted models. Also built the MCP service behind UOB's customer onboarding workflow: a deterministic LangGraph workflow that handles incomplete and inconsistent documents, with LLM reasoning where it helps.",
+      tech: ['Java (Spring Boot)', 'React', 'Redis', 'Oracle DB', 'ELK Stack', 'Splunk', 'Docker', 'Red Hat OpenShift', 'vLLM', 'Helm Charts', 'Apache Jenkins', 'LangChain', 'LangGraph', 'MCP'], hl: { figure: '80%', caption: 'fewer false positives in post-call checks' }, ask: ['the contact-centre platform', 'How did you cut false positives at UOB?'] },
+    { slug: 'mastercard', company: 'Mastercard', short: 'Mastercard', role: 'Lead AI Engineer', start: [2026, 7], end: null, dates: 'Jul 2026 — Present', loc: 'Singapore', gen: true, now: true,
+      deck: "Working on Agent Suite at the R&D Foundry — Mastercard's platform for enterprises to build, test, and deploy AI agents.", link: 'Agent Suite', body: 'Architected and built the SDK and CLI, including a bespoke package-manager setup: a shared foundation that replaces one-off agent builds with a common, governed standard. Agents are built declaratively: teams declare them in YAML, then chat with them in the terminal or serve them as an API. Assistant skills ship inside the packages, and contributor tooling keeps both codebases consistent.',
+      tech: ['Python', 'LangChain', 'Typer', 'FastAPI', 'Docker', 'Helm Charts', 'GitHub Actions', 'Apache Jenkins'], hl: { figure: 'Tech lead', caption: 'and anchor contributor for the core SDK behind Agent Suite' }, ask: ['Agent Suite', 'What do you do on Agent Suite?'] },
+  ]
+
+  const $ = (s) => document.querySelector(s)
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+  const NS = 'http://www.w3.org/2000/svg'
+  const el = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n }
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+
+  // ---- the network: three lines, drawn at 45° like a transit map ----
+  const LINES = [
+    { id: 'fc', name: 'Forecasting Line', color: 'var(--l-fc)', d: 'M90 420 H640', stops: ['toyota-tsusho', 'ema', 'ck-delta'] },
+    { id: 'lang', name: 'Language Line', color: 'var(--l-lang)', d: 'M250 260 H800', stops: ['jobtech', 'illumina'] },
+    { id: 'gen', name: 'GenAI Line', color: 'var(--l-gen)', d: 'M800 260 L920 140 H1110', stops: ['illumina', 'uob', 'mastercard'] },
+  ]
+  // where each station sits, and where its name goes
+  const AT = {
+    'toyota-tsusho': { x: 90, y: 420, lab: 'below', anchor: 'start', dx: -14 },
+    'jobtech': { x: 250, y: 260, lab: 'above' },
+    'ema': { x: 410, y: 420, lab: 'below' },
+    'ck-delta': { x: 640, y: 420, lab: 'below' },
+    'illumina': { x: 800, y: 260, lab: 'below', anchor: 'start', dx: 26, dy: -6 },
+    'uob': { x: 980, y: 140, lab: 'above' },
+    'mastercard': { x: 1110, y: 140, lab: 'below' },
+  }
+  // you change trains here: the walkways between lines, in the order I took them
+  const WALKS = [['toyota-tsusho', 'jobtech'], ['jobtech', 'ema'], ['ck-delta', 'illumina']]
+  const linesOf = (slug) => LINES.filter((l) => l.stops.includes(slug))
+
+  const svg = $('#metro'), gLines = $('#lines'), gWalks = $('#walks'), gLab = $('#labels'), gSt = $('#stations')
+
+  LINES.forEach((l) => {
+    const p = el('path', { d: l.d, class: 'ln draw', stroke: l.color, 'data-line': l.id }, gLines)
+    p.style.setProperty('--len', p.getTotalLength())
+  })
+  // the GenAI Line keeps going
+  el('path', { d: 'M1110 140 H1220', class: 'ext', 'data-line': 'gen' }, gLines)
+  WALKS.forEach(([a, b]) => {
+    const p = el('path', { d: `M${AT[a].x} ${AT[a].y} L${AT[b].x} ${AT[b].y}`, class: 'walk draw' }, gWalks)
+    p.style.setProperty('--len', p.getTotalLength())
+  })
+  // "Change here" at the pivot into GenAI
+  const chg = el('text', { x: 724, y: 362, class: 'chg', transform: 'rotate(-45 724 362)', 'text-anchor': 'middle' }, gLab)
+  chg.textContent = 'change here for GenAI · 2023'
+  // line name tags at each line's first stop
+  LINES.forEach((l) => {
+    const s = AT[l.stops[0]], up = l.id === 'gen'
+    const tx = s.x + 50, ty = l.id === 'lang' ? s.y + 32 : s.y - 24
+    if (l.id === 'gen') return
+    const w = l.name.length * 7.6 + 18
+    el('rect', { x: tx, y: ty - 12, width: w, height: 20, rx: 10, fill: l.color }, gLab)
+    const t = el('text', { x: tx + 9, y: ty + 2, class: 'linetag' }, gLab); t.textContent = l.name.toUpperCase()
+  })
+
+  // stations
+  ROLES.forEach((r, i) => {
+    const a = AT[r.slug], ls = linesOf(r.slug), inter = ls.length > 1
+    const g = el('g', { class: 'stn', role: 'tab', tabindex: -1, id: `stop-${r.slug}`, 'data-slug': r.slug, 'data-lines': ls.map((l) => l.id).join(' ') }, gSt)
+    if (r.now) el('circle', { cx: a.x, cy: a.y, r: 14, class: 'pulse' }, g)
+    if (inter) el('rect', { x: a.x - 22, y: a.y - 14, width: 44, height: 28, rx: 14, class: 'ring' }, g)
+    else el('circle', { cx: a.x, cy: a.y, r: 11, class: 'ring' }, g)
+    const anchor = a.anchor || 'middle', x = a.x + (a.dx || 0)
+    const above = a.lab === 'above'
+    const y0 = above ? a.y - 62 : a.y + 36 + (a.dy || 0)
+    const yr = el('text', { x, y: y0, class: 'yr', 'text-anchor': anchor }, g); yr.textContent = r.start[0]
+    const nm = el('text', { x, y: y0 + 21, class: 'nm', 'text-anchor': anchor }, g); nm.textContent = r.short
+    const ro = el('text', { x, y: y0 + 38, class: 'ro', 'text-anchor': anchor }, g); ro.textContent = r.role.length > 30 ? r.role.replace(', Research & Statistics', '').replace(', Generative AI', ', GenAI') : r.role
+    if (r.now) {
+      el('rect', { x: a.x - 24, y: y0 + 46, width: 48, height: 18, rx: 9, fill: 'var(--amber)' }, g)
+      const n = el('text', { x: a.x, y: y0 + 59, class: 'now', 'text-anchor': 'middle' }, g); n.textContent = 'NOW'
+    }
+    g.addEventListener('click', () => open(r.slug, true))
+  })
+
+  // legend: hover or press a line to light it up
+  $('#legend').innerHTML = LINES.map((l) => `<button data-line="${l.id}" aria-pressed="false"><i style="background:${l.color}"></i>${l.name}</button>`).join('')
+  let pinned = null
+  const light = (id) => {
+    svg.classList.toggle('fade', !!id)
+    svg.querySelectorAll('[data-line]').forEach((n) => n.classList.toggle('hot', n.dataset.line === id))
+    svg.querySelectorAll('.stn').forEach((n) => n.classList.toggle('hot', !!id && n.dataset.lines.split(' ').includes(id)))
+  }
+  document.querySelectorAll('.legend button').forEach((b) => {
+    b.addEventListener('mouseenter', () => light(b.dataset.line))
+    b.addEventListener('mouseleave', () => light(pinned))
+    b.addEventListener('click', () => { pinned = pinned === b.dataset.line ? null : b.dataset.line; document.querySelectorAll('.legend button').forEach((x) => x.setAttribute('aria-pressed', x.dataset.line === pinned)); light(pinned) })
+  })
+
+  // ---- the board ----
+  let current = ROLES[ROLES.length - 1].slug
+  function mark() { gSt.querySelectorAll('.stn').forEach((g) => { const on = g.dataset.slug === current; g.setAttribute('aria-selected', on); g.setAttribute('tabindex', on ? 0 : -1) }) }
+  function open(slug, focus) {
+    current = slug; mark()
+    const i = ROLES.findIndex((r) => r.slug === slug), r = ROLES[i], ls = linesOf(slug)
+    $('#badge').innerHTML = `<i style="background:${ls[ls.length - 1].color}"></i>${r.short}`
+    $('#signlines').innerHTML = ls.map((l) => `<span style="background:${l.color}">${l.name}</span>`).join('')
+    $('#signdates').textContent = `Stop ${i + 1} of ${ROLES.length} · ${r.dates}`
+    $('#prev').disabled = i === 0; $('#next').disabled = i === ROLES.length - 1
+    const deck = r.link ? esc(r.deck).replace(r.link, `<a href="#">${r.link}</a>`) : esc(r.deck)
+    $('#panel').innerHTML = `<article class="item turn">
+      <div class="side"><div class="label">${r.dates}</div><div class="co2">${r.company}</div><p class="ro2">${r.role}</p><div class="where">${r.loc}</div></div>
+      <div class="main">
+        ${r.hl ? `<div class="glabel">Highlight</div><div class="hero"><div class="fig ${/^\D*\d/.test(r.hl.figure) ? '' : 'words'}">${r.hl.figure}</div><div class="cap">${r.hl.caption}</div></div>` : ''}
+        <div class="glabel">What I did</div>
+        <div class="story"><p class="lead">${deck}</p>${r.body ? `<p class="more">${esc(r.body)}</p>` : ''}</div>
+        <div class="glabel">Stack</div>
+        <div class="pills">${r.tech.map((t) => `<span class="pill">${t}</span>`).join('')}</div>
+        <button class="ask" data-q="${r.ask ? r.ask[1] : `Tell me about your time at ${r.short}.`}">Ask about ${r.ask ? r.ask[0] : r.short} <b>→</b></button>
+      </div></article>`
+    $('#panel .ask').addEventListener('click', (e) => toast(`Opens Ask Titus with: “${e.currentTarget.dataset.q}”`))
+    if (focus) document.getElementById(`stop-${slug}`)?.focus({ preventScroll: true })
+  }
+  const step = (d) => { const i = ROLES.findIndex((r) => r.slug === current) + d; if (ROLES[i]) open(ROLES[i].slug, true) }
+  $('#prev').onclick = () => step(-1); $('#next').onclick = () => step(1)
+  svg.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1) } if (e.key === 'ArrowRight') { e.preventDefault(); step(1) } })
+
+  // ---- ride the line: a train runs the career in order, stopping at each station ----
+  const route = el('path', { d: '', fill: 'none' }, svg)
+  const pts = []
+  ROLES.forEach((r, i) => {
+    const a = AT[r.slug]
+    if (r.slug === 'uob') pts.push([920, 140]) // the bend after Illumina
+    pts.push([a.x, a.y])
+  })
+  route.setAttribute('d', 'M' + pts.map((p) => p.join(' ')).join(' L'))
+  const stopAt = ROLES.map((r) => { // length along the route at each station
+    const a = AT[r.slug]; let best = 0, bd = 1e9
+    for (let L = 0; L <= route.getTotalLength(); L += 2) { const p = route.getPointAtLength(L), d = Math.hypot(p.x - a.x, p.y - a.y); if (d < bd) { bd = d; best = L } }
+    return best
+  })
+  const train = $('#train')
+  const place = (L) => { const p = route.getPointAtLength(L), q = route.getPointAtLength(Math.min(L + 1, route.getTotalLength())); const ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI; train.setAttribute('transform', `translate(${p.x} ${p.y}) rotate(${ang})`) }
+  let riding = false
+  $('#ride').onclick = async () => {
+    if (riding) return
+    riding = true; $('#ride').disabled = true; svg.classList.add('riding')
+    for (let i = 0; i < ROLES.length; i++) {
+      const from = i ? stopAt[i - 1] : 0, to = stopAt[i]
+      if (!reduce && to > from) await new Promise((res) => { const t0 = performance.now(), dur = Math.max(500, (to - from) * 3.2); const f = (t) => { const k = Math.min(1, (t - t0) / dur), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; place(from + (to - from) * e); k < 1 ? requestAnimationFrame(f) : res() }; requestAnimationFrame(f) })
+      else place(to)
+      open(ROLES[i].slug)
+      await new Promise((res) => setTimeout(res, 1100))
+    }
+    svg.classList.remove('riding'); $('#ride').disabled = false; riding = false
+  }
+
+  // results row
+  document.querySelectorAll('.rt').forEach((b) => b.addEventListener('click', () => {
+    open(b.dataset.go)
+    $('.board').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+    const hero = $('#panel .hero'); if (hero) { hero.classList.remove('flash'); void hero.offsetWidth; hero.classList.add('flash') }
+  }))
+  let tt
+  function toast(m) { $('#toast').textContent = m; $('#toast').classList.add('on'); clearTimeout(tt); tt = setTimeout(() => $('#toast').classList.remove('on'), 2600) }
+
+  open(current)
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { svg.classList.add('go'); io.disconnect() } }), { threshold: 0.3 })
+  reduce ? svg.classList.add('go') : io.observe(svg)
+</script>
+</body>
+</html>

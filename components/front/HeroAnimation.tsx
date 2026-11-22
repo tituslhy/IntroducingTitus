@@ -37,7 +37,8 @@ type Layout = {
 
 const MANIFEST = logoManifest as Record<string, { file: string; r: number }>
 const CYCLE = 5400
-const PAD = 46
+/** How far a logo's centre stays from any text: close enough that the field hugs the words, not a box around them. */
+const PAD = 30
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 

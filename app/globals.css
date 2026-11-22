@@ -18,6 +18,14 @@
   --amber-soft:  oklch(0.92 0.05 75);     /* paper wash on hover */
   --amber-line:  oklch(0.78 0.10 65);     /* underline amber */
   --indigo:      oklch(0.34 0.10 254);    /* secondary accent (Illumina project) */
+  --amber-hi:    oklch(0.80 0.12 65);     /* amber on the dark tile */
+
+  /* Latte: boxes for anything nested under something bigger, or earlier */
+  --latte:         oklch(0.885 0.035 68);
+  --latte-tile:    oklch(0.935 0.022 72);
+  --latte-tile-hi: oklch(0.96 0.015 75);
+  --latte-accent:  oklch(0.45 0.08 50);
+  --latte-soft:    oklch(0.40 0.03 55);
 }
 
 * {
@@ -128,4 +136,226 @@ body {
 @keyframes bob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(5px); }
+}
+
+/* The dark headline tile: a slow amber glow drifting behind its figure. */
+.glow-tile { position: relative; overflow: hidden; isolation: isolate; }
+.glow-tile::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  z-index: -1;
+  background: radial-gradient(closest-side, oklch(0.62 0.155 55 / 0.35), transparent 70%);
+  animation: glow-drift 14s ease-in-out infinite alternate;
+}
+/* Illumina's tile on Projects: the one place indigo glows. */
+.glow-tile-indigo::before { background: radial-gradient(closest-side, oklch(0.5 0.14 254 / 0.55), transparent 70%); }
+@keyframes glow-drift {
+  from { transform: translate(-18%, -10%); }
+  to   { transform: translate(22%, 14%); }
+}
+/* A result clicked in the results row rings its tile in amber, then fades. */
+.result-flash { animation: result-flash 2.4s ease; }
+@keyframes result-flash {
+  0%, 40% { box-shadow: 0 0 0 4px var(--amber); }
+  100%    { box-shadow: 0 0 0 4px transparent; }
+}
+/* Experience: the staff passes fanned out on the desk. Each pass sets --rot, --brand and its position inline. */
+.staff-pass {
+  --lift: 0px;
+  transform: translateY(var(--lift)) rotate(var(--rot, 0deg));
+  transform-origin: 50% 120%;
+  transition: transform 0.45s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.staff-pass:hover { --lift: -18px; }
+.staff-pass[aria-selected='true'] { --lift: -34px; }
+.staff-pass[aria-selected='true'] .staff-pass-face {
+  border-width: 4px;
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--brand) 30%, transparent), 0 18px 40px oklch(0.3 0.03 60 / 0.25);
+}
+/* The picked pass's lanyard drops in from above the desk with a small swing, and fades out at the top. */
+.lanyard { animation: lanyard-in 0.6s cubic-bezier(0.3, 0.7, 0.2, 1) both; transform-origin: 50% 0; }
+.lanyard-straps {
+  -webkit-mask-image: linear-gradient(to top, #000 55%, transparent);
+  mask-image: linear-gradient(to top, #000 55%, transparent);
+}
+@keyframes lanyard-in {
+  0% { opacity: 0; transform: translateY(-28px) rotate(-3deg); }
+  55% { opacity: 1; transform: translateY(2px) rotate(1.5deg); }
+  80% { transform: translateY(0) rotate(-0.6deg); }
+  100% { opacity: 1; transform: none; }
+}
+@media (max-width: 820px) {
+  .staff-pass { --rot: 0deg !important; transform-origin: center; }
+  /* The swipe row clips above itself, so the picked pass lifts less and its lanyard is shorter. */
+  .staff-pass[aria-selected='true'] { --lift: -8px; }
+  .lanyard { height: 70px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .staff-pass { transition: none; }
+  .lanyard { animation: none; }
+}
+/* Writing page: after 7pm in Singapore the paper turns into the late edition, a shade darker. */
+.late-edition {
+  --paper:      oklch(0.935 0.016 75);
+  --paper-deep: oklch(0.905 0.018 75);
+  --paper-band: oklch(0.885 0.02 75);
+  --rule:       oklch(0.72 0.014 75);
+}
+/* The floating Next pill's arrow. */
+@keyframes next-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(3px); }
+}
+/* Writing page: a new edition or desk eases in. */
+.paper-turn { animation: paper-turn 0.45s ease; }
+@keyframes paper-turn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glow-tile::before, .result-flash, .paper-turn { animation: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Projects: a projector per project (components/projects/Projector), Illumina's diagrams, and the
+   earlier-work write-up. Film stock is darker than ink; sprocket holes are a repeated SVG.
+   --------------------------------------------------------------------------- */
+:root { --film: oklch(0.17 0.008 60); --film-edge: oklch(0.12 0.006 60); }
+.projector-frame:not([hidden]) { animation: projector-flicker 0.7s ease both; }
+@keyframes projector-in { from { opacity: 0; } }
+/* A new frame comes up the way a projector's lamp catches: a quick flicker, then steady. */
+@keyframes projector-flicker { 0% { opacity: 0; } 18% { opacity: 0.85; } 26% { opacity: 0.45; } 40% { opacity: 1; } 55% { opacity: 0.78; } 100% { opacity: 1; } }
+/* Over every frame: faint moving grain and darker corners, so stills and diagrams alike look projected.
+   Both ignore the pointer, so the demo video and the frames stay clickable. */
+.projector-screen::before, .projector-screen::after { content: ''; position: absolute; z-index: 2; pointer-events: none; }
+.projector-screen::before {
+  inset: -50%; opacity: 0.07; animation: projector-grain 0.8s steps(1) infinite;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.projector-screen::after { inset: 0; background: radial-gradient(ellipse at center, transparent 58%, rgb(0 0 0 / 0.42) 100%); }
+@keyframes projector-grain {
+  0% { transform: translate(0, 0); } 20% { transform: translate(-7%, 4%); } 40% { transform: translate(5%, -6%); }
+  60% { transform: translate(-3%, -9%); } 80% { transform: translate(8%, 3%); }
+}
+.projector-strip { position: relative; display: flex; gap: 6px; overflow-x: auto; padding: 26px 2px; scrollbar-width: none; }
+.projector-strip::-webkit-scrollbar { display: none; }
+.projector-strip::before, .projector-strip::after {
+  content: ''; position: absolute; left: 0; width: 100%; height: 12px; opacity: 0.8; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='12'%3E%3Crect x='6' y='2' width='10' height='8' rx='2' fill='%23efe6d8'/%3E%3C/svg%3E") repeat-x;
+}
+.projector-strip::before { top: 7px; }
+.projector-strip::after { bottom: 7px; }
+.projector-thumb { position: relative; flex: 0 0 auto; width: 92px; aspect-ratio: 16 / 9; overflow: hidden; border: 0; padding: 0; border-radius: 4px; background: oklch(0.25 0.01 60); cursor: pointer; opacity: 0.5; transition: opacity 0.3s; }
+.projector-thumb:hover { opacity: 0.85; }
+.projector-thumb[aria-current='true'] { opacity: 1; }
+.projector-thumb:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; opacity: 1; }
+.projector-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--amber); transform-origin: 0 50%; animation-name: projector-bar; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes projector-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.earlier-info { animation: projector-in 0.35s ease both; }
+@media (max-width: 820px) {
+  .projector-thumb { width: 76px; }
+  .projector-tall { aspect-ratio: 9 / 18; }
+}
+@media (min-width: 821px) {
+  .projector-tall { aspect-ratio: 2.5 / 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .projector-frame:not([hidden]), .earlier-info, .projector-screen::before { animation: none; }
+}
+
+/* Illumina's diagrams: boxes light up in order (--d) each time their frame comes on screen. */
+.dg-screen { position: absolute; inset: 0; background: var(--film); }
+.dg { position: absolute; inset: 0; display: grid; align-content: center; padding: 4% 4%; }
+.dg-ln { margin: 0 0 14px; font: 600 10px var(--font-ibm-plex-mono), ui-monospace, monospace; letter-spacing: 0.2em; text-transform: uppercase; color: oklch(0.82 0.08 254); }
+.dg-flow { display: grid; gap: 22px; align-items: center; }
+.dg-flow-ready { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1.8fr) minmax(0, 1fr); }
+.dg-flow-answer { grid-template-columns: minmax(0, 0.7fr) minmax(0, 0.8fr) minmax(0, 4fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 0.7fr); gap: 20px; }
+.dg-flow > * { position: relative; }
+.dg-flow > *:not(:last-child)::after { content: '→'; position: absolute; right: -17px; top: 50%; translate: 0 -50%; font-size: 13px; color: oklch(0.7 0.05 254); }
+.dg-node { position: relative; display: flex; flex-direction: column; justify-content: center; min-height: 52px; padding: 8px 9px; border: 1px solid oklch(0.82 0.08 254 / 0.55); border-radius: 8px; font-family: var(--font-newsreader), Georgia, serif; font-size: 14px; line-height: 1.2; color: var(--paper); }
+.dg-node small { margin-top: 3px; font: 10px var(--font-ibm-plex-mono), ui-monospace, monospace; color: oklch(0.82 0.08 254); }
+.dg-plain { border-style: dashed; color: oklch(0.85 0.02 78); }
+.dg-check { border-radius: 22px; text-align: center; }
+.dg-group { display: grid; gap: 10px; padding: 10px 12px; border: 1px dashed oklch(0.82 0.08 254 / 0.6); border-top: 0; border-bottom: 0; border-radius: 14px; }
+.dg-group-label { display: block; font: 9.5px var(--font-ibm-plex-mono), ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.7 0.05 254); }
+.dg-group > .dg-node, .dg-pair > .dg-node { min-height: 0; font-size: 12.5px; padding: 7px 8px; }
+.dg-pair { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.8fr) minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; margin-top: 4px; }
+.dg-pair > .dg-node:not(:last-child)::after { content: '→'; position: absolute; right: -12px; top: 50%; translate: 0 -50%; font-size: 11px; color: oklch(0.7 0.05 254); }
+.dg-loop { margin: 14px 0 0 calc((100% - 100px) / 8 * 0.7 + 20px); width: calc((100% - 100px) / 8 * 6.6 + 60px); padding: 8px 0 6px; border: 1px dashed oklch(0.82 0.08 254 / 0.6); border-top: 0; border-radius: 0 0 14px 14px; text-align: center; font: 11px var(--font-ibm-plex-mono), ui-monospace, monospace; color: oklch(0.82 0.08 254); }
+.projector-frame:not([hidden]) .dg-node, .projector-frame:not([hidden]) .dg-loop { animation: dg-lit 0.5s ease forwards; animation-delay: calc(var(--d, 0) * 0.6s); }
+.projector-frame:not([hidden]) .dg-out { animation-name: dg-lit-out; }
+@keyframes dg-lit { to { background: oklch(0.34 0.1 254 / 0.55); border-color: oklch(0.82 0.08 254); border-style: solid; } }
+@keyframes dg-lit-out { to { background: var(--indigo); border-color: oklch(0.82 0.08 254); } }
+@media (max-width: 820px) {
+  .dg { align-content: center; padding: 7% 6%; }
+  .dg-flow-ready, .dg-flow-answer { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .dg-flow > *:not(:last-child)::after { content: '↓'; right: auto; left: 50%; top: auto; bottom: -17px; translate: -50% 0; }
+  .dg-group { border: 1px dashed oklch(0.82 0.08 254 / 0.6); padding: 10px 8px; }
+  .dg-lanes { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .dg-pair { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .dg-pair > .dg-node:not(:last-child)::after { content: '↓'; right: auto; left: 50%; top: auto; bottom: -14px; translate: -50% 0; }
+  .dg-pair > .dg-node { font-size: 11px; padding: 5px 6px; }
+  .dg-lanes .dg-group-label { font-size: 8.5px; letter-spacing: 0.06em; }
+  .dg-node { min-height: 0; font-size: 13.5px; padding: 8px 10px; }
+  .dg-loop { margin: 14px 0 0; width: auto; padding: 6px; border-top: 1px dashed oklch(0.82 0.08 254 / 0.6); border-radius: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .projector-frame:not([hidden]) .dg-node, .projector-frame:not([hidden]) .dg-loop { animation-duration: 0s; animation-delay: 0s; }
+}
+
+/* Projects: open source rolls up through a sticky stage as the section scrolls (CreditsRoll sets data-rolling;
+   without it, or for reduced motion, it is a still list). */
+.credits-stage { padding: 48px 0 52px; }
+.credits-roll[data-rolling] { height: 190vh; }
+.credits-roll[data-rolling] .credits-stage { position: sticky; top: 70px; height: min(600px, calc(100vh - 100px)); overflow: hidden; padding: 0; }
+.credits-roll[data-rolling] .credits-window { position: absolute; inset: 0; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent); }
+.credits-roll[data-rolling] .credits-list { position: absolute; left: 0; right: 0; top: 0; will-change: transform; }
+
+/* Projects: fictional-bassoon's architecture (BassoonArchitecture). One message's path lights up in order (--d),
+   numbered; the supporting cast lights up after it. Amber, where Illumina's diagrams are indigo. */
+/* A projector with a stacked diagram gets more height when the projector itself is narrow (not the window):
+   under 560px the architecture stacks and needs ~450px (wide) to ~790px (narrowest phones), measured, so the
+   height follows the width; 4:3 up to 800px; 16:9 beyond. */
+.projector { container-type: inline-size; }
+@container (max-width: 559px) { .projector-fit { aspect-ratio: auto; height: max(576px, calc(1416px - 210cqi)); } }
+@container (min-width: 560px) and (max-width: 799px) { .projector-fit { aspect-ratio: 4 / 3; } }
+.arch { container-type: inline-size; position: absolute; inset: 0; display: flex; flex-direction: column; padding: 3.2% 3%; background: var(--film); }
+.arch-title { margin: 0 0 14px; font: 600 11px var(--font-ibm-plex-mono), ui-monospace, monospace; letter-spacing: 0.2em; text-transform: uppercase; color: var(--amber-hi); }
+.arch-zones { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.1fr); gap: 1.2cqi; }
+.arch-zone { min-width: 0; display: flex; flex-direction: column; padding: 12px 1.1cqi; border: 1px dashed oklch(0.8 0.12 65 / 0.3); border-radius: 10px; }
+.arch-zone-name { margin: 0 0 10px; font: 500 10px var(--font-ibm-plex-mono), ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase; color: oklch(0.7 0.05 65); }
+.arch-zone-body { display: flex; flex-direction: column; gap: 9px; }
+.arch-node { display: flex; gap: 6px; align-items: flex-start; padding: 7px 1cqi; border: 1px solid oklch(0.8 0.12 65 / 0.4); border-radius: 8px; font-family: var(--font-newsreader), Georgia, serif; font-size: clamp(11px, 1.85cqi, 15px); min-width: 0; overflow-wrap: anywhere; line-height: 1.15; color: var(--paper); }
+.arch-node small { display: block; margin-top: 3px; font: clamp(8.5px, 1.3cqi, 10.5px)/1.25 var(--font-ibm-plex-mono), ui-monospace, monospace; color: oklch(0.8 0.12 65 / 0.85); }
+.arch-n { flex: none; display: grid; place-items: center; width: 19px; height: 19px; border: 1px solid var(--amber-hi); border-radius: 999px; font: 600 10px var(--font-ibm-plex-mono), ui-monospace, monospace; color: var(--amber-hi); }
+.arch-group-name { display: block; margin-top: 4px; font: 9.5px var(--font-ibm-plex-mono), ui-monospace, monospace; letter-spacing: 0.1em; text-transform: uppercase; color: oklch(0.6 0.03 65); }
+.arch-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.arch-zone-body > .arch-chip { align-self: flex-start; }
+.arch-chip { padding: 3px 8px; border: 1px solid oklch(0.6 0.02 70 / 0.6); border-radius: 999px; font: clamp(9px, 1.35cqi, 11px)/1.4 var(--font-ibm-plex-mono), ui-monospace, monospace; color: oklch(0.72 0.02 70); }
+.arch-ext { border-style: dashed; }
+.projector-frame:not([hidden]) .arch-node { animation: arch-lit 0.5s ease forwards; animation-delay: calc(var(--d, 0) * 0.7s); }
+.projector-frame:not([hidden]) .arch-n { animation: arch-n 0.5s ease forwards; animation-delay: inherit; }
+.projector-frame:not([hidden]) .arch-chip { animation: arch-chip 0.8s ease 6.4s forwards; }
+@keyframes arch-lit { to { background: oklch(0.62 0.155 55 / 0.3); border-color: var(--amber-hi); } }
+@keyframes arch-n { to { background: var(--amber-hi); color: var(--film); } }
+@keyframes arch-chip { to { color: var(--paper); border-color: oklch(0.8 0.12 65 / 0.55); } }
+@container (max-width: 559px) {
+  .arch { padding: 5% 4%; }
+  .arch-zones { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .arch-zone { display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: start; padding: 6px 8px; }
+  .arch-zone-name { margin: 3px 0 0; }
+  .arch-zone-body { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 4px; }
+  .arch-node { font-size: 12.5px; padding: 4px 6px; }
+  .arch-node small { font-size: 9.5px; }
+  .arch-n { width: 16px; height: 16px; font-size: 9px; }
+  .arch-chip { font-size: 10px; padding: 2px 6px; }
+  .arch-title { font-size: 10px; margin-bottom: 10px; }
+  .arch-zone-name { font-size: 9px; }
+  .arch-group { display: contents; }
+  .arch-group-name { display: none; }
+  .arch-chips { display: contents; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .projector-frame:not([hidden]) .arch-node, .projector-frame:not([hidden]) .arch-n, .projector-frame:not([hidden]) .arch-chip { animation-duration: 0s; animation-delay: 0s; }
 }

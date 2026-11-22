@@ -4,6 +4,7 @@ import { ARTICLE_COUNT_NUMBER, BLOCKCHAIN_ARTICLE_COUNT, SITE_URL } from './cont
 import {
   CERTIFICATIONS,
   EDUCATION,
+  EARLIER_PROJECTS,
   EMAIL,
   FEATURED_ARTICLES,
   OPEN_SOURCE,
@@ -219,6 +220,40 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
         expect(rendered).toContain(project.copilot)
       }
     })
+
+    describe('the PROJECTS token', () => {
+      const projectsText = buildSystemPrompt('{{PROJECTS}}');
+      const EARLIER_HEADING = '### Earlier projects, before GenAI (several built with teammates)';
+
+      it('gives each featured project its sub, lead and body, in one paragraph', () => {
+        for (const p of PROJECTS) {
+          expect(projectsText).toContain(`${p.sub}. ${p.lead} ${p.body}`);
+        }
+      });
+
+      it('lists the featured projects in page order, before the earlier-projects section', () => {
+        const at = PROJECTS.map((p) => projectsText.indexOf(`### ${p.title}`));
+        expect(at.every((i) => i >= 0)).toBe(true);
+        expect([...at].sort((a, b) => a - b)).toEqual(at);
+        expect(projectsText.indexOf(EARLIER_HEADING)).toBeGreaterThan(at[at.length - 1]);
+      });
+
+      it('gives the earlier projects their own heading', () => {
+        expect(projectsText).toContain(EARLIER_HEADING);
+      });
+
+      it('writes one line per earlier project, with topics, blurb, result and GitHub', () => {
+        const lines = projectsText.split('\n').filter((l) => l.startsWith('- '));
+        expect(lines).toHaveLength(EARLIER_PROJECTS.length);
+        const skimlit = EARLIER_PROJECTS.find((e) => e.title === 'Skimlit')!;
+        expect(lines).toContain(`- Skimlit (NLP, Streamlit): ${skimlit.blurb} 84.8% test accuracy. GitHub: ${skimlit.github}`);
+      });
+
+      it('leaves the result out of a line for an earlier project that reported none', () => {
+        const watchlist = EARLIER_PROJECTS.find((e) => e.title === 'Watchlist')!;
+        expect(projectsText).toContain(`- Watchlist (Full stack, MongoDB): ${watchlist.blurb} GitHub: ${watchlist.github}`);
+      });
+    });
   })
 
   describe('open source, writing, and contact', () => {
@@ -242,18 +277,28 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
   })
 
   describe('education and credentials', () => {
+    const honorsOf = (e: { scholarships?: string[]; achievements?: string[] }) => [...(e.scholarships ?? []), ...(e.achievements ?? [])]
+
     it('includes every education institution and its degree', () => {
       for (const e of EDUCATION) {
-        expect(rendered).toContain(e.institution)
-        expect(rendered).toContain(e.degree)
+        expect(rendered).toContain(`**${e.institution}** — ${e.degree}`)
       }
     })
 
-    it('includes every honour of every degree', () => {
+    it('gives each degree its result, as "Result: figure caption"', () => {
       for (const e of EDUCATION) {
-        for (const honor of e.honors) {
+        const note = e.standing.note ? ` (${e.standing.note})` : ''
+        expect(rendered).toContain(`Result: ${e.standing.figure} ${e.standing.caption}${note}.`)
+      }
+    })
+
+    it('lists every honour of every degree, under Scholarships and Achievements', () => {
+      for (const e of EDUCATION) {
+        for (const honor of honorsOf(e)) {
           expect(rendered).toContain(honor)
         }
+        if (e.scholarships?.length) expect(rendered).toContain(`Scholarships: ${e.scholarships.join(', ')}.`)
+        if (e.achievements?.length) expect(rendered).toContain(`Achievements: ${e.achievements.join(', ')}.`)
       }
     })
 
@@ -261,17 +306,17 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
       for (const e of EDUCATION) {
         for (const part of e.parts ?? []) {
           expect(rendered).toContain(part.programme)
-          for (const honor of part.honors) {
+          for (const honor of honorsOf(part)) {
             expect(rendered).toContain(honor)
           }
         }
       }
     })
 
-    it('introduces each programme as taken during its degree, with its dates', () => {
+    it('introduces each programme as taken during its degree, with its dates and standing', () => {
       for (const e of EDUCATION) {
         for (const part of e.parts ?? []) {
-          expect(rendered).toContain(`During this degree, ${part.institution} — ${part.programme} (${part.dates}):`)
+          expect(rendered).toContain(`During this degree, ${part.institution} — ${part.programme} (${part.dates}): ${part.standing}.`)
         }
       }
     })

@@ -23,6 +23,7 @@ import {
 import { COPILOT_OPEN_EVENT, type CopilotOpenDetail } from "@/lib/copilot-events";
 import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH } from "@/lib/content";
 import { STARTER_PROMPTS } from "@/lib/starter-prompts";
+import { reveal } from "@/lib/reveal";
 import { waitForElement } from "@/lib/wait-for-element";
 
 interface Message {
@@ -260,22 +261,28 @@ export default function CopilotBubble({
   /** Scrolls to an anchor that is on the page now; single entries get the highlighter wash. */
   const revealOnPage = useCallback(
     (el: HTMLElement) => {
-      el.scrollIntoView({ behavior: prefersReducedMotion ? "instant" : "smooth", block: "start" });
+      const go = () => {
+        el.scrollIntoView({ behavior: prefersReducedMotion ? "instant" : "smooth", block: "start" });
 
-      // Whole sections just scroll; a single entry also gets the highlight.
-      if (el.tagName !== "SECTION") {
-        if (spotlightRef.current) {
-          clearTimeout(spotlightRef.current.timer);
-          spotlightRef.current.el.classList.remove(SPOTLIGHT_CLASS);
+        // Whole sections just scroll; a single entry also gets the highlight.
+        if (el.tagName !== "SECTION") {
+          if (spotlightRef.current) {
+            clearTimeout(spotlightRef.current.timer);
+            spotlightRef.current.el.classList.remove(SPOTLIGHT_CLASS);
+          }
+          void el.offsetWidth; // restart the animation if the same entry is shown twice
+          el.classList.add(SPOTLIGHT_CLASS);
+          const timer = setTimeout(() => {
+            el.classList.remove(SPOTLIGHT_CLASS);
+            spotlightRef.current = null;
+          }, SPOTLIGHT_MS);
+          spotlightRef.current = { el, timer };
         }
-        void el.offsetWidth; // restart the animation if the same entry is shown twice
-        el.classList.add(SPOTLIGHT_CLASS);
-        const timer = setTimeout(() => {
-          el.classList.remove(SPOTLIGHT_CLASS);
-          spotlightRef.current = null;
-        }, SPOTLIGHT_MS);
-        spotlightRef.current = { el, timer };
-      }
+      };
+      // A role the Experience page is keeping hidden is shown first.
+      const shown = reveal(el);
+      if (shown) void shown.then(go);
+      else go();
     },
     [prefersReducedMotion]
   );

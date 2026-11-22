@@ -1,15 +1,21 @@
+import { existsSync } from "fs";
+import path from "path";
 import { ARTICLE_COUNT_SHORT } from "./content";
 import {
   ASK_FOLIO,
   CERTIFICATIONS,
   EDUCATION,
   FEATURED_ROLE_COUNT,
+  NAME,
   PAGE_TARGETS,
   ROLES,
   SIGN_OFF_TITLE,
   SITE_DESCRIPTION,
   SITE_PAGES,
   SITE_TITLE,
+  CORRECTIONS,
+  EARLIER_PROJECTS,
+  PROJECTS,
   pageFolio,
 } from "./profile";
 
@@ -131,25 +137,43 @@ describe("pageFolio", () => {
 });
 
 describe("education data", () => {
+  const honorsOf = (e: { scholarships?: string[]; achievements?: string[] }) => [...(e.scholarships ?? []), ...(e.achievements ?? [])];
+
   it("lists the three degrees, newest first", () => {
     expect(EDUCATION.map((e) => e.slug)).toEqual(["smu", "nus", "ajc"]);
   });
 
-  it("gives every degree at least one honour", () => {
+  it("gives every degree at least one honour, as a scholarship or an achievement", () => {
     for (const e of EDUCATION) {
-      expect(e.honors.length).toBeGreaterThan(0);
+      expect(honorsOf(e).length).toBeGreaterThan(0);
     }
   });
 
-  it("gives every programme taken during a degree a name, dates and at least one honour", () => {
+  it("gives every degree a result figure and caption for its dark tile, and an Ask prompt", () => {
+    for (const e of EDUCATION) {
+      expect(e.standing.figure).not.toBe("");
+      expect(e.standing.caption).not.toBe("");
+      expect(e.ask.label).not.toBe("");
+      expect(e.ask.question).toMatch(/\?$/);
+    }
+  });
+
+  it("gives every programme taken during a degree a name, dates, a standing and an Ask prompt", () => {
     for (const e of EDUCATION) {
       for (const part of e.parts ?? []) {
         expect(part.institution).not.toBe("");
         expect(part.short).not.toBe("");
         expect(part.dates).not.toBe("");
-        expect(part.honors.length).toBeGreaterThan(0);
+        expect(part.standing).not.toBe("");
+        expect(part.ask.label).not.toBe("");
+        expect(part.ask.question).toMatch(/\?$/);
       }
     }
+  });
+
+  it("keeps NUS’s three programmes, in order: UConn, Oxford, and the Suzhou research institute", () => {
+    const nus = EDUCATION.find((e) => e.slug === "nus");
+    expect(nus?.parts?.map((p) => p.short)).toEqual(["UConn", "Oxford", "Suzhou"]);
   });
 
   it("keeps the certifications as a non-empty list", () => {
@@ -166,5 +190,133 @@ describe("experience data", () => {
     for (const role of ROLES) {
       expect(role).not.toHaveProperty("compact");
     }
+  });
+
+  describe("staff pass fields", () => {
+    const logosDir = path.join(__dirname, "..", "public", "logos", "companies");
+
+    it("gives every role a non-empty short name for its pass", () => {
+      for (const role of ROLES) {
+        expect(typeof role.short).toBe("string");
+        expect(role.short.trim()).not.toBe("");
+      }
+    });
+
+    it("gives every role a brand colour in oklch()", () => {
+      for (const role of ROLES) {
+        expect(role.brand.color.startsWith("oklch(")).toBe(true);
+      }
+    });
+
+    it("gives every role a logo file name that exists in public/logos/companies", () => {
+      for (const role of ROLES) {
+        expect(role.brand.logo).not.toContain("/");
+        expect(existsSync(path.join(logosDir, role.brand.logo))).toBe(true);
+      }
+    });
+
+    it("gives every role a distinct slug, so each pass and its anchor are unique", () => {
+      const slugs = ROLES.map((r) => r.slug);
+      expect(new Set(slugs).size).toBe(slugs.length);
+    });
+  });
+});
+
+describe("name on the staff pass", () => {
+  it("has the preferred name and the full name", () => {
+    expect(NAME).toEqual({ preferred: "Titus Lim", full: "Lim Hsien Yong" });
+  });
+});
+
+describe("corrections", () => {
+  it("is a list, which may be empty", () => {
+    expect(Array.isArray(CORRECTIONS)).toBe(true);
+  });
+
+  it("gives every correction its text, its fixer, a reference and a https link", () => {
+    for (const c of CORRECTIONS) {
+      expect(typeof c.text).toBe("string");
+      expect(c.text.trim().length).toBeGreaterThan(0);
+      expect(c.by.trim().length).toBeGreaterThan(0);
+      expect(c.ref).toMatch(/^#\d+$/);
+      expect(c.href).toMatch(/^https:\/\//);
+    }
+  });
+
+  it("has a unique reference for each correction", () => {
+    const refs = CORRECTIONS.map((c) => c.ref);
+    expect(new Set(refs).size).toBe(refs.length);
+  });
+
+  it("lists the navigation fix as #14, linking to its pull request", () => {
+    const fix = CORRECTIONS.find((c) => c.ref === "#14");
+    expect(fix).toBeDefined();
+    expect(fix?.href).toBe("https://github.com/tituslhy/IntroducingTitus/pull/14");
+  });
+});
+
+describe("featured projects", () => {
+  it("gives every project a context label, a caption, a lead, a body and an Ask prompt", () => {
+    for (const p of PROJECTS) {
+      expect(p.context.trim().length).toBeGreaterThan(0);
+      expect(p.caption.trim().length).toBeGreaterThan(0);
+      expect(p.lead.trim().length).toBeGreaterThan(0);
+      expect(p.body.trim().length).toBeGreaterThan(0);
+      expect(p.ask.label.trim().length).toBeGreaterThan(0);
+      expect(p.ask.question.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("gives every project a unique slug", () => {
+    const slugs = PROJECTS.map((p) => p.slug);
+    expect(new Set(slugs).size).toBe(slugs.length);
+  });
+
+  it("uses only the amber or blue accents", () => {
+    for (const p of PROJECTS) expect(["amber", "blue"]).toContain(p.accent);
+  });
+});
+
+describe("earlier projects", () => {
+  it("lists eight projects from before GenAI", () => {
+    expect(EARLIER_PROJECTS).toHaveLength(8);
+  });
+
+  it("gives every earlier project a title, two topics, a blurb, a GitHub link and a picture", () => {
+    for (const e of EARLIER_PROJECTS) {
+      expect(e.title.trim().length).toBeGreaterThan(0);
+      expect(e.topics).toHaveLength(2);
+      expect(e.topics.every((t) => t.trim().length > 0)).toBe(true);
+      expect(e.blurb.trim().length).toBeGreaterThan(0);
+      expect(e.github).toMatch(/^https:\/\/github\.com\//);
+      expect(e.image).toMatch(/^https:\/\/raw\.githubusercontent\.com\/tituslhy\/Portfolio\//);
+    }
+  });
+
+  it("gives every earlier project a unique title", () => {
+    const titles = EARLIER_PROJECTS.map((e) => e.title);
+    expect(new Set(titles).size).toBe(titles.length);
+  });
+
+  it("only ever sets fit to contain, the one value the page knows", () => {
+    for (const e of EARLIER_PROJECTS) {
+      if (e.fit !== undefined) expect(e.fit).toBe("contain");
+    }
+  });
+
+  it("gives Skimlit its 84.8% test accuracy as the result", () => {
+    const skimlit = EARLIER_PROJECTS.find((e) => e.title === "Skimlit");
+    expect(skimlit?.result).toEqual({ value: "84.8%", label: "test accuracy" });
+  });
+
+  it("gives a result only to the projects that reported one", () => {
+    const withResult = EARLIER_PROJECTS.filter((e) => e.result);
+    expect(withResult.map((e) => e.title)).toEqual(["Skimlit"]);
+  });
+});
+
+describe("the earlier-work page target", () => {
+  it("is on /projects, labelled Earlier work", () => {
+    expect(PAGE_TARGETS).toContainEqual(expect.objectContaining({ id: "earlier-work", path: "/projects", label: "Earlier work" }));
   });
 });

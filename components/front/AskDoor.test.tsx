@@ -4,6 +4,7 @@ import { openCopilot } from '@/lib/copilot-events'
 import { ASK_FOLIO } from '@/lib/profile'
 import { STARTER_PROMPTS } from '@/lib/starter-prompts'
 import AskDoor from './AskDoor'
+import { DOOR_BOX } from './door-box'
 
 jest.mock('@/lib/copilot-events', () => ({
   ...jest.requireActual('@/lib/copilot-events'),
@@ -115,17 +116,10 @@ describe('AskDoor (the Ask Titus door on the front page)', () => {
     })
   })
 
-  describe('odd prop (right-hand column border)', () => {
-    it('adds the left rule and padding on desktop when odd', () => {
-      const { container } = render(<AskDoor odd />)
-      expect(door(container)).toHaveClass('min-[900px]:border-l', 'min-[900px]:pl-[34px]')
-      expect(door(container)).not.toHaveClass('min-[900px]:pr-[34px]')
-    })
-
-    it('uses right padding and no left rule when not odd', () => {
+  describe('shared door box', () => {
+    it('sits in the same rounded box as the page doors', () => {
       const { container } = render(<AskDoor />)
-      expect(door(container)).not.toHaveClass('min-[900px]:border-l')
-      expect(door(container)).toHaveClass('min-[900px]:pr-[34px]')
+      expect(container.querySelector('#ask')).toHaveClass(...DOOR_BOX.split(' '))
     })
   })
 })

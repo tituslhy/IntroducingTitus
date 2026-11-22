@@ -1,9 +1,16 @@
 import Link from 'next/link'
-import { Fragment } from 'react'
 import BackToTop from '@/components/BackToTop'
+import Reveal from '@/components/Reveal'
 import TechHighlight from '@/components/TechHighlight'
-import { FEATURED_ROLE_COUNT, ROLES, pageFolio, type Role } from '@/lib/profile'
-import { TAG_CLASS, techKey } from '@/lib/tech-key'
+import AskPill from '@/components/tiles/AskPill'
+import GroupLabel from '@/components/tiles/GroupLabel'
+import HeroTile from '@/components/tiles/HeroTile'
+import ResultsRow from '@/components/tiles/ResultsRow'
+import PassDesk from '@/components/experience/PassDesk'
+import type { Pass } from '@/components/experience/StaffPasses'
+import { experienceResults, highlightKey, passDates, tenure } from '@/lib/experience'
+import { NAME, ROLES, pageFolio, type Role } from '@/lib/profile'
+import { techKey } from '@/lib/tech-key'
 
 /** Renders a role's deck, turning `deckLink.text` (first occurrence) into a link. */
 function Deck({ role }: { role: Role }) {
@@ -17,7 +24,7 @@ function Deck({ role }: { role: Role }) {
         href={link.href}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-amber underline underline-offset-2 transition-colors hover:text-ink"
+        className="underline decoration-amber underline-offset-[3px] transition-colors hover:text-amber"
       >
         {link.text}
         <span aria-hidden="true"> ↗</span>
@@ -27,96 +34,70 @@ function Deck({ role }: { role: Role }) {
   )
 }
 
-/** `compact`: an earlier role (after the latest FEATURED_ROLE_COUNT), drawn smaller. */
-function RoleEntry({ role, compact }: { role: Role; compact: boolean }) {
+/** Tools as rounded pills. Hovering one lights up the same tool in every role (TechHighlight). */
+function Stack({ role }: { role: Role }) {
+  if (role.techNote) return <p className="m-0 font-mono text-[11.5px] italic text-ink-faint">{role.techNote}</p>
   return (
-    <article
-      id={`role-${role.slug}`}
-      className={`relative scroll-mt-24 grid grid-cols-[110px_1fr] gap-[clamp(20px,3vw,40px)] max-[720px]:grid-cols-1 ${
-        compact ? 'py-[clamp(20px,3vw,32px)]' : 'py-[clamp(28px,4vw,44px)]'
-      }`}
-    >
-      {/* Sticky year rail */}
-      <div className="sticky top-20 flex flex-col gap-2.5 self-start max-[720px]:static max-[720px]:flex-row max-[720px]:items-baseline max-[720px]:gap-4">
-        <span
-          className={`font-serif font-normal italic leading-none tracking-[-0.02em] text-ink max-[720px]:text-[28px] ${
-            compact ? 'text-[32px]' : 'text-[44px]'
-          }`}
+    <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+      {role.tech.map((t) => (
+        <li
+          key={t}
+          data-tech={techKey(t)}
+          className="cursor-default rounded-full bg-paper-deep px-[13px] py-[7px] font-mono text-[12.5px] text-ink-soft transition-colors data-[on]:bg-ink data-[on]:text-paper"
         >
-          {role.years}
-        </span>
-        <span className="inline-block h-px w-8 bg-amber" />
-      </div>
+          {t}
+        </li>
+      ))}
+    </ul>
+  )
+}
 
-      {/* Body */}
-      <div>
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h3
-              className={`m-0 flex flex-wrap items-baseline gap-3.5 font-serif font-medium leading-[1.1] tracking-[-0.015em] ${
-                compact ? 'text-[clamp(20px,2.2vw,26px)]' : 'text-[clamp(24px,2.6vw,32px)]'
-              } ${role.incoming ? 'text-ink-soft' : 'text-ink'}`}
-            >
-              {role.company}
-              {role.incoming && (
-                <span className="border border-amber px-2 py-[3px] font-mono text-[10px] uppercase tracking-[0.14em] text-amber">
-                  Incoming
-                </span>
-              )}
-            </h3>
-            <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              <span className="font-serif text-[clamp(17px,1.6vw,20px)] leading-[1.2] tracking-[-0.01em] text-ink">{role.role}</span>
-              <span className="inline-block h-[3px] w-[3px] self-center rounded-full bg-ink-faint" />
-              <span className="font-mono text-[12px] tracking-[0.04em] text-ink-soft">{role.location}</span>
-            </p>
-          </div>
-          <p className="m-0 whitespace-nowrap font-mono text-[11.5px] tracking-[0.08em] text-ink-faint">
-            {role.dates}
-          </p>
-        </div>
-
-        <p
-          className={`mb-3 mt-1.5 font-serif leading-[1.45] text-ink [text-wrap:pretty] ${
-            compact ? 'text-[16.5px]' : 'text-[19px]'
-          }`}
-        >
-          <Deck role={role} />
-        </p>
-        {role.body && (
-          <p className="mb-4 text-[16px] leading-[1.6] text-ink-soft [text-wrap:pretty]">
-            {role.body}
-          </p>
+/** Company and title, pinned on the left while the role scrolls by. */
+function Side({ role }: { role: Role }) {
+  return (
+    <div className="sticky top-[90px] self-start max-[820px]:static">
+      <p className="m-0 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-amber">{role.dates}</p>
+      <h3 id={`role-${role.slug}-name`} className="m-0 mt-2.5 flex flex-wrap items-baseline gap-3 font-serif text-[34px] font-medium leading-[1.08] tracking-[-0.02em] text-ink max-[820px]:text-[28px]">
+        {role.company}
+        {role.incoming && (
+          <span className="rounded-full border border-amber px-2.5 py-[3px] font-mono text-[10px] uppercase tracking-[0.14em] text-amber">Incoming</span>
         )}
+      </h3>
+      <p className="m-0 mt-2.5 font-serif text-[19px] leading-[1.3] text-ink">{role.role}</p>
+      <p className="m-0 mt-2 font-mono text-[12px] text-ink-faint">{role.location}</p>
+    </div>
+  )
+}
 
-        {role.pullQuote && (
-          <blockquote className="my-[18px] flex gap-2.5 border-l-[3px] border-amber bg-paper-deep px-5 py-4">
-            <span aria-hidden="true" className="font-serif text-[36px] italic leading-[0.8] text-amber">
-              &ldquo;
-            </span>
-            <p className="m-0 font-serif text-[18px] italic leading-[1.4] text-ink">
-              {role.pullQuote}
-            </p>
-          </blockquote>
-        )}
-
-        <div>
-          {role.techNote ? (
-            <p className="font-mono text-[11.5px] text-ink-faint">
-              <em className="italic">{role.techNote}</em>
-            </p>
-          ) : (
-            <ul className="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1.5 font-mono text-[11.5px] text-ink-soft">
-              {role.tech.map((t) => (
-                <li
-                  key={t}
-                  data-tech={techKey(t)}
-                  className={TAG_CLASS}
-                >
-                  {t}
-                </li>
-              ))}
-            </ul>
+/** One role, under a thin header in its pass's colour: highlight tile, what I did, stack, and an Ask pill. */
+function RoleEntry({ role, n, of }: { role: Role; n: number; of: number }) {
+  return (
+    <article id={`role-${role.slug}`} aria-labelledby={`role-${role.slug}-name`} className="scroll-mt-24 border-t-[3px] border-ink">
+      <p className="m-0 flex items-center gap-3 border-b border-rule py-3 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-soft">
+        <span aria-hidden="true" className="inline-block h-3.5 w-3.5 rounded" style={{ background: role.brand.color }} />
+        Pass {n} of {of} · {role.short} · {role.dates}
+      </p>
+      <div className="grid grid-cols-[minmax(0,300px)_1fr] gap-12 pb-16 pt-10 max-[820px]:grid-cols-1 max-[820px]:gap-5 max-[820px]:pb-12 max-[820px]:pt-8">
+        <Side role={role} />
+        <div className="min-w-0">
+          {role.highlight && (
+            <>
+              <GroupLabel className="mt-0">Highlight</GroupLabel>
+              <Reveal>
+                <HeroTile figure={role.highlight.figure} caption={role.highlight.caption} dataTech={highlightKey(role)} />
+              </Reveal>
+            </>
           )}
+          <GroupLabel className={role.highlight ? undefined : 'mt-0'}>What I did</GroupLabel>
+          <div className="rounded-[20px] bg-paper-deep px-[26px] py-6 max-[720px]:px-5">
+            <p className="m-0 font-serif text-[21px] leading-[1.35] text-ink [text-wrap:pretty] max-[720px]:text-[19px]">
+              <Deck role={role} />
+            </p>
+            {role.body && <p className="m-0 mt-3 font-serif text-[17px] leading-[1.5] text-ink-soft [text-wrap:pretty]">{role.body}</p>}
+          </div>
+          <GroupLabel>Stack</GroupLabel>
+          <Stack role={role} />
+          <AskPill ask={role.ask ?? { label: role.short, question: `Tell me about your time at ${role.company}.` }} />
         </div>
       </div>
     </article>
@@ -124,11 +105,25 @@ function RoleEntry({ role, compact }: { role: Role; compact: boolean }) {
 }
 
 export default function Experience() {
+  const oldestFirst = [...ROLES].reverse()
+  const passes: Pass[] = oldestFirst.map((r) => {
+    const { from, to } = passDates(r)
+    const lasted = tenure(r)
+    return {
+      slug: r.slug,
+      short: r.short,
+      role: r.role,
+      from,
+      to,
+      brand: r.brand,
+      bottom: r.highlight ? { figure: r.highlight.figure, caption: r.highlight.caption } : lasted ? { figure: lasted, caption: 'in the role' } : null,
+    }
+  })
+
   return (
     <section id="dossier" className="text-ink">
       <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
-        {/* Section marker */}
-        <header className="mb-[clamp(28px,4vw,56px)]">
+        <header className="mb-[clamp(28px,4vw,48px)]">
           <div className="flex items-baseline gap-3.5 pb-[18px] font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
             <span className="font-semibold tracking-[0.08em] text-amber">{pageFolio('/experience')}</span>
             <span className="font-medium text-ink">Experience</span>
@@ -140,19 +135,13 @@ export default function Experience() {
           </h2>
         </header>
 
-        {/* Roles */}
+        <ResultsRow results={experienceResults()} />
         <TechHighlight>
-          {ROLES.map((r, i) => (
-            <Fragment key={r.slug}>
-              {i === FEATURED_ROLE_COUNT && (
-                <h3 className="mb-0 mt-[clamp(28px,4vw,48px)] flex items-center gap-4 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-ink-soft">
-                  Earlier roles
-                  <span aria-hidden="true" className="h-px flex-1 bg-rule" />
-                </h3>
-              )}
-              <RoleEntry role={r} compact={i >= FEATURED_ROLE_COUNT} />
-            </Fragment>
-          ))}
+          <PassDesk
+            passes={passes}
+            name={NAME}
+            roles={ROLES.map((r, i) => ({ slug: r.slug, entry: <RoleEntry role={r} n={ROLES.length - i} of={ROLES.length} /> }))}
+          />
         </TechHighlight>
 
         <Link

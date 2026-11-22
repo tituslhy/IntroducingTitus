@@ -11,6 +11,7 @@ export const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 /** The opening sentence's four numbers. */
 export const FRONT_STATS = {
+  years: YEARS_EXPERIENCE_NUMBER,
   yearsWord: capitalise(numberToWords(YEARS_EXPERIENCE_NUMBER)),
   articles: ARTICLE_COUNT_NUMBER,
   repos: githubMeta.publicRepos,
@@ -54,7 +55,7 @@ export function experienceDoor(roles: Role[] = ROLES): { deck: string; rows: Doo
   const earlier = roles.length - latest.length
   const rows: DoorRow[] =
     earlier > 0
-      ? [...latest, { lead: roles[roles.length - 1].years, text: `+ ${numberToWords(earlier)} earlier role${earlier === 1 ? '' : 's'}`, end: 'the ledger →' }]
+      ? [...latest, { lead: roles[roles.length - 1].years, text: `+ ${numberToWords(earlier)} earlier role${earlier === 1 ? '' : 's'}`, end: 'see all →' }]
       : latest
   return {
     deck: `${capitalise(numberToWords(roles.length))} role${roles.length === 1 ? '' : 's'}, from supply-chain forecasting to leading AI engineering.`,
@@ -66,7 +67,7 @@ export function projectsDoor(): DoorRow[] {
   return PROJECTS.map((p) => ({ lead: p.figure.value, text: `${p.title}: ${p.preview}`, end: p.github ? 'GitHub' : 'work' }))
 }
 
-/** Theme chips for the Writing door, most articles first. An article can sit in two themes. */
+/** Theme chips for the Writing door, most articles first. Each article sits in one theme. */
 export function themeCounts(): { id: string; name: string; count: number }[] {
   const counts = new Map<string, number>()
   for (const ids of Object.values(articleThemes.assignments as Record<string, string[]>))
@@ -83,6 +84,6 @@ export function themeCounts(): { id: string; name: string; count: number }[] {
 
 /** The About door's two sentences, from EDUCATION. */
 export function aboutBio(): string {
-  const gpa = EDUCATION.flatMap((e) => e.honors).find((h) => h.startsWith('GPA'))?.match(/[\d.]+/)?.[0]
+  const gpa = EDUCATION.find((e) => /^GPA\b/.test(e.standing.caption))?.standing.figure
   return `NUS chemical engineering, then a Master's in AI at SMU${gpa ? ` (GPA ${gpa})` : ''}. I write to explain complex systems to people, and I send fixes upstream to the frameworks I use.`
 }

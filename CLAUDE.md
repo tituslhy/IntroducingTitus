@@ -77,20 +77,40 @@ Do not deviate from this stack unless explicitly instructed.
 - **Accent color: aged amber** `oklch(0.62 0.155 55)` (≈ `#b76a23`). Replaces the
   old `#F59E0B` everywhere — `#F59E0B` is too bright on cream.
 - **Second accent: indigo** `oklch(0.34 0.10 254)` — reserved for the Illumina
-  project only. Everything else stays on amber.
+  project on Projects only. Everything else, including Illumina's Experience tile, stays
+  on amber; latte (`--latte*`) is a neutral tone, not an accent.
 - **Font pairing: Newsreader** (headings/name — variable serif) + **IBM Plex Mono**
   (body/code/tags). DM Serif Display is dropped.
-- **Aesthetic:** Editorial broadsheet — typography-forward, hairline rules, folios,
-  drop-caps, pull quotes, single muted amber accent. No rounded cards, no shadows
-  on type, no glow.
+- **Aesthetic:** Editorial serif type on cream paper, brought to life with soft rounded
+  tiles (adopted 2026-11-21; mock: `design/rethink/site-style.html`). Inner pages share
+  one grammar, built from `components/tiles/`:
+  - **Item layout:** name pinned on the left (300px column), content on the right.
+  - **Results row:** dark tiles at the top of a page; clicking one scrolls to and rings its source.
+  - **Dark tile** (`HeroTile`, `.glow-tile`): the one headline per item, figure huge in
+    amber-hi over a slow amber glow; numbers count up on first view (`CountUp`).
+  - **Cream tiles** (`bg-paper-deep`, radius 20): the details. **Latte boxes** (`bg-latte`,
+    radius 28): anything nested under something bigger, or earlier.
+  - **Small capital mono labels** (`GroupLabel`) head each group; tools are rounded pills.
+  - **Ask pill** (`AskPill`) closes an item: "Ask about X →" opens Ask Titus with its question.
+  - Hover lifts tiles 3px; all motion respects reduced motion. No shadows on type.
+  - **Same same but different:** each page keeps this grammar but may add its own flair. Writing is a
+    newspaper (*The Titus Times*, mock `design/rethink/writing-paper.html`): editions by year, one desk per theme.
+    Experience is a desk of **staff passes** (mock `design/rethink/experience-passes.html`), one per role in its
+    company's colour and logo; picking one up shows that role right under the desk, one at a time, and "Show all roles" lists every one. Projects is a cinema
+    (mock `design/rethink/projects-reel.html`): each project has a **projector** (`components/projects/Projector`) that plays
+    its title card then its stills by itself while on screen (pauses on hover, a frame pick or Pause; starts paused for
+    reduced motion); fictional-bassoon also plays its architecture diagram; Illumina, built at work, plays two diagrams instead of screenshots; earlier work shares one projector;
+    open source is the closing credits; a sticky programme row jumps between sections. Education keeps
+    the plain tile grammar.
 - **Layout:** A short front page plus six routes (`/experience`, `/education`, `/projects`, `/writing`,
   `/about`, `/colophon`), with a sticky nav. Desktop-first. Fully responsive.
   Front page design: `docs/superpowers/specs/2026-11-21-front-page-redesign-design.md`.
 - **Headshot:** Profile photo in masthead. File: `/public/headshot.jpeg` —
   rectangular 3:4, 1px ink border, `object-position: 50% 30%`, subtle saturate/
   contrast filter. No circle crop, no amber ring/glow.
-- **No stock photos. No illustrations. Tech logos only in the front-page hero animation**
+- **No stock photos. No illustrations, with one exception: the fictional-bassoon bear (`public/projects/bassoon-bear.webp`), the first still on that project's projector on Projects. Tech logos only in the front-page hero animation**
   (files in `public/logos/`, credits in `public/logos/CREDITS.md`, never a tool I haven't used).
+  **Employer logos** appear only on the Experience staff passes (`public/logos/companies/`), small and unaltered.
   Elsewhere, typography, headshot, and hairline structure carry the weight.
 
 ### What This Site Is NOT

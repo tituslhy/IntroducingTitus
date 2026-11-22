@@ -1,25 +1,30 @@
 import type { Metadata } from 'next'
-import { Writing } from '@/components/ProjectsWriting'
 import Footer from '@/components/Footer'
-import Reveal from '@/components/Reveal'
+import WritingPaper from '@/components/writing/WritingPaper'
 import { SITE_URL } from '@/lib/content'
+import { CORRECTIONS, FEATURED_BY, SOCIAL, pageFolio } from '@/lib/profile'
+import { desks, editions, stories } from '@/lib/writing-paper'
 
-// Part 1 of the redesign moves this section here unchanged; Part 2 redesigns the page.
 export const metadata: Metadata = {
   title: 'Writing | Titus Lim',
-  description: 'Technical articles on Medium about building AI systems.',
+  description: 'Technical articles on Medium about building AI systems, set out as a newspaper: an edition per year, a desk per theme.',
   alternates: { canonical: `${SITE_URL}/writing` },
 }
 
 export default function WritingPage() {
+  const all = stories()
   return (
     <main>
-      <Reveal>
-        <Writing />
-      </Reveal>
-      <Reveal>
-        <Footer />
-      </Reveal>
+      <WritingPaper
+        stories={all}
+        desks={desks(all)}
+        editions={editions(all)}
+        folio={pageFolio('/writing')}
+        featuredBy={FEATURED_BY}
+        corrections={CORRECTIONS}
+        mediumUrl={SOCIAL.medium}
+      />
+      <Footer />
     </main>
   )
 }

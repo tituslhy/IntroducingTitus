@@ -3,7 +3,12 @@ import { ARTICLE_COUNT_NUMBER, numberToWords } from '@/lib/content'
 import { educationDoor } from '@/lib/education'
 import { ASK_FOLIO, EDUCATION, FEATURED_BY, PROJECTS, ROLES } from '@/lib/profile'
 import { capitalise, themeCounts } from '@/lib/front-page'
+import { experienceResults } from '@/lib/experience'
+import { educationResults } from '@/lib/education'
+import { DOOR_BOX } from './door-box'
 import Doors from './Doors'
+
+const boxClasses = DOOR_BOX.split(' ')
 
 // Lets one test swap what the data functions return, to prove the door renders the data and types no numbers.
 // The state lives inside each factory (jest.mock is hoisted above any top-level const), read back via requireMock.
@@ -79,15 +84,18 @@ describe('Doors ("On this site")', () => {
     expect(ASK_FOLIO).toBe('06')
   })
 
-  it('gives the right-hand column doors the odd border, and the left-hand column none', () => {
+  it('puts every door in the same box, with no hairline rules between or around them', () => {
     const { container } = render(<Doors />)
-    for (const href of ['/education', '/writing']) {
-      expect(door(container, href)).toHaveClass('min-[900px]:border-l')
+    for (const href of ['/experience', '/education', '/projects', '/writing', '/about']) {
+      expect(door(container, href)).toHaveClass(...boxClasses)
     }
-    for (const href of ['/experience', '/projects', '/about']) {
-      expect(door(container, href)).not.toHaveClass('min-[900px]:border-l')
-    }
-    expect(container.querySelector('#ask')).toHaveClass('min-[900px]:border-l')
+    expect(container.querySelector('#ask')).toHaveClass(...boxClasses)
+  })
+
+  it('lays the doors out in a two-column grid with a gap between them', () => {
+    const { container } = render(<Doors />)
+    const grid = container.querySelector('section#ways > div') as HTMLElement
+    expect(grid).toHaveClass('grid', 'gap-3')
   })
 
   describe('01 Experience', () => {
@@ -110,12 +118,23 @@ describe('Doors ("On this site")', () => {
       expect(rows[0].querySelector('span:last-child')).toHaveClass('text-amber')
     })
 
-    it('ends the preview with the earlier-roles count and a pointer to the ledger', () => {
+    it('ends the preview with the earlier-roles count and a pointer to the full list', () => {
       const { container } = render(<Doors />)
       const rows = within(door(container, '/experience')).getAllByRole('listitem')
       const earlier = ROLES.length - 3
       expect(rows[3]).toHaveTextContent(`+ ${numberToWords(earlier)} earlier roles`)
-      expect(rows[3]).toHaveTextContent('the ledger →')
+      expect(rows[3]).toHaveTextContent('see all →')
+    })
+  })
+
+  describe('01 Experience headline tile', () => {
+    it('shows the years of experience from experienceResults, with its label', () => {
+      const [years] = experienceResults()
+      const { container } = render(<Doors />)
+      const tile = door(container, '/experience')
+      expect(within(tile).getByText(years.figure, { selector: '.sr-only' })).toBeInTheDocument()
+      expect(within(tile).getByText(years.label)).toBeInTheDocument()
+      expect(years).toMatchObject({ figure: '8+', label: 'years building production AI' })
     })
   })
 
@@ -140,7 +159,7 @@ describe('Doors ("On this site")', () => {
   describe('02 Education', () => {
     it('has the fixed deck', () => {
       render(<Doors />)
-      expect(screen.getByText('Degrees, an exchange and a summer school, with the honours.')).toBeInTheDocument()
+      expect(screen.getByText('Degrees, an exchange, a summer and a winter school, with the honours.')).toBeInTheDocument()
     })
 
     it('has one row per degree, dated by its year, naming its institution', () => {
@@ -151,6 +170,15 @@ describe('Doors ("On this site")', () => {
         expect(rows[i]).toHaveTextContent(e.years)
         expect(rows[i]).toHaveTextContent(e.institution)
       })
+    })
+
+    it('shows the lead result from educationResults as a headline tile', () => {
+      const [lead] = educationResults()
+      const { container } = render(<Doors />)
+      const tile = door(container, '/education')
+      expect(within(tile).getByText(lead.figure, { selector: '.sr-only' })).toBeInTheDocument()
+      expect(within(tile).getByText(lead.label)).toBeInTheDocument()
+      expect(lead).toMatchObject({ figure: '3.98', label: 'GPA at SMU' })
     })
 
     it('gives each degree its first result as the right-hand note, from the data', () => {
@@ -176,14 +204,23 @@ describe('Doors ("On this site")', () => {
   })
 
   describe('03 Writing', () => {
-    it('gives the article count from the canonical number', () => {
+    it('shows the article count from the canonical number, as a headline tile, with its label', () => {
+      const { container } = render(<Doors />)
+      const tile = door(container, '/writing')
+      expect(within(tile).getByText(String(ARTICLE_COUNT_NUMBER), { selector: '.sr-only' })).toBeInTheDocument()
+      expect(within(tile).getByText('technical articles on Medium')).toBeInTheDocument()
+    })
+
+    it('has a deck that carries no number, so the count only comes from the data', () => {
       render(<Doors />)
-      expect(screen.getByText(`${ARTICLE_COUNT_NUMBER} technical articles on Medium, grouped by theme.`)).toBeInTheDocument()
+      expect(screen.getByText('Technical articles on Medium, grouped by theme.')).toBeInTheDocument()
+      expect(screen.queryByText(new RegExp(`${ARTICLE_COUNT_NUMBER}\\s+technical`))).toBeNull()
     })
 
     it('shows a chip per theme with its count, from the theme data', () => {
       const { container } = render(<Doors />)
-      const chips = Array.from(door(container, '/writing').querySelectorAll<HTMLElement>('span.border'))
+      // Each chip is a span holding its own count in a <b>.
+      const chips = Array.from(door(container, '/writing').querySelectorAll<HTMLElement>('span')).filter((s) => s.querySelector('b'))
       const expected = themeCounts()
       expect(chips).toHaveLength(expected.length)
       expected.forEach((theme, i) => {
@@ -217,6 +254,6 @@ describe('Doors ("On this site")', () => {
     const { container } = render(<Doors />)
     expect(screen.getByText('Nine roles, from a to b.')).toBeInTheDocument()
     expect(within(door(container, '/experience')).getByText('Test Role, Test Co')).toBeInTheDocument()
-    expect(screen.getByText('123 technical articles on Medium, grouped by theme.')).toBeInTheDocument()
+    expect(within(door(container, '/writing')).getByText('123', { selector: '.sr-only' })).toBeInTheDocument()
   })
 })

@@ -20,7 +20,7 @@ export default function Hero() {
       data-hero-stage
       className="relative mx-auto max-w-[1280px] overflow-hidden px-4 pt-9 text-ink min-[900px]:h-[600px] min-[900px]:p-0"
     >
-      <div className="relative z-[3] min-[900px]:absolute min-[900px]:left-16 min-[900px]:right-[374px] min-[900px]:top-16">
+      <div className="relative z-[3] min-[900px]:absolute min-[900px]:left-16 min-[900px]:right-[calc(clamp(270px,30vw,390px)+104px)] min-[900px]:top-16">
         <p {...keep()} className="inline-flex items-center font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink-faint">
           <span aria-hidden="true" className="mr-[9px] inline-block h-1.5 w-1.5 rounded-full bg-amber" />
           {CURRENT_ROLE.role} · {CURRENT_ROLE.company} · {CURRENT_ROLE.location}
@@ -64,14 +64,14 @@ export default function Hero() {
 
       <figure
         {...keep('photo')}
-        className="relative z-[3] mx-auto mb-0 mt-8 aspect-[3/4] w-[min(240px,60vw)] border border-ink bg-paper-deep min-[900px]:absolute min-[900px]:right-16 min-[900px]:top-16 min-[900px]:mt-0 min-[900px]:w-[270px]"
+        className="relative z-[3] mx-auto mb-0 mt-8 aspect-[3/4] w-[min(300px,75vw)] border border-ink bg-paper-deep min-[900px]:absolute min-[900px]:right-12 min-[900px]:top-10 min-[900px]:mt-0 min-[900px]:w-[clamp(270px,30vw,390px)]"
       >
         <Image
           src="/headshot.jpeg"
           alt="Portrait of Titus Lim"
           fill
           priority
-          sizes="(max-width: 899px) 240px, 270px"
+          sizes="(max-width: 899px) 300px, 390px"
           className="object-cover"
           style={{ objectPosition: '50% 30%', filter: 'saturate(0.85) contrast(1.04)' }}
         />

@@ -20,6 +20,7 @@ import {
 import {
   CURRENT_ROLE,
   EDUCATION,
+  type HonorGroups,
   EMAIL,
   FEATURED_ARTICLES,
   FEATURED_BY,
@@ -28,6 +29,7 @@ import {
   PAGE_TARGETS,
   PROFICIENCY_SEPARATOR,
   PROJECTS,
+  EARLIER_PROJECTS,
   ROLES,
   SOCIAL,
   STACK_GROUPS,
@@ -67,18 +69,29 @@ function renderRole(role: Role): string {
 function renderProjects(): string {
   return PROJECTS.map((p) => {
     const links = [p.github && `GitHub: ${p.github}`, p.demo && `Demo: ${p.demo}`].filter(Boolean)
-    const lines = [`### ${p.title}${links.length ? ` (${links.join(' · ')})` : ''}`, `${p.sub}. ${p.body}`]
+    const lines = [`### ${p.title}${links.length ? ` (${links.join(' · ')})` : ''}`, `${p.sub}. ${p.lead} ${p.body}`]
     if (p.copilot) lines.push(p.copilot)
     return lines.join('\n\n')
-  }).join('\n\n')
+  })
+    .concat(
+      '### Earlier projects, before GenAI (several built with teammates)\n\n' +
+        EARLIER_PROJECTS.map((e) => `- ${e.title} (${e.topics.join(', ')}): ${e.blurb}${e.result ? ` ${e.result.value} ${e.result.label}.` : ''} GitHub: ${e.github}`).join('\n')
+    )
+    .join('\n\n')
 }
 
 function renderEducation(): string {
+  const groups = (h: HonorGroups) =>
+    [h.scholarships?.length && `Scholarships: ${h.scholarships.join(', ')}.`, h.achievements?.length && `Achievements: ${h.achievements.join(', ')}.`]
+      .filter(Boolean)
+      .join(' ')
   const degrees = EDUCATION.map((e) => {
+    const { figure, caption, note } = e.standing
     const parts = (e.parts ?? []).map(
-      (p) => `During this degree, ${p.institution} — ${p.programme} (${p.dates}): ${p.honors.join(', ')}.`,
+      (p) => `During this degree, ${p.institution} — ${p.programme} (${p.dates}): ${p.standing}. ${groups(p)}`.trim(),
     )
-    return [`**${e.institution}** — ${e.degree} (${proseDates(e.dates)}). ${e.honors.join(', ')}.`, ...parts].join(' ')
+    const result = `Result: ${figure} ${caption}${note ? ` (${note})` : ''}.`
+    return [`**${e.institution}** — ${e.degree} (${proseDates(e.dates)}). ${result} ${groups(e)}`.trim(), ...parts].join(' ')
   })
   return [...degrees, `**Certifications:** ${CERTIFICATIONS.join(', ')}.`].join('\n\n')
 }

@@ -43,6 +43,10 @@ export type Role = {
   slug: string
   years: string
   company: string
+  /** The name on its staff pass, e.g. "UOB". */
+  short: string
+  /** The staff pass's colour (taken from the company's logo) and logo file under public/logos/companies/. */
+  brand: { color: string; logo: string }
   location: string
   role: string
   dates: string
@@ -54,6 +58,13 @@ export type Role = {
   tech: string[]
   techNote?: string
   pullQuote?: string
+  /**
+   * The role's headline. Featured roles show it huge on the dark tile; earlier roles as their box's big line.
+   * `brief` labels it in the page's results row when the figure is a number, e.g. "fewer false positives, UOB".
+   */
+  highlight?: { figure: string; caption: string; brief?: string }
+  /** The question its "Ask about …" pill sends to Ask Titus. */
+  ask?: AskPrompt
   incoming?: boolean
   /** Copilot-only, first-person narrative. Not rendered on the page. */
   copilot?: string
@@ -67,37 +78,49 @@ export const ROLES: Role[] = [
     slug: 'mastercard',
     years: '2026',
     company: 'Mastercard',
+    short: 'Mastercard',
+    brand: { color: 'oklch(0.64 0.2 42)', logo: 'mastercard.svg' },
     location: 'Singapore',
     role: 'Lead AI Engineer',
     dates: 'Jul 2026 — Present',
     deck: "Working on Agent Suite at the R&D Foundry — Mastercard's platform for enterprises to build, test, and deploy AI agents.",
     deckLink: { text: 'Agent Suite', href: AGENT_SUITE_URL },
-    body: 'Tech lead and anchor contributor for the core SDK behind Agent Suite. Architected and built the SDK and CLI, including a bespoke package-manager setup: a shared foundation that replaces one-off agent builds with a common, governed standard. Agents are built declaratively: teams declare them in YAML, then chat with them in the terminal or serve them as an API. Assistant skills ship inside the packages, and contributor tooling keeps both codebases consistent.',
+    body: 'Architected and built the SDK and CLI, including a bespoke package-manager setup: a shared foundation that replaces one-off agent builds with a common, governed standard. Agents are built declaratively: teams declare them in YAML, then chat with them in the terminal or serve them as an API. Assistant skills ship inside the packages, and contributor tooling keeps both codebases consistent.',
     tech: ['Python', 'LangChain', 'Typer', 'FastAPI', 'Docker', 'Helm Charts', 'GitHub Actions', 'Apache Jenkins'],
+    highlight: { figure: 'Tech lead', caption: 'and anchor contributor for the core SDK behind Agent Suite' },
+    ask: { label: 'Agent Suite', question: 'What do you do on Agent Suite?' },
     copilot: `Agent Suite was publicly announced in January 2026. I do not claim to have launched it; I started in July 2026. I am the tech lead and an anchor contributor for its core SDK, agent-suite-core, a LangChain-based layer that makes governed, standards-compliant agent-building the default. The CLI is agent-suite-cli, built on Typer, which serves an agent as an ASGI app. I do not discuss internal compliance controls or implementation details beyond this.`,
   },
   {
     slug: 'uob',
     years: '2025',
     company: 'United Overseas Bank',
+    short: 'UOB',
+    brand: { color: 'oklch(0.5 0.15 262)', logo: 'uob.png' },
     location: 'Singapore',
     role: 'Vice President, Generative AI',
     dates: 'Jun 2025 — Jul 2026',
     deck: 'Sole engineer on a real-time GenAI contact-centre platform: live call transcripts, in-call assistance and policy search for agents, and post-call summaries with red-flag and promise checks.',
     body: "Picked up Java to take over its Spring Boot microservices, and cut false positives in its post-call checks by 80% with an LLM-driven prompt-optimisation loop on the bank's self-hosted models. Also built the MCP service behind UOB's customer onboarding workflow: a deterministic LangGraph workflow that handles incomplete and inconsistent documents, with LLM reasoning where it helps.",
     tech: ['Java (Spring Boot)', 'React', 'Redis', 'Oracle DB', 'ELK Stack', 'Splunk', 'Docker', 'Red Hat OpenShift', 'vLLM', 'Helm Charts', 'Apache Jenkins', 'LangChain', 'LangGraph', 'MCP'],
+    highlight: { figure: '80%', caption: 'fewer false positives in post-call checks', brief: 'fewer false positives, UOB' },
+    ask: { label: 'the contact-centre platform', question: 'How did you cut false positives at UOB?' },
     copilot: "I also worked on the early design and build of BYOA (Build Your Own Agents), UOB's planned multi-agent platform, meant to let teams build, deploy, and orchestrate agents with cross-framework interoperability and dynamic tool and agent discovery. The customer onboarding workflow app is BYOC (Build Your Own Case): rather than handing an agent full control, it keeps the workflow deterministic and uses the LLM's reasoning at set points. My main part was the MCP server behind it, which connects it to its tools and does the computation. I was not involved in BYOB, UOB's bot builder.",
   },
   {
     slug: 'illumina',
     years: '2023',
     company: 'Illumina',
+    short: 'Illumina',
+    brand: { color: 'oklch(0.72 0.16 65)', logo: 'illumina.png' },
     location: 'Singapore',
     role: 'Senior Data Scientist',
     dates: 'Jan 2023 — Jun 2025',
     deck: "Solo-architected and shipped two production AI systems as the company's sole data scientist.",
     body: 'An agentic document-retrieval platform for global field service engineers — sixteen components: semantic chunking, HyDE, hybrid search, Cohere reranking, prompt compression, an iterative agentic retrieval loop, blue-green vector collection swap. Plus a separate Generative BI assistant covering 800+ business metrics with human-in-the-loop design.',
     tech: ['Python', 'LlamaIndex', 'Qdrant', 'AWS Bedrock', 'RabbitMQ', 'Docker+CUDA', 'GitHub Actions', 'SonarQube', 'Grafana', 'Prometheus', 'Loki', 'Chainlit', 'DSPy', 'Giskard'],
+    highlight: { figure: ILLUMINA_SAVINGS_FIGURE, caption: 'anticipated savings upon full deployment', brief: 'anticipated savings, Illumina' },
+    ask: { label: 'the retrieval platform', question: 'How does the Illumina retrieval platform work?' },
     pullQuote: `Anticipated to save ${ILLUMINA_SAVINGS_PROSE} upon full deployment.`,
     copilot: [
       "This is widely considered my crown jewel — and the reason is not just the tech, it's the context. I was the company's only data scientist. No team. No senior engineer to review my PRs. Solo from architecture to production.",
@@ -110,6 +133,8 @@ export const ROLES: Role[] = [
     slug: 'ck-delta',
     years: '2022',
     company: 'CK Delta',
+    short: 'CK Delta',
+    brand: { color: 'oklch(0.2 0.01 60)', logo: 'ck-delta.png' },
     location: 'Singapore',
     role: 'Data Scientist',
     dates: 'Sep 2022 — Jan 2023',
@@ -121,6 +146,8 @@ export const ROLES: Role[] = [
     slug: 'ema',
     years: '2018',
     company: 'Energy Market Authority',
+    short: 'EMA',
+    brand: { color: 'oklch(0.55 0.17 25)', logo: 'ema.png' },
     location: 'Singapore',
     role: 'Principal Engineer, Research & Statistics',
     dates: 'Apr 2018 — Aug 2022',
@@ -133,6 +160,8 @@ export const ROLES: Role[] = [
     slug: 'jobtech',
     years: '2017',
     company: 'JobTech Pte Ltd',
+    short: 'JobTech',
+    brand: { color: 'oklch(0.6 0.14 145)', logo: 'jobtech.png' },
     location: 'Singapore',
     role: 'Data Scientist',
     dates: 'Apr 2017 — Aug 2017',
@@ -144,16 +173,22 @@ export const ROLES: Role[] = [
     slug: 'toyota-tsusho',
     years: '2015',
     company: 'Toyota Tsusho Asia Pacific',
+    short: 'Toyota Tsusho',
+    brand: { color: 'oklch(0.48 0.16 258)', logo: 'toyota-tsusho.png' },
     location: 'Singapore',
     role: 'Demand & Supply Analyst',
     dates: 'Jun 2015 — Apr 2017',
     deck: 'Overhauled sales planning into a centralised automated forecasting tool using VBA and operational research techniques.',
     body: 'Served Toyota automotive distributors across the Asia Pacific region.',
     tech: ['VBA', 'Excel', 'Exponential Smoothing', 'Holt-Winters'],
+    highlight: { figure: '~25%', caption: 'better long-term forecast accuracy', brief: 'better forecast accuracy, Toyota Tsusho' },
     pullQuote: 'Improved long-term forecast accuracy by ~25%.',
     copilot: 'Where it started.',
   },
 ]
+
+/** My name as it reads on a staff pass. */
+export const NAME = { preferred: 'Titus Lim', full: 'Lim Hsien Yong' }
 
 /** The role the copilot introduces as "currently". */
 export const CURRENT_ROLE = ROLES[0]
@@ -175,19 +210,37 @@ export const SITE_DESCRIPTION = `${SIGN_OFF_TITLE} with ${YEARS_EXPERIENCE} buil
 // ---------------------------------------------------------------------------
 
 /** A programme taken during a degree (an exchange, a summer school), shown inside that degree. */
-export type EducationPart = {
+/** A question the "Ask about …" pill sends to Ask Titus. */
+export type AskPrompt = { label: string; question: string }
+
+/**
+ * Honours, grouped so every school reads in the same order: scholarships, then achievements.
+ * Everything here was selected, ranked or awarded; taking part alone doesn't make the list.
+ * Write the result first: the text before the first comma is shown large, the rest as its context.
+ */
+export type HonorGroups = {
+  /** Scholarships, grants and funded awards. */
+  scholarships?: string[]
+  /** Competitions, selections and rankings. */
+  achievements?: string[]
+}
+
+/** A programme taken during a degree (exchange, summer or winter school). */
+export type EducationPart = HonorGroups & {
   institution: string
   /** Short name for labels, e.g. "UConn". */
   short: string
   programme: string
   dates: string
-  honors: string[]
+  /** The big line in its box: the grade, or the selection when there was no grade. */
+  standing: string
+  ask: AskPrompt
 }
 
-export type Education = {
+export type Education = HonorGroups & {
   /** Stable id: the page anchor is `edu-${slug}`. */
   slug: string
-  /** The year in the rail. */
+  /** The start year, used in nav and Ask Titus labels (e.g. "SMU, 2021"). */
   years: string
   institution: string
   /** Short name for labels, e.g. "SMU". */
@@ -195,11 +248,9 @@ export type Education = {
   degree: string
   dates: string
   location: string
-  /**
-   * Everything here was selected, ranked or awarded; taking part alone doesn't make the list.
-   * Write the result first: the text before the first comma is shown large, the rest as its context.
-   */
-  honors: string[]
+  /** The class of degree or GPA, shown huge on the dark tile; `note` sits in its corner. */
+  standing: { figure: string; caption: string; note?: string }
+  ask: AskPrompt
   parts?: EducationPart[]
 }
 
@@ -212,49 +263,59 @@ export const EDUCATION: Education[] = [
     degree: 'Master of IT in Business, AI track',
     dates: '2021 — 2022',
     location: 'Singapore',
-    honors: [
-      'GPA 3.98 / 4.0',
-      "Dean's List",
-      'SMU AI Talent Development Grant',
-      'MITB Scholarship',
-      '1st place, Food Image Classification',
-      '3rd place, Recommender Systems',
-    ],
+    standing: { figure: '3.98', caption: 'GPA out of 4.0', note: "Dean's List" },
+    scholarships: ['MITB Scholarship', 'SMU AI Talent Development Grant'],
+    achievements: ['1st place, Food Image Classification competition', '3rd place, Recommender Systems competition'],
+    ask: { label: 'my Master’s', question: 'What did you study in your Master’s at SMU?' },
   },
   {
     slug: 'nus',
     years: '2011',
     institution: 'National University of Singapore',
     short: 'NUS',
-    degree: 'BEng Chemical Engineering, 2nd Upper Honours',
+    degree: 'BEng Chemical Engineering',
     dates: '2011 — 2015',
     location: 'Singapore',
-    honors: [
-      'NUS Undergraduate Scholarship',
-      'IE Singapore Young Talent Programme Market Immersion Award',
-      '1 of 3 chemical engineers selected, NUS Suzhou winter programme',
+    standing: { figure: '2nd Upper', caption: 'Class Honours' },
+    scholarships: ['NUS Undergraduate Scholarship'],
+    achievements: [
       'Selected to present, Shell Global Energy, Water & Food Security Roundtable',
       '88th percentile globally, Bloomberg Aptitude Test',
     ],
+    ask: { label: 'NUS', question: 'What did you do at NUS?' },
     parts: [
       {
         institution: 'University of Connecticut',
         short: 'UConn',
         programme: 'Exchange, Chemical & Biomolecular Engineering',
         dates: '2013',
-        honors: [
-          'First Class with Distinction',
+        standing: 'First Class with Distinction',
+        scholarships: ['NUS Scholars Enrichment Grant'],
+        achievements: [
           'Top of the class in two modules, Process Kinetics and Heat & Mass Transfer',
           'Top 10 in two PhD modules, taken in year 2',
           '"Most Inspiring Student", AIChE UConn chapter',
         ],
+        ask: { label: 'UConn', question: 'What was your exchange at UConn like?' },
       },
       {
         institution: 'University of Oxford',
         short: 'Oxford',
         programme: 'IARU Global Summer School, Global Challenges of the 21st Century',
         dates: '2014',
-        honors: ['First Class with Distinction', '1 of 14 selected worldwide', 'IARU-Santander Scholarship', 'NUS Scholars Enrichment Grant'],
+        standing: 'First Class with Distinction',
+        scholarships: ['IARU-Santander Scholarship'],
+        achievements: ['1 of 14 selected worldwide'],
+        ask: { label: 'Oxford', question: 'What did you do at the Oxford summer school?' },
+      },
+      {
+        institution: 'NUS Suzhou Research Institute',
+        short: 'Suzhou',
+        programme: 'Winter school, immersion in Chinese business culture',
+        dates: '2014',
+        standing: '1 of 3 chemical engineers selected',
+        scholarships: ['Market Immersion Award, IE Singapore Young Talent Programme'],
+        ask: { label: 'Suzhou', question: 'What was the Suzhou winter school about?' },
       },
     ],
   },
@@ -266,13 +327,14 @@ export const EDUCATION: Education[] = [
     degree: "GCE 'A' Levels, Physical Sciences",
     dates: '2007 — 2008',
     location: 'Singapore',
-    honors: [
-      'Top Student Award',
-      'Chess Club President, College Colours',
+    standing: { figure: 'Top Student', caption: 'Award' },
+    achievements: [
       'Certificate of Distinction, Alpha Students Programme',
+      'Chess Club President, College Colours',
       'Platinum Award, Community Involvement Programme',
       'Sports Leaders Award',
     ],
+    ask: { label: 'Anderson JC', question: 'What did you do at Anderson Junior College?' },
   },
 ]
 
@@ -341,10 +403,27 @@ export type MarginNote = {
   outcome: string
 }
 
+/**
+ * A frame on a project's projector (Projects), after the title card (its figure, always first).
+ * `image`: a still. `demo`: a YouTube demo, played on the page. `diagram`: one of the drawn diagrams in
+ * components/projects (IlluminaDiagrams: a work project shows how it fits together, not screenshots;
+ * BassoonArchitecture: fictional-bassoon's stack, following one chat message).
+ */
+export type ProjectFrame =
+  | { kind: 'image'; src: string; caption: string; ms?: number }
+  | { kind: 'demo'; youtubeId: string; caption: string }
+  | { kind: 'diagram'; diagram: 'illumina-ready' | 'illumina-answer' | 'bassoon-architecture'; label: string; caption: string; ms?: number }
+
 export type Project = {
   slug: string
   title: string
   sub: string
+  /** Small label over the name on Projects, e.g. "Personal · solo". */
+  context: string
+  /** The dark tile's caption under figure.value, e.g. "containers, one per real-world concern". */
+  caption: string
+  /** First line of "What it is", set larger. */
+  lead: string
   body: string
   figure: { label: string; value: string }
   secondary: { label: string; value: string }
@@ -355,16 +434,27 @@ export type Project = {
   demo?: string | null
   accent: 'amber' | 'blue'
   marginNote?: MarginNote
+  /** The "Ask about X →" pill that closes the project. */
+  ask: AskPrompt
   /** Copilot-only, first-person narrative. Not rendered on the page. */
   copilot?: string
+  /** What plays on the project's projector after its title card. */
+  frames: ProjectFrame[]
+  /** Full width on Projects, under its write-up, for a projector of wide diagrams (Illumina). */
+  wide?: boolean
 }
+
+const BASSOON_IMG = 'https://raw.githubusercontent.com/tituslhy/fictional-bassoon/HEAD/images'
 
 export const PROJECTS: Project[] = [
   {
     slug: 'fictional-bassoon',
     title: 'fictional-bassoon',
     sub: 'A fifty-four-container LLM harness, vibe-coded end-to-end',
-    body: `Fifty-four containers, deliberately: a full production-realistic stack — FastAPI, LangGraph, Celery, RabbitMQ, Redis Sentinel, Citus distributed Postgres, dual-pool PgBouncer, PostgREST, ClickHouse, Langfuse, MinIO, an LGTM observability stack, and a Next.js 14 frontend behind Nginx — built to exercise a realistic multi-service architecture end-to-end, not overengineering for its own sake. Solo-built and vibe-coded end-to-end with LLMs, then audited by CodeRabbit, with ${FICTIONAL_BASSOON_COVERAGE} test coverage.`,
+    context: 'Personal · solo',
+    caption: 'containers, one per real-world concern',
+    lead: 'A full production-realistic stack, built to exercise a real multi-service architecture end to end, not overengineering for its own sake.',
+    body: `FastAPI, LangGraph, Celery, RabbitMQ, Redis Sentinel, Citus distributed Postgres, dual-pool PgBouncer, PostgREST, ClickHouse, Langfuse, MinIO, an LGTM observability stack, and a Next.js 14 frontend behind Nginx. Solo-built and vibe-coded end-to-end with LLMs, then audited by CodeRabbit, with ${FICTIONAL_BASSOON_COVERAGE} test coverage.`,
     figure: { label: 'containers', value: '54' },
     secondary: { label: 'test coverage', value: FICTIONAL_BASSOON_COVERAGE },
     tags: ['Python', 'LangGraph', 'Postgres', 'ClickHouse', 'Docker', 'Langfuse', 'Next.js'],
@@ -376,13 +466,26 @@ export const PROJECTS: Project[] = [
       decision: 'Built the full production stack anyway: queues, caches, a distributed Postgres, an observability stack, and a proxy — one service per real-world concern.',
       outcome: `${FICTIONAL_BASSOON_COVERAGE} test coverage, CodeRabbit-audited, public repo.`,
     },
+    ask: { label: 'fictional-bassoon', question: 'Why does fictional-bassoon have 54 containers?' },
     copilot: 'Named after a woodwind instrument I thought was a bear. Canon forever.',
+    frames: [
+      // The one illustration on the site (see CLAUDE.md): the name, as a bear.
+      { kind: 'image', src: '/projects/bassoon-bear.webp', caption: 'The name: a woodwind instrument I once thought was a bear', ms: 5000 },
+      { kind: 'diagram', diagram: 'bassoon-architecture', label: 'Architecture', caption: 'The architecture: one chat message, start to finish', ms: 11000 },
+      { kind: 'image', src: `${BASSOON_IMG}/app.png`, caption: 'The app answering a question' },
+      { kind: 'image', src: `${BASSOON_IMG}/a2ui-interactive.png`, caption: 'A2UI: cards the model lays out, with a choice to make' },
+      { kind: 'image', src: `${BASSOON_IMG}/langfuse.png`, caption: 'Langfuse tracing the same answer' },
+      { kind: 'image', src: `${BASSOON_IMG}/prometheus.png`, caption: 'Prometheus: all 26 targets up' },
+    ],
   },
   {
     slug: 'illumina-rag',
     title: 'Illumina Agentic RAG',
     sub: 'A sixteen-component production retrieval platform',
-    body: 'Production-grade agentic RAG for enterprise field-service engineering. Features semantic double-merge chunking, chunk dreaming, HyDE, hybrid search, Cohere reranking, prompt compression, and an iterative multi-hop retrieval loop. Blue-green vector collection swap strategy invented from first principles.',
+    context: 'At work · Illumina',
+    caption: 'components between a question and its answer',
+    lead: 'Agentic RAG, deployed in Microsoft Teams, that answers field service engineers’ questions from troubleshooting documents. The right answer might be three lines long or thirty pages, so it splits each question, answers the parts in parallel, and checks the result before replying.',
+    body: 'Features semantic double-merge chunking, chunk dreaming, metadata engineering, contextual retrieval, HyDE, hybrid search, Cohere reranking, prompt compression, and an iterative multi-hop retrieval loop. Blue-green vector collection swap strategy invented from first principles.',
     figure: { label: 'components', value: '16' },
     secondary: { label: 'anticipated savings', value: ILLUMINA_SAVINGS_FIGURE },
     tags: ['LlamaIndex', 'Qdrant', 'AWS Bedrock', 'Docker+CUDA', 'Grafana', 'SonarQube'],
@@ -394,13 +497,33 @@ export const PROJECTS: Project[] = [
       decision: 'A 16-component pipeline — semantic chunking, HyDE, hybrid search, reranking, prompt compression, iterative retrieval — plus a blue-green vector collection swap invented from first principles for safe reindexing.',
       outcome: `Anticipated to save ${ILLUMINA_SAVINGS_FIGURE} upon full deployment.`,
     },
-    copilot: 'See the Illumina role above. When discussing this, explain the *why* behind each retrieval stage — don\'t just list techniques.',
+    ask: { label: 'the Illumina RAG', question: 'Isn’t sixteen components overkill for the Illumina RAG?' },
+    copilot:
+      'See the Illumina role above. When discussing this, explain the *why* behind each retrieval stage — don\'t just list techniques. ' +
+      'Why it is not overkill: field service engineers ask it questions from troubleshooting documents, and the right answer can be three lines or thirty pages. ' +
+      'So it works like map-reduce: it splits a question into sub-questions; each one runs HyDE plus hybrid (keyword + vector) search, a re-rank, prompt compression and its own answer, in parallel; ' +
+      'the sub-answers are combined; then an LLM checks whether that answers the question, and if not, asks a follow-up and goes round again. ' +
+      'Before any of that, each chunk is enriched: chunk dreaming, metadata engineering (questions the chunk can answer) and contextual retrieval (a concise summary at the top of the chunk).',
+    wide: true,
+    frames: [
+      { kind: 'diagram', diagram: 'illumina-ready', label: 'Getting ready', caption: 'Getting ready: documents into searchable collections', ms: 5500 },
+      {
+        kind: 'diagram',
+        diagram: 'illumina-answer',
+        label: 'Answering',
+        caption: 'An answer can be three lines or thirty pages: split, answer the parts in parallel, combine, check',
+        ms: 9000,
+      },
+    ],
   },
   {
     slug: 'margin-call',
     title: 'TheMarginCall',
     sub: 'Six specialists arguing about your portfolio',
-    body: 'A multi-agent investment guidance crew built on Autogen. Six specialists collaborate in a group chat: a statistical analyst, a technical analyst (RSI, Bollinger, Ichimoku), a fundamental analyst, a researcher that reads SEC filings via RAG, a finance professor for concepts, and a reporter that writes and emails the findings.',
+    context: 'Personal',
+    caption: 'agents in one investment group chat',
+    lead: 'A multi-agent investment guidance crew built on Autogen.',
+    body: 'Six specialists collaborate in a group chat: a statistical analyst, a technical analyst (RSI, Bollinger, Ichimoku), a fundamental analyst, a researcher that reads SEC filings via RAG, a finance professor for concepts, and a reporter that writes and emails the findings.',
     figure: { label: 'agents', value: '6' },
     secondary: { label: 'modes', value: 'II' },
     tags: ['Python', 'Autogen', 'LlamaIndex', 'Qdrant', 'RAG', 'Tavily', 'Gmail'],
@@ -408,8 +531,38 @@ export const PROJECTS: Project[] = [
     github: 'https://github.com/tituslhy/TheMarginCall',
     demo: 'https://www.youtube.com/watch?v=uLtMD3J4U40',
     accent: 'amber',
+    ask: { label: 'TheMarginCall', question: 'How do the agents in TheMarginCall work together?' },
     copilot: 'Ships with a group chat mode and a self-service analysis workspace.',
+    frames: [{ kind: 'demo', youtubeId: 'uLtMD3J4U40', caption: 'The demo · press play to watch it here' }],
   },
+]
+
+/** A project from before GenAI, from my first portfolio site (github.com/tituslhy/Portfolio). */
+export type EarlierProject = {
+  title: string
+  /** Two topic labels, e.g. ["Computer vision", "Video"]. */
+  topics: [string, string]
+  blurb: string
+  github: string
+  /** The repo's own cover picture. */
+  image: string
+  /** Logos and drawings are shown whole on white; photos are shown whole on black (the projector's screen). */
+  fit?: 'contain'
+  /** A result worth a big number, when the project reported one. */
+  result?: { value: string; label: string }
+}
+
+const PORTFOLIO_IMG = 'https://raw.githubusercontent.com/tituslhy/Portfolio/main/portfolio/static/imgs'
+
+export const EARLIER_PROJECTS: EarlierProject[] = [
+  { title: 'GiftMaker', topics: ['Speech recognition', 'NLP'], blurb: 'Stitches recorded video messages together, transcribes them with Whisper, and has an LLM write something new from what was said.', github: 'https://github.com/tituslhy/GiftMaker', image: `${PORTFOLIO_IMG}/AI_gift.png`, fit: 'contain' },
+  { title: 'You Only Edit Once', topics: ['Computer vision', 'Video'], blurb: 'An AI video editor for leisure divers: object detection trims underwater footage and picks out frames to beautify.', github: 'https://github.com/teyang-lau/you-only-edit-once', image: `${PORTFOLIO_IMG}/YOEO.png`, fit: 'contain' },
+  { title: 'The AI Backdoor Catcher', topics: ['Computer vision', 'AI security'], blurb: 'Finds backdoors hidden in vision models by reconstructing their triggers, using neural attention distillation and mean absolute deviation.', github: 'https://github.com/spencerkmarley/cs612-ai-sys-eval-project', image: `${PORTFOLIO_IMG}/backdoor.png` },
+  { title: 'Skimlit', topics: ['NLP', 'Streamlit'], blurb: 'Makes long medical abstracts skimmable, following the PubMed 200k RCT paper on its own data.', github: 'https://github.com/tituslhy/Skimlit', image: `${PORTFOLIO_IMG}/skimlit.png`, result: { value: '84.8%', label: 'test accuracy' } },
+  { title: 'A Song for Singapore', topics: ['NLP', 'Generative'], blurb: 'GPT-2, trained on Singapore’s patriotic songs, writes new lyrics; OpenAI’s Jukebox tries to set them to music.', github: 'https://github.com/quekhyg/NLP-Lyric-Generator', image: `${PORTFOLIO_IMG}/Singapore.jpeg` },
+  { title: 'Barista Board', topics: ['Recommender systems', 'NLP'], blurb: 'Recommends cafés from scraped Yelp reviews, with matrix and tensor factorisation over ratings, text, images, dates and places.', github: 'https://github.com/teyang-lau/Coffee_Joint_Recommender_System', image: `${PORTFOLIO_IMG}/coffee.jpeg` },
+  { title: 'Facemask classification', topics: ['Computer vision', 'MLOps'], blurb: 'A light classifier for the edge, with a GCP pipeline that retrains it when misclassification climbs, and quantisation to shrink it.', github: 'https://github.com/tituslhy/Face-mask-classification', image: `${PORTFOLIO_IMG}/facemask.jpeg` },
+  { title: 'Watchlist', topics: ['Full stack', 'MongoDB'], blurb: 'My first full-stack app: log the films you love, and play a clip from each one’s page.', github: 'https://github.com/tituslhy/watchlist', image: `${PORTFOLIO_IMG}/movie.png` },
 ]
 
 // ---------------------------------------------------------------------------
@@ -440,6 +593,19 @@ export const FEATURED_ARTICLES: Article[] = [
 ]
 
 export const FEATURED_BY = ['Singapore Management University', 'Unsloth', 'LlamaIndex', 'IBM', 'FlowerAI']
+
+/** A fix to this site, printed on the Writing page like a newspaper correction. */
+export type Correction = { text: string; by: string; ref: string; href: string }
+
+/** Fixes made by the site's issue agent (.github/issue-agent), newest first. Add one when an agent fix merges. */
+export const CORRECTIONS: Correction[] = [
+  {
+    text: 'An earlier edition of this site hid the navigation bar until readers had scrolled a long way back up. It now returns on any upward scroll.',
+    by: 'this site’s issue agent',
+    ref: '#14',
+    href: 'https://github.com/tituslhy/IntroducingTitus/pull/14',
+  },
+]
 
 /** Writing topics, for the copilot. */
 export const WRITING_TOPICS = [
@@ -509,10 +675,11 @@ export const PAGE_TARGETS: PageTarget[] = [
     id: `edu-${e.slug}`,
     path: '/education' as const,
     label: `${e.short}, ${e.years}`,
-    about: `${e.degree} at ${e.institution} (${e.dates})${e.parts?.length ? `, including ${e.parts.map((p) => p.institution).join(' and ')}` : ''}`,
+    about: `${e.degree} at ${e.institution} (${e.dates})${e.parts?.length ? `, including ${new Intl.ListFormat('en').format(e.parts.map((p) => p.institution))}` : ''}`,
   })),
-  { id: 'projects', path: '/projects', label: 'Projects', about: 'the things I have built on my own' },
+  { id: 'projects', path: '/projects', label: 'Projects', about: 'the things I have built, at work and on my own' },
   ...PROJECTS.map((p) => ({ id: `project-${p.slug}`, path: '/projects' as const, label: p.title, about: `${p.title}: ${p.sub}` })),
+  { id: 'earlier-work', path: '/projects', label: 'Earlier work', about: 'my projects from before GenAI' },
   { id: 'open-source', path: '/projects', label: 'Open source', about: 'my open-source contributions' },
   { id: 'writing', path: '/writing', label: 'Writing', about: 'my featured Medium articles' },
 ]

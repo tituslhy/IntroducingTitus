@@ -1,37 +1,53 @@
 import BackToTop from '@/components/BackToTop'
-import EducationResults from '@/components/EducationResults'
-import TechHighlight from '@/components/TechHighlight'
-import { educationResults, numberParts, splitHonor } from '@/lib/education'
-import { CERTIFICATIONS, EDUCATION, pageFolio, type Education as EducationEntry } from '@/lib/profile'
+import Reveal from '@/components/Reveal'
+import AskPill from '@/components/tiles/AskPill'
+import GroupLabel from '@/components/tiles/GroupLabel'
+import HeroTile from '@/components/tiles/HeroTile'
+import ResultsRow from '@/components/tiles/ResultsRow'
+import { educationResults, honorGroups, numberParts, splitHonor, standingKey } from '@/lib/education'
+import { CERTIFICATIONS, EDUCATION, pageFolio, type Education as EducationEntry, type EducationPart, type HonorGroups } from '@/lib/profile'
 import { techKey } from '@/lib/tech-key'
 
-/**
- * Honours read as results, not as tags: the result large in serif, its context small beneath,
- * with its numbers in amber, as in the front page's opening line. Hovering one (or clicking its result above) lights up every match.
- */
-function Honors({ honors }: { honors: string[] }) {
+type Tone = 'paper' | 'latte'
+
+/** "Top 10 in two PhD modules": numbers in the accent colour. */
+function WithNumbers({ text, tone }: { text: string; tone: Tone }) {
   return (
-    <ul className="m-0 mt-4 grid list-none grid-cols-1 gap-x-8 gap-y-5 p-0 min-[720px]:grid-cols-2">
+    <>
+      {numberParts(text).map((part, i) =>
+        part.num ? (
+          <span key={i} className={tone === 'latte' ? 'text-latte-accent' : 'text-amber'}>
+            {part.text}
+          </span>
+        ) : (
+          part.text
+        ),
+      )}
+    </>
+  )
+}
+
+/** Honours as rounded tiles: the result in serif, its context small beneath. */
+function Tiles({ honors, tone }: { honors: string[]; tone: Tone }) {
+  const latte = tone === 'latte'
+  return (
+    <ul className={`m-0 grid list-none p-0 ${latte ? 'grid-cols-1 gap-2' : 'grid-cols-1 gap-3 min-[720px]:grid-cols-2'}`}>
       {honors.map((h) => {
         const [result, context] = splitHonor(h)
         return (
           <li
             key={h}
             data-tech={techKey(h)}
-            className="group cursor-default transition-colors data-[on]:bg-paper-deep"
+            className={`transition motion-safe:hover:-translate-y-[3px] ${
+              latte ? 'rounded-2xl bg-latte-tile px-4 py-3.5 hover:bg-latte-tile-hi' : 'rounded-[20px] bg-paper-deep px-[22px] py-5 hover:bg-paper-band'
+            }`}
           >
-            <span className="block font-serif text-[clamp(18px,1.7vw,21px)] font-medium leading-[1.25] tracking-[-0.01em] text-ink decoration-amber underline-offset-4 group-data-[on]:underline">
-              {numberParts(result).map((part, i) =>
-                part.num ? (
-                  <span key={i} className="text-amber">
-                    {part.text}
-                  </span>
-                ) : (
-                  part.text
-                ),
-              )}
+            <span className={`block font-serif font-medium leading-[1.25] text-ink ${latte ? 'text-[17px]' : 'text-[19px]'}`}>
+              <WithNumbers text={result} tone={tone} />
             </span>
-            {context && <span className="mt-1 block font-mono text-[11.5px] leading-[1.45] text-ink-soft">{context}</span>}
+            {context && (
+              <span className={`mt-1.5 block font-mono text-[11.5px] leading-[1.45] ${latte ? 'text-latte-soft' : 'text-ink-soft'}`}>{context}</span>
+            )}
           </li>
         )
       })}
@@ -39,47 +55,77 @@ function Honors({ honors }: { honors: string[] }) {
   )
 }
 
-/** One degree, laid out like a role on Experience: year rail, institution, qualification, honours. */
+/** Scholarships, then achievements, each under its small label. */
+function Groups({ groups, tone }: { groups: HonorGroups; tone: Tone }) {
+  return (
+    <>
+      {honorGroups(groups).map((g) => (
+        <div key={g.name}>
+          <GroupLabel tone={tone}>{g.name}</GroupLabel>
+          <Tiles honors={g.honors} tone={tone} />
+        </div>
+      ))}
+    </>
+  )
+}
+
+/** A programme taken during a degree, in its latte box. */
+function Part({ part }: { part: EducationPart }) {
+  return (
+    <Reveal className="h-full">
+      <div className="h-full rounded-[28px] bg-latte px-[26px] pb-[26px] pt-7 max-[720px]:px-5">
+        <div className="font-mono text-[11px] font-medium tracking-[0.1em] text-latte-accent">{part.dates}</div>
+        <h4 className="m-0 mt-1.5 font-serif text-[24px] font-medium leading-[1.15] tracking-[-0.015em] text-ink">{part.institution}</h4>
+        <p className="m-0 mt-1 font-serif text-[16px] italic leading-[1.35] text-latte-soft">{part.programme}</p>
+        <p
+          data-tech={techKey(part.standing)}
+          className="m-0 mt-5 rounded-lg font-serif text-[clamp(26px,2.6vw,34px)] font-medium leading-[1.05] tracking-[-0.025em] text-latte-accent"
+        >
+          {part.standing}
+        </p>
+        <Groups groups={part} tone="latte" />
+        <AskPill ask={part.ask} tone="latte" />
+      </div>
+    </Reveal>
+  )
+}
+
+/** One school: its name pinned on the left; the dark result tile, honours and programmes on the right. */
 function Entry({ entry }: { entry: EducationEntry }) {
   return (
     <article
       id={`edu-${entry.slug}`}
-      className="relative grid scroll-mt-24 grid-cols-[110px_1fr] gap-[clamp(20px,3vw,40px)] py-[clamp(28px,4vw,44px)] max-[720px]:grid-cols-1"
+      className="grid scroll-mt-24 grid-cols-[minmax(0,300px)_1fr] gap-12 border-t border-rule py-14 max-[820px]:grid-cols-1 max-[820px]:gap-5 max-[820px]:py-10"
     >
-      <div className="sticky top-20 flex flex-col gap-2.5 self-start max-[720px]:static max-[720px]:flex-row max-[720px]:items-baseline max-[720px]:gap-4">
-        <span className="font-serif text-[44px] font-normal italic leading-none tracking-[-0.02em] text-ink max-[720px]:text-[28px]">
-          {entry.years}
-        </span>
-        <span className="inline-block h-px w-8 bg-amber" />
+      <div className="sticky top-[90px] self-start max-[820px]:static">
+        <p className="m-0 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-amber">{entry.dates}</p>
+        <h3 className="m-0 mt-2.5 font-serif text-[34px] font-medium leading-[1.08] tracking-[-0.02em] text-ink max-[820px]:text-[28px]">
+          {entry.institution}
+        </h3>
+        <p className="m-0 mt-2.5 font-serif text-[19px] leading-[1.3] text-ink">{entry.degree}</p>
+        <p className="m-0 mt-2 font-mono text-[12px] text-ink-faint">{entry.location}</p>
       </div>
 
-      <div>
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h3 className="m-0 font-serif text-[clamp(24px,2.6vw,32px)] font-medium leading-[1.1] tracking-[-0.015em] text-ink">
-              {entry.institution}
-            </h3>
-            <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              <span className="font-serif text-[clamp(17px,1.6vw,20px)] leading-[1.2] tracking-[-0.01em] text-ink">{entry.degree}</span>
-              <span className="inline-block h-[3px] w-[3px] self-center rounded-full bg-ink-faint" />
-              <span className="font-mono text-[12px] tracking-[0.04em] text-ink-soft">{entry.location}</span>
-            </p>
-          </div>
-          <p className="m-0 whitespace-nowrap font-mono text-[11.5px] tracking-[0.08em] text-ink-faint">{entry.dates}</p>
-        </div>
+      <div className="min-w-0">
+        <GroupLabel className="mt-0">Results</GroupLabel>
+        <Reveal>
+          <HeroTile {...entry.standing} dataTech={standingKey(entry)} />
+        </Reveal>
+        <Groups groups={entry} tone="paper" />
+        <AskPill ask={entry.ask} />
 
-        <Honors honors={entry.honors} />
-
-        {entry.parts?.map((p) => (
-          <div key={p.institution} className="mt-12">
-            <h4 className="m-0 flex flex-wrap items-baseline gap-x-3 font-serif text-[clamp(20px,2vw,24px)] font-medium tracking-[-0.01em] text-ink">
-              {p.institution}
-              <span className="font-mono text-[11.5px] font-normal tracking-[0.08em] text-ink-faint">{p.dates}</span>
-            </h4>
-            <p className="mb-0 mt-1 font-serif text-[17px] italic leading-[1.4] text-ink-soft">{p.programme}</p>
-            <Honors honors={p.honors} />
-          </div>
-        ))}
+        {entry.parts?.length ? (
+          <>
+            <GroupLabel tone="latte" className="mt-10">
+              During {entry.short}
+            </GroupLabel>
+            <div className="grid grid-cols-1 gap-3 min-[820px]:grid-cols-2">
+              {entry.parts.map((p) => (
+                <Part key={p.institution} part={p} />
+              ))}
+            </div>
+          </>
+        ) : null}
       </div>
     </article>
   )
@@ -101,20 +147,21 @@ export default function Education() {
           </h2>
         </header>
 
-        <EducationResults results={educationResults()} />
+        <ResultsRow results={educationResults()} />
 
-        <TechHighlight>
-          {EDUCATION.map((e) => (
-            <Entry key={e.slug} entry={e} />
-          ))}
-        </TechHighlight>
+        {EDUCATION.map((e) => (
+          <Entry key={e.slug} entry={e} />
+        ))}
 
-        <div className="mt-[clamp(28px,4vw,48px)]">
-          <h3 className="m-0 flex items-center gap-4 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-ink-soft">
-            Certifications
-            <span aria-hidden="true" className="h-px flex-1 bg-rule" />
-          </h3>
-          <p className="mb-0 mt-4 font-serif text-[18px] text-ink">{CERTIFICATIONS.join(' · ')}</p>
+        <div className="grid grid-cols-[minmax(0,300px)_1fr] gap-12 border-t border-rule pt-14 max-[820px]:grid-cols-1 max-[820px]:gap-5 max-[820px]:pt-10">
+          <h3 className="m-0 font-serif text-[34px] font-medium leading-[1.08] tracking-[-0.02em] max-[820px]:text-[28px]">Certifications</h3>
+          <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 min-[720px]:grid-cols-2">
+            {CERTIFICATIONS.map((c) => (
+              <li key={c} className="rounded-[20px] bg-paper-deep px-[22px] py-5 font-serif text-[19px] font-medium text-ink">
+                {c}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </section>

@@ -1,44 +1,54 @@
 {
   "themes": [
     {
-      "id": "agentic-systems",
-      "name": "Agentic Systems",
-      "description": "Covers AI agents, multi-agent architectures, workflows, and protocols for coordinating agents."
+      "id": "agent-applications",
+      "name": "Agent Applications",
+      "description": "Taking agents and LLM apps to users: interfaces, serving, gateways and deployment."
     },
     {
-      "id": "retrieval-knowledge",
-      "name": "Retrieval and Knowledge",
-      "description": "Covers RAG, search, vector databases, knowledge graphs, and retrieval-based applications."
+      "id": "agent-frameworks",
+      "name": "Agent Frameworks",
+      "description": "Building agents and LLM apps with frameworks such as LangGraph, LlamaIndex and CrewAI."
     },
     {
-      "id": "llm-app-development",
-      "name": "LLM Application Development",
-      "description": "Covers frameworks and techniques for building applications powered by large language models."
+      "id": "agent-patterns",
+      "name": "Agent Patterns and Protocols",
+      "description": "How agents work together: memory, skills, guardrails, architectures, and MCP, A2A and ACP."
     },
     {
-      "id": "llm-operations",
-      "name": "LLM Operations",
-      "description": "Covers deploying, serving, monitoring, and scaling models and AI services."
+      "id": "blockchain",
+      "name": "Blockchain",
+      "description": "Blockchains from scratch: consensus, chains, smart contracts, stablecoins and attacks."
     },
     {
-      "id": "model-training-evaluation",
-      "name": "Model Training and Evaluation",
-      "description": "Covers fine-tuning models and evaluating their quality, safety, and robustness."
+      "id": "copilots",
+      "name": "Copilots",
+      "description": "Working day to day with AI assistants such as Claude Code and Antigravity."
     },
     {
-      "id": "blockchain-systems",
-      "name": "Blockchain Systems",
-      "description": "Covers blockchain architecture, consensus, smart contracts, and decentralized applications."
+      "id": "evaluating-testing",
+      "name": "Evaluating and Testing Agents",
+      "description": "Checking that RAG apps and agents behave, with and without real models."
+    },
+    {
+      "id": "rag-applications",
+      "name": "RAG Applications",
+      "description": "Retrieval-augmented generation: HyDE, GraphRAG, multimodal RAG and text-to-SQL."
     },
     {
       "id": "software-engineering",
       "name": "Software Engineering",
-      "description": "Covers programming, databases, APIs, concurrency, and general software infrastructure."
+      "description": "Async Python, gRPC, database migrations and data pipelines."
     },
     {
-      "id": "engineering-careers",
-      "name": "Engineering Careers",
-      "description": "Covers career development, workplace practices, and professional growth in technology."
+      "id": "training-llms",
+      "name": "Training LLMs",
+      "description": "Fine-tuning LLMs with LoRA, RAFT, GRPO and federated learning."
+    },
+    {
+      "id": "working-life",
+      "name": "Working Life",
+      "description": "Becoming and growing as a data scientist, beyond the technical skills."
     }
   ],
   "assignments": {
@@ -46,198 +56,196 @@
       "software-engineering"
     ],
     "a-field-guide-to-multi-agent-architectures-f6f8c689c406": [
-      "agentic-systems"
+      "agent-patterns"
     ],
     "a-gentle-introduction-to-litellm-649d48a0c2c7": [
-      "llm-operations"
+      "agent-applications"
     ],
     "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-2-autogen-5401a0075d75": [
-      "agentic-systems"
+      "agent-frameworks"
     ],
     "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3a-llamaindex-workflows-c0f614c15b88": [
-      "agentic-systems"
+      "agent-frameworks"
     ],
     "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3b-deploying-llamaindex-workflows-df18381d36b9": [
-      "agentic-systems",
-      "llm-operations"
+      "agent-applications"
     ],
     "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-4-crewai-147ada6db54c": [
-      "agentic-systems"
+      "agent-frameworks"
     ],
     "a-gentle-introduction-to-the-llm-multi-agents-multiverse-part-1-langgraph-2ac56f1b5b3c": [
-      "agentic-systems"
+      "agent-frameworks"
     ],
     "a-gentle-introduction-to-the-llm-multiverse-part-1-langchain-023a899d294e": [
-      "llm-app-development"
+      "agent-frameworks"
     ],
     "a-gentle-introduction-to-the-llm-multiverse-part-2-haystack-c6af2548df04": [
-      "llm-app-development"
+      "agent-frameworks"
     ],
     "a-gentle-introduction-to-the-llm-multiverse-part-3-llamaindex-798344050c49": [
-      "llm-app-development"
+      "agent-frameworks"
     ],
     "a-guide-to-code-testing-rag-agents-without-real-llms-or-vector-dbs-51154ad920be": [
-      "model-training-evaluation"
+      "evaluating-testing"
     ],
     "a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8": [
-      "agentic-systems"
+      "agent-frameworks"
     ],
     "a-second-note-on-claude-code-c521245ffc35": [
-      "agentic-systems"
+      "copilots"
     ],
     "a-very-simple-introduction-to-grpc-6a666a039c03": [
       "software-engineering"
     ],
     "agent-memory-the-underrated-superpower-of-agentic-apps-1c16fb47f435": [
-      "agentic-systems",
-      "retrieval-knowledge"
+      "agent-patterns"
     ],
     "agent-to-agent-protocols-a-story-still-being-written-e7e1ffbf3e80": [
-      "agentic-systems"
+      "agent-patterns"
     ],
     "building-prompt-free-generative-ai-applications-with-dspy-cdda61dcc861": [
-      "llm-app-development"
+      "agent-frameworks"
     ],
     "building-skilled-agents-835597b38be4": [
-      "agentic-systems"
+      "agent-patterns"
     ],
     "building-your-first-multi-agent-system-with-n8n-0c959d7139a1": [
-      "agentic-systems"
+      "agent-frameworks"
     ],
     "building-your-first-no-code-agent-with-n8n-e9e9ea0c23d1": [
-      "agentic-systems"
+      "agent-frameworks"
     ],
     "chain-reaction-how-to-create-an-observable-workflow-using-llamaindex-and-chainlit-2b668fb1cee9": [
-      "agentic-systems"
+      "agent-applications"
     ],
     "flash-loan-attacks-on-smart-contracts-cb08c72408bd": [
-      "blockchain-systems"
+      "blockchain"
     ],
     "graphrag-for-the-win-c19d580debd7": [
-      "retrieval-knowledge"
+      "rag-applications"
     ],
     "ground-control-to-antigravity-7056a6d58d0a": [
-      "agentic-systems"
+      "copilots"
     ],
     "helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1": [
-      "llm-operations"
+      "agent-applications"
     ],
     "how-i-became-a-data-scientist-2d8831531a4c": [
-      "engineering-careers"
+      "working-life"
     ],
     "how-i-use-claude-code-3b1fd852305b": [
-      "agentic-systems"
+      "copilots"
     ],
     "how-to-be-a-data-scientist-in-2026-and-beyond-9b0b322c8e5a": [
-      "engineering-careers"
+      "working-life"
     ],
     "how-to-build-your-own-change-data-capture-pipeline-using-apache-airflow-e485fbef82c7": [
-      "retrieval-knowledge"
+      "software-engineering"
     ],
     "how-to-deploy-almost-any-langchain-runnable-in-one-line-70e7ec1240d1": [
-      "llm-operations"
+      "agent-applications"
     ],
     "how-to-raft-your-llm-retrieval-augmented-finetuning-using-unsloth-4c3844a9a6e3": [
-      "model-training-evaluation"
+      "training-llms"
     ],
     "how-to-train-your-llm-simultaneously-with-10-different-teachers-ba556d4ed2c1": [
-      "model-training-evaluation"
+      "training-llms"
     ],
     "how-to-train-your-llm-teaching-toothless-to-bite-8d9f56fe4b2a": [
-      "model-training-evaluation"
+      "training-llms"
     ],
     "how-to-train-your-llm-to-reason-grpo-reinforcement-learning-using-unsloth-64af5e82ac3c": [
-      "model-training-evaluation"
+      "training-llms"
     ],
     "hyde-and-seek-when-hallucination-leads-the-way-17a9800734fe": [
-      "retrieval-knowledge"
+      "rag-applications"
     ],
     "inside-opencerts-how-merkle-trees-verify-singapores-digital-diplomas-61f60d13700e": [
-      "blockchain-systems"
+      "blockchain"
     ],
     "introducing-liquibase-how-to-version-control-your-db-d5a08f764c09": [
       "software-engineering"
     ],
     "introducing-mempools-the-one-time-gossip-pays-off-9fbc92701f70": [
-      "blockchain-systems"
+      "blockchain"
     ],
     "introducing-permissioned-chains-1d8a71f5b09a": [
-      "blockchain-systems"
+      "blockchain"
     ],
     "introducing-smart-contracts-340c20cbe672": [
-      "blockchain-systems"
+      "blockchain"
     ],
     "introducing-stablecoins-2b3e63e6c5f1": [
-      "blockchain-systems"
+      "blockchain"
     ],
     "introducing-the-agent-communication-protocol-acp-abd882114139": [
-      "agentic-systems"
+      "agent-patterns"
     ],
     "investing-with-llms-does-it-make-cents-496ed6c87458": [
-      "agentic-systems"
+      "agent-frameworks"
     ],
     "its-2025-start-using-chainlit-for-your-llm-apps-558db1a46315": [
-      "llm-app-development"
+      "agent-applications"
     ],
     "its-2025-take-your-llm-apps-to-the-next-level-with-chainlit-00036c8db1ba": [
-      "llm-app-development"
+      "agent-applications"
     ],
     "langchain-a-second-look-6ed720e27fec": [
-      "llm-app-development"
+      "agent-frameworks"
     ],
     "langchain4j-building-generative-ai-applications-in-java-670ec3d6167d": [
-      "llm-app-development"
+      "agent-frameworks"
     ],
     "living-with-imposter-syndrome-193adff0a825": [
-      "engineering-careers"
+      "working-life"
     ],
     "model-context-protocol-hype-or-necessity-998874d95bc6": [
-      "agentic-systems"
+      "agent-patterns"
     ],
     "nginx-the-single-server-swiss-army-knife-3445197f8f86": [
-      "software-engineering"
+      "agent-applications"
     ],
     "practice-vs-theory-software-development-at-the-workplace-a73e676e58c8": [
-      "engineering-careers"
+      "working-life"
     ],
     "proof-of-stake-the-mining-free-blockchain-ddae684ffec5": [
-      "blockchain-systems"
+      "blockchain"
     ],
     "service-please-3-ways-to-serve-an-llm-ca5ead2547e6": [
-      "llm-operations"
+      "agent-applications"
     ],
     "so-you-want-a-personal-ai-assistant-4c6226e88017": [
-      "agentic-systems"
+      "copilots"
     ],
     "text-to-sql-just-got-easier-meet-vanna-ai-your-rag-powered-sql-sidekick-e781c3ffb2c5": [
-      "retrieval-knowledge"
+      "rag-applications"
     ],
     "think-your-rag-app-is-safe-giskard-might-prove-you-wrong-6c88b08c5f7a": [
-      "model-training-evaluation"
+      "evaluating-testing"
     ],
     "towards-general-discoverability-introducing-nacos-registry-60fa2e1a8731": [
-      "llm-operations"
+      "agent-applications"
     ],
     "understanding-blockchains-from-scratch-f14c454af32f": [
-      "blockchain-systems"
+      "blockchain"
     ],
     "video-killed-the-radio-star-a-use-case-for-multimodal-rag-cdb7d5ff3062": [
-      "retrieval-knowledge"
+      "rag-applications"
     ],
     "would-you-like-an-agent-with-that-introducing-the-deep-agents-sdk-c4e0670440ea": [
-      "agentic-systems"
+      "agent-frameworks"
     ],
     "would-you-like-an-app-with-that-introducing-the-adk-framework-aead05a8b9cd": [
-      "agentic-systems"
+      "agent-frameworks"
     ],
     "would-you-like-an-llm-with-that-a-bento-cloud-drive-thru-7e70f77277d2": [
-      "llm-operations"
+      "agent-applications"
     ],
     "would-you-like-context-with-that-a-rag-as-a-service-drive-thru-2e5a2867102a": [
-      "retrieval-knowledge"
+      "rag-applications"
     ],
     "your-ai-agent-needs-a-bouncer-f115d5ddac55": [
-      "agentic-systems"
+      "agent-patterns"
     ]
   },
   "reviewed": {

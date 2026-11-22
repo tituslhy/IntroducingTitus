@@ -39,14 +39,14 @@ const nextConfig = {
 
 ### Visual Direction
 - **Mode:** Light (warm cream paper) by default. Optional dark toggle, OFF by default — skip for now.
-- **Aesthetic:** Editorial broadsheet — typography-forward, hairline rules, folios, drop-caps, pull quotes. Single muted amber accent. No rounded cards, no shadows on type, no glow.
+- **Aesthetic:** Editorial serif type on cream paper with soft rounded tiles (adopted 2026-11-21, mock `design/rethink/site-style.html`). Inner pages share one grammar: name pinned left; a dark results row; one dark headline tile per item (amber figure, slow glow, count-up); cream tiles for details; latte boxes for nested or earlier items; small-capital mono group labels; tools as rounded pills; an "Ask about X →" pill that opens Ask Titus. Single amber accent. No shadows on type.
 - **NOT:** Purple gradients. Generic SaaS look. Overused fonts (Inter, Roboto, Space Grotesk). Glowing dark-terminal look.
 - **Font pairing:** Newsreader (headings/name — variable serif) + IBM Plex Mono (body/code/tags). DM Serif Display dropped.
 - **Accent color:** Aged amber `oklch(0.62 0.155 55)` (≈ `#b76a23`). Replaces `#F59E0B` everywhere.
-- **Second accent:** Indigo `oklch(0.34 0.10 254)` — Illumina project only.
+- **Second accent:** Indigo `oklch(0.34 0.10 254)` — the Illumina project on Projects only (its Experience tile is amber).
 - **Layout:** A short front page plus six routes (/experience, /education, /projects, /writing, /about, /colophon) with a sticky nav. Desktop-first. Fully responsive.
 - **Headshot:** Profile photo in masthead. File: `/public/headshot.jpeg`. Rectangular 3:4, 1px ink border, `object-position: 50% 30%`, subtle saturate/contrast filter. No circle crop, no amber ring/glow.
-- **No stock photos. No illustrations. Tech logos only in the front-page hero animation** (tools I've actually used; credits in public/logos/CREDITS.md). Elsewhere, typography, headshot, and hairline structure carry the weight.
+- **No stock photos. No illustrations, with one exception: the fictional-bassoon bear (`public/projects/bassoon-bear.webp`), the first still on that project's projector on Projects. Tech logos only in the front-page hero animation** (tools I've actually used; credits in public/logos/CREDITS.md). Elsewhere, typography, headshot, and hairline structure carry the weight.
 
 ### Navigation
 - Sticky, opaque top nav with page links; the current page is underlined amber; hides on scroll-down
@@ -96,7 +96,9 @@ const nextConfig = {
 
 ### Page 2 — Experience (Web Resume)
 
-Timeline or card layout. Reverse chronological. Each role card:
+Layout (redesigned 2026-11-21; mock `design/rethink/experience-passes.html`): a results row, then a desk of **staff passes**, one per role, fanned out oldest-left. Each pass carries the company's logo (`public/logos/companies/`) and colour (`brand` on each role), my name, the title and "Valid from … to …". Picking one up lifts it, rings it in its colour, swaps its dates for the role's highlight (or how long the role lasted), and shows that role right under the desk, one at a time (no scrolling). A "Show all 7 roles" switch lists every role, newest first, each under a "Pass N of 7" header in its colour; with it on, picking a pass jumps to its role. The results row and Ask Titus can still reach a hidden role (it is shown first); there is no separate "Earlier roles" box. On phones the passes sit in a row you swipe.
+
+Each role:
 - Company | Role | Dates | Location
 - 3-line summary (architecture-level, no client-sensitive specifics)
 - Tech stack (inline tags)
@@ -155,18 +157,30 @@ Tech: VBA, Excel, Exponential Smoothing, Holt-Winters
 ---
 
 #### Education (its own page, `/education`)
-Content lives in `EDUCATION` and `CERTIFICATIONS` (`lib/profile.ts`); honours listed are only things selected, ranked or awarded.
-- **Singapore Management University** — Master of IT in Business (AI track) | 2021–2022 | GPA 3.98, Dean's List, scholarships, competition placings
-- **National University of Singapore** — BEng Chemical Engineering (2nd Upper Hons) | 2011–2015 | with the UConn exchange (2013) and Oxford IARU summer school (2014) inside it
+Content lives in `EDUCATION` and `CERTIFICATIONS` (`lib/profile.ts`); honours listed are only things selected, ranked or awarded. Every school reads in the same order: **Results** (class or GPA, on the dark tile) → **Scholarships** → **Achievements**, then an Ask pill.
+- **Singapore Management University** — Master of IT in Business (AI track) | 2021–2022 | GPA 3.98 (Dean's List), scholarships, two competition placings
+- **National University of Singapore** — BEng Chemical Engineering | 2011–2015 | 2nd Upper Class Honours; "During NUS" latte boxes: UConn exchange (2013), Oxford IARU summer school (2014), NUS Suzhou Research Institute winter school (Dec 2014)
 - **Anderson Junior College** — GCE 'A' Levels | 2007–2008 | Top Student Award
 - **Certifications:** Certified ScrumMaster
-- A results row at the top (`educationResults()` in `lib/education.ts`) is derived from the honours, never typed in.
+- A results row at the top (`educationResults()` in `lib/education.ts`) is derived from the data, never typed in. Experience has the same row (`experienceResults()` in `lib/experience.ts`, from each role's `highlight`).
 
 ---
 
 ### Page 3 — Projects & Writing
 
 #### Project Cards
+
+Display (/projects, redesigned 2026-11-22; mock `design/rethink/projects-reel.html`): the page is a cinema.
+- Each featured project has a **projector**: a screen over a strip of film. Its title card (the project's figure, on the
+  dark tile) plays first, then its frames (`frames` in `lib/profile.ts`): fictional-bassoon's bear, then its README
+  architecture redrawn as a diagram (one chat message, start to finish; `components/projects/BassoonArchitecture`,
+  sized to the projector's own width), then its README screenshots; TheMarginCall's YouTube demo (plays on the page); Illumina, built at work, two diagrams (getting ready;
+  answering: fan out, fan in) instead of screenshots, full width.
+- It plays by itself while half on screen, loops, pauses on mouse hover, a frame pick or Pause, and starts paused for
+  reduced motion. Off-screen frames are `hidden`, so the results row can ask for the title card (lib/reveal).
+- Earlier work shares one projector; the frame on screen is written up beside it. Open source is the closing credits.
+- A sticky programme row (1 fictional-bassoon, 2 Illumina, 3 TheMarginCall, Earlier work, Open source) jumps between
+  sections and fills in the one being read.
 
 **fictional-bassoon**
 > A solo-built 54-container distributed AI platform, vibe-coded end-to-end with LLMs and audited by CodeRabbit. Features a full production stack: FastAPI, LangGraph, Celery, RabbitMQ, Redis Sentinel, Citus distributed Postgres, dual-pool PgBouncer, PostgREST, ClickHouse, Langfuse, MinIO, LGTM observability stack, and a Next.js 14 frontend behind Nginx. 90%+ test coverage. Unhinged by design.
@@ -176,7 +190,7 @@ GitHub: https://github.com/tituslhy/fictional-bassoon
 ---
 
 **Illumina Agentic RAG System**
-> Production-grade 16-component agentic RAG system for enterprise field service engineering. Features semantic double-merge chunking, chunk dreaming, HyDE, hybrid search, Cohere reranking, prompt compression, and an iterative multi-hop retrieval loop. Blue-green vector collection swap strategy invented from first principles.
+> A 16-component agentic RAG system, deployed in Microsoft Teams, that answers field service engineers' questions from troubleshooting documents. An answer can be three lines or thirty pages, so it splits each question, answers the parts in parallel, combines them and checks the result, asking a follow-up if needed. Features semantic double-merge chunking, chunk dreaming, metadata engineering, contextual retrieval, HyDE, hybrid search, Cohere reranking, prompt compression, and an iterative multi-hop retrieval loop. Blue-green vector collection swap strategy invented from first principles.
 Tags: LlamaIndex, Qdrant, AWS Bedrock, Docker+CUDA, Grafana, SonarQube
 
 ---
@@ -195,15 +209,15 @@ Tags: LlamaIndex, Qdrant, AWS Bedrock, Docker+CUDA, Grafana, SonarQube
 - 65 published technical articles (8 on blockchain)
 - Featured by: Singapore Management University, Unsloth, LlamaIndex, IBM, FlowerAI
 - Link: https://medium.com/@tituslhy
-- Display: 7 hardcoded featured articles:
-  1. [Agent Memory: The underrated superpower of agentic apps](https://medium.com/mitb-for-all/agent-memory-the-underrated-superpower-of-agentic-apps-1c16fb47f435)
-  2. [How to Train Your LLM: Low Rank Adaptation Finetuning using Unsloth!](https://medium.com/mitb-for-all/how-to-train-your-llm-teaching-toothless-to-bite-8d9f56fe4b2a)
-  3. [How to RAFT your LLM: Retrieval Augmented Finetuning using Unsloth!](https://medium.com/mitb-for-all/how-to-raft-your-llm-retrieval-augmented-finetuning-using-unsloth-4c3844a9a6e3)
-  4. [A second look at LangGraph: When "Command-Send" becomes "common sense"](https://medium.com/mitb-for-all/a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8)
-  5. [Helm Charts: The Multi-Server Orchestra Conductor](https://medium.com/mitb-for-all/helm-charts-the-multi-server-orchestra-conductor-18dc88665mc1)
-  6. [A gentle introduction to LiteLLM](https://medium.com/mitb-for-all/a-gentle-introduction-to-litellm-649d48a0c2c7)
-  7. [Your agent needs a bouncer](https://medium.com/mitb-for-all/your-ai-agent-needs-a-bouncer-f115d5ddac55)
-
+- Display (/writing, redesigned 2026-11-21; mock `design/rethink/writing-paper.html`): the page is a newspaper, **The Titus Times**, same palette and tiles as the rest of the site with a newspaper's furniture:
+  - Nameplate between a heavy rule and a hairline; ears hold a dark count-up tile ("N technical articles since <first year>") and "Ask what to read first →".
+  - Dateline: Singapore · the newest article's date in view (never today's date) · "<year> edition · N articles".
+  - **Editions:** one per year (back issues). **Desks:** one per theme in `content/article-themes.json`, alphabetical; every article sits under exactly one desk. Desks: Agent Applications, Agent Frameworks, Agent Patterns and Protocols, Blockchain, Copilots, Evaluating and Testing Agents, RAG Applications, Software Engineering, Training LLMs, Working Life.
+  - Front page: the **latest story** (headline, one-line standfirst, cover picture, byline, drop-cap opening, "Continue reading on Medium", Ask pill), three stories down the side (the first with a picture), three across with pictures, the rest "In brief" as text.
+  - Pictures are each post's first figure on Medium's CDN (`cover` in `content/articles.json`, set by `npm run articles:build`). No read times (Medium's own aren't in the export).
+  - Corrections box (`CORRECTIONS` in `lib/profile.ts`: fixes made by the issue agent) and Featured by.
+  - Late edition: after 7pm Singapore time the page is a shade darker with a "LATE EDITION" stamp.
+- The 7 featured articles (`FEATURED_ARTICLES`) stay as Ask Titus context only.
 ---
 
 ### Copilot Bubble — Phase 2 ✅ NOW IN SCOPE

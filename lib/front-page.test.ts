@@ -118,7 +118,7 @@ describe("experienceDoor", () => {
     expect(rows[FEATURED_ROLE_COUNT]).toMatchObject({
       text: `+ ${numberToWords(earlier)} earlier role${earlier === 1 ? "" : "s"}`,
       lead: ROLES[ROLES.length - 1].years,
-      end: "the ledger →",
+      end: "see all →",
     });
   });
 
@@ -144,12 +144,12 @@ describe("experienceDoor", () => {
     expect(illumina).toMatchObject({ end: "2.5 yrs", current: false });
   });
 
-  it("counts the earlier roles in words, and points to the ledger", () => {
+  it("counts the earlier roles in words, and points to the full list", () => {
     const earlier = ROLES.length - 3;
     const last = experienceDoor().rows[3];
     expect(earlier).toBe(4);
     expect(last.text).toBe("+ four earlier roles");
-    expect(last.end).toBe("the ledger →");
+    expect(last.end).toBe("see all →");
     expect(last.lead).toBe(ROLES[ROLES.length - 1].years);
   });
 
@@ -189,7 +189,7 @@ describe("experienceDoor", () => {
     it("uses the singular for exactly one earlier role", () => {
       const roles = [role({}), role({}), role({}), role({ years: "2010" })];
       const { rows } = experienceDoor(roles);
-      expect(rows[3]).toMatchObject({ text: "+ one earlier role", end: "the ledger →", lead: "2010" });
+      expect(rows[3]).toMatchObject({ text: "+ one earlier role", end: "see all →", lead: "2010" });
     });
 
     it("gives a current role marked Present as now", () => {
@@ -232,21 +232,43 @@ describe("themeCounts", () => {
     }
   });
 
-  it("counts an article once for each theme it is assigned to", () => {
+  it("counts each article once, under the one theme it is filed in", () => {
+    const assigned = Object.values(articleThemes.assignments as Record<string, string[]>);
+    expect(assigned.every((ids) => ids.length === 1)).toBe(true);
+
     const expected = new Map<string, number>();
-    for (const ids of Object.values(articleThemes.assignments as Record<string, string[]>))
-      for (const id of ids) expected.set(id, (expected.get(id) ?? 0) + 1);
+    for (const ids of assigned) for (const id of ids) expected.set(id, (expected.get(id) ?? 0) + 1);
 
     for (const chip of themeCounts()) {
       expect(chip.count).toBe(expected.get(chip.id));
     }
   });
 
+  it("gives chips that add up to the article count, with no article counted twice", () => {
+    const total = themeCounts().reduce((sum, t) => sum + t.count, 0);
+    expect(total).toBe(Object.keys(articleThemes.assignments).length);
+  });
+
+  it("has one chip for each of the ten themes, since each now has articles", () => {
+    expect(themeCounts()).toHaveLength(10);
+    expect(themeCounts().map((t) => t.name).sort()).toEqual([
+      "Agent Applications",
+      "Agent Frameworks",
+      "Agent Patterns & Protocols",
+      "Blockchain",
+      "Copilots",
+      "Evaluating & Testing Agents",
+      "RAG Applications",
+      "Software Engineering",
+      "Training LLMs",
+      "Working Life",
+    ]);
+  });
+
   it("shortens the long theme names for the chips", () => {
     const names = themeCounts().map((t) => t.name);
-    expect(names).toContain("Retrieval & Knowledge");
-    expect(names).toContain("LLM App Development");
-    expect(names).toContain("Model Training & Evaluation");
+    expect(names).toContain("Agent Patterns & Protocols");
+    expect(names).toContain("Evaluating & Testing Agents");
     names.forEach((n) => {
       expect(n).not.toMatch(/ and | Application /);
     });
@@ -260,7 +282,7 @@ describe("themeCounts", () => {
           { id: "empty", name: "Nothing yet" },
           { id: "b", name: "Beta" },
         ],
-        assignments: { "post-1": ["a", "b"], "post-2": ["b"] },
+        assignments: { "post-1": ["a"], "post-2": ["b"], "post-3": ["b"] },
       }));
       const { themeCounts: counts } = jest.requireActual<typeof import("./front-page")>("./front-page");
       expect(counts()).toEqual([
@@ -300,7 +322,7 @@ describe("aboutBio", () => {
   it("leaves the GPA out when EDUCATION has none", () => {
     jest.isolateModules(() => {
       jest.doMock("./profile", () => ({
-        EDUCATION: [{ honors: ["Dean's List"] }],
+        EDUCATION: [{ slug: "x", standing: { figure: "2nd Upper", caption: "Class Honours" }, scholarships: ["Dean's List"] }],
         OPEN_SOURCE: [],
         PROJECTS: [],
         ROLES: [],

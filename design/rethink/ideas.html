@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site ideas mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tiles.css">
+<style>
+  .intro { font: 13px/1.6 var(--mono); color: var(--ink-soft); max-width: 70ch; margin: 0 0 28px; }
+  .note { font: 12px/1.5 var(--mono); color: var(--ink-faint); margin: 10px 0 0; }
+  .intro b { color: var(--ink); font-weight: 600; }
+
+  /* 1 — tile grows into the page */
+  .doors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .door { background: var(--paper-deep); border-radius: 28px; padding: 24px 26px 26px; cursor: pointer; transition: transform .25s, background .25s; border: 0; text-align: left; font-family: var(--serif); color: var(--ink); }
+  .door:hover { transform: translateY(-3px); background: var(--paper-band); }
+  .door .kick { font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+  .door .kick b { color: var(--amber); margin-right: 8px; }
+  .door h3 { font-size: 30px; font-weight: 500; margin: 10px 0 16px; letter-spacing: -.02em; }
+  .mini { position: relative; overflow: hidden; background: var(--ink); color: var(--paper); border-radius: 20px; padding: 18px 20px; }
+  .mini .fig { font-size: 44px; font-weight: 500; letter-spacing: -.03em; color: var(--amber-hi); line-height: 1; }
+  .mini .lab { font: 11.5px var(--mono); color: oklch(0.85 0.02 78); margin-top: 8px; }
+  .door .go { font: 12px var(--mono); color: var(--ink-soft); margin-top: 14px; }
+  .landed .back { font: 13px var(--mono); border: 1px solid var(--rule); background: none; border-radius: 999px; padding: 8px 14px; cursor: pointer; color: var(--ink-soft); margin-bottom: 24px; }
+  .landed .hero { min-height: 260px; }
+  .landed .rest { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  ::view-transition-group(*) { animation-duration: .6s; animation-timing-function: cubic-bezier(.2, .7, .1, 1); }
+
+  /* 2 — ask any sentence, answer rings its sources */
+  .sel-wrap { position: relative; }
+  .askpop { position: absolute; z-index: 10; display: none; font: 12.5px var(--mono); background: var(--ink); color: var(--paper); border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer; white-space: nowrap; box-shadow: 0 6px 20px oklch(0 0 0 / .18); }
+  .askpop b { color: var(--amber-hi); font-weight: 600; }
+  .askpop.on { display: inline-flex; gap: 8px; }
+  .drawer { position: fixed; right: 24px; bottom: 24px; width: min(400px, calc(100vw - 32px)); background: var(--paper); border: 1px solid var(--rule); border-radius: 24px; box-shadow: 0 20px 60px oklch(0 0 0 / .18); padding: 18px 20px 20px; z-index: 30; transform: translateY(20px) scale(.98); opacity: 0; pointer-events: none; transition: .22s; }
+  .drawer.on { transform: none; opacity: 1; pointer-events: auto; }
+  .drawer .hd { display: flex; justify-content: space-between; align-items: center; font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+  .drawer .hd button { border: 0; background: none; font-size: 18px; cursor: pointer; color: var(--ink-soft); }
+  .drawer .q { margin: 14px 0 0 auto; width: fit-content; max-width: 85%; background: var(--ink); color: var(--paper); border-radius: 16px 16px 4px 16px; padding: 10px 14px; font: 13px/1.45 var(--mono); }
+  .drawer .a { margin-top: 12px; font-size: 16.5px; line-height: 1.5; }
+  .drawer .src { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .drawer .src button { font: 11.5px var(--mono); border: 1px solid var(--amber); color: var(--amber); background: none; border-radius: 999px; padding: 5px 10px; cursor: pointer; }
+  .drawer .src button:hover { background: var(--amber); color: var(--paper); }
+  .dots span { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); margin-right: 4px; animation: dot 1s infinite alternate; }
+  .dots span:nth-child(2) { animation-delay: .2s; } .dots span:nth-child(3) { animation-delay: .4s; }
+  @keyframes dot { from { opacity: .25; } to { opacity: 1; } }
+  .ring { animation: ring 2.6s ease; border-radius: 20px; }
+  @keyframes ring { 0%, 55% { box-shadow: 0 0 0 4px var(--amber); } 100% { box-shadow: 0 0 0 4px transparent; } }
+
+  /* 3 — link previews */
+  .posts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .post { background: #fff; border: 1px solid oklch(0.88 0 0); border-radius: 10px; overflow: hidden; font-family: system-ui, sans-serif; }
+  .post .who { display: flex; gap: 10px; align-items: center; padding: 12px 14px; font-size: 13px; color: #333; }
+  .post .who i { width: 32px; height: 32px; border-radius: 50%; background: oklch(0.85 0.02 250); display: block; }
+  .post .msg { padding: 0 14px 12px; font-size: 13.5px; color: #222; }
+  .og { position: relative; overflow: hidden; aspect-ratio: 1200 / 630; background: var(--ink); color: var(--paper); padding: 6% 7%; display: flex; flex-direction: column; justify-content: space-between; font-family: var(--serif); }
+  .og::before { content: ''; position: absolute; inset: -40%; background: radial-gradient(closest-side, oklch(0.62 0.155 55 / .4), transparent 70%); transform: translate(18%, 10%); }
+  .og > * { position: relative; }
+  .og .top { display: flex; justify-content: space-between; font: 500 clamp(8px, .8vw, 11px) var(--mono); letter-spacing: .14em; text-transform: uppercase; color: oklch(0.8 0.02 78); }
+  .og .top b { color: var(--amber-hi); }
+  .og .big { font-size: clamp(34px, 5vw, 64px); font-weight: 500; letter-spacing: -.04em; line-height: .9; color: var(--amber-hi); }
+  .og .cap { font-size: clamp(12px, 1.3vw, 17px); font-style: italic; color: oklch(0.88 0.02 78); margin-top: 6px; }
+  .post .meta { padding: 10px 14px 12px; border-top: 1px solid oklch(0.92 0 0); }
+  .post .meta .t { font-size: 13.5px; font-weight: 600; color: #111; } .post .meta .u { font-size: 12px; color: #666; margin-top: 2px; }
+
+  /* 4 — Writing */
+  .featured-by { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 18px; }
+  .featured-by span { font: 12.5px var(--mono); background: var(--paper-deep); border-radius: 999px; padding: 7px 13px; color: var(--ink-soft); }
+  .art { display: block; text-decoration: none; color: inherit; }
+  .art .r { font-size: 18px; }
+  .art .c b { color: var(--amber); font-weight: 500; }
+  .themes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .theme { background: var(--latte); border-radius: 28px; padding: 24px 24px 22px; transition: transform .25s; cursor: pointer; }
+  .theme:hover { transform: translateY(-3px); }
+  .theme .n { font-size: 44px; font-weight: 500; letter-spacing: -.03em; line-height: 1; color: var(--latte-accent); }
+  .theme h3 { margin: 10px 0 0; font-size: 22px; font-weight: 500; letter-spacing: -.015em; }
+  .theme p { margin: 6px 0 0; font-size: 15.5px; line-height: 1.45; color: var(--latte-soft); }
+  .theme.big { grid-column: span 2; display: grid; grid-template-columns: 160px 1fr; gap: 20px; align-items: end; }
+
+  /* 5 — About */
+  .princ { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .princ .tile .k { font: 500 11px var(--mono); color: var(--amber); letter-spacing: .1em; }
+  .princ .tile .r { margin-top: 8px; font-size: 21px; }
+  .princ .tile p { margin: 8px 0 0; font-size: 16px; line-height: 1.5; color: var(--ink-soft); }
+
+  /* 6 — phone */
+  .phones { display: flex; gap: 40px; flex-wrap: wrap; align-items: flex-start; }
+  .phone { width: 375px; height: 720px; border: 10px solid var(--ink); border-radius: 44px; overflow: hidden; position: relative; background: var(--paper); flex: none; }
+  .phone .scr { height: 100%; overflow-y: auto; padding: 28px 16px 90px; }
+  .phone .side { position: static; }
+  .phone .side h2 { font-size: 28px; }
+  .swipe { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -16px; padding: 0 16px 8px; scrollbar-width: none; }
+  .swipe::-webkit-scrollbar { display: none; }
+  .swipe .box { flex: 0 0 82%; scroll-snap-align: start; padding: 22px 20px; }
+  .swipe-dots { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
+  .swipe-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--latte); } .swipe-dots i.on { background: var(--latte-accent); width: 18px; border-radius: 3px; transition: .2s; }
+  .phone .nextp { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); font: 12px var(--mono); background: var(--ink); color: var(--paper); border-radius: 999px; padding: 10px 16px; white-space: nowrap; }
+  .phone .nextp i { font-style: normal; color: var(--amber-hi); margin-left: 6px; }
+  .phone .fab { position: absolute; right: 14px; bottom: 64px; font: 12px var(--mono); background: var(--paper); border: 1px solid var(--ink); border-radius: 999px; padding: 8px 12px; }
+  .phone-notes { max-width: 380px; font-size: 18px; line-height: 1.5; }
+  .phone-notes p { margin: 0 0 14px; }
+
+  @media (max-width: 900px) { .doors, .posts { grid-template-columns: 1fr; } .themes, .princ, .landed .rest { grid-template-columns: 1fr; } .theme.big { grid-column: auto; grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="switch"><div class="wrap">
+  <span>Ideas</span>
+  <button data-p="p1" aria-pressed="true">1 · Tile → page</button>
+  <button data-p="p2">2–3 · Ask any sentence</button>
+  <button data-p="p3">5 · Link previews</button>
+  <button data-p="p4">7 · Writing</button>
+  <button data-p="p5">7 · About</button>
+  <button data-p="p6">8 · Phone</button>
+</div></div>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section class="page on" id="p1">
+  <p class="intro"><b>Click a door.</b> Its dark tile grows into the top of the page it leads to. Then press “Back” and it shrinks back into the door. Real browsers (Chrome, Edge, Safari 18+) animate this natively; older ones just switch instantly.</p>
+  <div id="stage"></div>
+</section>
+
+<!-- 2–3 -->
+<section class="page" id="p2">
+  <p class="intro"><b>Select any phrase</b> below (try “blue-green swap” or “hybrid search”). A pill offers to ask about it. The answer comes back with source chips, and the tiles it used light up on the page.</p>
+  <div class="item" style="padding-top:0;border-top:0">
+    <div class="side">
+      <div class="label" style="color:var(--indigo)">At work · Illumina</div>
+      <h2>Illumina Agentic RAG</h2>
+      <p>A sixteen-component production retrieval platform</p>
+    </div>
+    <div class="main sel-wrap" id="selzone">
+      <div class="glabel">What it is</div>
+      <div class="story" id="s-story">
+        <p class="lead">Production agentic RAG for enterprise field-service engineering.</p>
+        <p class="more">Semantic double-merge chunking, chunk dreaming, HyDE, hybrid search, Cohere reranking, prompt compression, and an iterative multi-hop retrieval loop. A blue-green swap of vector collections, worked out from first principles, keeps reindexing safe.</p>
+      </div>
+      <div class="glabel">Why it looks like this</div>
+      <div class="tiles" style="grid-template-columns:repeat(3,1fr)">
+        <div class="tile" id="s-con"><div class="c" style="margin:0 0 6px">CONSTRAINT</div><div class="r" style="font-size:17px">Sole data scientist, production SLAs, no ML team to lean on.</div></div>
+        <div class="tile" id="s-dec"><div class="c" style="margin:0 0 6px">DECISION</div><div class="r" style="font-size:17px">A blue-green collection swap for safe reindexing.</div></div>
+        <div class="tile" id="s-out"><div class="c" style="margin:0 0 6px">OUTCOME</div><div class="r" style="font-size:17px">Anticipated to save $9M upon full deployment.</div></div>
+      </div>
+      <button class="askpop" id="askpop">Ask Titus about this <b>→</b></button>
+    </div>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="page" id="p3">
+  <p class="intro"><b>What a shared link looks like on LinkedIn.</b> Each page gets its own preview, made from its dark tile, instead of one generic card for the whole site.</p>
+  <div class="posts">
+    <div class="post"><div class="who"><i></i>A recruiter</div><div class="msg">Have a look at this profile.</div>
+      <div class="og"><div class="top"><span><b>T·L</b> &nbsp;Experience</span><span>Titus Lim</span></div><div><div class="big">8+</div><div class="cap">years building production AI</div></div></div>
+      <div class="meta"><div class="t">Experience | Titus Lim</div><div class="u">introducing-titus.vercel.app</div></div></div>
+    <div class="post"><div class="who"><i></i>A hiring manager</div><div class="msg">Strong academics too.</div>
+      <div class="og"><div class="top"><span><b>T·L</b> &nbsp;Education</span><span>Titus Lim</span></div><div><div class="big">3.98</div><div class="cap">GPA out of 4.0, SMU · Dean’s List</div></div></div>
+      <div class="meta"><div class="t">Education | Titus Lim</div><div class="u">introducing-titus.vercel.app</div></div></div>
+    <div class="post"><div class="who"><i></i>An engineer</div><div class="msg">This repo is wild.</div>
+      <div class="og"><div class="top"><span><b>T·L</b> &nbsp;Projects</span><span>Titus Lim</span></div><div><div class="big">54</div><div class="cap">containers in one LLM platform</div></div></div>
+      <div class="meta"><div class="t">Projects | Titus Lim</div><div class="u">introducing-titus.vercel.app</div></div></div>
+  </div>
+  <p class="note" style="margin-top:18px">The messages above are only placeholders. The figures come from the same data as the pages, so the previews update themselves.</p>
+</section>
+
+<!-- 7 Writing -->
+<section class="page" id="p4">
+  <div class="kicker"><b>04</b>Writing</div>
+  <h1>What I have <em>learned</em>, written down.</h1>
+  <div class="item" style="border-top:0;padding-top:0">
+    <div class="side">
+      <div class="label">On Medium</div>
+      <h2>Technical articles</h2>
+      <p>Grouped by theme, with where to start.</p>
+      <p class="where" style="margin-top:18px">Featured by</p>
+      <div class="featured-by" style="margin-top:8px"><span>SMU</span><span>Unsloth</span><span>LlamaIndex</span><span>IBM</span><span>FlowerAI</span></div>
+    </div>
+    <div class="main">
+      <div class="glabel">Highlight</div>
+      <div class="hero reveal"><div class="fig count" data-to="65">65</div><div class="cap">technical articles, written to explain what I build</div></div>
+      <div class="glabel">Start here</div>
+      <div class="tiles">
+        <a class="tile art" href="#"><div class="r">Agent Memory: The underrated superpower of agentic apps</div><div class="c"><b>11 min</b> · MITB for All</div></a>
+        <a class="tile art" href="#"><div class="r">How to RAFT your LLM: Retrieval Augmented Finetuning using Unsloth</div><div class="c"><b>12 min</b> · MITB for All</div></a>
+        <a class="tile art" href="#"><div class="r">Your agent needs a bouncer</div><div class="c"><b>13 min</b> · MITB for All</div></a>
+        <a class="tile art" href="#"><div class="r">A second look at LangGraph: When “Command-Send” becomes “common sense”</div><div class="c"><b>9 min</b> · MITB for All</div></a>
+      </div>
+      <div class="glabel latte">By theme</div>
+      <div class="themes">
+        <div class="theme big reveal"><div class="n">23</div><div><h3>Agentic Systems</h3><p>AI agents, multi-agent architectures, workflows, and protocols for coordinating agents.</p></div></div>
+        <div class="theme reveal"><div class="n">8</div><h3>LLM Application Development</h3><p>Frameworks and techniques for building on large language models.</p></div>
+        <div class="theme reveal"><div class="n">7</div><h3>Retrieval and Knowledge</h3><p>RAG, search, vector databases and knowledge graphs.</p></div>
+        <div class="theme reveal"><div class="n">7</div><h3>LLM Operations</h3><p>Deploying, serving, monitoring and scaling models.</p></div>
+        <div class="theme reveal"><div class="n">6</div><h3>Model Training and Evaluation</h3><p>Fine-tuning, and judging quality, safety and robustness.</p></div>
+        <div class="theme reveal"><div class="n">8</div><h3>Blockchain Systems</h3><p>Architecture, consensus and smart contracts.</p></div>
+        <div class="theme reveal"><div class="n">8</div><h3>Engineering</h3><p>Software engineering (4) and engineering careers (4).</p></div>
+      </div>
+      <p class="note">Each theme box opens to its articles. An article can sit under two themes, so the boxes add up to more than 65.</p>
+      <button class="ask" data-q="Which of your articles should I read first?">Ask which article to read first <b>→</b></button>
+    </div>
+  </div>
+</section>
+
+<!-- 7 About -->
+<section class="page" id="p5">
+  <div class="kicker"><b>05</b>About</div>
+  <h1>A note on the <em>work</em> I take on.</h1>
+  <div class="item" style="border-top:0;padding-top:0">
+    <div class="side">
+      <div class="label">How I work</div>
+      <h2>Titus Lim</h2>
+      <p>Lead AI Engineer</p>
+      <p class="where">Singapore</p>
+    </div>
+    <div class="main">
+      <div class="hero reveal"><div class="fig words" style="font-size:clamp(30px,3.6vw,46px);line-height:1.1;letter-spacing:-.02em">“If I can’t explain it clearly, I don’t understand it yet.”</div><div class="cap">why I publish what I build</div></div>
+      <div class="glabel">In short</div>
+      <div class="story">
+        <p class="lead">More than eight years building AI systems in banking, biotech and the public sector.</p>
+        <p class="more">The interesting problems aren’t just the AI models. They’re the latency budgets, the stakeholder who doesn’t trust a stochastic system, and the seam between research and production.</p>
+      </div>
+      <div class="glabel">What I care about</div>
+      <div class="princ">
+        <div class="tile reveal"><div class="k">01</div><div class="r">AI that meets felt needs</div><p>Demos answer whether you can build the concept. Production answers whether the app meets the need. I straddle my time across both.</p></div>
+        <div class="tile reveal"><div class="k">02</div><div class="r">Writing as external memory</div><p>Sixty-five articles because future-me will forget. That others find them useful is a side effect I’m glad about.</p></div>
+        <div class="tile reveal"><div class="k">03</div><div class="r">Open source as paying rent</div><p>Use a framework long enough and you find the bug. File the issue. Send the PR.</p></div>
+        <div class="tile reveal"><div class="k">04</div><div class="r">Making AI legible to people</div><p>Most AI projects die in the gap between what the system can do and what the organisation believes it can do.</p></div>
+      </div>
+      <button class="ask" data-q="How do you get stakeholders to trust an AI system?">Ask how I win over sceptics <b>→</b></button>
+    </div>
+  </div>
+</section>
+
+<!-- 8 Phone -->
+<section class="page" id="p6">
+  <div class="phones">
+    <div class="phone"><div class="scr" id="pscr">
+      <div class="kicker"><b>02</b>Education</div>
+      <div class="side" style="margin-top:22px">
+        <div class="label">2011 — 2015</div>
+        <h2>National University of Singapore</h2>
+        <p>BEng Chemical Engineering</p>
+      </div>
+      <div class="glabel">Results</div>
+      <div class="hero" style="min-height:150px;padding:24px 22px"><div class="fig words" style="font-size:44px">2nd Upper</div><div class="cap" style="font-size:18px">Class Honours</div></div>
+      <div class="glabel latte">During NUS · swipe</div>
+      <div class="swipe" id="swipe">
+        <div class="box"><div class="sub">2013</div><h3>University of Connecticut</h3><div class="big" style="font-size:26px">First Class with Distinction</div></div>
+        <div class="box"><div class="sub">2014</div><h3>University of Oxford</h3><div class="big" style="font-size:26px">First Class with Distinction</div></div>
+        <div class="box"><div class="sub">DEC 2014</div><h3>NUS Suzhou Research Institute</h3><div class="big" style="font-size:26px">1 of 3 chemical engineers selected</div></div>
+      </div>
+      <div class="swipe-dots" id="sdots"><i class="on"></i><i></i><i></i></div>
+      <div style="height:400px"></div>
+    </div>
+    <div class="fab">Ask Titus</div>
+    <div class="nextp">Next: Anderson Junior College<i>↓</i></div>
+    </div>
+    <div class="phone-notes">
+      <p><b>Swipe rows.</b> On a phone, latte boxes sit side by side and swipe, with dots underneath, instead of stacking into a long column. Try dragging them sideways.</p>
+      <p><b>Next pill on every long page.</b> It sits just left of the Ask Titus button so the two don’t collide.</p>
+      <p style="color:var(--ink-soft);font-size:16px">The same applies to the earlier roles on Experience and the earlier work on Projects.</p>
+    </div>
+  </div>
+</section>
+</div>
+
+<div class="drawer" id="drawer">
+  <div class="hd"><span>Ask <b style="color:var(--ink)">Titus</b></span><button id="dclose" aria-label="Close">×</button></div>
+  <div class="q" id="dq"></div>
+  <div class="a" id="da"></div>
+  <div class="src" id="dsrc"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+  const $ = (s) => document.querySelector(s)
+
+  // tabs
+  document.querySelectorAll('.switch button').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('.switch button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+    document.querySelectorAll('.page').forEach((p) => p.classList.toggle('on', p.id === b.dataset.p))
+    $('#drawer').classList.remove('on'); $('#askpop').classList.remove('on')
+    runCounts()
+  }))
+
+  // reveal + count-up
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target) } }), { threshold: 0.1 })
+  document.querySelectorAll('.reveal').forEach((el) => (reduce ? el.classList.add('in') : io.observe(el)))
+  function countUp(el) {
+    if (el.dataset.done || !el.offsetParent) return
+    el.dataset.done = 1
+    const to = +el.dataset.to; if (reduce || to < 10) return
+    const t0 = performance.now()
+    const step = (t) => { const k = Math.min(1, (t - t0) / 1400); el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step) }
+    el.textContent = 0; requestAnimationFrame(step)
+  }
+  const runCounts = () => document.querySelectorAll('.count').forEach(countUp)
+  runCounts()
+
+  // toast for Ask pills
+  let tt
+  const toast = (m) => { $('#toast').textContent = m; $('#toast').classList.add('on'); clearTimeout(tt); tt = setTimeout(() => $('#toast').classList.remove('on'), 2600) }
+  document.querySelectorAll('.ask').forEach((b) => b.addEventListener('click', () => toast(`Opens Ask Titus with: “${b.dataset.q}”`)))
+
+  // 1 — door grows into the page (View Transitions)
+  const doors = [
+    { k: '01', name: 'Experience', fig: '8+', lab: 'years building production AI', cap: 'years building production AI', rest: ['Tech lead, Agent Suite SDK', '80% fewer false positives, UOB'] },
+    { k: '02', name: 'Education', fig: '3.98', lab: 'GPA at SMU', cap: 'GPA out of 4.0, SMU · Dean’s List', rest: ['Top Student, Anderson Junior College', 'First Class with Distinction ×2'] },
+    { k: '03', name: 'Projects', fig: '54', lab: 'containers in one LLM platform', cap: 'containers, one per real-world concern', rest: ['16 retrieval components, Illumina', '6 agents, TheMarginCall'] },
+  ]
+  const stage = $('#stage')
+  function showDoors(from) {
+    stage.innerHTML = `<div class="doors">${doors.map((d, i) => `
+      <button class="door" data-i="${i}"><div class="kick"><b>${d.k}</b>${d.name}</div><h3 style="${from === i ? 'view-transition-name:title' : ''}">${d.name}</h3>
+      <div class="mini" style="${from === i ? 'view-transition-name:tile' : ''}"><div class="fig">${d.fig}</div><div class="lab">${d.lab}</div></div>
+      <div class="go">Open ${d.name.toLowerCase()} →</div></button>`).join('')}</div>`
+    stage.querySelectorAll('.door').forEach((b) => b.addEventListener('click', () => go(() => showPage(+b.dataset.i), b, +b.dataset.i)))
+  }
+  function showPage(i) {
+    const d = doors[i]
+    stage.innerHTML = `<div class="landed"><button class="back">← Back</button>
+      <div class="kicker"><b>${d.k}</b>${d.name}</div>
+      <h1 style="view-transition-name:title;margin-bottom:24px">${d.name}</h1>
+      <div class="hero" style="view-transition-name:tile"><div class="fig">${d.fig}</div><div class="cap">${d.cap}</div></div>
+      <div class="rest">${d.rest.map((r) => `<div class="tile"><div class="r">${r}</div></div>`).join('')}</div></div>`
+    stage.querySelector('.back').addEventListener('click', () => go(() => showDoors(i)))
+  }
+  function go(update, door, i) {
+    if (door) { door.querySelector('h3').style.viewTransitionName = 'title'; door.querySelector('.mini').style.viewTransitionName = 'tile' }
+    if (!document.startViewTransition || reduce) return update()
+    document.startViewTransition(update)
+  }
+  showDoors()
+
+  // 2–3 — select text → ask → answer rings its sources
+  const zone = $('#selzone'), pop = $('#askpop')
+  let picked = ''
+  document.addEventListener('selectionchange', () => {
+    const s = getSelection(), t = s.toString().trim()
+    if (!t || t.length < 3 || !zone.contains(s.anchorNode)) return pop.classList.remove('on')
+    picked = t.length > 60 ? t.slice(0, 57) + '…' : t
+    const r = s.getRangeAt(0).getBoundingClientRect(), z = zone.getBoundingClientRect()
+    pop.style.left = `${Math.max(0, r.left - z.left + r.width / 2 - 90)}px`; pop.style.top = `${r.bottom - z.top + 8}px`
+    pop.classList.add('on')
+  })
+  const ringEl = (id) => { const el = document.getElementById(id); el.classList.remove('ring'); void el.offsetWidth; el.classList.add('ring') }
+  pop.addEventListener('mousedown', (e) => e.preventDefault())
+  pop.addEventListener('click', () => {
+    pop.classList.remove('on'); getSelection().removeAllRanges()
+    $('#dq').textContent = `Tell me about “${picked}”.`
+    $('#da').innerHTML = '<span class="dots"><span></span><span></span><span></span></span>'; $('#dsrc').innerHTML = ''
+    $('#drawer').classList.add('on')
+    setTimeout(() => {
+      $('#da').textContent = 'I was the only data scientist on it, so reindexing could not take the service down. I built two vector collections side by side: the new index fills in the background, and traffic switches over only once it checks out.'
+      $('#dsrc').innerHTML = '<button data-r="s-story">What it is</button><button data-r="s-con">Constraint</button><button data-r="s-dec">Decision</button>'
+      $('#dsrc').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => ringEl(b.dataset.r)))
+      ;['s-story', 's-con', 's-dec'].forEach((id, k) => setTimeout(() => ringEl(id), k * 350))
+    }, 1100)
+  })
+  $('#dclose').addEventListener('click', () => $('#drawer').classList.remove('on'))
+
+  // 8 — swipe dots
+  const sw = $('#swipe')
+  sw.addEventListener('scroll', () => {
+    const i = Math.round(sw.scrollLeft / (sw.firstElementChild.offsetWidth + 10))
+    document.querySelectorAll('#sdots i').forEach((d, k) => d.classList.toggle('on', k === i))
+  }, { passive: true })
+</script>
+</body>
+</html>

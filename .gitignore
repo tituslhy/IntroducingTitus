@@ -54,3 +54,6 @@ next-env.d.ts
 
 # Issue agent scratch (comment/PR bodies written on the runner)
 .issue-agent-tmp/
+
+# session handoff notes (local only)
+handoffs/

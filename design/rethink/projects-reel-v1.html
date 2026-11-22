@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projects reel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tiles.css">
+<style>
+  :root { --film: oklch(0.17 0.008 60); --film-edge: oklch(0.12 0.006 60); }
+  .folio { display: flex; gap: 14px; align-items: baseline; padding: 40px 0 18px; font: 500 11px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+  .folio b { color: var(--amber); font-weight: 600; letter-spacing: .08em; } .folio i { font-style: normal; color: var(--ink); }
+  .folio span { flex: 1; height: 1px; background: var(--rule); align-self: center; }
+  h1 { font: 500 clamp(34px, 5vw, 68px)/1.04 var(--serif); letter-spacing: -.025em; margin: 22px 0 40px; max-width: 20ch; }
+  h1 em { color: var(--amber); }
+  .lbl { font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); margin: 34px 0 12px; }
+
+  /* ---------- featured: the slate over each project ---------- */
+  .slate { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 3px solid var(--ink); border-bottom: 1px solid var(--rule); font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+  .slate .sq { width: 14px; height: 14px; border-radius: 4px; background: var(--amber); }
+  .item { display: grid; grid-template-columns: minmax(0, 300px) 1fr; gap: 48px; padding: 40px 0 56px; }
+  .item .ctx { font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--amber); }
+  .item h2 { font: 500 34px/1.08 var(--serif); letter-spacing: -.02em; margin: 10px 0; }
+  .item .sub { font-size: 19px; line-height: 1.3; margin: 0; }
+  /* the title card: a dark tile letterboxed like a frame on screen */
+  .card { position: relative; background: var(--film); color: var(--paper); border-radius: 20px; padding: 46px 30px; overflow: hidden; }
+  .card::before, .card::after { content: ''; position: absolute; left: 0; right: 0; height: 18px; background: var(--film-edge); }
+  .card::before { top: 0; } .card::after { bottom: 0; }
+  .card .glow { position: absolute; inset: -40%; background: radial-gradient(circle at 30% 60%, oklch(0.62 0.155 55 / .28), transparent 55%); }
+  .card .f { position: relative; font: 500 96px/1 var(--serif); letter-spacing: -.04em; color: var(--amber-hi); }
+  .card .c { position: relative; font: 12.5px/1.4 var(--mono); color: oklch(0.85 0.02 78); margin-top: 10px; }
+  .card .tc { position: absolute; z-index: 1; right: 22px; top: 2px; font: 500 10px/18px var(--mono); letter-spacing: .14em; color: oklch(0.6 0.02 70); }
+  .card .tc.b { top: auto; bottom: 2px; left: 22px; right: auto; }
+
+  /* ---------- earlier work: the reel ---------- */
+  .reel-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .reel-hd .lbl { margin: 0; }
+  .hint { font: 12px var(--mono); color: var(--ink-faint); }
+  .reel-box { position: relative; margin-top: 12px; background: var(--film-edge); border-radius: 20px; overflow: hidden; }
+  .reel { display: flex; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; cursor: grab; padding: 0 40px; }
+  .reel::-webkit-scrollbar { display: none; }
+  .reel.drag { cursor: grabbing; scroll-snap-type: none; }
+  .reel.drag .frame { pointer-events: none; }
+  /* each frame carries its own stretch of sprocket holes, so the holes travel with the film */
+  .frame { --hole: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='14'%3E%3Crect x='6' y='2' width='12' height='10' rx='2.5' fill='%23efe6d8'/%3E%3C/svg%3E");
+    flex: 0 0 auto; scroll-snap-align: center; position: relative; padding: 30px 7px; background: var(--film); border: 0; cursor: pointer; font: inherit; color: inherit; text-align: left; }
+  .frame::before, .frame::after { content: ''; position: absolute; left: 0; right: 0; height: 14px; background: var(--hole) repeat-x; background-position: 0 0; opacity: .85; }
+  .frame::before { top: 8px; } .frame::after { bottom: 8px; }
+  .pic { width: 250px; aspect-ratio: 4 / 3; border-radius: 6px; overflow: hidden; background: oklch(0.26 0.01 60); outline: 3px solid transparent; outline-offset: 3px; transition: outline-color .3s, filter .4s, transform .4s; filter: brightness(.55) saturate(.6); }
+  .pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .pic.contain img { object-fit: contain; background: oklch(0.94 0.01 78); }
+  .edge { display: flex; justify-content: space-between; margin-top: 7px; font: 500 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: oklch(0.62 0.02 70); transition: color .3s; }
+  .frame:hover .pic { filter: brightness(.8) saturate(.85); }
+  .frame[aria-selected="true"] .pic { filter: none; outline-color: var(--amber); }
+  .frame[aria-selected="true"] .edge { color: var(--amber-hi); }
+  .frame:focus-visible { outline: none; } .frame:focus-visible .pic { outline-color: var(--amber-hi); }
+  .nudge { position: absolute; top: 50%; translate: 0 -50%; width: 34px; height: 34px; border-radius: 999px; border: 0; background: var(--paper); color: var(--ink); font: 16px var(--mono); cursor: pointer; z-index: 2; }
+  .nudge.l { left: 6px; } .nudge.r { right: 6px; }
+  /* the screen: the picked frame's write-up */
+  .screen { display: grid; grid-template-columns: minmax(0, 300px) 1fr; gap: 48px; margin-top: 28px; }
+  .screen .n { font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--amber); }
+  .screen h3 { font: 500 30px/1.1 var(--serif); letter-spacing: -.02em; margin: 10px 0 14px; }
+  .screen .gh { font: 12.5px var(--mono); color: var(--ink-soft); text-decoration: underline; text-decoration-color: var(--amber); text-underline-offset: 3px; }
+  .blurb { background: var(--latte); border-radius: 28px; padding: 24px 26px; }
+  .blurb p { margin: 0; font-size: 20px; line-height: 1.4; text-wrap: pretty; }
+  .blurb .res { margin-top: 16px; display: inline-flex; gap: 10px; align-items: baseline; background: var(--ink); color: var(--paper); border-radius: 14px; padding: 10px 14px; }
+  .blurb .res b { font: 500 26px var(--serif); color: var(--amber-hi); } .blurb .res span { font: 11.5px var(--mono); color: oklch(0.85 0.02 78); }
+  .screen .pills { margin-top: 14px; }
+  .fade { animation: fade .35s ease both; } @keyframes fade { from { opacity: 0; transform: translateY(6px); } }
+
+  /* ---------- stills: a short strip of the project's own screenshots ---------- */
+  .stills .frame { padding: 24px 5px; } .stills .frame::before { top: 5px; } .stills .frame::after { bottom: 5px; }
+  .stills .pic { width: 170px; aspect-ratio: 16 / 10; }
+  .stills .pic img { object-position: top; }
+  .still-big { margin-top: 12px; background: var(--paper-deep); border-radius: 20px; padding: 12px; }
+  .item > div { min-width: 0; }
+  .still-big img { max-height: min(520px, 70vh) !important; object-fit: contain !important; background: oklch(0.93 0.02 75); }
+  .still-big img { display: block; width: 100%; max-height: 420px; object-fit: cover; object-position: top; border-radius: 10px; border: 1px solid var(--rule); }
+  .still-big p { margin: 10px 4px 2px; font: 12px/1.45 var(--mono); color: var(--ink-soft); }
+  @media (max-width: 820px) { .stills .pic { width: 150px; } }
+  /* ---------- Illumina: a storyboard, in its indigo ---------- */
+  .card.indigo .glow { background: radial-gradient(circle at 30% 60%, oklch(0.5 0.12 254 / .45), transparent 55%); }
+  .card.indigo .f { color: oklch(0.82 0.08 254); }
+  .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .board + .lbl { margin-top: 18px; }
+  .panel { position: relative; background: var(--paper); border: 1.5px solid var(--ink); border-radius: 10px; aspect-ratio: 16 / 10; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; transition: transform .25s; }
+  .panel:hover { transform: translateY(-3px); }
+  .panel .no { font: 600 10px var(--mono); letter-spacing: .14em; color: var(--indigo); }
+  .panel .nm { font: 500 17px/1.15 var(--serif); color: var(--ink); }
+  .panel.end { background: var(--indigo); border-color: var(--indigo); } .panel.end .no { color: oklch(0.8 0.06 254); } .panel.end .nm { color: var(--paper); }
+  .board-note { margin-top: 12px; font: 12px var(--mono); color: var(--ink-faint); }
+  /* ---------- TheMarginCall: the demo, on screen ---------- */
+  .demo { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; padding: 0; border-radius: 14px; overflow: hidden; background: #000; cursor: pointer; }
+  .demo img { width: 100%; height: 100%; object-fit: cover; display: block; filter: brightness(.8); transition: filter .3s; }
+  .demo:hover img { filter: brightness(.95); }
+  .demo .play { position: absolute; inset: 0; margin: auto; width: 64px; height: 64px; border-radius: 999px; background: var(--amber); color: var(--paper); display: grid; place-items: center; font-size: 22px; box-shadow: 0 0 0 8px oklch(0.62 0.155 55 / .25); }
+  .demo iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .demo-wrap { background: var(--film); border-radius: 20px; padding: 30px 12px; position: relative; }
+  .demo-wrap .edge { margin: 8px 4px 0; }
+  .demo-wrap .frame-holes::before, .demo-wrap .frame-holes::after { content: ''; position: absolute; left: 0; right: 0; height: 14px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='14'%3E%3Crect x='6' y='2' width='12' height='10' rx='2.5' fill='%23efe6d8'/%3E%3C/svg%3E") repeat-x; opacity: .85; }
+  .demo-wrap .frame-holes::before { top: 8px; } .demo-wrap .frame-holes::after { bottom: 8px; }
+  /* ---------- open source: end credits ---------- */
+  .credits { margin-top: 48px; background: var(--film); color: var(--paper); border-radius: 20px; padding: 48px 24px 52px; text-align: center; }
+  .credits .t { font: 500 11px var(--mono); letter-spacing: .3em; text-transform: uppercase; color: var(--amber-hi); }
+  .credits dl { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; row-gap: 16px; max-width: 760px; margin: 28px auto 0; }
+  .credits dt { text-align: right; font: 500 11.5px/1.9 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: oklch(0.7 0.02 70); }
+  .credits dd { margin: 0; text-align: left; font-size: 19px; line-height: 1.3; }
+  .credits a { color: inherit; text-decoration: none; } .credits a:hover { color: var(--amber-hi); }
+  .credits .end { margin-top: 34px; font: 12px var(--mono); color: oklch(0.6 0.02 70); }
+
+  @media (max-width: 820px) {
+    .item, .screen { grid-template-columns: 1fr; gap: 18px; }
+    .item { padding: 28px 0 40px; } .item h2 { font-size: 28px; }
+    .card .f { font-size: 76px; }
+    .pic { width: 200px; }
+    .reel { padding: 0 24px; }
+    .nudge { display: none; }
+    .credits dl { grid-template-columns: 1fr; row-gap: 4px; }
+    .credits dt { text-align: center; margin-top: 14px; } .credits dd { text-align: center; }
+  }
+  @media (prefers-reduced-motion: reduce) { .fade { animation: none; } .pic { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="folio"><b>03</b><i>Projects</i><span></span></div>
+  <h1>Things I have <em>built</em>, start to finish.</h1>
+
+  <div class="slate"><span class="sq"></span>Reel 1 of 3 · fictional-bassoon · Personal</div>
+  <div class="item">
+    <div>
+      <div class="ctx">Personal · solo</div>
+      <h2>fictional-bassoon</h2>
+      <p class="sub">A fifty-four-container LLM harness, vibe-coded end-to-end</p>
+    </div>
+    <div>
+      <div class="lbl" style="margin-top:0">Highlight</div>
+      <div class="card"><div class="glow"></div><span class="tc">REEL 1</span><span class="tc b">FICTIONAL-BASSOON</span>
+        <div class="f">54</div><div class="c">containers, one per real-world concern</div></div>
+      <div class="lbl">Stills</div>
+      <div class="reel-box"><div class="reel stills" role="tablist" aria-label="fictional-bassoon stills"></div></div>
+      <div class="still-big" id="still"></div>
+      <div class="lbl">What it is</div>
+      <div class="tile" style="padding:24px 26px"><div class="r" style="font-size:21px;line-height:1.35">A full production-realistic stack, built to exercise a real multi-service architecture end to end, not overengineering for its own sake.</div></div>
+      <div class="lbl" style="color:var(--ink-faint)">… rest of the project as now …</div>
+    </div>
+  </div>
+
+  <div class="slate"><span class="sq" style="background:var(--indigo)"></span>Reel 2 of 3 · Illumina Agentic RAG · At work</div>
+  <div class="item">
+    <div>
+      <div class="ctx" style="color:var(--indigo)">At work · Illumina</div>
+      <h2>Illumina Agentic RAG</h2>
+      <p class="sub">A sixteen-component production retrieval platform</p>
+    </div>
+    <div>
+      <div class="lbl" style="margin-top:0">Highlight</div>
+      <div class="card indigo"><div class="glow"></div><span class="tc">REEL 2</span><span class="tc b">ILLUMINA</span>
+        <div class="f">16</div><div class="c">components between a question and its answer</div></div>
+      <div class="lbl">Storyboard · getting ready</div>
+      <div class="board" id="b-index"></div>
+      <div class="lbl">Storyboard · answering a question</div>
+      <div class="board" id="b-answer"></div>
+      <div class="board-note">Eight of the sixteen, the ones I can show.</div>
+      <div class="lbl" style="color:var(--ink-faint)">… rest of the project as now …</div>
+    </div>
+  </div>
+
+  <div class="slate"><span class="sq"></span>Reel 3 of 3 · TheMarginCall · Personal</div>
+  <div class="item">
+    <div>
+      <div class="ctx">Personal</div>
+      <h2>TheMarginCall</h2>
+      <p class="sub">Six specialists arguing about your portfolio</p>
+    </div>
+    <div>
+      <div class="lbl" style="margin-top:0">Highlight</div>
+      <div class="card"><div class="glow"></div><span class="tc">REEL 3</span><span class="tc b">THEMARGINCALL</span>
+        <div class="f">6</div><div class="c">agents in one investment group chat</div></div>
+      <div class="lbl">The demo</div>
+      <div class="demo-wrap"><div class="frame-holes"></div>
+        <button class="demo" id="demo" aria-label="Play the TheMarginCall demo"><img src="https://img.youtube.com/vi/uLtMD3J4U40/maxresdefault.jpg" alt=""><span class="play">▶</span></button>
+        <div class="edge"><span>▸ demo</span><span>youtube</span></div>
+      </div>
+      <div class="lbl" style="color:var(--ink-faint)">… rest of the project as now …</div>
+    </div>
+  </div>
+
+  <div class="reel-hd">
+    <div class="lbl">Earlier work · 8 projects</div>
+    <div class="hint">Drag the reel, tap a frame.</div>
+  </div>
+  <div class="reel-box">
+    <button class="nudge l" aria-label="Back">←</button>
+    <div class="reel" role="tablist" aria-label="Earlier work"></div>
+    <button class="nudge r" aria-label="Forward">→</button>
+  </div>
+  <div class="screen" id="screen" role="tabpanel"></div>
+
+  <div class="credits">
+    <div class="t">Open source</div>
+    <dl id="credits"></dl>
+    <div class="end">6 contributions</div>
+  </div>
+  <div style="height:80px"></div>
+</div>
+
+<script>
+const IMG = 'https://raw.githubusercontent.com/tituslhy/Portfolio/main/portfolio/static/imgs'
+const EARLIER = [
+  { title: 'GiftMaker', topics: ['Speech recognition', 'NLP'], blurb: 'Stitches recorded video messages together, transcribes them with Whisper, and has an LLM write something new from what was said.', image: `${IMG}/AI_gift.png`, fit: 'contain' },
+  { title: 'You Only Edit Once', topics: ['Computer vision', 'Video'], blurb: 'An AI video editor for leisure divers: object detection trims underwater footage and picks out frames to beautify.', image: `${IMG}/YOEO.png`, fit: 'contain' },
+  { title: 'The AI Backdoor Catcher', topics: ['Computer vision', 'AI security'], blurb: 'Finds backdoors hidden in vision models by reconstructing their triggers, using neural attention distillation and mean absolute deviation.', image: `${IMG}/backdoor.png` },
+  { title: 'Skimlit', topics: ['NLP', 'Streamlit'], blurb: 'Makes long medical abstracts skimmable, following the PubMed 200k RCT paper on its own data.', image: `${IMG}/skimlit.png`, result: ['84.8%', 'test accuracy'] },
+  { title: 'A Song for Singapore', topics: ['NLP', 'Generative'], blurb: 'GPT-2, trained on Singapore’s patriotic songs, writes new lyrics; OpenAI’s Jukebox tries to set them to music.', image: `${IMG}/Singapore.jpeg` },
+  { title: 'Barista Board', topics: ['Recommender systems', 'NLP'], blurb: 'Recommends cafés from scraped Yelp reviews, with matrix and tensor factorisation over ratings, text, images, dates and places.', image: `${IMG}/coffee.jpeg` },
+  { title: 'Facemask classification', topics: ['Computer vision', 'MLOps'], blurb: 'A light classifier for the edge, with a GCP pipeline that retrains it when misclassification climbs, and quantisation to shrink it.', image: `${IMG}/facemask.jpeg` },
+  { title: 'Watchlist', topics: ['Full stack', 'MongoDB'], blurb: 'My first full-stack app: log the films you love, and play a clip from each one’s page.', image: `${IMG}/movie.png` },
+]
+const CREDITS = [['LlamaIndex','Integration with Microsoft LLMLingua2 prompt compression'],['LlamaIndex','Gmail Tool bug fix'],['Unsloth','Retrieval Augmented Finetuning cookbook'],['IBM ACP','Agent Communication Protocol LlamaIndex example'],['Giskard','RAGET bug fix'],['Chainlit','Chainlit-LlamaIndex cookbook']]
+const pad = (n) => String(n).padStart(2, '0')
+const reel = document.querySelector('.reel:not(.stills)'), screen = document.getElementById('screen')
+
+reel.innerHTML = EARLIER.map((e, i) => `
+  <button class="frame" role="tab" aria-selected="false" data-i="${i}">
+    <div class="pic ${e.fit === 'contain' ? 'contain' : ''}"><img src="${e.image}" alt="" loading="lazy" draggable="false"></div>
+    <div class="edge"><span>▸ ${pad(i + 1)}</span><span>${e.title}</span></div>
+  </button>`).join('')
+document.getElementById('credits').innerHTML = CREDITS.map(([p, t]) => `<dt>${p}</dt><dd><a href="#">${t}</a></dd>`).join('')
+
+function pick(i, scroll) {
+  const e = EARLIER[i]
+  reel.querySelectorAll('.frame').forEach((f) => f.setAttribute('aria-selected', f.dataset.i == i))
+  if (scroll) reel.querySelector(`[data-i="${i}"]`).scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  screen.innerHTML = `<div class="fade">
+      <div class="n">Frame ${pad(i + 1)} of ${pad(EARLIER.length)}</div>
+      <h3>${e.title}</h3><a class="gh" href="#">GitHub ↗</a></div>
+    <div class="fade"><div class="blurb"><p>${e.blurb}</p>
+      ${e.result ? `<div class="res"><b>${e.result[0]}</b><span>${e.result[1]}</span></div>` : ''}</div>
+      <div class="pills">${e.topics.map((t) => `<span class="pill">${t}</span>`).join('')}</div></div>`
+}
+reel.addEventListener('click', (ev) => { const f = ev.target.closest('.frame'); if (f) pick(+f.dataset.i, true) })
+reel.addEventListener('keydown', (ev) => {
+  const cur = +reel.querySelector('[aria-selected="true"]').dataset.i
+  const d = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0
+  if (!d) return
+  const n = Math.max(0, Math.min(EARLIER.length - 1, cur + d)); pick(n, true); reel.querySelector(`[data-i="${n}"]`).focus()
+})
+document.querySelector('.nudge.l').onclick = () => reel.scrollBy({ left: -300, behavior: 'smooth' })
+document.querySelector('.nudge.r').onclick = () => reel.scrollBy({ left: 300, behavior: 'smooth' })
+// drag to pull the film along with a mouse (touch scrolls natively)
+let down = null
+reel.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse') down = { x: e.clientX, left: reel.scrollLeft, moved: false } })
+addEventListener('pointermove', (e) => { if (!down) return; const dx = e.clientX - down.x; if (Math.abs(dx) > 4) { down.moved = true; reel.classList.add('drag') } reel.scrollLeft = down.left - dx })
+addEventListener('pointerup', () => { if (down) setTimeout(() => reel.classList.remove('drag')); down = null })
+pick(0, false)
+const panels = (id, names, start) => { let n = start; document.getElementById(id).innerHTML = names.map((x) => { const bookend = x === 'The question' || x === 'The answer'; return `<div class="panel ${x === 'The answer' ? 'end' : ''}"><span class="no">${bookend ? (x === 'The question' ? 'IN' : 'OUT') : pad(n++)}</span><span class="nm">${x}</span></div>` }).join('') }
+panels('b-index', ['Semantic double-merge chunking', 'Chunk dreaming', 'Blue-green collection swap'], 1)
+panels('b-answer', ['The question', 'HyDE', 'Hybrid search', 'Cohere reranking', 'Prompt compression', 'Multi-hop retrieval loop', 'The answer'], 4)
+document.getElementById('demo').addEventListener('click', (e) => { e.currentTarget.outerHTML = '<div class="demo"><iframe src="https://www.youtube-nocookie.com/embed/uLtMD3J4U40?autoplay=1" title="TheMarginCall demo" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>' })
+const FB = 'https://raw.githubusercontent.com/tituslhy/fictional-bassoon/HEAD/images'
+const STILLS = [['bassoon-bear','The name: a woodwind instrument I once thought was a bear'],['app','The app answering a question'],['a2ui-interactive','A2UI: cards the model lays out, with a choice to make'],['a2ui-selection','A2UI after a choice is sent, and the follow-up'],['langfuse','Langfuse tracing the same answer'],['prometheus','Prometheus: all 26 targets up'],['rabbitmq','RabbitMQ management overview'],['redis','Redis Insight on the Redis primary']]
+const stills = document.querySelector('.stills'), still = document.getElementById('still')
+stills.innerHTML = STILLS.map(([f, c], i) => `<button class="frame" role="tab" data-s="${i}" aria-selected="false"><div class="pic"><img src="${f === 'bassoon-bear' ? 'bassoon-bear.webp' : `${FB}/${f}.png`}" alt="" draggable="false"></div><div class="edge"><span>▸ ${pad(i)}</span><span>${f === 'bassoon-bear' ? 'the name' : f.replace('a2ui-', 'a2ui ')}</span></div></button>`).join('')
+function pickStill(i) {
+  stills.querySelectorAll('.frame').forEach((f) => f.setAttribute('aria-selected', f.dataset.s == i))
+  const f = STILLS[i][0]
+  still.innerHTML = `<img class="fade ${f === 'bassoon-bear' ? 'whole' : ''}" src="${f === 'bassoon-bear' ? 'bassoon-bear.webp' : `${FB}/${f}.png`}" alt="${STILLS[i][1]}"><p>${pad(i)} / ${pad(STILLS.length - 1)} · ${STILLS[i][1]}</p>`
+}
+stills.addEventListener('click', (e) => { const f = e.target.closest('.frame'); if (f) pickStill(+f.dataset.s) })
+pickStill(0)
+</script>
+</body>
+</html>
