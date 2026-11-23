@@ -373,3 +373,23 @@ describe('Education (the /education page)', () => {
     })
   })
 })
+
+describe('external feature link', () => {
+  const INTERVIEW = 'https://youtu.be/SvFH6uKAyfE'
+
+  it('renders SMU’s interview link beside its ask pill, opening in a new tab', () => {
+    const { container } = render(<Education />)
+    const smu = entry(container, 'smu')
+    const link = within(smu).getByRole('link', { name: 'Watch SMU’s interview with me' })
+    expect(link).toHaveAttribute('href', INTERVIEW)
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(within(smu).getByRole('button', { name: /Ask about my/ })).toBeInTheDocument()
+  })
+
+  it('does not render a feature link for NUS', () => {
+    const { container } = render(<Education />)
+    expect(NUS.feature).toBeUndefined()
+    expect(within(entry(container, 'nus')).queryByRole('link', { name: /interview/i })).toBeNull()
+  })
+})

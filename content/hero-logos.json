@@ -187,10 +187,6 @@
     "file": "liquibase",
     "r": 1
   },
-  "TypeScript": {
-    "file": "typescript",
-    "r": 1
-  },
   "TypeSafe": {
     "file": "typesafe",
     "r": 1

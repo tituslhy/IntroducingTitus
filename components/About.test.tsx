@@ -1,133 +1,165 @@
 import { render, screen } from "@testing-library/react";
+import { TOOLS, toolMatcher } from "@/lib/about";
 import { pageFolio } from "@/lib/profile";
-import About from "./About";
+import About, { DRIVES, toolArticleCounts } from "./About";
 
-describe("About", () => {
-  it("should render a back-to-top link in the section marker row", () => {
+// A small, known corpus so the article counts are deterministic.
+jest.mock("@/lib/articles", () => ({
+  ARTICLES: [
+    {
+      slug: "a",
+      title: "Building with Python and LangChain",
+      body: "Java is not here. JavaScript is not here either.",
+      keywords: ["Docker"],
+    },
+    {
+      slug: "b",
+      title: "Kubernetes in practice",
+      body: "We talk about LangChain again and Next.js.",
+      keywords: ["Python"],
+    },
+    {
+      slug: "c",
+      title: "Notes",
+      body: "Nothing to see. Next Js is a typo. nextjs works.",
+      keywords: [],
+    },
+  ],
+}));
+
+const idx = (name: string) => TOOLS.findIndex((t) => t.name === name);
+
+describe("About: section and header", () => {
+  it("renders the lede section with its header and a back-to-top link in the marker row", () => {
     const { container } = render(<About />);
+    const section = container.querySelector("section#lede");
+    expect(section).toBeInTheDocument();
+    expect(section).toHaveClass("text-ink");
+
     const marker = container.querySelector("section#lede header > div");
     const link = screen.getByRole("link", { name: /back to top/i });
     expect(marker).toContainElement(link);
     expect(link).toHaveAttribute("href", "#top");
   });
 
-  it("should render section with lede id", () => {
-    const { container } = render(<About />);
-    const section = container.querySelector("section#lede");
-    expect(section).toBeInTheDocument();
-  });
-
-  it("should render section heading with correct text", () => {
-    render(<About />);
-    const heading = screen.getByRole("heading", { name: /a note on the work i take on/i });
-    expect(heading).toBeInTheDocument();
-  });
-
-  it("should render section marker with the About folio", () => {
+  it("shows the About folio and label in the marker row", () => {
     const { container } = render(<About />);
     const marker = container.querySelector("section#lede header > div");
     expect(marker).toContainElement(screen.getByText(pageFolio("/about")));
     expect(pageFolio("/about")).toBe("05");
-  });
-
-  it("should render section label 'About'", () => {
-    render(<About />);
     expect(screen.getByText("About")).toBeInTheDocument();
   });
 
-  it("should render amber-colored 'work' emphasis in heading", () => {
+  it("renders the headline with 'code' emphasised in amber italics", () => {
     const { container } = render(<About />);
-    const emElement = container.querySelector("h2 em");
-    expect(emElement).toHaveClass("text-amber");
-    expect(emElement).toHaveClass("italic");
-    expect(emElement).toHaveTextContent("work");
+    expect(screen.getByRole("heading", { level: 2, name: /i swore i.d never write code/i })).toBeInTheDocument();
+    const em = container.querySelector("h2 em");
+    expect(em).toHaveTextContent("code");
+    expect(em).toHaveClass("text-amber", "italic");
   });
 
-  it("should render drop cap letter M at start of body", () => {
+  it("introduces the table as the tools picked up since 2015", () => {
+    render(<About />);
+    expect(screen.getByText(/i graduated in chemical engineering in 2015/i)).toBeInTheDocument();
+  });
+});
+
+describe("About: the periodic table", () => {
+  it("renders the table inside the lede section, not as a separate section", () => {
     const { container } = render(<About />);
-    const dropCap = container.querySelector("span.float-left");
-    expect(dropCap).toBeInTheDocument();
-    expect(dropCap).toHaveTextContent("M");
+    const stack = container.querySelector("#stack");
+    expect(stack).toBeInTheDocument();
+    expect(container.querySelector("section#lede #stack")).toBeInTheDocument();
+    expect(container.querySelector("section#stack")).toBeNull();
   });
 
-  it("should render main body text about experience", () => {
+  it("renders one labelled tool button per tool", () => {
     render(<About />);
-    expect(screen.getByText(/ore than eight years building ai systems in banking, biotech, and public sector/i)).toBeInTheDocument();
+    const tools = screen.getAllByRole("button", { name: /^\d+, .+, since [A-Z][a-z]{2} \d{4}$/ });
+    expect(tools).toHaveLength(TOOLS.length);
   });
 
-  it("should render text about interesting problems", () => {
+  it("starts with the timeline's first month and the Play control", () => {
     render(<About />);
-    expect(screen.getByText(/the interesting problems aren.t just the ai models/i)).toBeInTheDocument();
+    expect(screen.getByText("Jun 2015", { selector: "p" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+    expect(screen.getByRole("slider", { name: "Timeline" })).toBeInTheDocument();
   });
+});
 
-  it("should render text about latency budgets", () => {
-    render(<About />);
-    expect(screen.getByText(/latency budgets, the stakeholder who doesn.t trust/i)).toBeInTheDocument();
-  });
-
-  it("should render text about research and production", () => {
-    render(<About />);
-    expect(screen.getByText(/the seam between research and production/i)).toBeInTheDocument();
-  });
-
-  it("should render text about publishing work", () => {
-    render(<About />);
-    expect(screen.getByText(/i publish what i build/i)).toBeInTheDocument();
-  });
-
-  it("should render text about sixty five articles", () => {
-    render(<About />);
-    // About and nested Passions both quote the article-count word form
-    const articleCountElements = screen.getAllByText(/sixty five articles/i);
-    expect(articleCountElements.length).toBeGreaterThan(0);
-  });
-
-  it("should render text about understanding concepts", () => {
-    render(<About />);
-    expect(screen.getByText(/i don.t understand it yet/i)).toBeInTheDocument();
-  });
-
-  it("should render Passions component", () => {
-    render(<About />);
-    // Passions should be present - check for its content
+describe("About: what drives me", () => {
+  it("has a 'What drives me' label above four driver cards", () => {
+    const { container } = render(<About />);
     expect(screen.getByText(/what drives me/i)).toBeInTheDocument();
+    expect(DRIVES).toHaveLength(4);
+    expect(container.querySelectorAll("section#lede ol.grid > li")).toHaveLength(4);
   });
 
-  it("should have correct styling on section", () => {
-    const { container } = render(<About />);
-    const section = container.querySelector("section#lede");
-    expect(section).toHaveClass("text-ink");
-  });
-
-  it("should have grid layout with responsive columns", () => {
-    const { container } = render(<About />);
-    const grid = container.querySelector(".grid");
-    expect(grid).toHaveClass("grid-cols-1");
-    expect(grid).toHaveClass("min-[880px]:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]");
-  });
-
-  it("should render drop cap with serif font and amber color", () => {
-    const { container } = render(<About />);
-    const dropCap = container.querySelector("span.float-left");
-    expect(dropCap).toHaveClass("font-serif");
-    expect(dropCap).toHaveClass("text-amber");
-  });
-
-  it("should have proper section padding and margins", () => {
-    const { container } = render(<About />);
-    const contentDiv = container.querySelector(".mx-auto");
-    expect(contentDiv).toHaveClass("max-w-[1280px]");
-    expect(contentDiv).toHaveClass("px-[clamp(18px,4vw,56px)]");
-  });
-
-  it("should render main body paragraph content correctly", () => {
-    const { container } = render(<About />);
-    const paragraphs = container.querySelectorAll("div > p");
-    expect(paragraphs.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it("should not render family details", () => {
+  it("renders every driver's title and numbered marker", () => {
     render(<About />);
-    expect(screen.queryByText(/wife|daughter|family|kids|children|spouse/i)).not.toBeInTheDocument();
+    for (const d of DRIVES) {
+      expect(screen.getByRole("heading", { level: 3, name: d.title })).toBeInTheDocument();
+      expect(screen.getByText(d.n)).toBeInTheDocument();
+    }
+  });
+
+  it("gives every driver a title and body", () => {
+    for (const d of DRIVES) {
+      expect(d.title.trim().length).toBeGreaterThan(0);
+      expect(d.body.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("uses the article count word in the second driver", () => {
+    render(<About />);
+    expect(screen.getByText(/sixty.five articles because future-me will forget/i)).toBeInTheDocument();
+  });
+});
+
+describe("About: ask pill", () => {
+  it("closes the section with an 'Ask about how I got here' pill", () => {
+    render(<About />);
+    expect(screen.getByRole("button", { name: /ask about how i got here/i })).toBeInTheDocument();
+  });
+});
+
+describe("About: toolArticleCounts", () => {
+  it("returns one count per tool, in table order, all non-negative integers", () => {
+    const counts = toolArticleCounts();
+    expect(counts).toHaveLength(TOOLS.length);
+    for (const c of counts) {
+      expect(Number.isInteger(c)).toBe(true);
+      expect(c).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("counts an article once for each tool it mentions, in title, body or keywords", () => {
+    const counts = toolArticleCounts();
+    expect(counts[idx("Python")]).toBe(2); // title of a, keyword of b
+    expect(counts[idx("LangChain")]).toBe(2); // title of a, body of b
+    expect(counts[idx("Docker")]).toBe(1); // keyword of a
+    expect(counts[idx("Kubernetes")]).toBe(1); // title of b, via its explicit matcher
+  });
+
+  it("counts Java only as the whole word, not JavaScript", () => {
+    const counts = toolArticleCounts();
+    expect(counts[idx("Java")]).toBe(1); // "Java is not here." in a
+    expect(counts[idx("JavaScript")]).toBe(1); // default matcher, in a
+  });
+
+  it("counts Next.js with its explicit matcher: 'Next.js' and 'nextjs', not 'Next Js'", () => {
+    expect(toolArticleCounts()[idx("Next.js")]).toBe(2);
+  });
+
+  it("counts nothing for a tool whose name is too common a word to count", () => {
+    expect(toolMatcher(TOOLS[idx("Excel")])).toBeNull();
+    expect(toolArticleCounts()[idx("Excel")]).toBe(0);
+  });
+});
+
+describe("About: content", () => {
+  it("does not render family details", () => {
+    const { container } = render(<About />);
+    expect(container.textContent ?? "").not.toMatch(/wife|daughter|family|kids|children|spouse/i);
   });
 });

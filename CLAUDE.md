@@ -101,15 +101,21 @@ Do not deviate from this stack unless explicitly instructed.
     its title card then its stills by itself while on screen (pauses on hover, a frame pick or Pause; starts paused for
     reduced motion); fictional-bassoon also plays its architecture diagram; Illumina, built at work, plays two diagrams instead of screenshots; earlier work shares one projector;
     open source is the closing credits; a sticky programme row jumps between sections. Education keeps
-    the plain tile grammar.
+    the plain tile grammar. About is a **periodic table** of every tool I've used (`components/about/PeriodicTable`,
+    data in `lib/about.ts`, spec `docs/superpowers/specs/2026-11-22-about-periodic-table-design.md`): it plays chapter by
+    chapter (a chapter row jumps between them): logos light up in the order I picked them up, an amber ring marks what I used every day at that point,
+    and the dark tile in the table's notch carries the date, story line and photos.
 - **Layout:** A short front page plus six routes (`/experience`, `/education`, `/projects`, `/writing`,
   `/about`, `/colophon`), with a sticky nav. Desktop-first. Fully responsive.
   Front page design: `docs/superpowers/specs/2026-11-21-front-page-redesign-design.md`.
 - **Headshot:** Profile photo in masthead. File: `/public/headshot.jpeg` —
   rectangular 3:4, 1px ink border, `object-position: 50% 30%`, subtle saturate/
   contrast filter. No circle crop, no amber ring/glow.
-- **No stock photos. No illustrations, with one exception: the fictional-bassoon bear (`public/projects/bassoon-bear.webp`), the first still on that project's projector on Projects. Tech logos only in the front-page hero animation**
-  (files in `public/logos/`, credits in `public/logos/CREDITS.md`, never a tool I haven't used).
+- **Other photos of me:** only the chapter photos on About (`public/about/`: Toyota keychain, MITB poster,
+  Illumina nameplate, UOB team selfie, SMU pillar, Dev Week hackathon win, SFF booth demo), in the periodic table's dark tile. Candid moments of the work, never holiday or lifestyle shots.
+- **No stock photos. No illustrations, with one exception: the fictional-bassoon bear (`public/projects/bassoon-bear.webp`), the first still on that project's projector on Projects. Tech logos only in the front-page hero animation and the About periodic table**
+  (files in `public/logos/` and `public/logos/table/`, credits in `public/logos/CREDITS.md`, never a tool I haven't used —
+  e.g. no TypeScript: I'm Python- and SQL-heavy, with basic JavaScript).
   **Employer logos** appear only on the Experience staff passes (`public/logos/companies/`), small and unaltered.
   Elsewhere, typography, headshot, and hairline structure carry the weight.
 

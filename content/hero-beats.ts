@@ -73,4 +73,4 @@ export const HERO_BEATS: HeroBeat[] = [
 ]
 
 /** Logos that only ever drift at rest. */
-export const HERO_EXTRA_LOGOS: string[] = ["GitHub Actions", "Snowflake", "MongoDB", "TypeScript", "Langfuse"]
+export const HERO_EXTRA_LOGOS: string[] = ["GitHub Actions", "Snowflake", "MongoDB", "Langfuse"]

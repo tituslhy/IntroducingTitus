@@ -112,7 +112,19 @@ function Entry({ entry }: { entry: EducationEntry }) {
           <HeroTile {...entry.standing} dataTech={standingKey(entry)} />
         </Reveal>
         <Groups groups={entry} tone="paper" />
-        <AskPill ask={entry.ask} />
+        <div className="flex flex-wrap items-baseline gap-x-5">
+          <AskPill ask={entry.ask} />
+          {entry.feature && (
+            <a
+              href={entry.feature.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-[18px] font-mono text-[13px] text-ink underline decoration-amber underline-offset-4 hover:text-amber"
+            >
+              {entry.feature.label} <span aria-hidden="true">↗</span>
+            </a>
+          )}
+        </div>
 
         {entry.parts?.length ? (
           <>
@@ -134,7 +146,7 @@ function Entry({ entry }: { entry: EducationEntry }) {
 export default function Education() {
   return (
     <section id="education" className="text-ink">
-      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
+      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(20px,3vw,40px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
         <header className="mb-[clamp(28px,4vw,48px)]">
           <div className="flex items-baseline gap-3.5 pb-[18px] font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
             <span className="font-semibold tracking-[0.08em] text-amber">{pageFolio('/education')}</span>

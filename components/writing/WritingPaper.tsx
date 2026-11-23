@@ -112,7 +112,7 @@ export default function WritingPaper({ stories, desks, editions, folio, featured
 
   return (
     <section id="writing" className={`bg-paper text-ink transition-colors duration-500 ${late ? 'late-edition' : ''}`}>
-      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(28px,5vw,72px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
+      <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(20px,3vw,40px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
         <div className="flex items-baseline gap-3.5 pb-[18px] font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
           <span className="font-semibold tracking-[0.08em] text-amber">{folio}</span>
           <span className="font-medium text-ink">Writing</span>

@@ -92,3 +92,18 @@ describe("hero logo manifest", () => {
     expect(new Set(files).size).toBe(files.length);
   });
 });
+
+describe("TypeScript is not a hero logo", () => {
+  const beatTools = HERO_BEATS.flatMap((b) => b.tools);
+
+  it("has no manifest entry, resting logo or beat that names TypeScript", () => {
+    expect(Object.keys(MANIFEST).filter((k) => /typescript/i.test(k))).toEqual([]);
+    expect(HERO_EXTRA_LOGOS.filter((n) => /typescript/i.test(n))).toEqual([]);
+    expect(beatTools.filter((n) => /typescript/i.test(n))).toEqual([]);
+  });
+
+  it("has no TypeScript logo files left in the logo directory", () => {
+    expect(existsSync(join(LOGO_DIR, "typescript.ink.svg"))).toBe(false);
+    expect(existsSync(join(LOGO_DIR, "typescript.colour.svg"))).toBe(false);
+  });
+});

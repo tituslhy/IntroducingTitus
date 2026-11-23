@@ -46,7 +46,7 @@ const nextConfig = {
 - **Second accent:** Indigo `oklch(0.34 0.10 254)` — the Illumina project on Projects only (its Experience tile is amber).
 - **Layout:** A short front page plus six routes (/experience, /education, /projects, /writing, /about, /colophon) with a sticky nav. Desktop-first. Fully responsive.
 - **Headshot:** Profile photo in masthead. File: `/public/headshot.jpeg`. Rectangular 3:4, 1px ink border, `object-position: 50% 30%`, subtle saturate/contrast filter. No circle crop, no amber ring/glow.
-- **No stock photos. No illustrations, with one exception: the fictional-bassoon bear (`public/projects/bassoon-bear.webp`), the first still on that project's projector on Projects. Tech logos only in the front-page hero animation** (tools I've actually used; credits in public/logos/CREDITS.md). Elsewhere, typography, headshot, and hairline structure carry the weight.
+- **No stock photos. No illustrations, with one exception: the fictional-bassoon bear (`public/projects/bassoon-bear.webp`), the first still on that project's projector on Projects. Tech logos only in the front-page hero animation and the About periodic table** (tools I've actually used; credits in public/logos/CREDITS.md). Besides the headshot, the only photos of me are the chapter photos on About (`public/about/`). Elsewhere, typography, headshot, and hairline structure carry the weight.
 
 ### Navigation
 - Sticky, opaque top nav with page links; the current page is underlined amber; hides on scroll-down

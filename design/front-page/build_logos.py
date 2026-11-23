@@ -34,7 +34,6 @@ LOGOS = {
     'Autogen': ('own', 'autogen'), 'DSPy': ('own', 'dspy'), 'Chainlit': ('own', 'chainlit'),
     'LiteLLM': ('own', 'litellm'), 'FastMCP': ('own', 'fastmcp'),
     'Nginx': ('si', 'nginx'), 'Liquibase': ('si', 'liquibase'),
-    'TypeScript': ('si', 'typescript'),
     'TypeSafe': ('png2', 'typesafe'), 'gRPC': ('own', 'grpc'), 'ADK': ('png', 'adk'), 'Nacos': ('own', 'nacos'), 'Mem0': ('own', 'mem0'),
     'TensorFlow': ('si', 'tensorflow'), 'Streamlit': ('dev', 'streamlit'), 'Google Cloud': ('dev', 'googlecloud'),
     'Apache Kafka': ('si', 'apachekafka'), 'OpenAI': ('lobe', 'openai'), 'NetworkX': ('own', 'networkx'),

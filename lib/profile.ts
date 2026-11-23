@@ -251,6 +251,8 @@ export type Education = HonorGroups & {
   /** The class of degree or GPA, shown huge on the dark tile; `note` sits in its corner. */
   standing: { figure: string; caption: string; note?: string }
   ask: AskPrompt
+  /** A public piece about me and this degree, linked beside the ask pill, e.g. the school's interview. */
+  feature?: { label: string; href: string }
   parts?: EducationPart[]
 }
 
@@ -267,6 +269,7 @@ export const EDUCATION: Education[] = [
     scholarships: ['MITB Scholarship', 'SMU AI Talent Development Grant'],
     achievements: ['1st place, Food Image Classification competition', '3rd place, Recommender Systems competition'],
     ask: { label: 'my Master’s', question: 'What did you study in your Master’s at SMU?' },
+    feature: { label: 'Watch SMU’s interview with me', href: 'https://youtu.be/SvFH6uKAyfE' },
   },
   {
     slug: 'nus',
@@ -655,8 +658,8 @@ export type PageTarget = {
  * page renders, so a new role or project is targetable the moment it exists.
  */
 export const PAGE_TARGETS: PageTarget[] = [
-  { id: 'lede', path: '/about', label: 'About', about: 'my short bio and how I work' },
-  { id: 'stack', path: '/about', label: 'Stack', about: 'the tools, languages, and platforms I work with' },
+  { id: 'lede', path: '/about', label: 'About', about: 'how I went from chemical engineering to AI, and what drives me' },
+  { id: 'stack', path: '/about', label: 'Stack', about: 'every tool I have used, as a periodic table that lights up in the order I picked each one up, with what I use every day' },
   { id: 'dossier', path: '/experience', label: 'Experience', about: 'my full career timeline' },
   ...ROLES.map((r) => ({
     id: `role-${r.slug}`,
