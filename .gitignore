@@ -17,6 +17,8 @@ resources/
 
 # next.js
 /.next/
+# stale copies of the build cache (e.g. .next.stale-bak-*)
+/.next.*/
 /out/
 
 # production
