@@ -1,5 +1,6 @@
 import { render, act } from '@testing-library/react'
 import LoopFrame from './LoopFrame'
+import { ProjectorMotion } from './Projector'
 
 const SRC = '/projects/bassoon-bear.mp4'
 const POSTER = '/projects/bassoon-bear-poster.webp'
@@ -192,5 +193,86 @@ describe('LoopFrame cleanup', () => {
     expect(instances[0].disconnect).not.toHaveBeenCalled()
     unmount()
     expect(instances[0].disconnect).toHaveBeenCalledTimes(1)
+  })
+})
+
+/** Renders a LoopFrame inside a projector's motion context, the way Projector wraps each frame. */
+function renderIn(moving: boolean) {
+  const ui = (value: boolean) => (
+    <ProjectorMotion.Provider value={value}>
+      <LoopFrame src={SRC} poster={POSTER} caption={CAPTION} />
+    </ProjectorMotion.Provider>
+  )
+  const result = render(ui(moving))
+  return { ...result, setMotion: (value: boolean) => result.rerender(ui(value)) }
+}
+
+describe('LoopFrame in a projector that has been paused', () => {
+  it('pauses on mount and never plays', () => {
+    renderIn(false)
+    expect(pauseMock).toHaveBeenCalled()
+    expect(playMock).not.toHaveBeenCalled()
+  })
+
+  it('does not play when it intersects', () => {
+    renderIn(false)
+    setIntersecting(true)
+    expect(playMock).not.toHaveBeenCalled()
+  })
+
+  it('stays paused through a scroll into view and back out', () => {
+    renderIn(false)
+    setIntersecting(true)
+    setIntersecting(false)
+    setIntersecting(true)
+    expect(playMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('LoopFrame when its projector pauses and plays again', () => {
+  it('pauses when the projector switches from playing to paused, while on screen', () => {
+    const { setMotion } = renderIn(true)
+    setIntersecting(true)
+    expect(playMock).toHaveBeenCalledTimes(1)
+    expect(pauseMock).not.toHaveBeenCalled()
+
+    setMotion(false)
+    expect(pauseMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('plays when the projector switches from paused to playing, while on screen', () => {
+    const { setMotion } = renderIn(false)
+    setIntersecting(true)
+    expect(playMock).not.toHaveBeenCalled()
+
+    setMotion(true)
+    expect(playMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not play on switching to playing while off screen, but plays on the next intersect', () => {
+    const { setMotion } = renderIn(false)
+    setMotion(true)
+    expect(playMock).not.toHaveBeenCalled()
+
+    setIntersecting(true)
+    expect(playMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('picks up where it stopped on Play, without restarting from zero', () => {
+    const { container, setMotion } = renderIn(true)
+    const video = container.querySelector('video')!
+    setIntersecting(true)
+    video.currentTime = 2
+    setMotion(false)
+    setMotion(true)
+    expect(video.currentTime).toBe(2)
+    expect(playMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('never plays under reduced motion, even when the projector is playing', () => {
+    setReducedMotion(true)
+    const { setMotion } = renderIn(false)
+    setMotion(true)
+    expect(playMock).not.toHaveBeenCalled()
   })
 })

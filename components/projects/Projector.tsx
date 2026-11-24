@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { createContext, Fragment, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { REVEAL_EVENT } from '@/lib/reveal'
 
 export type ProjectorFrame = {
@@ -16,6 +16,12 @@ export type ProjectorFrame = {
 /** Anything inside a frame (the demo video, say) can stop the projector by dispatching this. */
 export const PROJECTOR_PAUSE = 'projector-pause'
 export const DEFAULT_MS = 3500
+
+/**
+ * False once the visitor presses Pause, until they press Play. A moving frame (LoopFrame) stops with it.
+ * Hovering or picking a frame only stops the projector moving on, so a picked video still plays.
+ */
+export const ProjectorMotion = createContext(true)
 
 const REDUCE = '(prefers-reduced-motion: reduce)'
 const canMatch = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -57,6 +63,7 @@ export default function Projector({
   const setPlaying = (on: boolean) => setChoice(on)
   const [seen, setSeen] = useState(false)
   const [held, setHeld] = useState(false)
+  const [halted, setHalted] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   const strip = useRef<HTMLDivElement>(null)
 
@@ -119,7 +126,7 @@ export default function Projector({
       >
         {frames.map((f, i) => (
           <div key={i} data-reveal={i} hidden={i !== at} className="projector-frame absolute inset-0">
-            {f.node}
+            <ProjectorMotion.Provider value={!halted}>{f.node}</ProjectorMotion.Provider>
           </div>
         ))}
       </div>
@@ -158,7 +165,10 @@ export default function Projector({
         {frames.length > 1 && (
           <button
             type="button"
-            onClick={() => setPlaying(!playing)}
+            onClick={() => {
+              setPlaying(!playing)
+              setHalted(playing)
+            }}
             className="shrink-0 rounded-full border border-[oklch(0.5_0.02_70)] px-3 py-[5px] font-mono text-[12px] text-paper transition-colors hover:border-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
           >
             {playing ? '❚❚ Pause' : '▶ Play'}

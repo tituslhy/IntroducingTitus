@@ -1,6 +1,7 @@
+import { useContext } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { reveal } from '@/lib/reveal'
-import Projector, { DEFAULT_MS, PROJECTOR_PAUSE, type ProjectorFrame } from './Projector'
+import Projector, { DEFAULT_MS, PROJECTOR_PAUSE, ProjectorMotion, type ProjectorFrame } from './Projector'
 
 const frames: ProjectorFrame[] = [
   { node: <p>Slide one</p>, thumb: <span>T1</span>, caption: 'First caption', ms: 1000 },
@@ -325,5 +326,64 @@ describe('Projector: the bar only advances while it is running', () => {
     fireEvent.click(playButton()!)
     endBar()
     expect(caption()).toHaveTextContent('02/03 · Second caption')
+  })
+})
+
+describe('Projector: what a moving frame sees (ProjectorMotion)', () => {
+  /** Shows the motion value its frame sees, as an attribute, so the DOM tells us what the context holds now. */
+  function Probe() {
+    return <i data-motion={String(useContext(ProjectorMotion))} />
+  }
+  const probed: ProjectorFrame[] = [
+    { node: <Probe />, thumb: <span>T1</span>, caption: 'First caption' },
+    { node: <Probe />, thumb: <span>T2</span>, caption: 'Second caption' },
+  ]
+  const motionValues = () => Array.from(group().querySelectorAll('[data-motion]')).map((el) => el.getAttribute('data-motion'))
+
+  it('is true to begin with, so a moving frame moves', () => {
+    render(<Projector label="Test reel" frames={probed} />)
+    expect(motionValues()).toEqual(['true', 'true'])
+  })
+
+  it('is false once Pause is pressed, and true again on Play', () => {
+    render(<Projector label="Test reel" frames={probed} />)
+    onScreen(true)
+    fireEvent.click(pauseButton()!)
+    expect(motionValues()).toEqual(['false', 'false'])
+
+    fireEvent.click(playButton()!)
+    expect(motionValues()).toEqual(['true', 'true'])
+  })
+
+  it('ends false after Pause, Play, Pause in a row', () => {
+    render(<Projector label="Test reel" frames={probed} />)
+    fireEvent.click(pauseButton()!)
+    fireEvent.click(playButton()!)
+    fireEvent.click(pauseButton()!)
+    expect(motionValues()).toEqual(['false', 'false'])
+  })
+
+  it('stays true when a frame thumb is picked, so a picked video still plays', () => {
+    render(<Projector label="Test reel" frames={probed} />)
+    onScreen(true)
+    fireEvent.click(thumb(2))
+    expect(playButton()).toBeInTheDocument()
+    expect(motionValues()).toEqual(['true', 'true'])
+  })
+
+  it('stays true while a mouse hovers over the projector', () => {
+    render(<Projector label="Test reel" frames={probed} />)
+    onScreen(true)
+    pointer('pointerover', 'mouse')
+    expect(bar()).toHaveStyle({ animationPlayState: 'paused' })
+    expect(motionValues()).toEqual(['true', 'true'])
+  })
+
+  it('is set to false by Pause even after a thumb was picked', () => {
+    render(<Projector label="Test reel" frames={probed} />)
+    fireEvent.click(thumb(2))
+    fireEvent.click(playButton()!)
+    fireEvent.click(pauseButton()!)
+    expect(motionValues()).toEqual(['false', 'false'])
   })
 })
