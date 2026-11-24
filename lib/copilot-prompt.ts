@@ -27,16 +27,15 @@ import {
   OPEN_SOURCE,
   CERTIFICATIONS,
   PAGE_TARGETS,
-  PROFICIENCY_SEPARATOR,
   PROJECTS,
   EARLIER_PROJECTS,
   ROLES,
   SOCIAL,
-  STACK_GROUPS,
   WRITING_TOPICS,
   type Role,
 } from './profile'
 
+import { CHAPTERS, DEPTH_LABELS, TOOL_CATEGORIES, TOOLS, formatMonth, type Tool, type ToolCategory } from './about'
 import { articleByUrl, formatPublished } from './citation-ledger'
 import { ARTICLES, type Article } from './articles'
 import { renderWritingTree, type Themes } from './writing-tree'
@@ -96,13 +95,35 @@ function renderEducation(): string {
   return [...degrees, `**Certifications:** ${CERTIFICATIONS.join(', ')}.`].join('\n\n')
 }
 
-function renderTechStack(): string {
-  return STACK_GROUPS.map((g) => {
-    const items = [...g.items, ...(g.more ?? [])].map((item) => {
-      const [name, level] = item.split(PROFICIENCY_SEPARATOR)
-      return level ? `${name} (${level.toLowerCase()})` : name
+/** "every day, Mar 2016–now"; a tool can have more than one stretch. */
+function dailyStretches(tool: Tool): string {
+  return (tool.daily ?? []).map(([from, to]) => `${formatMonth(from)}–${to ? formatMonth(to) : 'now'}`).join(', ')
+}
+
+/** One line per tool: when I picked it up, where, and how much I used it. Same data as the About table. */
+function renderTool(tool: Tool): string {
+  const name = tool.level ? `${tool.name} (${tool.level})` : tool.name
+  const use = tool.daily ? `every day, ${dailyStretches(tool)}` : DEPTH_LABELS[tool.depth].toLowerCase()
+  return `- ${name}: since ${formatMonth(tool.since)}, ${tool.where}; ${use}`
+}
+
+function renderTools(): string {
+  const categories = Object.keys(TOOL_CATEGORIES) as ToolCategory[]
+  return categories
+    .map((c) => {
+      const tools = TOOLS.filter((t) => t.category === c).sort((a, b) => a.since.localeCompare(b.since))
+      return `**${TOOL_CATEGORIES[c].label}**\n${tools.map(renderTool).join('\n')}`
     })
-    return `${g.label}: ${items.join(', ')}`
+    .join('\n\n')
+}
+
+/** The About page's chapters, in order: how I got from chemical engineering to AI. */
+function renderStory(): string {
+  return CHAPTERS.map((c) => {
+    const link = c.photo?.link ? ` (${c.photo.link.label}: ${c.photo.link.href})` : ''
+    // "Now: demoing…" already carries its label.
+    const text = c.text.startsWith(`${c.label}:`) ? c.text.slice(c.label.length + 1).trim() : c.text
+    return `- **${c.label}:** ${text}${link}`
   }).join('\n')
 }
 
@@ -160,7 +181,13 @@ function renderLinks(): string {
 }
 
 function renderPageTargets(): string {
-  return PAGE_TARGETS.map((t) => `- \`${t.id}\` (${t.path}) — ${t.about}`).join('\n')
+  const tools = PAGE_TARGETS.filter((t) => t.tool)
+  return PAGE_TARGETS.filter((t) => !t.tool)
+    .map((t) => `- \`${t.id}\` (${t.path}) — ${t.about}`)
+    .concat(
+      `- \`tool-…\` (/about) — one tool's tile in the periodic table, for each of the ${tools.length} tools in Every Tool I've Used: \`tool-\` plus its name in lower case, with anything that isn't a letter or digit as a hyphen (e.g.\`tool-neo4j\`, \`tool-elastic-elk\`, \`tool-scikit-learn\`). The table jumps to the chapter where they light up and rings them.`,
+    )
+    .join('\n')
 }
 
 /** Every token the template may use, mapped to its rendered value. */
@@ -179,7 +206,8 @@ export function promptTokens(): Record<string, string> {
     EXPERIENCE: ROLES.map(renderRole).join('\n\n'),
     PROJECTS: renderProjects(),
     EDUCATION: renderEducation(),
-    TECH_STACK: renderTechStack(),
+    TOOLS: renderTools(),
+    STORY: renderStory(),
     OPEN_SOURCE: renderOpenSource(),
     OPEN_SOURCE_PROJECTS: openSourceProjects(),
     FEATURED_ARTICLES: renderFeaturedArticles(),

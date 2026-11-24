@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { CHAPTERS, TIMELINE_END, TIMELINE_START, TOOLS, atomicNumbers, journeyLine, monthsBetween } from "@/lib/about";
+import { CHAPTERS, TIMELINE_END, TIMELINE_START, TOOLS, atomicNumbers, journeyLine, monthsBetween, toolTargetId } from "@/lib/about";
+import { PENDING_SHOW_MS, SHOW_EVENT, requestShow, takePendingShow } from "@/lib/reveal";
 import PeriodicTable, { CHAPTER_MS } from "./PeriodicTable";
 
 const ZERO_COUNTS = TOOLS.map(() => 0);
@@ -268,7 +269,7 @@ describe("PeriodicTable: timeline slider", () => {
   it("shows the journey line at the last month, and the N of N count once scrubbed back", () => {
     render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
     fireEvent.change(slider(), { target: { value: String(indexOfMonth(TIMELINE_END)) } });
-    expect(screen.getByText("From 2 tools in 2015 to 114 today.")).toBeInTheDocument();
+    expect(screen.getByText(`From 2 tools in 2015 to ${TOTAL} today.`)).toBeInTheDocument();
     expect(screen.queryByText(/of \d+ tools/)).toBeNull();
 
     fireEvent.change(slider(), { target: { value: String(indexOfMonth("2026-10")) } });
@@ -735,5 +736,306 @@ describe("PeriodicTable: next-chapter hint and hold timer", () => {
     expect(dateHeading()).toHaveTextContent("Nov 2026");
     expect(timerOf(container)).toBeNull();
     expect(screen.queryByText(/^Next: /)).toBeNull();
+  });
+});
+
+describe("PeriodicTable: Ask Titus pointing at tools", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  /**
+   * What Ask Titus's stop sends: the show event, dispatched from a tile and bubbling up to the table. Starts from
+   * the first id that is a tile, or from any tile when none is.
+   */
+  function showTools(ids: string[]) {
+    const origin = ids.map((id) => document.getElementById(id)).find((el) => el !== null) ?? document.querySelector("button.pt-el")!;
+    act(() => {
+      origin.dispatchEvent(new CustomEvent(SHOW_EVENT, { bubbles: true, detail: { ids } }));
+    });
+  }
+
+  it("stops playing, jumps to the chapter where the latest named tool lights up, and shows the first tool", () => {
+    render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    scrollIntoView();
+    expect(playButton()).toHaveTextContent("Pause");
+    advance(CHAPTER_MS.cascade);
+
+    showTools(["tool-tigergraph", "tool-neo4j"]);
+
+    // Neo4j is picked up in May 2025, the "2024" chapter's stop; TigerGraph (Mar 2023) is shown first.
+    expect(playButton()).toHaveTextContent("Play");
+    expect(dateHeading()).toHaveTextContent("May 2025");
+    expect(screen.getByRole("button", { name: /TigerGraph/ })).toHaveAttribute("aria-pressed", "true");
+    expect(liveLine(document.body)).toHaveTextContent("· TigerGraph —");
+  });
+
+  it("leaves play stopped at the chapter stop, with no further months changing", () => {
+    render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    scrollIntoView();
+    showTools(["tool-tigergraph", "tool-neo4j"]);
+    advance(CHAPTER_MS.holdPhoto * 2);
+    expect(dateHeading()).toHaveTextContent("May 2025");
+    expect(playButton()).toHaveTextContent("Play");
+  });
+
+  it("shows the first named tool even when a later tool is named first in the list", () => {
+    const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    showTools(["tool-neo4j", "tool-tigergraph"]);
+    expect(liveLine(container)).toHaveTextContent("· Neo4j —");
+    expect(dateHeading()).toHaveTextContent("May 2025");
+  });
+
+  it("does not let the table's first-view autoplay override a show that came before it", () => {
+    render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    showTools(["tool-tigergraph", "tool-neo4j"]);
+    expect(dateHeading()).toHaveTextContent("May 2025");
+
+    // The table now comes into view: it would normally start playing from the first month.
+    scrollIntoView();
+    advance(CHAPTER_MS.holdPhoto * 3);
+
+    expect(dateHeading()).toHaveTextContent("May 2025");
+    expect(playButton()).toHaveTextContent("Play");
+  });
+
+  it("ignores ids that are not tools on the table", () => {
+    const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    scrollIntoView();
+    advance(CHAPTER_MS.cascade);
+    const before = dateHeading().textContent;
+
+    showTools(["tool-nope", "role-illumina"]);
+
+    expect(dateHeading().textContent).toBe(before);
+    expect(playButton()).toHaveTextContent("Pause");
+    expect(liveLine(container)).toBeEmptyDOMElement();
+  });
+
+  it("keeps the known tools of a mixed list and ignores the rest", () => {
+    const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    showTools(["tool-nope", "tool-neo4j"]);
+    expect(dateHeading()).toHaveTextContent("May 2025");
+    expect(liveLine(container)).toHaveTextContent("· Neo4j —");
+  });
+
+  it("gives every tool tile the id its target uses on the page", () => {
+    const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    const tiles = Array.from(container.querySelectorAll("button.pt-el"));
+    expect(tiles.map((el) => el.id)).toEqual(TOOLS.map((t) => toolTargetId(t)));
+    for (const tool of TOOLS) {
+      const el = document.getElementById(toolTargetId(tool));
+      expect(el?.tagName).toBe("BUTTON");
+      expect(el).toHaveAttribute("title", tool.name);
+    }
+  });
+});
+
+describe("PeriodicTable: a show request made before it mounts", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    // Clear any request left by an earlier test.
+    takePendingShow(() => true);
+  });
+
+  /** What Ask Titus sends when the page is still mounting: the request is made from a detached anchor. */
+  const requestBeforeMount = (ids: string[]) => requestShow(document.createElement("button"), ids);
+
+  it("lands on the 2024 chapter with the first named tool picked, and does not autoplay when it comes into view", () => {
+    requestBeforeMount(["tool-tigergraph", "tool-neo4j"]);
+    const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+
+    expect(dateHeading()).toHaveTextContent("May 2025");
+    expect(chapterChip("2024")).toHaveAttribute("aria-current", "step");
+    expect(liveLine(container)).toHaveTextContent("· TigerGraph —");
+    expect(playButton()).toHaveTextContent("Play");
+
+    scrollIntoView();
+    advance(CHAPTER_MS.holdPhoto * 3);
+    expect(dateHeading()).toHaveTextContent("May 2025");
+    expect(playButton()).toHaveTextContent("Play");
+  });
+
+  it("is taken once: a second mount after that plays from the start again", () => {
+    const { unmount } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    unmount();
+    requestBeforeMount(["tool-tigergraph", "tool-neo4j"]);
+    const first = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    expect(dateHeading()).toHaveTextContent("May 2025");
+    first.unmount();
+    render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    expect(dateHeading()).toHaveTextContent("Jun 2015");
+  });
+
+  it("ignores a request older than PENDING_SHOW_MS, and the table plays normally", () => {
+    requestBeforeMount(["tool-tigergraph", "tool-neo4j"]);
+    advance(PENDING_SHOW_MS + 1);
+    const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+
+    expect(dateHeading()).toHaveTextContent("Jun 2015");
+    expect(liveLine(container)).toBeEmptyDOMElement();
+    scrollIntoView();
+    advance(CHAPTER_MS.cascade);
+    expect(playButton()).toHaveTextContent("Pause");
+    expect(dateHeading()).not.toHaveTextContent("May 2025");
+  });
+
+  it("ignores a request with no tool ids and leaves it for another owner", () => {
+    requestBeforeMount(["role-illumina"]);
+    const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+
+    expect(dateHeading()).toHaveTextContent("Jun 2015");
+    expect(liveLine(container)).toBeEmptyDOMElement();
+    scrollIntoView();
+    expect(playButton()).toHaveTextContent("Pause");
+    expect(takePendingShow(() => true)).toEqual(["role-illumina"]);
+  });
+
+  it("after handling a SHOW_EVENT, remounting does not re-apply the request", () => {
+    const { unmount } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    // The anchor is a tile on the table, so the event reaches the table's own listener and is handled there.
+    act(() => requestShow(document.getElementById("tool-tigergraph")!, ["tool-tigergraph", "tool-neo4j"]));
+    expect(dateHeading()).toHaveTextContent("May 2025");
+    unmount();
+
+    const remounted = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    expect(dateHeading()).toHaveTextContent("Jun 2015");
+    expect(chapterChip("2015–2016")).toHaveAttribute("aria-current", "step");
+    expect(liveLine(remounted.container)).toBeEmptyDOMElement();
+  });
+});
+
+describe("PeriodicTable: tools named by Ask Titus stay marked until the table is used", () => {
+  const NAMED = ["tool-tigergraph", "tool-neo4j"];
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    // Clear any request left by an earlier test.
+    takePendingShow(() => true);
+  });
+
+  /** What Ask Titus's stop sends: the show event, dispatched from a tile and bubbling up to the table. */
+  function showTools(ids: string[]) {
+    const origin = ids.map((id) => document.getElementById(id)).find((el) => el !== null) ?? document.querySelector("button.pt-el")!;
+    act(() => {
+      origin.dispatchEvent(new CustomEvent(SHOW_EVENT, { bubbles: true, detail: { ids } }));
+    });
+  }
+
+  /** Both named tiles are outlined and solid; every other tile is faded. */
+  function expectNamedMarked(ids: string[]) {
+    TOOLS.forEach((tool) => {
+      const el = document.getElementById(toolTargetId(tool))!;
+      if (ids.includes(toolTargetId(tool))) {
+        expect(el).toHaveClass("outline", "outline-2", "outline-offset-2", "outline-ink");
+        expect(el).not.toHaveClass("opacity-30");
+      } else {
+        expect(el).toHaveClass("opacity-30");
+      }
+    });
+  }
+
+  const fadedCount = (container: HTMLElement) => container.querySelectorAll(".opacity-30").length;
+
+  function hoverCapable() {
+    const original = window.matchMedia;
+    window.matchMedia = jest.fn((query: string) => ({
+      matches: query === "(hover: hover)",
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(() => true),
+    })) as unknown as typeof window.matchMedia;
+    return () => {
+      window.matchMedia = original;
+    };
+  }
+
+  it("outlines both named tiles and fades every other tile after SHOW_EVENT", () => {
+    render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    showTools(NAMED);
+    expectNamedMarked(NAMED);
+    expect(toolButton("TigerGraph")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("marks both named tiles when the request was made before the table mounted", () => {
+    requestShow(document.createElement("button"), NAMED);
+    const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    expect(dateHeading()).toHaveTextContent("May 2025");
+    expectNamedMarked(NAMED);
+    expect(fadedCount(container)).toBe(TOTAL - NAMED.length);
+  });
+
+  it("keeps the marks through the table's first-view autoplay that comes after the show", () => {
+    render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    showTools(NAMED);
+    scrollIntoView();
+    advance(CHAPTER_MS.holdPhoto);
+    expectNamedMarked(NAMED);
+  });
+
+  it("clears the fading when Play is pressed", () => {
+    const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    showTools(NAMED);
+    expect(fadedCount(container)).toBe(TOTAL - NAMED.length);
+    fireEvent.click(playButton());
+    expect(playButton()).toHaveTextContent("Pause");
+    expect(fadedCount(container)).toBe(0);
+    // Neo4j is named but not the picked tile, so its outline has gone too.
+    expect(document.getElementById("tool-neo4j")).not.toHaveClass("outline-ink");
+  });
+
+  it("clears the fading when the timeline slider is scrubbed", () => {
+    const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    showTools(NAMED);
+    fireEvent.change(slider(), { target: { value: String(indexOfMonth("2020-01")) } });
+    expect(dateHeading()).toHaveTextContent("Jan 2020");
+    expect(fadedCount(container)).toBe(0);
+    expect(document.getElementById("tool-neo4j")).not.toHaveClass("outline-ink");
+  });
+
+  it("clears the fading when a chapter button is clicked", () => {
+    const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    showTools(NAMED);
+    fireEvent.click(chapterChip("2017"));
+    expect(chapterChip("2017")).toHaveAttribute("aria-current", "step");
+    expect(fadedCount(container)).toBe(0);
+    expect(document.getElementById("tool-neo4j")).not.toHaveClass("outline-ink");
+  });
+
+  it("clears the fading when a tile is clicked", () => {
+    const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    showTools(NAMED);
+    fireEvent.click(toolButton("HTML"));
+    expect(toolButton("HTML")).toHaveAttribute("aria-pressed", "true");
+    expect(fadedCount(container)).toBe(0);
+    expect(document.getElementById("tool-neo4j")).not.toHaveClass("outline-ink");
+  });
+
+  it("does not clear the fading when a tile is only hovered on a hover-capable device", () => {
+    const restore = hoverCapable();
+    try {
+      const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+      showTools(NAMED);
+      fireEvent.mouseEnter(toolButton("HTML"));
+      expect(toolButton("HTML")).toHaveAttribute("aria-pressed", "true");
+      expect(fadedCount(container)).toBe(TOTAL - NAMED.length);
+      expect(document.getElementById("tool-tigergraph")).toHaveClass("outline-ink");
+      expect(document.getElementById("tool-neo4j")).toHaveClass("outline-ink");
+    } finally {
+      restore();
+    }
+  });
+
+  it("puts scroll-mt-32 on the #stack wrapper, which holds the chapter row and the tiles", () => {
+    const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
+    const stack = container.querySelector<HTMLElement>("#stack");
+    expect(stack).toHaveClass("scroll-mt-32");
+    expect(container.querySelectorAll(".scroll-mt-32")).toHaveLength(1);
+    expect(stack).toContainElement(chapterNav());
+    expect(stack!.querySelectorAll("button.pt-el")).toHaveLength(TOTAL);
   });
 });

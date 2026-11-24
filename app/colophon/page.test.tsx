@@ -17,6 +17,7 @@ const scorecard: Scorecard = {
   precisionAt2: null,
   abstainAccuracy: 1,
   noInvention: 0.5,
+  recordAccuracy: null,
   pageSize: null,
 };
 
@@ -322,5 +323,58 @@ describe("ColophonPage names each Jev operation", () => {
     expect(text).toContain("Jev filter (noul)");
     expect(text).toContain("Jev rank (score)");
     expect(text).toContain("Jev sections (score)");
+  });
+});
+
+describe("ColophonPage used-my-record row", () => {
+  beforeEach(() => {
+    jest.mocked(loadScorecard).mockReturnValue(null);
+  });
+
+  it("renders the Used my record row with its percent when recordAccuracy is a number", () => {
+    jest.mocked(loadScorecard).mockReturnValue({ ...scorecard, recordAccuracy: 0.75 });
+    render(<ColophonPage />);
+
+    const section = screen.getByRole("heading", { name: /how it.s tested/i }).closest("section") as HTMLElement;
+    const label = within(section).getByText("Used my record");
+    const cell = label.closest("div") as HTMLElement;
+
+    expect(within(cell).getByText("75%")).toBeInTheDocument();
+    expect(within(cell).getByText("Experience questions answered with when and where I used it")).toBeInTheDocument();
+  });
+
+  it("places the Used my record row before Abstain accuracy", () => {
+    jest.mocked(loadScorecard).mockReturnValue({ ...scorecard, recordAccuracy: 0.5 });
+    render(<ColophonPage />);
+
+    const labels = Array.from(document.querySelectorAll("dt")).map((dt) => dt.textContent ?? "");
+    expect(labels.indexOf("Used my record")).toBeGreaterThanOrEqual(0);
+    expect(labels.indexOf("Used my record")).toBe(labels.indexOf("Abstain accuracy") - 1);
+  });
+
+  it("shows 0% and 100% for the extremes rather than dropping the row", () => {
+    const rowFor = (value: number) => {
+      jest.mocked(loadScorecard).mockReturnValue({ ...scorecard, recordAccuracy: value });
+      const view = render(<ColophonPage />);
+      const cell = screen.getByText("Used my record").closest("div") as HTMLElement;
+      return { cell, unmount: view.unmount };
+    };
+
+    const zero = rowFor(0);
+    expect(within(zero.cell).getByText("0%")).toBeInTheDocument();
+    zero.unmount();
+
+    const one = rowFor(1);
+    expect(within(one.cell).getByText("100%")).toBeInTheDocument();
+    one.unmount();
+  });
+
+  it("is absent when recordAccuracy is null, and the rest of the scorecard still renders", () => {
+    jest.mocked(loadScorecard).mockReturnValue({ ...scorecard, recordAccuracy: null });
+    render(<ColophonPage />);
+
+    expect(screen.queryByText("Used my record")).not.toBeInTheDocument();
+    expect(screen.getByText("Abstain accuracy")).toBeInTheDocument();
+    expect(screen.getByText("Recall")).toBeInTheDocument();
   });
 });

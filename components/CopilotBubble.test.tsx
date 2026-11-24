@@ -1,10 +1,11 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TextEncoder, TextDecoder } from "util";
 import CopilotBubble from "./CopilotBubble";
 import { ARTICLE_COUNT_NUMBER } from "@/lib/content";
 import { openCopilot } from "@/lib/copilot-events";
 import { STARTER_PROMPTS } from "@/lib/starter-prompts";
+import { SHOW_EVENT } from "@/lib/reveal";
 
 // The drawer routes show_on_page to another page with the App Router. Tests give it a
 // router they can inspect, and a pathname they can set.
@@ -72,6 +73,38 @@ function createStreamingResponse(chunks: string[]): Response {
   } as unknown as Response;
 }
 
+/** Mirrors STOP_SETTLE_MS in CopilotBubble: the page moves this long after the first action. */
+const STOP_SETTLE_MS = 150;
+
+/** Lets the settle timer and the animation frame after it run, so a page that is going to move has moved. */
+async function letPageSettle() {
+  await act(() => new Promise((done) => setTimeout(done, STOP_SETTLE_MS + 100)));
+}
+
+/** A reply stream of text chunks, with WAIT where it pauses until `release()` is called. */
+const WAIT = "wait" as const;
+function scriptedResponse(script: Array<string | typeof WAIT>) {
+  const encoder = new TextEncoder();
+  const queue = [...script];
+  let release!: () => void;
+  const gate = new Promise<void>((done) => (release = done));
+  const reader = {
+    read: jest.fn(async (): Promise<{ done: boolean; value?: Uint8Array }> => {
+      const next = queue.shift();
+      if (next === undefined) return { done: true, value: undefined };
+      if (next === WAIT) {
+        await gate;
+        return reader.read();
+      }
+      return { done: false, value: encoder.encode(next) };
+    }),
+  };
+  const response = { ok: true, status: 200, body: { getReader: () => reader } } as unknown as Response;
+  return { response, release };
+}
+const actionLine = (target: string) => `{"type":"action","target":"${target}"}\n`;
+const deltaLine = (text: string) => `{"type":"delta","text":"${text}"}\n`;
+
 /** The scroll box that holds the messages (nearest scrolling ancestor of the starter-state intro). */
 function messagesScroller(): HTMLElement {
   const dialog = screen.getByRole("dialog", { name: /ask titus/i });
@@ -80,8 +113,37 @@ function messagesScroller(): HTMLElement {
   return scroller;
 }
 
+/** Places an element at `documentTop` in the page (as the scroll sees it), so tests can check where the page moves. */
+function placeAt(el: HTMLElement, documentTop: number): HTMLElement {
+  el.getBoundingClientRect = () =>
+    ({ top: documentTop - window.scrollY, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  return el;
+}
+
+/** jsdom does no scrolling or layout: sets the offset the page reports as window.scrollY. */
+function setScrollY(y: number) {
+  window.scrollY = y;
+}
+
+/** Adds the site nav, with a fixed height, so scrollUnderNav can measure it. */
+function addNav(height: number) {
+  const nav = document.createElement("nav");
+  nav.setAttribute("aria-label", "Site navigation");
+  Object.defineProperty(nav, "offsetHeight", { value: height, configurable: true });
+  document.body.append(nav);
+  return nav;
+}
+
 describe("CopilotBubble", () => {
+  // Where the page is asked to scroll; jsdom cannot scroll, so window.scrollTo is mocked.
+  let scrollTo: jest.Mock;
+  const originalScrollTo = window.scrollTo;
+  afterEach(() => {
+    window.scrollTo = originalScrollTo;
+  });
   beforeEach(() => {
+    scrollTo = jest.fn();
+    window.scrollTo = scrollTo as unknown as typeof window.scrollTo;
     mockPush.mockReset();
     mockPathname = "/";
     if (!global.TextDecoder) {
@@ -1255,7 +1317,9 @@ describe("CopilotBubble", () => {
       originalMatchMedia = window.matchMedia;
     });
 
-    afterEach(() => {
+    afterEach(async () => {
+      // A reply's settle timer outlives its test if the test ends first; let it fire here, not in the next test.
+      await letPageSettle();
       window.matchMedia = originalMatchMedia;
     });
 
@@ -1275,7 +1339,7 @@ describe("CopilotBubble", () => {
     }
 
     // Sends one question whose stream opens with an auto action for TARGET_ID.
-    // Returns the page element so its scrollIntoView can be inspected.
+    // Places the target 700px down the page, where the page should scroll to it (16px below the nav).
     async function askModelToShowTarget({ expanded, matching }: { expanded: boolean; matching: string[] }) {
       mockMatchMedia(matching);
       (global.fetch as jest.Mock).mockResolvedValue(
@@ -1290,8 +1354,7 @@ describe("CopilotBubble", () => {
           <CopilotBubble targets={TARGETS} />
         </>
       );
-      const target = document.getElementById(TARGET_ID)!;
-      target.scrollIntoView = jest.fn();
+      placeAt(document.getElementById(TARGET_ID)!, 700);
 
       const user = userEvent.setup();
       await user.click(screen.getByRole("button", { name: /open ask titus/i }));
@@ -1300,32 +1363,32 @@ describe("CopilotBubble", () => {
       }
       await user.type(screen.getByPlaceholderText(/ask about my work/i), "Show me Illumina{Enter}");
       await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
-      return target;
     }
 
     it("scrolls the page to the target when expanded and the 1440px query matches", async () => {
-      const target = await askModelToShowTarget({ expanded: true, matching: [SIDE_BY_SIDE, WIDE] });
+      await askModelToShowTarget({ expanded: true, matching: [SIDE_BY_SIDE, WIDE] });
 
-      expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 684, behavior: "smooth" }));
     });
 
     it("does not scroll the page when expanded and only the 1024px query matches", async () => {
-      const target = await askModelToShowTarget({ expanded: true, matching: [SIDE_BY_SIDE] });
+      await askModelToShowTarget({ expanded: true, matching: [SIDE_BY_SIDE] });
+      await letPageSettle();
 
-      expect(target.scrollIntoView).not.toHaveBeenCalled();
+      expect(scrollTo).not.toHaveBeenCalled();
     });
 
     it("still scrolls the page when collapsed and the 1024px query matches", async () => {
-      const target = await askModelToShowTarget({ expanded: false, matching: [SIDE_BY_SIDE] });
+      await askModelToShowTarget({ expanded: false, matching: [SIDE_BY_SIDE] });
 
-      expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 684, behavior: "smooth" }));
     });
   });
 
   describe("show_on_page to another page", () => {
     const TARGET_ID = "role-illumina";
     const PATH = "/experience";
-    const TARGETS = [{ id: TARGET_ID, label: "Illumina, 2023", path: PATH }];
+    const TARGETS = [{ id: TARGET_ID, label: "Illumina, 2023", path: PATH, page: "Experience" }];
     const SIDE_BY_SIDE = "(min-width: 1024px)";
     let originalMatchMedia: typeof window.matchMedia;
     let arrivedEl: HTMLElement | null = null;
@@ -1338,13 +1401,14 @@ describe("CopilotBubble", () => {
         const el = document.createElement("div");
         el.id = TARGET_ID;
         el.textContent = "Illumina entry";
-        el.scrollIntoView = jest.fn();
+        placeAt(el, 250);
         document.body.appendChild(el);
         arrivedEl = el;
       });
     });
 
-    afterEach(() => {
+    afterEach(async () => {
+      await letPageSettle();
       window.matchMedia = originalMatchMedia;
       document.getElementById(TARGET_ID)?.remove();
       window.history.replaceState({}, "", "/");
@@ -1383,16 +1447,15 @@ describe("CopilotBubble", () => {
     it("navigates to the target's page, then scrolls to the anchor once it has rendered", async () => {
       await askModelToShow({ matching: [SIDE_BY_SIDE] });
 
-      expect(mockPush).toHaveBeenCalledWith(PATH, { scroll: false });
+      await waitFor(() => expect(mockPush).toHaveBeenCalledWith(PATH, { scroll: false }));
       await waitFor(() => expect(arrivedEl).not.toBeNull());
-      await waitFor(() => {
-        expect(arrivedEl!.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
-      });
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 234, behavior: "smooth" }));
       expect(arrivedEl!.classList.contains("copilot-spotlight")).toBe(true);
     });
 
     it("does not navigate when the page is too narrow to show it beside the drawer", async () => {
       await askModelToShow({ matching: [] });
+      await letPageSettle();
 
       expect(mockPush).not.toHaveBeenCalled();
     });
@@ -1402,6 +1465,7 @@ describe("CopilotBubble", () => {
       window.history.replaceState({}, "", PATH);
       mockPathname = PATH;
       await askModelToShow({ matching: [SIDE_BY_SIDE] });
+      await letPageSettle();
 
       expect(mockPush).not.toHaveBeenCalled();
     });
@@ -1421,7 +1485,7 @@ describe("CopilotBubble", () => {
       await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
       expect(mockPush).not.toHaveBeenCalled();
 
-      await user.click(screen.getByRole("button", { name: "Illumina, 2023" }));
+      await user.click(screen.getByRole("button", { name: "Experience · Illumina, 2023" }));
 
       expect(mockPush).toHaveBeenCalledWith(PATH, { scroll: false });
       await waitFor(() => expect(arrivedEl).not.toBeNull());
@@ -1440,8 +1504,8 @@ describe("CopilotBubble", () => {
       render(
         <CopilotBubble
           targets={[
-            { id: "role-illumina", label: "Illumina, 2023", path: "/experience" },
-            { id: "open-source", label: "Open source", path: "/" },
+            { id: "role-illumina", label: "Illumina, 2023", path: "/experience", page: "Experience" },
+            { id: "open-source", label: "Open source", path: "/", page: "Projects" },
           ]}
         />
       );
@@ -1450,8 +1514,446 @@ describe("CopilotBubble", () => {
       await user.type(screen.getByPlaceholderText(/ask about my work/i), "Two things{Enter}");
       await waitFor(() => expect(screen.getByText("Two things.")).toBeInTheDocument());
 
-      expect(screen.getByRole("button", { name: "Illumina, 2023" })).toHaveTextContent("→ Illumina, 2023");
-      expect(screen.getByRole("button", { name: "Open source" })).toHaveTextContent("↓ Open source");
+      expect(screen.getByRole("button", { name: "Experience · Illumina, 2023" })).toHaveTextContent("→ Experience · Illumina, 2023");
+      expect(screen.getByRole("button", { name: "Projects · Open source" })).toHaveTextContent("↓ Projects · Open source");
     });
+  });
+
+  describe("scrolling under the nav", () => {
+    const SIDE_BY_SIDE = "(min-width: 1024px)";
+    const REDUCE = "(prefers-reduced-motion: reduce)";
+    const TARGET = { id: "role-illumina", label: "Illumina, 2023", path: "/experience", page: "Experience" };
+    let originalMatchMedia: typeof window.matchMedia;
+
+    beforeEach(() => {
+      originalMatchMedia = window.matchMedia;
+    });
+
+    afterEach(async () => {
+      await letPageSettle();
+      window.matchMedia = originalMatchMedia;
+      setScrollY(0);
+      window.history.replaceState({}, "", "/");
+      document.querySelectorAll(`#${TARGET.id}, nav[aria-label="Site navigation"]`).forEach((el) => el.remove());
+    });
+
+    function mockMatchMedia(matchingQueries: string[]) {
+      window.matchMedia = jest.fn((query: string) => ({
+        matches: matchingQueries.includes(query),
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(() => true),
+      }));
+    }
+
+    /** Asks about an entry on this page, which the page then scrolls to. `top` is its position in the document. */
+    async function askAboutEntry({ top, scrollY, reduce = false }: { top: number; scrollY: number; reduce?: boolean }) {
+      setScrollY(scrollY);
+      mockMatchMedia(reduce ? [SIDE_BY_SIDE, REDUCE] : [SIDE_BY_SIDE]);
+      window.history.replaceState({}, "", "/experience");
+      mockPathname = "/experience";
+      const entry = document.createElement("div");
+      entry.id = TARGET.id;
+      entry.textContent = "Illumina entry";
+      document.body.append(placeAt(entry, top));
+      (global.fetch as jest.Mock).mockResolvedValue(
+        createStreamingResponse([actionLine(TARGET.id), deltaLine("Here it is.")])
+      );
+      render(<CopilotBubble targets={[TARGET]} />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      await user.type(screen.getByPlaceholderText(/ask about my work/i), "Show me Illumina{Enter}");
+      await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
+    }
+
+    it("scrolling down leaves 16px above the entry, even with the nav on the page", async () => {
+      addNav(64);
+      await askAboutEntry({ top: 900, scrollY: 200 });
+
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 884, behavior: "smooth" }));
+    });
+
+    it("scrolling up leaves room for the nav (its height) plus 16px above the entry", async () => {
+      addNav(64);
+      await askAboutEntry({ top: 800, scrollY: 1200 });
+
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 720, behavior: "smooth" }));
+    });
+
+    it.each([
+      ["down", 200, 900, 884],
+      ["up", 1200, 800, 784],
+    ])("with no nav on the page, scrolling %s leaves 16px above the entry", async (_direction, scrollY, top, expected) => {
+      await askAboutEntry({ top, scrollY });
+
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: expected, behavior: "smooth" }));
+    });
+
+    it.each([
+      ["down, near the top of the page", 0, 10],
+      ["up, under a tall nav", 1200, 40],
+    ])("never scrolls to a negative position (%s)", async (_direction, scrollY, top) => {
+      addNav(64);
+      await askAboutEntry({ top, scrollY });
+
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" }));
+    });
+
+    it.each([
+      [true, "instant"],
+      [false, "smooth"],
+    ])("with reduced motion %s, the page scrolls with behavior %s", async (reduce, behavior) => {
+      await askAboutEntry({ top: 500, scrollY: 0, reduce });
+
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 484, behavior }));
+    });
+  });
+
+  describe("guided tour", () => {
+    const SIDE_BY_SIDE = "(min-width: 1024px)";
+    let originalMatchMedia: typeof window.matchMedia;
+
+    beforeEach(() => {
+      originalMatchMedia = window.matchMedia;
+    });
+
+    afterEach(async () => {
+      jest.useRealTimers();
+      await letPageSettle();
+      window.matchMedia = originalMatchMedia;
+      window.history.replaceState({}, "", "/");
+      document.querySelectorAll("#role-illumina, #tool-tigergraph, #tool-neo4j, #stack").forEach((el) => el.remove());
+    });
+
+    function mockMatchMedia(matchingQueries: string[]) {
+      window.matchMedia = jest.fn((query: string) => ({
+        matches: matchingQueries.includes(query),
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(() => true),
+      }));
+    }
+
+    /** A page element placed `top` px down the page, for the scroll to measure. */
+    function pageEl(id: string, text = id, top = 400): HTMLElement {
+      const el = document.createElement(id.startsWith("tool-") ? "button" : "div");
+      el.id = id;
+      el.textContent = text;
+      return placeAt(el, top);
+    }
+
+    async function askQuestion(question: string) {
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      await user.type(screen.getByPlaceholderText(/ask about my work/i), `${question}{Enter}`);
+      return user;
+    }
+
+    const ILLUMINA = { id: "role-illumina", label: "Illumina, 2023", path: "/experience", page: "Experience" };
+    const TIGERGRAPH = { id: "tool-tigergraph", label: "TigerGraph", path: "/about", page: "About", tool: true };
+    const NEO4J = { id: "tool-neo4j", label: "Neo4j", path: "/about", page: "About", tool: true };
+
+    it("moves the page once, to the stop on the page being read, when several actions arrive", async () => {
+      mockMatchMedia([SIDE_BY_SIDE]);
+      window.history.replaceState({}, "", "/about");
+      mockPathname = "/about";
+      const illumina = pageEl("role-illumina", "role-illumina", 100);
+      const stack = document.createElement("section");
+      stack.id = "stack";
+      const tigergraph = pageEl("tool-tigergraph", "TigerGraph");
+      const neo4j = pageEl("tool-neo4j", "Neo4j");
+      stack.append(tigergraph, neo4j);
+      placeAt(stack, 800);
+      document.body.append(illumina, stack);
+      (global.fetch as jest.Mock).mockResolvedValue(
+        createStreamingResponse([
+          actionLine("role-illumina"),
+          actionLine("tool-tigergraph"),
+          actionLine("tool-neo4j"),
+          deltaLine("Both are in the stack."),
+        ])
+      );
+      render(<CopilotBubble targets={[ILLUMINA, TIGERGRAPH, NEO4J]} />);
+      await askQuestion("Illumina and graphs?");
+      await waitFor(() => expect(screen.getByText("Both are in the stack.")).toBeInTheDocument());
+
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledTimes(1));
+      await letPageSettle();
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenCalledWith({ top: 784, behavior: "smooth" });
+      expect(mockPush).not.toHaveBeenCalled();
+      [illumina, stack, tigergraph, neo4j].forEach((el) => el.remove());
+    });
+
+    it("moves to the first stop when none is on the page being read", async () => {
+      mockMatchMedia([SIDE_BY_SIDE]);
+      // Nothing on this page is named, so the first stop (Illumina, on another page) is the one the page moves to.
+      let arrived: HTMLElement | null = null;
+      mockPush.mockImplementation(() => {
+        arrived = pageEl("role-illumina", "role-illumina", 300);
+        document.body.append(arrived);
+      });
+      (global.fetch as jest.Mock).mockResolvedValue(
+        createStreamingResponse([actionLine("role-illumina"), actionLine("tool-neo4j"), deltaLine("Done.")])
+      );
+      render(<CopilotBubble targets={[ILLUMINA, NEO4J]} />);
+      await askQuestion("Illumina and Neo4j?");
+
+      await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/experience", { scroll: false }));
+      await waitFor(() => expect(arrived).not.toBeNull());
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 284, behavior: "smooth" }));
+      expect(mockPush).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not move the page when the visitor scrolls before the settle timer, but still lists the stops", async () => {
+      mockMatchMedia([SIDE_BY_SIDE]);
+      window.history.replaceState({}, "", "/experience");
+      mockPathname = "/experience";
+      const illumina = pageEl("role-illumina");
+      document.body.append(illumina);
+      const gated = scriptedResponse([actionLine("role-illumina"), deltaLine("Here "), WAIT, deltaLine("it is.")]);
+      (global.fetch as jest.Mock).mockResolvedValue(gated.response);
+      render(<CopilotBubble targets={[ILLUMINA]} />);
+      await askQuestion("Show me Illumina");
+
+      await screen.findByRole("button", { name: "Experience · Illumina, 2023" });
+      fireEvent.wheel(document.body);
+      await letPageSettle();
+      gated.release();
+
+      await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
+      expect(scrollTo).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Experience · Illumina, 2023" })).toBeInTheDocument();
+      illumina.remove();
+    });
+
+    it("still moves the page when the scroll happens inside the drawer", async () => {
+      mockMatchMedia([SIDE_BY_SIDE]);
+      window.history.replaceState({}, "", "/experience");
+      mockPathname = "/experience";
+      const illumina = pageEl("role-illumina");
+      document.body.append(illumina);
+      const gated = scriptedResponse([actionLine("role-illumina"), deltaLine("Here "), WAIT, deltaLine("it is.")]);
+      (global.fetch as jest.Mock).mockResolvedValue(gated.response);
+      render(<CopilotBubble targets={[ILLUMINA]} />);
+      await askQuestion("Show me Illumina");
+
+      await screen.findByRole("button", { name: "Experience · Illumina, 2023" });
+      fireEvent.wheel(screen.getByPlaceholderText(/ask about my work/i));
+      gated.release();
+
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 384, behavior: "smooth" }));
+      illumina.remove();
+    });
+
+    it("lists two tool tiles as one pill named for the table", async () => {
+      mockMatchMedia([]);
+      mockPathname = "/about";
+      (global.fetch as jest.Mock).mockResolvedValue(
+        createStreamingResponse([actionLine("tool-tigergraph"), actionLine("tool-neo4j"), deltaLine("Graphs.")])
+      );
+      render(<CopilotBubble targets={[TIGERGRAPH, NEO4J]} />);
+      await askQuestion("Graph databases?");
+      await waitFor(() => expect(screen.getByText("Graphs.")).toBeInTheDocument());
+
+      expect(screen.getByText("See on page")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "About · TigerGraph, Neo4j" })).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: /^About · / })).toHaveLength(1);
+    });
+
+    it("dispatches the show event with every tool id and spotlights each tool tile", async () => {
+      mockMatchMedia([SIDE_BY_SIDE]);
+      window.history.replaceState({}, "", "/about");
+      mockPathname = "/about";
+      const stack = document.createElement("section");
+      stack.id = "stack";
+      const tigergraph = pageEl("tool-tigergraph", "TigerGraph");
+      const neo4j = pageEl("tool-neo4j", "Neo4j");
+      stack.append(tigergraph, neo4j);
+      placeAt(stack, 640);
+      document.body.append(stack);
+      const received: string[][] = [];
+      const onShow = (e: Event) => received.push((e as CustomEvent<{ ids: string[] }>).detail.ids);
+      document.addEventListener(SHOW_EVENT, onShow);
+      (global.fetch as jest.Mock).mockResolvedValue(
+        createStreamingResponse([actionLine("tool-tigergraph"), actionLine("tool-neo4j"), deltaLine("Both.")])
+      );
+      render(<CopilotBubble targets={[TIGERGRAPH, NEO4J]} />);
+      await askQuestion("Graphs?");
+
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 624, behavior: "smooth" }));
+      expect(received).toEqual([["tool-tigergraph", "tool-neo4j"]]);
+      expect(tigergraph.classList.contains("copilot-spotlight")).toBe(true);
+      expect(neo4j.classList.contains("copilot-spotlight")).toBe(true);
+      document.removeEventListener(SHOW_EVENT, onShow);
+      stack.remove();
+    });
+
+    it("scrolls a tool stop to the whole table (#stack), not to the tile that was named", async () => {
+      mockMatchMedia([SIDE_BY_SIDE]);
+      window.history.replaceState({}, "", "/about");
+      mockPathname = "/about";
+      const stack = document.createElement("section");
+      stack.id = "stack";
+      stack.append(pageEl("tool-tigergraph", "TigerGraph", 760));
+      placeAt(stack, 640);
+      document.body.append(stack);
+      (global.fetch as jest.Mock).mockResolvedValue(
+        createStreamingResponse([actionLine("tool-tigergraph"), deltaLine("Graphs.")])
+      );
+      render(<CopilotBubble targets={[TIGERGRAPH]} />);
+      await askQuestion("Graphs?");
+
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 624, behavior: "smooth" }));
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      stack.remove();
+    });
+
+    describe("tapping a stop on a phone", () => {
+      const QUESTION = "Show me everything you built at Illumina, including the agents, the data pipelines and the evaluation harness";
+
+      async function answerWithIllumina() {
+        mockMatchMedia([]);
+        (global.fetch as jest.Mock).mockResolvedValue(
+          createStreamingResponse([actionLine("role-illumina"), deltaLine("Here it is.")])
+        );
+        render(<CopilotBubble targets={[ILLUMINA]} />);
+        const user = await askQuestion(QUESTION);
+        await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
+        return user;
+      }
+
+      it("closes the drawer, goes to the stop, and leaves a note of the question cut to 60 characters", async () => {
+        const user = await answerWithIllumina();
+        expect(screen.queryByRole("status")).toBeNull();
+
+        await user.click(screen.getByRole("button", { name: "Experience · Illumina, 2023" }));
+
+        expect(mockPush).toHaveBeenCalledWith("/experience", { scroll: false });
+        expect(screen.getByRole("button", { name: /open ask titus/i })).toBeInTheDocument();
+        const cut = `${QUESTION.slice(0, 57).trimEnd()}…`;
+        expect(cut).toBe("Show me everything you built at Illumina, including the a…");
+        expect(cut.length).toBeLessThanOrEqual(60);
+        expect(screen.getByRole("status")).toHaveTextContent(`Asked: ${cut}`);
+      });
+
+      it("clears the note when the drawer opens again", async () => {
+        const user = await answerWithIllumina();
+        await user.click(screen.getByRole("button", { name: "Experience · Illumina, 2023" }));
+        expect(screen.getByRole("status")).toBeInTheDocument();
+
+        await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+
+        expect(screen.queryByRole("status")).toBeNull();
+      });
+
+      it("clears the note after 10 seconds", async () => {
+        await answerWithIllumina();
+        jest.useFakeTimers();
+        fireEvent.click(screen.getByRole("button", { name: "Experience · Illumina, 2023" }));
+        expect(screen.getByRole("status")).toBeInTheDocument();
+
+        act(() => {
+          jest.advanceTimersByTime(9_900);
+        });
+        expect(screen.getByRole("status")).toBeInTheDocument();
+
+        act(() => {
+          jest.advanceTimersByTime(200);
+        });
+        expect(screen.queryByRole("status")).toBeNull();
+      });
+
+      it("keeps the question whole when it is 60 characters or fewer", async () => {
+        const short = "Illumina agents?";
+        mockMatchMedia([]);
+        (global.fetch as jest.Mock).mockResolvedValue(
+          createStreamingResponse([actionLine("role-illumina"), deltaLine("Here it is.")])
+        );
+        render(<CopilotBubble targets={[ILLUMINA]} />);
+        const user = userEvent.setup();
+        await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+        await user.type(screen.getByPlaceholderText(/ask about my work/i), `${short}{Enter}`);
+        await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
+
+        await user.click(screen.getByRole("button", { name: "Experience · Illumina, 2023" }));
+
+        expect(screen.getByRole("status")).toHaveTextContent(`Asked: ${short}`);
+      });
+    });
+  });
+});
+
+describe("CopilotBubble: a dropped connection", () => {
+  const EMAIL = "me@example.com";
+  const DROPPED = /connection dropped before I could finish/i;
+
+  beforeEach(() => {
+    mockPush.mockReset();
+    mockPathname = "/";
+    if (!global.TextDecoder) {
+      global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+    }
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      value: jest.fn(),
+      writable: true,
+    });
+    global.fetch = jest.fn();
+    global.crypto = {
+      randomUUID: jest.fn(() => "test-id-" + Math.random().toString(36).substr(2, 9)),
+    } as unknown as Crypto;
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  async function askOnce(question = "Hi") {
+    const user = userEvent.setup();
+    render(<CopilotBubble email={EMAIL} />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), `${question}{Enter}`);
+  }
+
+  it("says the connection dropped, with the email, when fetch rejects with a TypeError", async () => {
+    (global.fetch as jest.Mock).mockRejectedValue(new TypeError("Failed to fetch"));
+    await askOnce();
+
+    await waitFor(() => expect(screen.getByText(DROPPED)).toBeInTheDocument());
+    expect(screen.getByText(new RegExp(EMAIL.replace(".", "\\.")))).toBeInTheDocument();
+    expect(screen.queryByText(/failed to fetch/i)).not.toBeInTheDocument();
+  });
+
+  it("says the connection dropped when the stream reader rejects with a TypeError mid-reply", async () => {
+    const encoder = new TextEncoder();
+    const reader = {
+      read: jest
+        .fn()
+        .mockResolvedValueOnce({ done: false, value: encoder.encode(`{"type":"delta","text":"Partway"}\n`) })
+        .mockRejectedValueOnce(new TypeError("network error")),
+    };
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, status: 200, body: { getReader: () => reader } });
+    await askOnce();
+
+    await waitFor(() => expect(screen.getByText(DROPPED)).toBeInTheDocument());
+    expect(screen.getByText(new RegExp(EMAIL.replace(".", "\\.")))).toBeInTheDocument();
+    expect(screen.queryByText(/network error/i)).not.toBeInTheDocument();
+  });
+
+  it("still shows the message of an Error that is not a TypeError", async () => {
+    (global.fetch as jest.Mock).mockRejectedValue(new Error("Quota exceeded for this session"));
+    await askOnce();
+
+    await waitFor(() => expect(screen.getByText(/quota exceeded for this session/i)).toBeInTheDocument());
+    expect(screen.queryByText(DROPPED)).not.toBeInTheDocument();
   });
 });

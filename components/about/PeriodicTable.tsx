@@ -17,7 +17,9 @@ import {
   photoAt,
   storyAt,
   tableCells,
+  toolTargetId,
 } from '@/lib/about'
+import { SHOW_EVENT, takePendingShow, type ShowDetail } from '@/lib/reveal'
 
 /** Playing: each chapter's tools light up over `cascade` ms, then it holds for `hold` (`holdPhoto` with a photo). */
 export const CHAPTER_MS = { cascade: 1000, hold: 6000, holdPhoto: 8000 }
@@ -41,10 +43,14 @@ export default function PeriodicTable({ articleCounts }: { articleCounts: number
   const [step, setStep] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [picked, setPicked] = useState<number | null>(null)
+  // The tools an Ask Titus answer named: outlined, with the rest faded, until the visitor uses the table.
+  const [named, setNamed] = useState<number[]>([])
   // Whether this chapter's tools flash amber as they light (playing or jumping), or just appear (scrubbing).
   const [sparkle, setSparkle] = useState(true)
   const [held, setHeld] = useState(false)
   const tableRef = useRef<HTMLDivElement>(null)
+  // Set once anything has moved the table (Ask Titus pointing at a tool), so playing on first view doesn't override it.
+  const startedRef = useRef(false)
 
   const month = MONTHS[step]
   const litCount = TOOLS.filter((t) => t.since <= month).length
@@ -67,6 +73,8 @@ export default function PeriodicTable({ articleCounts }: { articleCounts: number
       (entries) => {
         if (!entries.some((e) => e.isIntersecting)) return
         io.disconnect()
+        if (startedRef.current) return
+        startedRef.current = true
         if (reduce) setStep(LAST)
         else setPlaying(true)
       },
@@ -92,12 +100,14 @@ export default function PeriodicTable({ articleCounts }: { articleCounts: number
   }, [playing, held, step])
 
   const togglePlay = useCallback(() => {
+    setNamed([])
     if (playing) return setPlaying(false)
     if (step >= LAST) setStep(0)
     setPlaying(true)
   }, [playing, step])
 
   const scrub = useCallback((value: number) => {
+    setNamed([])
     setPlaying(false)
     setSparkle(false)
     setStep(value)
@@ -105,16 +115,46 @@ export default function PeriodicTable({ articleCounts }: { articleCounts: number
 
   /** Jump to a chapter: its tools spark as they arrive, and play stops so it can be read. */
   const jump = useCallback((i: number) => {
+    setNamed([])
     setPlaying(false)
     setSparkle(true)
     setStep(STOPS[i])
+  }, [])
+
+  // Ask Titus pointed at tools: jump to the chapter where the last of them lights up, and show the first one's
+  // details. The request can come as an event, or be waiting from just before this page finished mounting.
+  useEffect(() => {
+    const el = tableRef.current
+    if (!el) return
+    const toolIndexes = (ids: string[]) => ids.map((id) => TOOLS.findIndex((t) => toolTargetId(t) === id)).filter((i) => i !== -1)
+    const show = (ids: string[]) => {
+      const found = toolIndexes(ids)
+      if (found.length === 0) return
+      const latest = found.map((i) => TOOLS[i].since).reduce((a, b) => (b > a ? b : a))
+      startedRef.current = true
+      setPlaying(false)
+      setSparkle(true)
+      setStep(STOPS[chapterIndexAt(latest)])
+      setPicked(found[0])
+      setNamed(found)
+    }
+    const hasTools = (ids: string[]) => toolIndexes(ids).length > 0
+    const onShow = (e: Event) => {
+      takePendingShow(hasTools) // handled here, so it isn't replayed when the table mounts again
+      show((e as CustomEvent<ShowDetail>).detail?.ids ?? [])
+    }
+    el.addEventListener(SHOW_EVENT, onShow)
+    const waiting = takePendingShow(hasTools)
+    if (waiting) show(waiting)
+    return () => el.removeEventListener(SHOW_EVENT, onShow)
   }, [])
 
   const tool = picked === null ? null : TOOLS[picked]
   const playLabel = playing ? 'Pause' : step >= LAST ? 'Replay' : 'Play'
 
   return (
-    <div>
+    // The anchor ("stack") holds the chapter row too, so arriving here shows the chapters and the dark tile.
+    <div id="stack" className="scroll-mt-32">
       <nav aria-label="Chapters" className="mb-3">
         <ol className="m-0 flex list-none flex-wrap gap-1.5 p-0">
           {CHAPTERS.map((c, i) => {
@@ -146,7 +186,6 @@ export default function PeriodicTable({ articleCounts }: { articleCounts: number
       </nav>
       <div
         ref={tableRef}
-        id="stack"
         className="grid grid-cols-[repeat(18,minmax(0,1fr))] gap-[5px] max-[820px]:grid-cols-[repeat(10,minmax(0,1fr))] max-[560px]:gap-1"
       >
         {/* The notch: date, story so far, the picked tool, controls and the photo for this stretch */}
@@ -249,11 +288,15 @@ export default function PeriodicTable({ articleCounts }: { articleCounts: number
           return (
             <button
               key={t.name}
+              id={toolTargetId(t)}
               type="button"
               title={t.name}
               aria-label={`${numbers[i]}, ${t.name}, since ${formatMonth(t.since)}`}
               aria-pressed={picked === i}
-              onClick={() => setPicked(i)}
+              onClick={() => {
+                setPicked(i)
+                setNamed([])
+              }}
               onMouseEnter={() => window.matchMedia?.('(hover: hover)').matches && setPicked(i)}
               style={{ gridColumn: col, gridRow: row, '--cat': TOOL_CATEGORIES[t.category].tint } as React.CSSProperties}
               className={[
@@ -261,7 +304,8 @@ export default function PeriodicTable({ articleCounts }: { articleCounts: number
                 lit ? 'pt-lit border-transparent' : 'border-dashed border-rule bg-transparent',
                 daily ? 'pt-daily' : '',
                 lit && sparkle && t.since > chapterFrom ? 'pt-spark' : '',
-                picked === i ? 'outline outline-2 outline-offset-2 outline-ink' : '',
+                picked === i || named.includes(i) ? 'outline outline-2 outline-offset-2 outline-ink' : '',
+                named.length > 0 && !named.includes(i) ? 'opacity-30' : '',
                 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber',
               ].join(' ')}
             >

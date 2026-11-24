@@ -11,6 +11,7 @@
  * behind the work). They never render on the page; they sit next to the facts
  * they describe so the two get updated together.
  */
+import { TOOLS, toolTargetId } from './about'
 import {
   AGENT_SUITE_URL,
   ARTICLE_COUNT_SHORT,
@@ -117,8 +118,8 @@ export const ROLES: Role[] = [
     role: 'Senior Data Scientist',
     dates: 'Jan 2023 — Jun 2025',
     deck: "Solo-architected and shipped two production AI systems as the company's sole data scientist.",
-    body: 'An agentic document-retrieval platform for global field service engineers — sixteen components: semantic chunking, HyDE, hybrid search, Cohere reranking, prompt compression, an iterative agentic retrieval loop, blue-green vector collection swap. Plus a separate Generative BI assistant covering 800+ business metrics with human-in-the-loop design.',
-    tech: ['Python', 'LlamaIndex', 'Qdrant', 'AWS Bedrock', 'RabbitMQ', 'Docker+CUDA', 'GitHub Actions', 'SonarQube', 'Grafana', 'Prometheus', 'Loki', 'Chainlit', 'DSPy', 'Giskard'],
+    body: 'An agentic document-retrieval platform for global field service engineers — sixteen components: semantic chunking, HyDE, hybrid search, Cohere reranking, prompt compression, an iterative agentic retrieval loop, blue-green vector collection swap. Plus a separate Generative BI assistant covering 800+ business metrics with human-in-the-loop design. Before GenAI, classic data science: computer vision (staff-photo checks, live fall detection on warehouse CCTV, document understanding on scanned shipment papers, wafer defect detection), anomaly detection along each wafer’s manufacturing journey, and a supply-planning optimisation proof of concept.',
+    tech: ['Python', 'LlamaIndex', 'Qdrant', 'AWS Bedrock', 'RabbitMQ', 'Docker+CUDA', 'GitHub Actions', 'SonarQube', 'Grafana', 'Prometheus', 'Loki', 'Chainlit', 'DSPy', 'Giskard', 'OpenCV', 'PaddlePaddle', 'NetworkX', 'Pyomo'],
     highlight: { figure: ILLUMINA_SAVINGS_FIGURE, caption: 'anticipated savings upon full deployment', brief: 'anticipated savings, Illumina' },
     ask: { label: 'the retrieval platform', question: 'How does the Illumina retrieval platform work?' },
     pullQuote: `Anticipated to save ${ILLUMINA_SAVINGS_PROSE} upon full deployment.`,
@@ -127,6 +128,8 @@ export const ROLES: Role[] = [
       'The retrieval platform serves field service engineers supporting DNA sequencing equipment (NovaSeq, NextSeq). Engineers query equipment guides in natural language via Microsoft Teams, getting accurate answers fast enough to be useful mid-customer-call.',
       "What made it technically distinct: I didn't stop at naive RAG. Semantic double-merge chunking and chunk dreaming keep context intact at chunk boundaries; HyDE, hybrid search and Cohere reranking lift recall and precision; prompt compression keeps context windows lean; an iterative multi-hop loop handles questions no single retrieval can answer. The blue-green vector collection swap — zero-downtime index updates — I invented from first principles before I'd seen it documented anywhere.",
       'The Generative BI assistant uses Llama Guard for responsible-AI guardrails and Arize Phoenix for tracing.',
+      "Before GenAI took over my work there, I was a data scientist in the full sense, and much of it was computer vision. Staff photo checks: Haar cascades to detect the face, a check that the face is straight-on rather than in profile, local binary features to trace the face, and a check that the background is white. Live fall detection on warehouse CCTV, chaining three PaddlePaddle models I trained with its SDK: human detection (a YOLO model), keypoint detection and pose estimation. Document understanding: I fine-tuned YOLO to find specific parts of scanned shipment documents, so their key information could be matched across documents. And defect detection on wafer chips with OpenCV.",
+      "Beyond vision: I traced each wafer's manufacturing journey as a graph with NetworkX and ran statistical anomaly detection on every step, which helped investigations. And I piloted an optimisation model in Pyomo to reduce purchases of supply parts and optimise profit, given sales forecasts and constrained by storage space. It was a proof of concept.",
     ].join('\n\n'),
   },
   {
@@ -344,57 +347,7 @@ export const EDUCATION: Education[] = [
 /** Shown at the foot of the Education page. */
 export const CERTIFICATIONS = ['Certified ScrumMaster']
 
-// ---------------------------------------------------------------------------
-// Stack
-// ---------------------------------------------------------------------------
-
-/** Separator between a skill and its proficiency, e.g. "Python ◆ Expert". */
-export const PROFICIENCY_SEPARATOR = ' ◆ '
-
-export type StackGroup = {
-  label: string
-  /** Shown on the page. */
-  items: string[]
-  /** Copilot-only: real experience, but not curated onto the page. */
-  more?: string[]
-  /** Copilot-only group, not rendered on the page. */
-  copilotOnly?: boolean
-}
-
-export const STACK_GROUPS: StackGroup[] = [
-  {
-    label: 'AI / GenAI Frameworks',
-    items: ['LangChain', 'LangGraph', 'LlamaIndex', 'CrewAI', 'Autogen', 'DSPy', 'MCP', 'A2A'],
-    more: ['LangFlow', 'Giskard'],
-  },
-  {
-    label: 'Languages',
-    items: [`Python${PROFICIENCY_SEPARATOR}Expert`, `SQL${PROFICIENCY_SEPARATOR}Expert`, `Java${PROFICIENCY_SEPARATOR}Proficient`],
-  },
-  {
-    label: 'Infrastructure',
-    items: ['Docker', 'Kubernetes / Helm', 'GitHub Actions', 'Jenkins', 'vLLM'],
-  },
-  {
-    label: 'Databases',
-    items: ['PostgreSQL', 'Oracle DB', 'Redis', 'MongoDB', 'Qdrant', 'Neo4j'],
-    more: ['MSSQL', 'MySQL', 'TigerGraph'],
-  },
-  {
-    label: 'Observability',
-    items: ['Grafana', 'Prometheus', 'Loki', 'Langfuse', 'Arize Phoenix', 'ELK'],
-  },
-  {
-    label: 'Cloud',
-    items: ['AWS', 'GCP', 'Azure', 'Snowflake'],
-    more: ['Cloudera'],
-  },
-  { label: 'BI', items: ['Tableau', 'KNIME'], copilotOnly: true },
-  { label: 'Automation', items: ['n8n', 'UiPath'], copilotOnly: true },
-]
-
-/** Groups rendered on the page. */
-export const SITE_STACK_GROUPS = STACK_GROUPS.filter((g) => !g.copilotOnly)
+// Every tool I've used lives in lib/about.ts (the About page's periodic table), which also feeds Ask Titus.
 
 // ---------------------------------------------------------------------------
 // Projects
@@ -651,6 +604,8 @@ export type PageTarget = {
   label: string
   /** What lives there, for the model. */
   about: string
+  /** A tile in the About page's periodic table. Several in one reply share one stop under the answer. */
+  tool?: true
 }
 
 /**
@@ -679,6 +634,7 @@ export const PAGE_TARGETS: PageTarget[] = [
   { id: 'earlier-work', path: '/projects', label: 'Earlier work', about: 'my projects from before GenAI' },
   { id: 'open-source', path: '/projects', label: 'Open source', about: 'my open-source contributions' },
   { id: 'writing', path: '/writing', label: 'Writing', about: 'my featured Medium articles' },
+  ...TOOLS.map((t) => ({ id: toolTargetId(t), path: '/about' as const, label: t.name, about: `${t.name} in the periodic table`, tool: true as const })),
 ]
 
 export const PAGE_TARGET_IDS = PAGE_TARGETS.map((t) => t.id)

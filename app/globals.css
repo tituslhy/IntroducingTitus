@@ -126,6 +126,12 @@ body {
   }
 }
 
+/* Periodic-table tiles mark themselves when Ask Titus names them (outlined, the rest faded): no wash,
+   which would swamp the neighbours and read as the amber "every day" ring. */
+.pt-el.copilot-spotlight::after {
+  display: none;
+}
+
 /* Front page: the logo field fades out over the hero's bottom ~14%, with no rule line under it. */
 .hero-anim canvas {
   -webkit-mask-image: linear-gradient(to bottom, #000 86%, transparent);
@@ -383,7 +389,7 @@ body {
   --pt-obs:    oklch(0.92 0.035 300);
   --pt-ai:     oklch(0.90 0.05 50);
 }
-.pt-el { transition: background-color .5s, border-color .5s, box-shadow .6s, transform .25s; }
+.pt-el { transition: background-color .5s, border-color .5s, box-shadow .6s, transform .25s, opacity .4s; }
 .pt-el img { filter: grayscale(1); opacity: .22; transition: filter .5s, opacity .5s; }
 .pt-lit { background: var(--cat); }
 .pt-lit img { filter: none; opacity: 1; }

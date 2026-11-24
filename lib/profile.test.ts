@@ -1,6 +1,7 @@
 import { existsSync } from "fs";
 import path from "path";
 import { ARTICLE_COUNT_SHORT } from "./content";
+import { TOOLS, toolTargetId } from "./about";
 import {
   ASK_FOLIO,
   CERTIFICATIONS,
@@ -8,6 +9,7 @@ import {
   FEATURED_ROLE_COUNT,
   NAME,
   PAGE_TARGETS,
+  PAGE_TARGET_IDS,
   ROLES,
   SIGN_OFF_TITLE,
   SITE_DESCRIPTION,
@@ -320,3 +322,31 @@ describe("the earlier-work page target", () => {
     expect(PAGE_TARGETS).toContainEqual(expect.objectContaining({ id: "earlier-work", path: "/projects", label: "Earlier work" }));
   });
 });
+
+describe("tool page targets", () => {
+  const toolTargets = PAGE_TARGETS.filter((t) => t.tool);
+
+  it("gives every tool on the About table a target with path /about and tool set", () => {
+    for (const tool of TOOLS) {
+      expect(PAGE_TARGETS).toContainEqual(
+        expect.objectContaining({ id: toolTargetId(tool), path: "/about", label: tool.name, tool: true })
+      );
+    }
+  });
+
+  it("has exactly one tool target per tool, in table order", () => {
+    expect(toolTargets.map((t) => t.id)).toEqual(TOOLS.map((t) => toolTargetId(t)));
+  });
+
+  it("marks no other target as a tool", () => {
+    for (const target of PAGE_TARGETS.filter((t) => !t.tool)) {
+      expect(target.tool).toBeUndefined();
+    }
+  });
+
+  it("lists every target id once in PAGE_TARGET_IDS, the enum the model is offered", () => {
+    expect(PAGE_TARGET_IDS).toEqual(PAGE_TARGETS.map((t) => t.id));
+    expect(new Set(PAGE_TARGET_IDS).size).toBe(PAGE_TARGET_IDS.length);
+  });
+});
+

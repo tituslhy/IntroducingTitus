@@ -23,7 +23,8 @@ import {
 import { COPILOT_OPEN_EVENT, type CopilotOpenDetail } from "@/lib/copilot-events";
 import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH } from "@/lib/content";
 import { STARTER_PROMPTS } from "@/lib/starter-prompts";
-import { reveal } from "@/lib/reveal";
+import { firstStop, groupStops, type Stop } from "@/lib/page-stops";
+import { reveal, requestShow } from "@/lib/reveal";
 import { waitForElement } from "@/lib/wait-for-element";
 
 interface Message {
@@ -61,7 +62,18 @@ export interface CopilotTarget {
   label: string;
   /** The route the anchor lives on. */
   path: string;
+  /** The page's name in the nav, e.g. "About". */
+  page?: string;
+  /** A tile in the About page's periodic table. */
+  tool?: boolean;
 }
+
+/** How long the page waits after the copilot names a place before moving, so every place in the call has arrived. */
+const STOP_SETTLE_MS = 150;
+/** How long "From your question" stays by the button after a stop on a phone. */
+const RETURN_NOTE_MS = 10000;
+/** Keys that scroll the page: pressing one while an answer streams means the visitor is reading. */
+const SCROLL_KEYS = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "]);
 
 /** At this width and up, the collapsed drawer leaves the page visible beside it. */
 const SIDE_BY_SIDE_QUERY = "(min-width: 1024px)";
@@ -185,7 +197,12 @@ export default function CopilotBubble({
   const wasOpenRef = useRef(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const spotlightRef = useRef<{ el: HTMLElement; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const spotlightRef = useRef<{ els: HTMLElement[]; timer: ReturnType<typeof setTimeout> } | null>(null);
+  // Set when the visitor scrolls or taps the page while an answer is on its way: the page then stays put.
+  const interactedRef = useRef(false);
+  // The pending "move the page once" of the reply being streamed.
+  const moveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [returnNote, setReturnNote] = useState<string | null>(null);
   const [turningTo, setTurningTo] = useState<string | null>(null);
   const [mode, setMode] = useState<"chat" | "fit">("chat");
   const [loadingCaption, setLoadingCaption] = useState<string | null>(null);
@@ -249,38 +266,48 @@ export default function CopilotBubble({
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
       abortControllerRef.current?.abort();
       if (spotlightRef.current) clearTimeout(spotlightRef.current.timer);
+      if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
       captionTimersRef.current.forEach(clearTimeout);
     };
   }, []);
 
-  const targetLabels = useMemo(() => new Map(targets.map((t) => [t.id, t.label])), [targets]);
-  const targetPaths = useMemo(() => new Map(targets.map((t) => [t.id, t.path])), [targets]);
+  const targetsById = useMemo(() => new Map(targets.map((t) => [t.id, t])), [targets]);
   const router = useRouter();
   const pathname = usePathname();
 
-  /** Scrolls to an anchor that is on the page now; single entries get the highlighter wash. */
-  const revealOnPage = useCallback(
-    (el: HTMLElement) => {
+  /**
+   * Brings a stop into view on the current page: un-hides it if its page keeps it hidden, tells its owner
+   * (SHOW_EVENT: the periodic table jumps to the chapter where the named tools light up), scrolls to it,
+   * and gives each anchor the highlighter wash (whole sections just scroll).
+   */
+  const revealStop = useCallback(
+    (stop: Stop) => {
+      const els = stop.ids.map((id) => document.getElementById(id)).filter((el): el is HTMLElement => el !== null);
+      if (els.length === 0) return;
       const go = () => {
-        el.scrollIntoView({ behavior: prefersReducedMotion ? "instant" : "smooth", block: "start" });
-
-        // Whole sections just scroll; a single entry also gets the highlight.
-        if (el.tagName !== "SECTION") {
+        requestShow(els[0], stop.ids);
+        // One frame for the owner to paint what it changed, then scroll.
+        requestAnimationFrame(() => {
+          scrollUnderNav(document.getElementById(stop.scrollId) ?? els[0], prefersReducedMotion ? "instant" : "smooth");
           if (spotlightRef.current) {
             clearTimeout(spotlightRef.current.timer);
-            spotlightRef.current.el.classList.remove(SPOTLIGHT_CLASS);
+            spotlightRef.current.els.forEach((el) => el.classList.remove(SPOTLIGHT_CLASS));
           }
-          void el.offsetWidth; // restart the animation if the same entry is shown twice
-          el.classList.add(SPOTLIGHT_CLASS);
-          const timer = setTimeout(() => {
+          const lit = els.filter((el) => el.tagName !== "SECTION");
+          lit.forEach((el) => {
             el.classList.remove(SPOTLIGHT_CLASS);
+            void el.offsetWidth; // restart the animation if the same entry is shown twice
+            el.classList.add(SPOTLIGHT_CLASS);
+          });
+          const timer = setTimeout(() => {
+            lit.forEach((el) => el.classList.remove(SPOTLIGHT_CLASS));
             spotlightRef.current = null;
           }, SPOTLIGHT_MS);
-          spotlightRef.current = { el, timer };
-        }
+          spotlightRef.current = { els: lit, timer };
+        });
       };
       // A role the Experience page is keeping hidden is shown first.
-      const shown = reveal(el);
+      const shown = reveal(els[0]);
       if (shown) void shown.then(go);
       else go();
     },
@@ -288,32 +315,74 @@ export default function CopilotBubble({
   );
 
   /**
-   * Scrolls the page to a copilot target and gives it a brief highlighter
-   * wash. "auto" (the model called show_on_page) only fires when the page is
-   * visible beside the drawer; "click" (the visitor tapped "See on page")
-   * tucks the drawer away first when it would cover the page.
-   * Returns whether the page actually moved.
+   * Takes the page to a stop, opening its page first if it lives on another one. "auto" (the copilot's
+   * own move) only fires when the page is visible beside the drawer; "click" (the visitor tapped a stop)
+   * tucks the drawer away first when it would cover the page. Returns whether the page actually moved.
    */
-  const showOnPage = useCallback(
-    (id: string, source: "auto" | "click"): boolean => {
-      const el = document.getElementById(id);
-      const path = targetPaths.get(id);
+  const showStop = useCallback(
+    (stop: Stop, source: "auto" | "click"): boolean => {
+      const el = document.getElementById(stop.ids[0]);
       // Not on this page: its route is another page (the drawer lives in the root layout, so it stays open).
-      const elsewhere = !el && !!path && path !== window.location.pathname;
+      const elsewhere = !el && stop.path !== window.location.pathname;
       if (!el && !elsewhere) return false;
       const sideBySide = window.matchMedia(isExpanded ? EXPANDED_SIDE_BY_SIDE_QUERY : SIDE_BY_SIDE_QUERY).matches;
       if (source === "auto" && !sideBySide) return false;
       if (source === "click" && !sideBySide) setIsOpen(false);
 
       if (el) {
-        revealOnPage(el);
+        revealStop(stop);
       } else {
-        router.push(path!, { scroll: false });
-        void waitForElement(id).then((found) => found && revealOnPage(found));
+        router.push(stop.path, { scroll: false });
+        void waitForElement(stop.ids[0]).then((found) => found && revealStop(stop));
       }
       return true;
     },
-    [isExpanded, revealOnPage, router, targetPaths]
+    [isExpanded, revealStop, router]
+  );
+
+  /** One target as a stop of its own (a fit brief's "see on page" links). */
+  const showOnPage = useCallback(
+    (id: string, source: "auto" | "click"): boolean => {
+      const [stop] = groupStops([id], targetsById);
+      return stop ? showStop(stop, source) : false;
+    },
+    [showStop, targetsById]
+  );
+
+  // While an answer is on its way, scrolling or tapping the page (not the drawer) means the visitor is reading.
+  useEffect(() => {
+    if (!busy) return;
+    const onUser = (e: Event) => {
+      if (drawerRef.current?.contains(e.target as Node)) return;
+      if (e.type === "keydown" && !SCROLL_KEYS.has((e as KeyboardEvent).key)) return;
+      interactedRef.current = true;
+    };
+    const types = ["wheel", "touchmove", "pointerdown", "keydown"] as const;
+    types.forEach((t) => window.addEventListener(t, onUser, { capture: true, passive: true }));
+    return () => types.forEach((t) => window.removeEventListener(t, onUser, { capture: true }));
+  }, [busy]);
+
+  // The "From your question" note goes when the drawer opens again, or after a while.
+  useEffect(() => {
+    if (!returnNote) return;
+    if (isOpen) return setReturnNote(null);
+    const timer = setTimeout(() => setReturnNote(null), RETURN_NOTE_MS);
+    return () => clearTimeout(timer);
+  }, [returnNote, isOpen]);
+
+  /** A tapped stop under an answer. On a phone the drawer closes, so leave a note of what was asked. */
+  const onStopClick = useCallback(
+    (stop: Stop, answerId: string) => {
+      const sideBySide = window.matchMedia(isExpanded ? EXPANDED_SIDE_BY_SIDE_QUERY : SIDE_BY_SIDE_QUERY).matches;
+      if (!showStop(stop, "click") || sideBySide) return;
+      const i = messages.findIndex((m) => m.id === answerId);
+      const question = messages
+        .slice(0, i)
+        .reverse()
+        .find((m) => m.role === "user")?.content;
+      if (question) setReturnNote(question.length > 60 ? `${question.slice(0, 57).trimEnd()}…` : question);
+    },
+    [isExpanded, messages, showStop]
   );
 
   const sendMessage = useCallback(async (textOverride?: string) => {
@@ -326,6 +395,7 @@ export default function CopilotBubble({
     setInput("");
     setIsLoading(true);
     setTurningTo(null);
+    interactedRef.current = false;
     setLiveMessage("Titus is thinking…");
 
     const controller = new AbortController();
@@ -377,7 +447,9 @@ export default function CopilotBubble({
       const replyTargets: string[] = [];
       // Same for article sources: search_writing runs before the answer is written.
       const replySources: Source[] = [];
-      let pageMoved = false;
+      // The page moves once per reply, after every place in the call has arrived.
+      let moveScheduled = false;
+      if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
 
       const appendDelta = (text: string) => {
         if (firstChunk) {
@@ -403,22 +475,27 @@ export default function CopilotBubble({
       };
 
       const handleAction = (target: string) => {
-        const label = targetLabels.get(target);
-        if (!label || replyTargets.includes(target)) return;
+        if (!targetsById.has(target) || replyTargets.includes(target)) return;
         replyTargets.push(target);
         if (!firstChunk) {
           setMessages((prev) =>
             prev.map((m) => (m.id === assistantId ? { ...m, targets: [...replyTargets] } : m))
           );
         }
-        // Move the page for the first target only; later ones stay as links.
-        if (!pageMoved) {
-          pageMoved = showOnPage(target, "auto");
-          if (pageMoved) {
-            setTurningTo(label);
-            setLiveMessage(`Showing ${label} on the page`);
-          }
-        }
+        // Move the page once, to the best stop: one on this page if there is one, else the first.
+        // Never while the visitor is scrolling or tapping the page; the stops are still listed.
+        if (moveScheduled) return;
+        moveScheduled = true;
+        moveTimerRef.current = setTimeout(() => {
+          moveTimerRef.current = null;
+          if (interactedRef.current) return;
+          const stops = groupStops(replyTargets, targetsById);
+          const i = firstStop(stops, window.location.pathname);
+          if (i === -1 || !showStop(stops[i], "auto")) return;
+          const where = stops[i].path === window.location.pathname ? stops[i].label : `${stops[i].page} · ${stops[i].label}`;
+          setTurningTo(where);
+          setLiveMessage(`Showing ${where} on the page`);
+        }, STOP_SETTLE_MS);
       };
 
       const handleSource = (raw: { n?: unknown; title?: unknown; url?: unknown }) => {
@@ -488,10 +565,14 @@ export default function CopilotBubble({
         {
           id: crypto.randomUUID(),
           role: "assistant" as const,
+          // fetch and the stream reader throw a bare TypeError ("Failed to fetch", "network error") when the
+          // connection drops: say so in words, never the browser's message.
           content:
-            error instanceof Error
-              ? error.message
-              : "Sorry, something went wrong. Feel free to email Titus directly at tituslhy@gmail.com",
+            error instanceof TypeError
+              ? `Sorry, the connection dropped before I could finish. Please ask again, or email Titus directly at ${email}`
+              : error instanceof Error
+                ? error.message
+                : "Sorry, something went wrong. Feel free to email Titus directly at tituslhy@gmail.com",
         },
       ]);
     } finally {
@@ -499,7 +580,7 @@ export default function CopilotBubble({
       setIsStreaming(false);
       setTurningTo(null);
     }
-  }, [input, busy, messages, targetLabels, showOnPage]);
+  }, [input, busy, messages, targetsById, showStop, email]);
   // The open event (e.g. a prompt clicked on the front page) always sends with the latest sendMessage.
   const sendMessageRef = useRef(sendMessage);
   useEffect(() => {
@@ -804,7 +885,7 @@ export default function CopilotBubble({
                 {msg.brief ? (
                   <FitBriefCard
                     brief={msg.brief}
-                    labelFor={(t) => targetLabels.get(t) ?? t}
+                    labelFor={(t) => targetsById.get(t)?.label ?? t}
                     onShow={(t) => showOnPage(t, "click")}
                     mailtoHref={fitBriefMailto(msg.brief, email)}
                     onCheckAnother={enterFitMode}
@@ -876,22 +957,11 @@ export default function CopilotBubble({
                   </div>
                 )}
                 {msg.targets && msg.targets.length > 0 && (
-                  <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
-                      See on page
-                    </span>
-                    {msg.targets.map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => showOnPage(t, "click")}
-                        className="font-mono text-[11px] text-amber underline decoration-dotted underline-offset-[3px] transition-colors hover:text-ink"
-                      >
-                        <span aria-hidden="true">{targetPaths.get(t) && targetPaths.get(t) !== pathname ? "→ " : "↓ "}</span>
-                        {targetLabels.get(t) ?? t}
-                      </button>
-                    ))}
-                  </div>
+                  <StopPills
+                    stops={groupStops(msg.targets, targetsById)}
+                    pathname={pathname}
+                    onPick={(stop) => onStopClick(stop, msg.id)}
+                  />
                 )}
                 {msg.sources && msg.sources.length > 0 && (
                   <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -990,6 +1060,15 @@ export default function CopilotBubble({
         </div>
       </div>
 
+      {returnNote && !isOpen && (
+        <p
+          role="status"
+          className="m-0 max-w-[min(240px,calc(100vw-110px))] truncate rounded-full bg-paper-deep px-3 py-1.5 font-mono text-[10.5px] text-ink-soft shadow-[0_4px_14px_rgba(29,24,18,.12)]"
+        >
+          Asked: <span className="text-amber">{returnNote}</span>
+        </p>
+      )}
+
       {/* FAB — icon-only circle on mobile (avoids colliding with nearby CTAs
           and body copy at narrow widths); full "Ask Titus" pill from sm up. */}
       <button
@@ -1004,6 +1083,55 @@ export default function CopilotBubble({
           <span className="hidden font-mono text-[12px] uppercase tracking-[0.12em] sm:inline">Ask Titus</span>
         )}
       </button>
+    </div>
+  );
+}
+
+/** A small gap left above a stop. */
+const STOP_GAP_PX = 16;
+
+/**
+ * Scrolls the page so `el` starts just below the site nav. The nav hides while the page scrolls down and
+ * comes back on any scroll up, so going down leaves only a small gap, and going up leaves room for the nav
+ * (an element's own scroll-margin is sized for the nav, which leaves a blank band when it has hidden).
+ */
+function scrollUnderNav(el: HTMLElement, behavior: ScrollBehavior) {
+  const top = el.getBoundingClientRect().top + window.scrollY;
+  const nav = document.querySelector<HTMLElement>('nav[aria-label="Site navigation"]');
+  const offset = top > window.scrollY ? STOP_GAP_PX : (nav?.offsetHeight ?? 0) + STOP_GAP_PX;
+  window.scrollTo({ top: Math.max(0, top - offset), behavior });
+}
+
+/**
+ * The stops under an answer: every place it draws on, in the order it mentions them. A stop on the page
+ * being read is dark (↓); one on another page is cream (→). Tapping one goes there.
+ */
+function StopPills({ stops, pathname, onPick }: { stops: Stop[]; pathname: string; onPick: (stop: Stop) => void }) {
+  if (stops.length === 0) return null;
+  return (
+    <div className="mt-3">
+      <p className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">See on page</p>
+      <div className="flex flex-wrap gap-1.5">
+        {stops.map((stop) => {
+          const here = stop.path === pathname;
+          return (
+            <button
+              key={stop.ids.join(" ")}
+              type="button"
+              onClick={() => onPick(stop)}
+              className={`rounded-full px-3 py-1.5 text-left font-mono text-[11px] leading-snug transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber ${
+                here ? "bg-ink text-paper hover:bg-amber" : "bg-paper-deep text-ink hover:bg-paper-band"
+              }`}
+            >
+              <span aria-hidden="true" className={here ? "text-amber-hi" : "text-amber"}>
+                {here ? "↓ " : "→ "}
+              </span>
+              <span className={here ? "text-[oklch(0.8_0.02_78)]" : "text-ink-faint"}>{stop.page} · </span>
+              {stop.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

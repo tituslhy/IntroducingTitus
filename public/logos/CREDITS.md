@@ -125,4 +125,6 @@ The table reuses the files above and adds these, in `table/`. Fetched by `design
 | OpenCode | `table/opencode.svg` | SVG Logos (CC0) | https://github.com/gilbarbara/logos |
 | Claude Code | `table/claude-code.svg` | SVG Logos (CC0) | https://github.com/gilbarbara/logos |
 | GitHub Copilot | `table/github-copilot.svg` | SVG Logos (CC0) | https://github.com/gilbarbara/logos |
+| OpenCV | `table/opencv.svg` | Devicon (MIT) | https://devicon.dev |
+| PaddlePaddle | `table/paddlepaddle.svg` | Simple Icons (CC0 1.0) | https://simpleicons.org |
 | DataRobot | `table/datarobot.svg` | The company's own brand asset | supplied by me, cropped to the robot mark |

@@ -56,43 +56,51 @@ export interface CopilotTool<A = unknown> {
 
 const PAGE_TARGET_SET = new Set<string>(PAGE_TARGET_IDS);
 
-/** Returns the validated target from show_on_page's raw arguments, or null. */
-export function parseShowOnPageTarget(raw: string): string | null {
+/** Most targets one reply may point at (several tools in one table count separately). */
+export const MAX_PAGE_TARGETS = 6;
+
+/**
+ * Returns the validated targets from show_on_page's raw arguments, in the order given: unknown ids
+ * dropped, repeats removed, at most MAX_PAGE_TARGETS. Null when nothing valid is left.
+ */
+export function parseShowOnPageTargets(raw: string): string[] | null {
   try {
-    const parsed = JSON.parse(raw) as { target?: unknown } | null;
-    const target = parsed?.target;
-    return typeof target === "string" && PAGE_TARGET_SET.has(target) ? target : null;
+    const parsed = JSON.parse(raw) as { targets?: unknown } | null;
+    const list = parsed?.targets;
+    if (!Array.isArray(list)) return null;
+    const valid = [...new Set(list.filter((t): t is string => typeof t === "string" && PAGE_TARGET_SET.has(t)))];
+    return valid.length ? valid.slice(0, MAX_PAGE_TARGETS) : null;
   } catch {
     return null;
   }
 }
 
-function createShowOnPageTool(): CopilotTool<string> {
+function createShowOnPageTool(): CopilotTool<string[]> {
   return {
     definition: {
       type: "function",
       name: "show_on_page",
       description:
-        "Take the visitor to the entry your answer is about: open its page if they are on another one, scroll to it and briefly highlight it. Call at most once per answer, before writing the answer.",
+        "Show the visitor where your answer lives on the site, in the order your answer mentions them. The page goes to the best of them and the rest are listed under your answer. Call at most once per answer, before writing it.",
       strict: true,
       parameters: {
         type: "object",
         properties: {
-          target: {
-            type: "string",
-            enum: PAGE_TARGET_IDS,
-            description: "Anchor id from the Targets list in the system prompt.",
+          targets: {
+            type: "array",
+            items: { type: "string", enum: PAGE_TARGET_IDS },
+            description: `Anchor ids from the Targets list in the system prompt, in the order your answer mentions them; at most ${MAX_PAGE_TARGETS}.`,
           },
         },
-        required: ["target"],
+        required: ["targets"],
         additionalProperties: false,
       },
     },
     maxCallsPerReply: 1,
-    parse: parseShowOnPageTarget,
-    async run(target, { emit }) {
-      emit({ type: "action", target });
-      return { shown: target };
+    parse: parseShowOnPageTargets,
+    async run(targets, { emit }) {
+      for (const target of targets) emit({ type: "action", target });
+      return { shown: targets };
     },
   };
 }

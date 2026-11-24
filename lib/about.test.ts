@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import {
   CHAPTERS,
@@ -18,6 +18,7 @@ import {
   storyAt,
   tableCells,
   toolMatcher,
+  toolTargetId,
   type Month,
   type Tool,
 } from "./about";
@@ -161,10 +162,11 @@ describe("tableCells", () => {
     expect(detached.length).toBeGreaterThan(0);
   });
 
-  it("fills the main rows completely before any detached row (77 cells: 114 tools overflow by 37)", () => {
+  it("fills the main rows completely before any detached row (77 grid cells; the rest of TOOLS overflow)", () => {
     const main = cells.filter(([, r]) => r <= 6);
+    // 77 is the main grid's capacity (six rows, minus the notch), independent of how many tools there are.
     expect(main).toHaveLength(77);
-    expect(TOOLS.length - main.length).toBe(37);
+    expect(cells.length - main.length).toBe(TOOLS.length - 77);
   });
 
   it("right-aligns the detached rows to the last column", () => {
@@ -452,6 +454,24 @@ describe("data integrity", () => {
     expect(missing).toEqual([]);
   });
 
+  it("has a CREDITS.md row for every logo in public/logos/table/", () => {
+    const credits = readFileSync(join(PUBLIC_DIR, "logos", "CREDITS.md"), "utf-8");
+    const files = readdirSync(join(PUBLIC_DIR, "logos", "table")).filter((f) => !f.startsWith("."));
+    expect(files.length).toBeGreaterThan(0);
+    const unlisted = files.filter((f) => !credits.includes(`\`table/${f}\``));
+    expect(unlisted).toEqual([]);
+  });
+
+  it("gives every table logo a tool uses a CREDITS.md row, including OpenCV and PaddlePaddle", () => {
+    const credits = readFileSync(join(PUBLIC_DIR, "logos", "CREDITS.md"), "utf-8");
+    const tableLogos = TOOLS.filter((t) => t.logo.startsWith("/logos/table/"));
+    expect(tableLogos.map((t) => t.name)).toEqual(expect.arrayContaining(["OpenCV", "PaddlePaddle"]));
+    const unlisted = tableLogos
+      .map((t) => t.logo.replace("/logos/", ""))
+      .filter((rel) => !credits.includes(`\`${rel}\``));
+    expect(unlisted).toEqual([]);
+  });
+
   it("gives every 'since' a well-formed month inside the timeline", () => {
     for (const t of TOOLS) {
       expect({ name: t.name, ok: MONTH_RE.test(t.since) }).toEqual({ name: t.name, ok: true });
@@ -568,7 +588,6 @@ describe("IBM ACP", () => {
 describe("journeyLine", () => {
   it("summarises the default data: two tools from 2015, 'today' at the full count", () => {
     expect(journeyLine()).toBe(`From 2 tools in 2015 to ${TOOLS.length} today.`);
-    expect(journeyLine()).toBe("From 2 tools in 2015 to 114 today.");
   });
 
   it("uses the singular 'tool' when exactly one tool dates from the start year", () => {
@@ -605,3 +624,43 @@ describe("pillar photo", () => {
     expect(photoAt("2025-10")).toBe(smu.photo);
   });
 });
+
+describe("tool levels", () => {
+  it("gives a level to only Python (expert), SQL (expert) and Java (proficient)", () => {
+    const leveled = TOOLS.filter((t) => t.level)
+      .map((t) => [t.name, t.level])
+      .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+    expect(leveled).toEqual([
+      ["Java", "proficient"],
+      ["Python", "expert"],
+      ["SQL", "expert"],
+    ]);
+  });
+});
+
+describe("toolTargetId", () => {
+  it.each([
+    ["Neo4j", "tool-neo4j"],
+    ["Elastic (ELK)", "tool-elastic-elk"],
+    ["Next.js", "tool-next-js"],
+    ["scikit-learn", "tool-scikit-learn"],
+    ["Google Cloud", "tool-google-cloud"],
+    ["LangChain4j", "tool-langchain4j"],
+    ["GitHub Actions", "tool-github-actions"],
+  ])("gives %s the id %s", (name, id) => {
+    expect(toolTargetId(makeTool({ name, since: "2020-01" }))).toBe(id);
+  });
+
+  it("has no hyphen at either edge, whatever the name's punctuation", () => {
+    for (const tool of TOOLS) {
+      const id = toolTargetId(tool);
+      expect(id).toMatch(/^tool-[a-z0-9]+(-[a-z0-9]+)*$/);
+    }
+  });
+
+  it("gives every tool on the table a different id", () => {
+    const ids = TOOLS.map((t) => toolTargetId(t));
+    expect(new Set(ids).size).toBe(TOOLS.length);
+  });
+});
+

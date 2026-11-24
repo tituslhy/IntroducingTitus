@@ -124,6 +124,9 @@ function ScorecardTable({ card }: { card: Scorecard }) {
     ['Recall', percent(card.stage1Recall), 'The right article made the shortlist'],
     // Runs recorded before pageSize existed read pages of 2.
     [`Precision@${card.pageSize ?? 2}`, percent(card.precisionAt2), 'The articles it read were the right ones'],
+    ...(card.recordAccuracy !== null
+      ? [['Used my record', percent(card.recordAccuracy), 'Experience questions answered with when and where I used it'] as [string, string, string]]
+      : []),
     ['Abstain accuracy', percent(card.abstainAccuracy), 'Said “I haven’t written about that” when I hadn’t'],
     ['No invention', percent(card.noInvention), 'Replies with no made-up titles, links or citations'],
   ]

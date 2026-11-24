@@ -47,6 +47,7 @@ LOGOS = {
     'IBM ACP': ('acp', f'{GH}/i-am-bee/acp/main/docs/favicon.svg'),
     'OpenCode': ('opencode', 'logos/opencode-icon'),
     'Claude Code': ('claude-code', 'logos/claude-code'), 'GitHub Copilot': ('github-copilot', 'logos/github-copilot'),
+    'OpenCV': ('opencv', 'devicon/opencv'), 'PaddlePaddle': ('paddlepaddle', 'si:paddlepaddle'),
 }
 
 def source(src):

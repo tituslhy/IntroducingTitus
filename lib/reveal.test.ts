@@ -1,4 +1,4 @@
-import { REVEAL_EVENT, reveal } from "./reveal";
+import { PENDING_SHOW_MS, REVEAL_EVENT, SHOW_EVENT, reveal, requestShow, takePendingShow, type ShowDetail } from "./reveal";
 
 /** Frames are queued by hand, so each test decides when the next paint happens. */
 let frames: FrameRequestCallback[] = [];
@@ -194,5 +194,125 @@ describe("reveal", () => {
       void reveal(box);
       expect(slugs).toEqual(["beta"]);
     });
+  });
+});
+
+describe("SHOW_EVENT", () => {
+  it("is the event name 'copilot:show'", () => {
+    expect(SHOW_EVENT).toBe("copilot:show");
+  });
+});
+
+describe("requestShow", () => {
+  beforeEach(() => {
+    // Clear any request left by an earlier test in this file.
+    takePendingShow(() => true);
+  });
+
+  it("dispatches a bubbling SHOW_EVENT from the element, carrying the ids as detail", () => {
+    const el = document.createElement("button");
+    document.body.appendChild(el);
+    const seen: { event: CustomEvent<ShowDetail>; target: EventTarget | null }[] = [];
+    const listener = (e: Event) => seen.push({ event: e as CustomEvent<ShowDetail>, target: e.target });
+    document.addEventListener(SHOW_EVENT, listener);
+    try {
+      requestShow(el, ["tool-tigergraph", "tool-neo4j"]);
+    } finally {
+      document.removeEventListener(SHOW_EVENT, listener);
+    }
+    expect(seen).toHaveLength(1);
+    expect(seen[0].event.bubbles).toBe(true);
+    expect(seen[0].event.detail).toEqual({ ids: ["tool-tigergraph", "tool-neo4j"] });
+    expect(seen[0].target).toBe(el);
+  });
+
+  it("reaches a listener on the element's ancestor, not only the document", () => {
+    const list = document.createElement("div");
+    const el = document.createElement("button");
+    list.appendChild(el);
+    document.body.appendChild(list);
+    const onList = jest.fn();
+    list.addEventListener(SHOW_EVENT, onList);
+    requestShow(el, ["tool-neo4j"]);
+    expect(onList).toHaveBeenCalledTimes(1);
+    expect((onList.mock.calls[0][0] as CustomEvent<ShowDetail>).detail).toEqual({ ids: ["tool-neo4j"] });
+  });
+
+  it("keeps the request for a later owner, even when nothing is listening", () => {
+    const el = document.createElement("button");
+    requestShow(el, ["tool-neo4j"]);
+    expect(takePendingShow(() => true)).toEqual(["tool-neo4j"]);
+  });
+});
+
+describe("takePendingShow", () => {
+  beforeEach(() => {
+    takePendingShow(() => true);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("returns null when no request has been made", () => {
+    expect(takePendingShow(() => true)).toBeNull();
+  });
+
+  it("returns the pending ids once, then null", () => {
+    requestShow(document.createElement("button"), ["tool-tigergraph"]);
+    expect(takePendingShow(() => true)).toEqual(["tool-tigergraph"]);
+    expect(takePendingShow(() => true)).toBeNull();
+  });
+
+  it("passes the pending ids to accept", () => {
+    requestShow(document.createElement("button"), ["tool-tigergraph", "role-illumina"]);
+    const accept = jest.fn(() => true);
+    takePendingShow(accept);
+    expect(accept).toHaveBeenCalledWith(["tool-tigergraph", "role-illumina"]);
+  });
+
+  it("returns null once the request is older than PENDING_SHOW_MS, and does not call accept", () => {
+    const now = jest.spyOn(Date, "now").mockReturnValue(1_000_000);
+    requestShow(document.createElement("button"), ["tool-neo4j"]);
+    now.mockReturnValue(1_000_000 + PENDING_SHOW_MS + 1);
+    const accept = jest.fn(() => true);
+    expect(takePendingShow(accept)).toBeNull();
+    expect(accept).not.toHaveBeenCalled();
+  });
+
+  it("still returns a request exactly PENDING_SHOW_MS old", () => {
+    const now = jest.spyOn(Date, "now").mockReturnValue(1_000_000);
+    requestShow(document.createElement("button"), ["tool-neo4j"]);
+    now.mockReturnValue(1_000_000 + PENDING_SHOW_MS);
+    expect(takePendingShow(() => true)).toEqual(["tool-neo4j"]);
+  });
+
+  it("returns null when accept rejects the ids, and leaves the request for an accepting caller", () => {
+    requestShow(document.createElement("button"), ["tool-neo4j"]);
+    expect(takePendingShow(() => false)).toBeNull();
+    expect(takePendingShow(() => true)).toEqual(["tool-neo4j"]);
+  });
+
+  it("a rejected request is not taken by a caller that wants other ids", () => {
+    requestShow(document.createElement("button"), ["role-illumina"]);
+    expect(takePendingShow((ids) => ids.includes("tool-neo4j"))).toBeNull();
+    expect(takePendingShow((ids) => ids.includes("role-illumina"))).toEqual(["role-illumina"]);
+  });
+
+  it("a newer request replaces an older one that was never taken", () => {
+    const el = document.createElement("button");
+    requestShow(el, ["tool-tigergraph"]);
+    requestShow(el, ["tool-neo4j"]);
+    expect(takePendingShow(() => true)).toEqual(["tool-neo4j"]);
+    expect(takePendingShow(() => true)).toBeNull();
+  });
+
+  it("a newer request restarts the age, so it is not judged by the older one's time", () => {
+    const now = jest.spyOn(Date, "now").mockReturnValue(1_000_000);
+    requestShow(document.createElement("button"), ["tool-tigergraph"]);
+    now.mockReturnValue(1_000_000 + PENDING_SHOW_MS);
+    requestShow(document.createElement("button"), ["tool-neo4j"]);
+    now.mockReturnValue(1_000_000 + PENDING_SHOW_MS + 1);
+    expect(takePendingShow(() => true)).toEqual(["tool-neo4j"]);
   });
 });

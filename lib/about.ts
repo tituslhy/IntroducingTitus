@@ -29,6 +29,8 @@ export type Tool = {
   daily?: [Month, Month | null][]
   /** Finds it in my articles, for "in N articles". Null: the name is too common a word to count. */
   match?: RegExp | null
+  /** How well I know it, for the few tools where that is on record. Only Ask Titus reads it. */
+  level?: 'expert' | 'proficient'
 }
 
 export const TOOL_CATEGORIES: Record<ToolCategory, { label: string; tint: string }> = {
@@ -57,15 +59,15 @@ export const TOOLS: Tool[] = [
   // Languages & BI
   { name: 'Excel', category: 'lang', logo: table('excel.svg'), since: '2015-06', where: 'Toyota Tsusho', depth: 'work', daily: [['2015-06', '2017-03']], match: null },
   { name: 'VBA', category: 'lang', logo: table('vba.png'), since: '2015-06', where: 'Toyota Tsusho', depth: 'work', daily: [['2015-06', '2017-03']] },
-  { name: 'Python', category: 'lang', logo: site('python'), since: '2016-03', where: 'Self-taught, then every role since', depth: 'daily', daily: [['2016-03', NOW]] },
+  { name: 'Python', category: 'lang', logo: site('python'), since: '2016-03', where: 'Self-taught, then every role since', depth: 'daily', level: 'expert', daily: [['2016-03', NOW]] },
   { name: 'R', category: 'lang', logo: table('r.svg'), since: '2016-06', where: 'Self-taught', depth: 'projects', match: null },
-  { name: 'SQL', category: 'lang', logo: table('sql.svg'), since: '2016-09', where: 'Self-taught, then every role until Mastercard', depth: 'work', daily: [['2016-09', '2026-06']] },
+  { name: 'SQL', category: 'lang', logo: table('sql.svg'), since: '2016-09', where: 'Self-taught, then every role until Mastercard', depth: 'work', level: 'expert', daily: [['2016-09', '2026-06']] },
   { name: 'HTML', category: 'lang', logo: table('html.svg'), since: '2023-03', where: 'Illumina', depth: 'work' },
   { name: 'CSS', category: 'lang', logo: table('css.svg'), since: '2023-03', where: 'Illumina', depth: 'work' },
   { name: 'JavaScript', category: 'lang', logo: table('javascript.svg'), since: '2023-03', where: 'Illumina', depth: 'work' },
   { name: 'Pandas', category: 'lang', logo: table('pandas.svg'), since: '2017-04', where: 'JobTech', depth: 'work' },
   { name: 'NumPy', category: 'lang', logo: table('numpy.svg'), since: '2017-04', where: 'JobTech', depth: 'work' },
-  { name: 'Java', category: 'lang', logo: site('java'), since: '2025-06', where: 'UOB', depth: 'work', match: /\bjava\b/i },
+  { name: 'Java', category: 'lang', logo: site('java'), since: '2025-06', where: 'UOB', depth: 'work', level: 'proficient', match: /\bjava\b/i },
   { name: 'Tableau', category: 'lang', logo: table('tableau.svg'), since: '2018-04', where: 'EMA', depth: 'work' },
   { name: 'KNIME', category: 'lang', logo: table('knime.svg'), since: '2018-04', where: 'EMA', depth: 'work' },
   { name: 'UiPath', category: 'lang', logo: table('uipath.svg'), since: '2023-03', where: 'Illumina', depth: 'work' },
@@ -93,7 +95,7 @@ export const TOOLS: Tool[] = [
   { name: 'Apache Kafka', category: 'data', logo: site('apache-kafka'), since: '2023-03', where: 'Illumina', depth: 'work', match: /kafka/i },
   { name: 'PySpark', category: 'data', logo: table('pyspark.svg'), since: '2023-03', where: 'Illumina', depth: 'work', match: /pyspark|\bspark\b/i },
   { name: 'Apache Airflow', category: 'data', logo: site('apache-airflow'), since: '2023-03', where: 'Illumina', depth: 'work', match: /airflow/i },
-  { name: 'NetworkX', category: 'data', logo: site('networkx'), since: '2021-08', where: 'MITB at SMU', depth: 'projects' },
+  { name: 'NetworkX', category: 'data', logo: site('networkx'), since: '2021-08', where: 'MITB at SMU, then Illumina', depth: 'work' },
   { name: 'Pyomo', category: 'data', logo: table('pyomo.png'), since: '2023-03', where: 'Illumina', depth: 'work' },
   { name: 'Mosquitto', category: 'data', logo: table('mosquitto.svg'), since: '2021-08', where: 'MITB at SMU', depth: 'projects' },
   // Web & backend
@@ -142,7 +144,9 @@ export const TOOLS: Tool[] = [
   { name: 'DataRobot', category: 'ai', logo: table('datarobot.svg'), since: '2018-04', where: 'EMA', depth: 'work' },
   { name: 'TensorFlow', category: 'ai', logo: site('tensorflow'), since: '2021-08', where: 'MITB at SMU', depth: 'projects' },
   { name: 'PyTorch', category: 'ai', logo: site('pytorch'), since: '2021-08', where: 'MITB at SMU', depth: 'projects' },
-  { name: 'Ultralytics', category: 'ai', logo: site('ultralytics'), since: '2021-08', where: 'MITB at SMU', depth: 'projects' },
+  { name: 'Ultralytics', category: 'ai', logo: site('ultralytics'), since: '2021-08', where: 'MITB at SMU, then Illumina', depth: 'work' },
+  { name: 'OpenCV', category: 'ai', logo: table('opencv.svg'), since: '2023-03', where: 'Illumina', depth: 'work' },
+  { name: 'PaddlePaddle', category: 'ai', logo: table('paddlepaddle.svg'), since: '2023-03', where: 'Illumina', depth: 'work' },
   { name: 'Hugging Face', category: 'ai', logo: site('hugging-face'), since: '2021-08', where: 'MITB at SMU', depth: 'projects', match: /hugging ?face/i },
   { name: 'Unsloth', category: 'ai', logo: site('unsloth'), since: '2025-05', where: 'Illumina', depth: 'projects' },
   { name: 'vLLM', category: 'ai', logo: site('vllm'), since: '2025-05', where: 'Illumina', depth: 'work' },
@@ -243,6 +247,11 @@ export const TIMELINE_START: Month = '2015-06'
 export const TIMELINE_END: Month = '2026-11'
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** A tool tile's page anchor and Ask Titus target: "tool-" plus its name in lower case, hyphenated ("tool-elastic-elk"). */
+export function toolTargetId(tool: Pick<Tool, 'name'>): string {
+  return `tool-${tool.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`
+}
 
 /** "2024-08" → "Aug 2024". */
 export function formatMonth(m: Month): string {

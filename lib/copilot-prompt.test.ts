@@ -8,14 +8,14 @@ import {
   EMAIL,
   FEATURED_ARTICLES,
   OPEN_SOURCE,
-  PROFICIENCY_SEPARATOR,
   PROJECTS,
   ROLES,
-  STACK_GROUPS,
+  PAGE_TARGET_IDS,
   SOCIAL,
   type Role,
 } from './profile'
 import { buildSystemPrompt, promptTokens, renderLibrary } from './copilot-prompt'
+import { CHAPTERS, DEPTH_LABELS, TOOL_CATEGORIES, TOOLS, formatMonth, toolTargetId, type Chapter, type Tool, type ToolCategory } from './about'
 import { articleByUrl, formatPublished, mediumPostId } from './citation-ledger'
 import { ARTICLES } from './articles'
 import type { Themes } from './writing-tree'
@@ -326,26 +326,102 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
     })
   })
 
-  describe('tech stack', () => {
-    it('includes copilot-only stack items such as TigerGraph and UiPath', () => {
-      expect(rendered).toContain('TigerGraph')
-      expect(rendered).toContain('UiPath')
+  describe('tools and story (rendered from the About data)', () => {
+    const toolsSection = rendered.slice(rendered.indexOf("## Every Tool I've Used"), rendered.indexOf('## Links'))
+    const storySection = rendered.slice(rendered.indexOf('## My Story'), rendered.indexOf("## Every Tool I've Used"))
+    const toolLines = toolsSection.split('\n').filter((line) => /^- .+: since /.test(line))
+
+    const toolName = (t: Tool) => (t.level ? `${t.name} (${t.level})` : t.name)
+    const usageOf = (t: Tool) =>
+      t.daily
+        ? `every day, ${t.daily.map(([from, to]) => `${formatMonth(from)}–${to ? formatMonth(to) : 'now'}`).join(', ')}`
+        : DEPTH_LABELS[t.depth].toLowerCase()
+    const lineFor = (t: Tool) => `- ${toolName(t)}: since ${formatMonth(t.since)}, ${t.where}; ${usageOf(t)}`
+
+    // The renderer drops a leading "<label>:" the text already carries ("Now: ..."), so the expected text does too.
+    const storyText = (c: Chapter) => (c.text.startsWith(`${c.label}:`) ? c.text.slice(c.label.length + 1).trim() : c.text)
+
+    it('renders one line per tool in TOOLS, and nothing else in the tools section', () => {
+      expect(toolLines).toHaveLength(TOOLS.length)
     })
 
-    it('includes every item of every stack group, including copilot-only groups', () => {
-      for (const group of STACK_GROUPS) {
-        expect(rendered).toContain(`${group.label}:`)
-        for (const item of [...group.items, ...(group.more ?? [])]) {
-          const name = item.split(PROFICIENCY_SEPARATOR)[0]
-          expect(rendered).toContain(name)
-        }
+    it.each(TOOLS.map((t) => [t.name, t] as const))('renders %s with its since month, where, and use', (_name, tool) => {
+      expect(toolsSection).toContain(lineFor(tool))
+    })
+
+    it('formats level as "Name (level)" in lower case: Python (expert), SQL (expert), Java (proficient)', () => {
+      expect(toolsSection).toContain('- Python (expert): since ')
+      expect(toolsSection).toContain('- SQL (expert): since ')
+      expect(toolsSection).toContain('- Java (proficient): since ')
+    })
+
+    it('puts a level on exactly the tools that carry one', () => {
+      const withLevel = toolLines.filter((line) => /\((expert|proficient)\)/.test(line))
+      expect(withLevel).toHaveLength(TOOLS.filter((t) => t.level).length)
+    })
+
+    it('shows a daily tool that is still daily as a stretch ending "now" (Python)', () => {
+      const python = TOOLS.find((t) => t.name === 'Python')!
+      const [from, to] = python.daily![0]
+      expect(to).toBeNull()
+      expect(toolsSection).toContain(`- Python (expert): since ${formatMonth(python.since)}, ${python.where}; every day, ${formatMonth(from)}–now`)
+    })
+
+    it('shows a closed daily stretch with its end month (SQL ends Jun 2026)', () => {
+      const sqlLine = toolLines.find((line) => line.startsWith('- SQL (expert): '))!
+      expect(sqlLine).toContain(`every day, ${formatMonth('2016-09')}–Jun 2026`)
+      expect(sqlLine).not.toContain('now')
+    })
+
+    it('reads "used at work" for a non-daily work tool (Neo4j)', () => {
+      expect(toolsSection).toContain('- Neo4j: since May 2025, Illumina; used at work')
+    })
+
+    it('reads "projects only" for a projects tool (R)', () => {
+      const rLine = toolLines.find((line) => line.startsWith('- R: '))!
+      expect(rLine).toMatch(/; projects only$/)
+    })
+
+    it('groups tools under their category labels in TOOL_CATEGORIES order', () => {
+      const keys = Object.keys(TOOL_CATEGORIES) as ToolCategory[]
+      const positions = keys.map((k) => toolsSection.indexOf(`**${TOOL_CATEGORIES[k].label}**`))
+      expect(positions).not.toContain(-1)
+      expect(positions).toEqual([...positions].sort((a, b) => a - b))
+    })
+
+    it('renders every chapter as "- **label:** text" in CHAPTERS order', () => {
+      const positions = CHAPTERS.map((c) => storySection.indexOf(`- **${c.label}:** ${storyText(c)}`))
+      expect(positions).not.toContain(-1)
+      expect(positions).toEqual([...positions].sort((a, b) => a - b))
+    })
+
+    it.each(CHAPTERS.filter((c) => c.photo?.link).map((c) => [c.label, c] as const))(
+      'renders the link on the %s chapter',
+      (_label, chapter) => {
+        const link = chapter.photo!.link!
+        expect(storySection).toContain(`- **${chapter.label}:** ${storyText(chapter)} (${link.label}: ${link.href})`)
       }
+    )
+
+    it('does not repeat the "Now" label in the Now chapter', () => {
+      const now = CHAPTERS.find((c) => c.label === 'Now')!
+      expect(storySection).toContain(`- **Now:** ${storyText(now)}`)
+      expect(rendered).not.toContain('Now: Now:')
+      expect(rendered).not.toContain('**Now:** Now:')
     })
 
-    it('formats proficiency as "Name (level)" in lower case', () => {
-      expect(rendered).toContain('Python (expert)')
-      expect(rendered).toContain('SQL (expert)')
-      expect(rendered).toContain('Java (proficient)')
+    it('resolves {{TOOLS}} and {{STORY}} from the template, leaving no tokens unresolved', () => {
+      expect(template).toContain('{{TOOLS}}')
+      expect(template).toContain('{{STORY}}')
+      expect(buildSystemPrompt('{{TOOLS}}')).toBe(promptTokens().TOOLS)
+      expect(buildSystemPrompt('{{STORY}}')).toBe(promptTokens().STORY)
+      expect(rendered).not.toMatch(/\{\{[A-Z0-9_]+\}\}/)
+    })
+
+    it('no longer treats TECH_STACK as a token', () => {
+      expect(promptTokens()).not.toHaveProperty('TECH_STACK')
+      expect(template).not.toContain('{{TECH_STACK}}')
+      expect(() => buildSystemPrompt('{{TECH_STACK}}')).toThrow('TECH_STACK')
     })
 
     it('never renders the ◆ separator', () => {
@@ -366,6 +442,30 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
     it('does not use other third-person narration verbs for Titus', () => {
       expect(rendered).not.toMatch(/\bTitus (?:thought|was|has|did|says|writes)\b/)
     })
+  })
+})
+
+describe('experience-with questions (rendered prompt)', () => {
+  it('states the experience-with rule by name', () => {
+    expect(rendered).toContain('Experience-with questions')
+  })
+
+  it('tells the assistant to give my record first, before the writing', () => {
+    expect(rendered).toContain('My record first')
+    expect(rendered.indexOf('My record first')).toBeLessThan(rendered.indexOf('**Then my writing.**'))
+  })
+
+  it('tells the assistant to search for experience-with questions', () => {
+    expect(rendered).toMatch(/experience-with[^\n]*search/i)
+  })
+
+  it('still tells the assistant not to search for role, project or education questions', () => {
+    const line = rendered.split('\n').find((l) => l.includes("Questions about my roles, projects or education"))
+
+    expect(line).toBeDefined()
+    expect(line).toContain("don't search for them")
+    expect(line).toContain('What did you build at Illumina?')
+    expect(line).toContain('Where did you study?')
   })
 })
 
@@ -486,5 +586,80 @@ describe('My Library (renderLibrary and the WRITING_TREE token)', () => {
   it('WRITING_TREE is a template token: exposed by promptTokens and rendered away', () => {
     expect(promptTokens()).toHaveProperty('WRITING_TREE')
     expect(rendered).not.toContain('{{WRITING_TREE}}')
+  })
+})
+
+describe('Illumina computer-vision narrative and new tools (rendered prompt)', () => {
+  it.each([
+    'Haar cascades',
+    'PaddlePaddle',
+    'fine-tuned YOLO',
+    'OpenCV',
+    'NetworkX',
+    'Pyomo',
+    'proof of concept',
+  ])('contains "%s" from the Illumina copilot narrative', (phrase) => {
+    expect(rendered).toContain(phrase)
+  })
+
+  it('carries the Illumina computer-vision paragraph verbatim from the role data', () => {
+    const illumina = ROLES.find((r) => r.company === 'Illumina')!
+    expect(illumina.copilot).toBeDefined()
+    expect(rendered).toContain(illumina.copilot!)
+  })
+
+  it('renders the OpenCV tools line with its since month, where, and use', () => {
+    expect(rendered).toContain('- OpenCV: since Mar 2023, Illumina; used at work')
+  })
+
+  it('renders the Ultralytics tools line, which now spans SMU and Illumina', () => {
+    expect(rendered).toContain('- Ultralytics: since Aug 2021, MITB at SMU, then Illumina; used at work')
+  })
+
+  it('renders the PaddlePaddle tools line alongside OpenCV', () => {
+    expect(rendered).toContain('- PaddlePaddle: since Mar 2023, Illumina; used at work')
+  })
+
+  it('keeps the SMU record word in the prompt for the experience-with computer-vision row', () => {
+    expect(rendered).toContain('SMU')
+  })
+})
+
+describe('show_on_page targets (the list the model picks from)', () => {
+  const targetsBlock = promptTokens().PAGE_TARGETS
+  const lines = targetsBlock.split('\n')
+
+  it('lists a page target as one line: its id, route and what lives there', () => {
+    const illumina = lines.find((l) => l.startsWith('- `role-illumina`'))
+    expect(illumina).toMatch(/^- `role-illumina` \(\/experience\) — my .+ role at Illumina \(.+\)$/)
+  })
+
+  it('gives the tools one summary line, not one line per tool', () => {
+    const toolLines = lines.filter((l) => l.startsWith('- `tool-'))
+    expect(toolLines).toHaveLength(1)
+    for (const tool of TOOLS) {
+      expect(targetsBlock).not.toContain(`\`${toolTargetId(tool)}\` (/about)`)
+    }
+  })
+
+  it('counts every tool in the summary line', () => {
+    const summary = lines.find((l) => l.startsWith('- `tool-'))!
+    expect(summary).toContain(`for each of the ${TOOLS.length} tools`)
+    expect(summary).toContain('(/about)')
+  })
+
+  it('gives real examples of the tool id pattern, each a valid target', () => {
+    for (const example of ['tool-neo4j', 'tool-elastic-elk', 'tool-scikit-learn']) {
+      expect(targetsBlock).toContain(`\`${example}\``)
+      expect(PAGE_TARGET_IDS).toContain(example)
+    }
+  })
+
+  it('puts the knowledge-graphs example into the system prompt, with ids the enum accepts', () => {
+    const example = '["tool-tigergraph", "tool-neo4j", "role-illumina"]'
+    expect(rendered).toContain(example)
+    for (const id of ['tool-tigergraph', 'tool-neo4j', 'role-illumina']) {
+      expect(PAGE_TARGET_IDS).toContain(id)
+    }
   })
 })

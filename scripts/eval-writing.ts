@@ -20,7 +20,7 @@ import { buildSystemPrompt } from "../lib/copilot-prompt";
 import { copilotStream, MODEL as GPT_MODEL } from "../lib/copilot-loop";
 import { createCopilotTools, mergeByTopic, type CopilotTool } from "../lib/copilot-tools";
 import { JEV_MODEL, PAGE_SIZE, searchMyWriting, type SearchTrace } from "../lib/writing-search";
-import { GOLDEN, countsForRetrieval, retrievalQueries, type Expect } from "./eval-golden";
+import { GOLDEN, countsForRetrieval, retrievalQueries, usedRecord, type Expect } from "./eval-golden";
 
 const OUT = join(process.cwd(), "content", "eval-results.json");
 const AGENT_TIMEOUT_MS = 60_000;
@@ -167,6 +167,8 @@ async function main() {
         citations: [...new Set(citedNumbers)].length,
         inventedUrls: invented,
         danglingCitations: dangling,
+        // Experience-with rows: the reply named when and where from my record.
+        usedRecord: usedRecord(row, agent.text),
       },
     });
   }
@@ -199,6 +201,10 @@ async function main() {
     noInvention: ratio(
       results.filter((r) => r.agent.inventedUrls.length === 0 && r.agent.danglingCitations.length === 0).length,
       results.length
+    ),
+    recordAccuracy: ratio(
+      results.filter((r) => r.agent.usedRecord === true).length,
+      results.filter((r) => r.agent.usedRecord !== null).length
     ),
     latencyMs: { p50: percentile(latencies, 50), p95: percentile(latencies, 95) },
     fallbacks,

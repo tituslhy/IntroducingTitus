@@ -4,7 +4,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { Client as LangSmithClient } from "langsmith";
 import { buildSystemPrompt } from "@/lib/copilot-prompt";
-import { createCopilotTools, type CopilotEvent } from "@/lib/copilot-tools";
+import { MAX_PAGE_TARGETS, createCopilotTools, type CopilotEvent } from "@/lib/copilot-tools";
 import { copilotStream, type CopilotChunk, type InputMessage, type LoopStats } from "@/lib/copilot-loop";
 import { ChatTrace } from "@/lib/copilot-tracing";
 import { parseCitations, renderConversationContext, resolveCitations } from "@/lib/citation-ledger";
@@ -71,8 +71,8 @@ function getSystemPrompt(): string {
 }
 
 // Drawer-side cap on distinct page actions, deduped across the initial
-// attempt and any retry. show_on_page's own per-reply limit is stricter.
-const MAX_ACTIONS_PER_REPLY = 3;
+// attempt and any retry: show_on_page's own per-call limit.
+const MAX_ACTIONS_PER_REPLY = MAX_PAGE_TARGETS;
 
 // ---------------------------------------------------------------------------
 // LangSmith tracing — ON by default (needs a LangSmith key), never allowed to break chat.
