@@ -6,6 +6,7 @@ import ResultsRow from '@/components/tiles/ResultsRow'
 import CreditsRoll from '@/components/projects/CreditsRoll'
 import DemoFrame from '@/components/projects/DemoFrame'
 import EarlierReel from '@/components/projects/EarlierReel'
+import LoopFrame from '@/components/projects/LoopFrame'
 import BassoonArchitectureFrame from '@/components/projects/BassoonArchitecture'
 import { IlluminaAnswer, IlluminaReady } from '@/components/projects/IlluminaDiagrams'
 import Programme, { type ProgrammeStop } from '@/components/projects/Programme'
@@ -37,6 +38,14 @@ function toFrame(f: ProjectFrame, p: Project): ProjectorFrame {
         node: <img src={f.src} alt={f.caption} loading="lazy" className="block h-full w-full bg-black object-contain" />,
         // eslint-disable-next-line @next/next/no-img-element -- as above
         thumb: <img src={f.src} alt="" loading="lazy" className="block h-full w-full object-cover object-top" />,
+      }
+    case 'video':
+      return {
+        caption: f.caption,
+        ms: f.ms,
+        node: <LoopFrame src={f.src} poster={f.poster} caption={f.caption} />,
+        // eslint-disable-next-line @next/next/no-img-element -- as above
+        thumb: <img src={f.poster} alt="" loading="lazy" className="block h-full w-full object-cover" />,
       }
     case 'demo':
       return {

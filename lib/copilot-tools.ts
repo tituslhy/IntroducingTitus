@@ -1,5 +1,5 @@
 import { PAGE_TARGET_IDS } from "@/lib/profile";
-import { MAX_ARTICLES_PER_REPLY, MAX_TOPICS } from "@/lib/search-config";
+import { MAX_ARTICLES_PER_REPLY, MAX_READING_CALLS, MAX_TOPICS } from "@/lib/search-config";
 import { ARTICLES, type Article } from "@/lib/articles";
 import {
   PAGE_SIZE,
@@ -283,7 +283,7 @@ function createSearchWritingTool(search: SearchFn, reading: Reading, pick: PickF
         additionalProperties: false,
       },
     },
-    maxCallsPerReply: 2,
+    maxCallsPerReply: MAX_READING_CALLS,
     parse: parseSearchWritingArgs,
     async run({ topics, more }, { emit, signal, trace }) {
       if (more && pending) {
@@ -418,7 +418,7 @@ function createReadWritingTool(catalog: readonly Article[], reading: Reading, pi
         additionalProperties: false,
       },
     },
-    maxCallsPerReply: 2,
+    maxCallsPerReply: MAX_READING_CALLS,
     parse: parseReadWritingArgs,
     async run({ articles: ids, focus }, { emit, signal, trace }) {
       const known: Article[] = [];

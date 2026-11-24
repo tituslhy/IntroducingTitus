@@ -90,6 +90,16 @@ describe("renderWritingTree", () => {
     expect(lines).toHaveLength(2);
   });
 
+  it("lists an article assigned two themes under both theme blocks", () => {
+    const blocks = renderWritingTree(ARTICLES_FIXTURE, CLEAN_THEMES).split("\n\n");
+    const line = "- dddddddddddd Both (2025-02): Both summary";
+    const agents = blocks.find((b) => b.startsWith("### Agents"));
+    const tuning = blocks.find((b) => b.startsWith("### Finetuning"));
+
+    expect(agents).toContain(line);
+    expect(tuning).toContain(line);
+  });
+
   it("uses the exact heading format with an em dash and single spaces", () => {
     const headings = renderWritingTree(ARTICLES_FIXTURE, CLEAN_THEMES)
       .split("\n")

@@ -266,11 +266,25 @@ describe("the real articles", () => {
     expect(all).toHaveLength(65);
   });
 
-  it("files every story under exactly one desk", () => {
+  it("files every story under exactly one desk, its first theme", () => {
+    const known = new Set(articleThemes.themes.map((t) => t.id));
     for (const s of all) {
       expect(s.desk).toBeDefined();
-      expect(assignments[s.slug]).toHaveLength(1);
+      expect([1, 2]).toContain(assignments[s.slug].length);
+      expect(assignments[s.slug].every((id) => known.has(id))).toBe(true);
+      expect(s.desk).toBe(assignments[s.slug][0]);
     }
+  });
+
+  it("files a two-theme article under its first theme's desk only", () => {
+    const slug = Object.keys(assignments).find((s) => assignments[s].length === 2);
+    expect(slug).toBeDefined();
+    const [first, second] = assignments[slug as string];
+    const [story] = stories([article({ slug: slug as string })]);
+
+    expect(story.desk).toBe(first);
+    expect(story.desk).not.toBe(second);
+    expect(desks([story]).map((d) => d.id)).toEqual([first]);
   });
 
   it("has desk counts that sum to the story count", () => {

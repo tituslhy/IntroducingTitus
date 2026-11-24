@@ -68,11 +68,15 @@ export function projectsDoor(): DoorRow[] {
   return PROJECTS.map((p) => ({ lead: p.figure.value, text: `${p.title}: ${p.preview}`, end: p.github ? 'GitHub' : 'work' }))
 }
 
-/** Theme chips for the Writing door, most articles first. Each article sits in one theme. */
+/**
+ * Theme chips for the Writing door, most articles first. An article may sit in
+ * two themes (the copilot's library map lists it under both), but it counts
+ * once, under its first: the same desk the Writing page files it under.
+ */
 export function themeCounts(): { id: string; name: string; count: number }[] {
   const counts = new Map<string, number>()
-  for (const ids of Object.values(articleThemes.assignments as Record<string, string[]>))
-    for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1)
+  for (const [first] of Object.values(articleThemes.assignments as Record<string, string[]>))
+    if (first) counts.set(first, (counts.get(first) ?? 0) + 1)
   return articleThemes.themes
     .map((t) => ({
       id: t.id,

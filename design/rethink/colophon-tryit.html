@@ -1,0 +1,286 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Colophon · Try it</title>
+<link rel="stylesheet" href="colophon-base.css">
+<style>
+:root { --amber-soft: oklch(0.92 0.05 75);
+  /* the instrument: a dark trace screen, its own small palette */
+  --scr: oklch(0.165 0.008 60); --scr-2: oklch(0.21 0.01 60); --scr-line: oklch(1 0 0 / .07); --scr-text: oklch(0.92 0.01 78); --scr-dim: oklch(0.62 0.01 70);
+  --c-root: oklch(0.86 0.03 78); --c-gpt: oklch(0.74 0.15 62); --c-tool: oklch(0.76 0.12 158); --c-jev: oklch(0.76 0.1 205); }
+.wrap { max-width: 1280px; }
+.dek { max-width: 62ch; }
+.sec { display: flex; align-items: baseline; gap: 14px; font: 500 11px var(--mono); letter-spacing: .16em; text-transform: uppercase; margin: 44px 0 18px; }
+.sec b { color: var(--amber); font-weight: 600; } .sec i { flex: 1; height: 1px; background: var(--rule); align-self: center; }
+.bar-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.try { font: 500 13px var(--mono); background: var(--ink); color: var(--paper); border: 0; border-radius: 999px; padding: 11px 18px; cursor: pointer; }
+.try[disabled] { opacity: .55; }
+.q { font: italic 19px var(--serif); }
+.meta { font: 11px var(--mono); color: var(--ink-faint); margin-left: auto; }
+.panel { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 14px; align-items: stretch; }
+.card { background: var(--paper-deep); border-radius: 20px; padding: 18px 20px; display: flex; flex-direction: column; }
+.card svg { margin: 4px 0 14px; }
+.steps.in { margin-top: auto; border-radius: 20px; } .steps.in ol { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; }
+.card .label { margin-bottom: 10px; display: flex; justify-content: space-between; }
+svg text { font-family: var(--mono); }
+svg .bx rect { fill: var(--paper); stroke: var(--ink); stroke-width: 1; transition: fill .25s, stroke .25s; }
+svg .bx.done rect { fill: color-mix(in oklch, var(--amber-soft) 55%, var(--paper)); stroke: var(--amber); }
+svg .bx.lit rect { fill: var(--amber-hi); stroke: var(--amber); stroke-width: 2; }
+svg .ln { stroke: var(--ink-soft); stroke-width: 1; fill: none; transition: stroke .25s; }
+svg .ln.done { stroke: var(--amber); stroke-width: 1.6; }
+svg .row.lit { fill: var(--amber); font-weight: 600; }
+.dim svg .bx:not(.done):not(.lit) { opacity: .5; } .dim svg .ln:not(.done) { opacity: .4; }
+
+/* ---------- the trace screen ---------- */
+.scr { background: var(--scr); color: var(--scr-text); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 0 0 1px oklch(1 0 0 / .04) inset; }
+.scr-top { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--scr-line); font: 12px var(--mono); }
+.scr-top .ic { width: 22px; height: 22px; border-radius: 6px; background: var(--scr-2); display: grid; place-items: center; color: var(--c-gpt); font-size: 12px; }
+.scr-top .live { margin-left: auto; display: flex; align-items: center; gap: 6px; font: 600 10px var(--mono); letter-spacing: .14em; color: var(--scr-dim); }
+.scr-top .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--scr-dim); }
+.playing .scr-top .live { color: oklch(0.75 0.17 25); } .playing .scr-top .live i { background: oklch(0.68 0.2 25); box-shadow: 0 0 0 0 oklch(0.68 0.2 25 / .6); animation: pulse 1.2s infinite; }
+@keyframes pulse { to { box-shadow: 0 0 0 8px oklch(0.68 0.2 25 / 0); } }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--scr-line); }
+.stats div { padding: 10px 16px; border-right: 1px solid var(--scr-line); font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--scr-dim); }
+.stats div:last-child { border-right: 0; }
+.stats b { display: block; white-space: nowrap; margin-top: 4px; font: 500 18px var(--mono); letter-spacing: -.01em; text-transform: none; color: var(--scr-text); }
+.stats b.ok { color: var(--c-tool); } .stats b.clk { color: var(--c-gpt); }
+.wfwrap { position: relative; padding: 10px 16px 6px; }
+.axis, .zaxis { display: grid; grid-template-columns: var(--nm) 1fr; font: 10px var(--mono); color: var(--scr-dim); }
+.axis .ticks, .zaxis .ticks { display: flex; justify-content: space-between; }
+.grid-bg { position: absolute; top: 28px; bottom: 6px; left: calc(16px + var(--nm)); right: 16px; pointer-events: none;
+  background: repeating-linear-gradient(to right, var(--scr-line) 0 1px, transparent 1px calc(100% / 7)); }
+.span { position: relative; display: grid; grid-template-columns: var(--nm) 1fr; align-items: center; height: 23px; font: 11.5px var(--mono); border-radius: 6px; }
+.span .nm { display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; color: var(--scr-text); }
+.span .nm em { font-style: normal; color: var(--scr-dim); }
+.span .dot { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.span .tr { position: relative; height: 100%; }
+.span .b { position: absolute; top: 5px; height: 13px; border-radius: 4px; min-width: 3px; transition: box-shadow .3s; }
+.root .b, .root .dot { background: var(--c-root); } .root .b { height: 5px; top: 9px; opacity: .8; }
+.gpt .b, .gpt .dot { background: var(--c-gpt); } .tool .b, .tool .dot { background: var(--c-tool); } .jev .b, .jev .dot { background: var(--c-jev); }
+.span.run .b { box-shadow: 0 0 14px 1px currentColor; background-image: linear-gradient(90deg, transparent, oklch(1 0 0 / .45), transparent); background-size: 60px 100%; animation: shimmer 1s linear infinite; }
+.gpt.run .b { color: var(--c-gpt); background-color: var(--c-gpt); } .tool.run .b { color: var(--c-tool); background-color: var(--c-tool); } .jev.run .b { color: var(--c-jev); background-color: var(--c-jev); }
+@keyframes shimmer { from { background-position: -60px 0; } to { background-position: 260px 0; } }
+.span.wait { opacity: .18; } .span.wait .b { display: none; }
+.span.on, .span.sel { background: oklch(1 0 0 / .06); }
+.d1 .nm { padding-left: 12px; } .d2 .nm { padding-left: 26px; }
+.d1 .nm::before, .d2 .nm::before { content: '└'; color: oklch(1 0 0 / .2); margin-right: -2px; }
+.head { position: absolute; top: 26px; bottom: 4px; width: 0; border-left: 1.5px solid var(--c-gpt); pointer-events: none; display: none; }
+.head::before { content: ''; position: absolute; top: -4px; left: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--c-gpt); box-shadow: 0 0 10px var(--c-gpt); }
+.head.show { display: block; }
+.zoom { margin: 6px 16px 0; padding: 10px 12px 8px; border-radius: 12px; background: var(--scr-2); position: relative; }
+.zoom .zl { display: flex; justify-content: space-between; font: 600 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--c-jev); margin-bottom: 6px; }
+.zoom .zl span { color: var(--scr-dim); font-weight: 400; letter-spacing: .04em; text-transform: none; }
+.zoom .span { height: 17px; font-size: 10.5px; } .zoom .span .b { top: 3px; height: 11px; }
+.zoom .head { top: 40px; }
+.detail { margin: 10px 16px 16px; border: 1px solid var(--scr-line); border-radius: 12px; padding: 12px 14px; font: 11.5px/1.6 var(--mono); min-height: 104px; }
+.detail .dh { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; color: var(--scr-text); font-weight: 600; }
+.detail .k { color: var(--scr-dim); } .detail .v { color: var(--scr-text); } .detail .s { color: oklch(0.8 0.1 140); }
+.detail .kind { font: 500 9.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; border: 1px solid currentColor; }
+.legend { display: flex; gap: 14px; padding: 0 16px 14px; font: 10px var(--mono); color: var(--scr-dim); margin-top: auto; }
+.legend span { display: flex; align-items: center; gap: 6px; } .legend i { width: 8px; height: 8px; border-radius: 2px; }
+
+.answer { margin-top: 14px; }
+.reply { background: var(--paper); border: 1px solid var(--rule); border-radius: 20px; padding: 18px 20px; min-height: 150px; }
+.reply .who { font: 600 10.5px var(--mono); letter-spacing: .14em; color: var(--amber); }
+.reply p { font-size: 16.5px; line-height: 1.55; margin: 8px 0 0; }
+.reply sup { color: var(--amber); font: 600 10px var(--mono); }
+.caret { display: inline-block; width: 8px; height: 16px; background: var(--amber); vertical-align: -2px; animation: bl 1s steps(2) infinite; }
+@keyframes bl { 50% { opacity: 0; } }
+.pills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; opacity: 0; transition: opacity .4s; }
+.pills.on { opacity: 1; }
+.pills .pill.dark { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.src { font: 11px var(--mono); color: var(--ink-soft); margin-top: 10px; line-height: 1.7; } .src a { color: var(--amber); }
+.steps { background: var(--latte); border-radius: 28px; padding: 18px 20px; }
+.steps ol { margin: 8px 0 0; padding: 0; list-style: none; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 26px 1fr; font-size: 14.5px; line-height: 1.4; padding: 6px 0; color: var(--ink-soft); opacity: .45; transition: opacity .3s; }
+.steps li::before { content: counter(s, decimal-leading-zero); font: 11px var(--mono); color: var(--amber); padding-top: 2px; }
+.steps li.on { opacity: 1; color: var(--ink); }
+.scr { --nm: 250px; }
+@media (max-width: 900px) { .panel, .answer { grid-template-columns: 1fr; } h1 { font-size: 40px; } .wrap { padding: 0 16px 40px; } nav { overflow: hidden; }
+  .scr { --nm: 150px; } .stats { grid-template-columns: repeat(2, 1fr); } .stats div:nth-child(2) { border-right: 0; } .stats div:nth-child(-n+2) { border-bottom: 1px solid var(--scr-line); } .span em { display: none; } }
+</style></head><body>
+<nav><b>T·L</b><span>01 Experience</span><span>02 Education</span><span>03 Projects</span><span>04 Writing</span><span>05 About</span><span class="on">06 Ask Titus</span><span class="cta">Get in touch</span></nav>
+<div class="wrap">
+  <div class="kicker">Colophon</div>
+  <h1>How <em>Ask Titus</em> works</h1>
+  <p class="dek">A small agent, built the way I’d build one for production: grounded in one source of truth, retrieving with a fast decision model, and fenced in by guardrails.</p>
+
+  <div class="sec"><b>02</b>Anatomy of a reply<i></i></div>
+  <div class="bar-top">
+    <button class="try" id="go">▸ Try it</button>
+    <span class="q">“Have you used LangChain and LangGraph?”</span>
+    <span class="meta">recorded 24 Nov 2026 · real GPT and Jev calls · replayed at 3×</span>
+  </div>
+
+  <div class="panel" id="panel">
+    <div class="card">
+      <div class="label"><span>The blueprint</span><span id="stage">ready</span></div>
+      <svg viewBox="0 0 760 520" role="img" aria-label="Architecture of a reply">
+        <defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8" fill="none" stroke="var(--ink-soft)" stroke-width="1.2"/></marker></defs>
+        <!-- record in the prompt -->
+        <g class="bx" data-k="record"><rect x="206" y="0" width="240" height="40"/><text x="326" y="17" text-anchor="middle" font-size="12" font-weight="500">my record + library map</text><text x="326" y="32" text-anchor="middle" font-size="10" fill="var(--ink-soft)">in the prompt · lib/profile, lib/about</text></g>
+        <path class="ln" data-k="record" d="M326,40 V96" marker-end="url(#ah)"/>
+        <g transform="translate(0,56)">
+          <g class="bx" data-k="visitor"><rect x="0" y="38" width="84" height="46"/><text x="42" y="65" text-anchor="middle" font-size="12.5" font-weight="500">visitor</text></g>
+          <path class="ln" data-k="guards" d="M84,61 H106" marker-end="url(#ah)"/>
+          <g class="bx" data-k="guards"><rect x="108" y="38" width="84" height="46"/><text x="150" y="65" text-anchor="middle" font-size="12.5" font-weight="500">guards</text></g>
+          <path class="ln" data-k="gpt1" d="M192,61 H244" marker-end="url(#ah)"/>
+          <rect x="216" y="6" width="220" height="238" fill="var(--amber-soft)" fill-opacity=".35" stroke="var(--amber)"/>
+          <text x="226" y="23" font-size="10.5" font-weight="600" letter-spacing="1" fill="var(--amber)">AGENT LOOP</text>
+          <text x="426" y="23" text-anchor="end" font-size="10.5" fill="var(--ink-soft)">≤4 rounds</text>
+          <g class="bx" data-k="gpt"><rect x="246" y="38" width="160" height="46"/><text x="326" y="57" text-anchor="middle" font-size="12.5" font-weight="500">GPT</text><text x="326" y="74" text-anchor="middle" font-size="10.5" fill="var(--ink-soft)">answer, or call tools?</text></g>
+          <path class="ln" data-k="calls" d="M290,84 V154" marker-end="url(#ah)"/><text x="282" y="123" text-anchor="end" font-size="10.5" fill="var(--ink-soft)">calls</text>
+          <path class="ln" data-k="results" d="M362,154 V86" marker-end="url(#ah)"/><text x="370" y="123" font-size="10.5" fill="var(--ink-soft)">results</text>
+          <g class="bx" data-k="tools"><rect x="246" y="156" width="160" height="82"/>
+            <text x="256" y="172" font-size="10.5" fill="var(--ink-faint)" letter-spacing=".8">TOOLS</text>
+            <text class="row" data-k="show" x="256" y="192" font-size="12">show_on_page</text>
+            <text class="row" data-k="search" x="256" y="210" font-size="10.5">search_writing(topics)</text>
+            <text class="row" x="256" y="228" font-size="10.5">read_writing(ids)</text></g>
+          <path class="ln" data-k="answer" d="M406,61 H486" marker-end="url(#ah)"/><text x="446" y="53" text-anchor="middle" font-size="10.5" fill="var(--ink-soft)">answer</text>
+          <g class="bx" data-k="checks"><rect x="488" y="38" width="84" height="46"/><text x="530" y="65" text-anchor="middle" font-size="12.5" font-weight="500">checks</text></g>
+          <path class="ln" data-k="drawer" d="M572,61 H594" marker-end="url(#ah)"/>
+          <g class="bx" data-k="drawer"><rect x="596" y="38" width="84" height="46"/><text x="638" y="65" text-anchor="middle" font-size="12.5" font-weight="500">drawer</text></g>
+          <path class="ln" data-k="search" d="M270,238 V262 H50 V278" marker-end="url(#ah)"/>
+          <text x="160" y="257" text-anchor="middle" font-size="10.5" fill="var(--ink-soft)">search_writing(topics)</text>
+          <g class="bx" data-k="search"><rect x="10" y="280" width="80" height="22"/><text x="50" y="295" text-anchor="middle" font-size="11">LangChain</text></g>
+          <g class="bx" data-k="search"><rect x="10" y="306" width="80" height="22"/><text x="50" y="321" text-anchor="middle" font-size="11">LangGraph</text></g>
+          <g class="bx"><rect x="10" y="332" width="80" height="22"/><text x="50" y="347" text-anchor="middle" font-size="11" fill="var(--ink-faint)">topic 3</text></g>
+          <path class="ln" data-k="filter" d="M90,319 H102" marker-end="url(#ah)"/>
+          <g class="bx" data-k="filter"><rect x="104" y="296" width="90" height="46"/><text x="149" y="315" text-anchor="middle" font-size="12.5" font-weight="500">Jev filter</text><text x="149" y="332" text-anchor="middle" font-size="10.5" fill="var(--ink-soft)">noul × 65</text></g>
+          <text x="149" y="356" text-anchor="middle" font-size="10.5" fill="var(--ink-soft)">p(yes) ≥ 0.5</text>
+          <path class="ln" data-k="rank" d="M194,319 H204" marker-end="url(#ah)"/>
+          <g class="bx" data-k="rank"><rect x="206" y="296" width="90" height="46"/><text x="251" y="315" text-anchor="middle" font-size="12.5" font-weight="500">Jev rank</text><text x="251" y="332" text-anchor="middle" font-size="10.5" fill="var(--ink-soft)">score × top 8</text></g>
+          <text x="251" y="356" text-anchor="middle" font-size="10.5" fill="var(--ink-soft)">≥ 2.0 of 3</text>
+          <path class="ln" data-k="rank" d="M296,319 H306" marker-end="url(#ah)"/>
+          <g class="bx" data-k="rank"><rect x="308" y="296" width="104" height="46"/><text x="360" y="315" text-anchor="middle" font-size="12.5" font-weight="500">merge</text><text x="360" y="332" text-anchor="middle" font-size="10.5" fill="var(--ink-soft)">round-robin</text></g>
+          <text x="418" y="312" font-size="10.5" fill="var(--ink-soft)">3 at a time</text>
+          <path class="ln" data-k="sections" d="M360,342 V402" marker-end="url(#ah)"/>
+          <path class="ln" d="M382,238 V262 H605 V286" marker-end="url(#ah)"/>
+          <text x="494" y="257" text-anchor="middle" font-size="10.5" fill="var(--ink-soft)">read_writing(ids)</text>
+          <g class="bx"><rect x="520" y="288" width="170" height="46"/><text x="605" y="307" text-anchor="middle" font-size="12.5" font-weight="500">read_writing</text><text x="605" y="324" text-anchor="middle" font-size="10.5" fill="var(--ink-soft)">ids from the library map</text></g>
+          <path class="ln" d="M605,334 V380 H392 V402" marker-end="url(#ah)"/>
+          <g class="bx" data-k="sections"><rect x="246" y="404" width="160" height="46"/><text x="326" y="423" text-anchor="middle" font-size="12.5" font-weight="500">Jev sections</text><text x="326" y="440" text-anchor="middle" font-size="10.5" fill="var(--ink-soft)">score × each section</text></g>
+          <path class="ln" data-k="results" d="M406,427 H744 V200 H408" marker-end="url(#ah)"/>
+        </g>
+      </svg>
+    <div class="steps in"><div class="label">What just happened</div><ol id="steps">
+      <li data-at="0">Guards check origin, rate and size before any model runs.</li>
+      <li data-at="0.05">GPT reads the question with my record in its prompt: LangChain daily since Aug 2024, LangGraph at work.</li>
+      <li data-at="5.89">It calls two tools at once: search my writing for both topics, and point at the page.</li>
+      <li data-at="5.92">Jev filters 65 articles per topic, ranks the survivors, and picks each article’s best sections.</li>
+      <li data-at="6.81">GPT writes the answer from the record and the articles, cited [1]–[3].</li>
+      <li data-at="13.5">Checks rebuild the footnotes; the drawer offers three places to look.</li></ol></div>
+    </div>
+    <div class="scr" id="scr">
+      <div class="scr-top"><span class="ic">⛓</span>copilot-chat <span style="color:var(--scr-dim)">· trace</span><span class="live"><i></i><span id="livetxt">REPLAY</span></span></div>
+      <div class="stats">
+        <div>Status<b class="ok" id="st">● idle</b></div>
+        <div>Latency<b class="clk" id="tnow">0.00s</b></div>
+        <div>Spans<b id="nsp">0 / 12</b></div>
+        <div>Model calls<b id="ncalls">0</b></div>
+      </div>
+      <div class="wfwrap" id="wf">
+        <div class="axis"><span></span><span class="ticks"><span>0s</span><span>2s</span><span>4s</span><span>6s</span><span>8s</span><span>10s</span><span>12s</span><span>14s</span></span></div>
+        <div class="grid-bg"></div>
+        <div id="spans"></div>
+        <div class="head" id="head"></div>
+      </div>
+      <div class="zoom" id="zoomwrap">
+        <div class="zl">Zoom · retrieval<span>5.85s → 6.90s · ×13</span></div>
+        <div id="zspans"></div>
+        <div class="head" id="zhead"></div>
+      </div>
+      <div class="detail" id="detail"></div>
+      <div class="legend"><span><i style="background:var(--c-gpt)"></i>LLM</span><span><i style="background:var(--c-tool)"></i>tool</span><span><i style="background:var(--c-jev)"></i>Jev (decision model)</span><span style="margin-left:auto">point at a span</span></div>
+    </div>
+  </div>
+
+  <div class="answer">
+    <div class="reply"><div class="who">TITUS</div><p id="ans"></p>
+      <div class="pills" id="pills"><span class="pill dark">↓ About · LangChain, LangGraph</span><span class="pill">→ Experience · Illumina, 2023</span><span class="pill">→ Experience · United Overseas Bank, 2025</span></div>
+      <div class="src pills" id="src">SOURCES <a>1 · LangChain — Part 1 of LLM series ↗</a> &nbsp;<a>2 · LangGraph — Part 1 of LLM Multi-Agents series ↗</a> &nbsp;<a>3 · LangChain 1.0 — A second look ↗</a></div></div>
+  </div>
+</div>
+<script>
+// Timings read off the LangSmith trace of the recorded run; the real build reads spans, inputs and outputs from the recording.
+const T = 13.57, SPEED = 3, AX = 14, Z0 = 5.85, Z1 = 6.9
+const J = (o) => `<span class="v">${o}</span>`
+const S = [
+  { n: 'copilot-chat', s: 0, d: 13.57, c: 'root', dep: 0, k: [], kind: 'chain', io: [['input', '“Have you used LangChain and LangGraph?”'], ['output', 'answer · 3 sources · 3 page stops']] },
+  { n: 'gpt round 1', s: 0, d: 5.89, c: 'gpt', dep: 1, k: ['gpt', 'record', 'gpt1'], kind: 'llm', io: [['model', 'gpt-6-luna'], ['tools', 'show_on_page, search_writing, read_writing'], ['output', '2 function calls']] },
+  { n: 'search_writing', s: 5.9, d: 0.92, c: 'tool', dep: 1, k: ['calls', 'search', 'tools'], z: 1, kind: 'tool', io: [['input', '<span class="s">["LangChain", "LangGraph"]</span>'], ['output', '3 articles, best sections only']] },
+  { n: 'jev filter (noul)', s: 5.92, d: 0.32, c: 'jev', dep: 2, k: ['filter'], z: 1, kind: 'jev', io: [['model', 'jev-1.14.0 · noul'], ['input', '65 article cards · topic “LangChain”'], ['keeps', 'p(yes) ≥ 0.5']] },
+  { n: 'jev filter (noul)', s: 5.92, d: 0.32, c: 'jev', dep: 2, k: ['filter'], z: 1, kind: 'jev', io: [['model', 'jev-1.14.0 · noul'], ['input', '65 article cards · topic “LangGraph”'], ['keeps', 'p(yes) ≥ 0.5']] },
+  { n: 'jev rank (score)', s: 6.25, d: 0.24, c: 'jev', dep: 2, k: ['rank'], z: 1, kind: 'jev', io: [['model', 'jev-1.14.0 · score'], ['input', 'survivors, on outline + opening'], ['keeps', '≥ 2.0 of 3']] },
+  { n: 'jev rank (score)', s: 6.25, d: 0.23, c: 'jev', dep: 2, k: ['rank'], z: 1, kind: 'jev', io: [['model', 'jev-1.14.0 · score'], ['input', 'survivors, on outline + opening'], ['keeps', '≥ 2.0 of 3']] },
+  { n: 'jev sections (score)', s: 6.46, d: 0.22, c: 'jev', dep: 2, k: ['sections'], z: 1, kind: 'jev', io: [['input', 'LangChain — Part 1 of LLM series'], ['keeps', 'best sections, ≤ 6,000 chars']] },
+  { n: 'jev sections (score)', s: 6.46, d: 0.23, c: 'jev', dep: 2, k: ['sections'], z: 1, kind: 'jev', io: [['input', 'LangGraph — Part 1 of LLM Multi-Agents'], ['keeps', 'best sections, ≤ 6,000 chars']] },
+  { n: 'jev sections (score)', s: 6.46, d: 0.36, c: 'jev', dep: 2, k: ['sections'], z: 1, kind: 'jev', io: [['input', 'LangChain 1.0 — A second look'], ['keeps', 'best sections, ≤ 6,000 chars']] },
+  { n: 'show_on_page', s: 5.9, d: 0.0, c: 'tool', dep: 1, k: ['show', 'tools'], z: 1, kind: 'tool', io: [['input', '<span class="s">["tool-langchain", "tool-langgraph", "pass-illumina", "pass-uob"]</span>'], ['output', 'validated server-side · 3 stops']] },
+  { n: 'gpt round 2', s: 6.81, d: 6.76, c: 'gpt', dep: 1, k: ['results', 'gpt'], kind: 'llm', io: [['model', 'gpt-6-luna'], ['input', 'record + article sections'], ['output', 'answer, cited [1]–[3] · streaming']] },
+]
+const ANSWER = 'Yes. I’ve used LangChain daily since August 2024, and LangGraph in production work, including a deterministic onboarding workflow at UOB, where the LLM reasons at defined steps rather than controlling the whole process. I reach for LangGraph when I need explicit, step-by-step orchestration; I’ve written about that distinction and how the frameworks fit together<sup>2 3</sup>. I wrote those articles in 2024 and 2025, and these frameworks move quickly, so check their current docs before following any implementation steps.'
+const row = (x, zoom) => {
+  const el = document.createElement('div'); el.className = `span ${x.c} d${x.dep}`
+  el.innerHTML = `<span class="nm"><span class="dot"></span>${x.n}<em>${x.d.toFixed(2)}s</em></span><span class="tr"><span class="b"></span></span>`
+  el.onmouseenter = () => { pinned = x; hover(x, true) }; el.onmouseleave = () => hover(x, false)
+  return el
+}
+const host = document.getElementById('spans'), zhost = document.getElementById('zspans')
+S.forEach(x => { x.el = row(x); x.bar = x.el.querySelector('.b'); host.appendChild(x.el)
+  if (x.z) { x.zel = row(x, true); x.zbar = x.zel.querySelector('.b'); zhost.appendChild(x.zel) } })
+const q = (k) => document.querySelectorAll(`[data-k="${k}"]`)
+let pinned = null
+function hover(x, on) { [x.el, x.zel].forEach(e => e && e.classList.toggle('on', on)); x.k.forEach(k => q(k).forEach(e => e.classList.toggle('lit', on))); if (on) detail(x) }
+const KC = { llm: 'var(--c-gpt)', tool: 'var(--c-tool)', jev: 'var(--c-jev)', chain: 'var(--c-root)' }
+function detail(x) {
+  document.getElementById('detail').innerHTML = `<div class="dh"><span class="kind" style="color:${KC[x.kind]}">${x.kind}</span>${x.n}<span class="k" style="margin-left:auto;font-weight:400">${x.s.toFixed(2)}s → ${(x.s + x.d).toFixed(2)}s</span></div>` +
+    x.io.map(([k, v]) => `<div><span class="k">${k.padEnd(7, ' ').replace(/ /g, '&nbsp;')}</span> ${J(v)}</div>`).join('')
+}
+const place = (bar, s, d, t, a, b) => { const seen = Math.min(t - s, d); bar.style.left = `${(s - a) / (b - a) * 100}%`; bar.style.width = `${Math.max(seen, 0) / (b - a) * 100}%` }
+function render(t) {
+  const scr = document.getElementById('scr')
+  document.getElementById('panel').classList.toggle('dim', t > 0)
+  document.querySelectorAll('.lit,.done').forEach(e => e.classList.remove('lit', 'done'))
+  const mark = (k, cls) => q(k).forEach(e => e.classList.add(cls))
+  if (t > 0) ['visitor', 'guards'].forEach(k => mark(k, 'done'))
+  let active = 'ready', seenN = 0, calls = 0, cur = null
+  S.forEach(x => {
+    const seen = t > 0 && t >= x.s, running = seen && t < x.s + Math.max(x.d, 0.15) && t < T
+    ;[[x.el, x.bar, 0, AX], [x.zel, x.zbar, Z0, Z1]].forEach(([el, bar, a, b]) => { if (!el) return
+      el.classList.toggle('wait', !seen); el.classList.toggle('run', running); if (seen) place(bar, x.s, x.d, t, a, b) })
+    if (!seen) return
+    seenN++; if (x.c === 'gpt' || x.c === 'jev') calls++
+    if (x.c === 'root') return
+    x.k.forEach(k => mark(k, running ? 'lit' : 'done'))
+    if (running) { active = x.n; cur = x }
+  })
+  if (t >= T) { ['answer', 'checks', 'drawer'].forEach(k => mark(k, 'done')); active = 'done' }
+  document.getElementById('stage').textContent = active
+  document.getElementById('tnow').textContent = `${Math.min(t, T).toFixed(2)}s`
+  document.getElementById('nsp').textContent = `${seenN} / ${S.length}`
+  document.getElementById('ncalls').textContent = calls
+  document.getElementById('st').innerHTML = t <= 0 ? 'idle' : t < T ? '● running' : '✓ OK'
+  document.getElementById('st').style.color = t > 0 && t < T ? 'var(--c-gpt)' : ''
+  const head = document.getElementById('head'), zh = document.getElementById('zhead'), wf = document.getElementById('wf')
+  const nm = parseFloat(getComputedStyle(scr).getPropertyValue('--nm')), w = wf.clientWidth - 32 - nm
+  head.style.left = `${16 + nm + w * Math.min(t, T) / AX}px`; head.classList.toggle('show', t > 0 && t < T)
+  const zw = document.getElementById('zoomwrap').clientWidth - 24 - nm
+  zh.style.left = `${12 + nm + zw * (t - Z0) / (Z1 - Z0)}px`; zh.classList.toggle('show', t >= Z0 && t <= Z1)
+  detail(pinned && t <= 0 ? pinned : cur || (t >= T ? S[0] : t > 0 ? S[1] : S[0]))
+  const r2 = S[S.length - 1], f = Math.max(0, Math.min(1, (t - r2.s) / r2.d))
+  const plain = ANSWER.replace(/<sup>.*?<\/sup>/, '\u0000'), cut = Math.floor(plain.length * f)
+  document.getElementById('ans').innerHTML = plain.slice(0, cut).replace('\u0000', '<sup>2 3</sup>') + (t > 0 && t < T ? '<span class="caret"></span>' : '')
+  ;['pills', 'src'].forEach(id => document.getElementById(id).classList.toggle('on', t >= T))
+  document.querySelectorAll('#steps li').forEach(li => li.classList.toggle('on', t > 0 && t >= +li.dataset.at))
+}
+const go = document.getElementById('go'), scr = document.getElementById('scr')
+go.onclick = () => {
+  go.disabled = true; scr.classList.add('playing'); const t0 = performance.now()
+  const tick = (now) => { const t = (now - t0) / 1000 * SPEED; render(t)
+    if (t < T) requestAnimationFrame(tick); else { go.disabled = false; go.textContent = '↻ Replay'; scr.classList.remove('playing') } }
+  requestAnimationFrame(tick)
+}
+const frozen = new URLSearchParams(location.search).get('t')
+if (frozen && +frozen < T && +frozen > 0) scr.classList.add('playing')
+render(frozen ? +frozen : 0)
+</script>
+</body></html>

@@ -65,10 +65,12 @@
       "agent-frameworks"
     ],
     "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3a-llamaindex-workflows-c0f614c15b88": [
-      "agent-frameworks"
+      "agent-frameworks",
+      "rag-applications"
     ],
     "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3b-deploying-llamaindex-workflows-df18381d36b9": [
-      "agent-applications"
+      "agent-applications",
+      "agent-frameworks"
     ],
     "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-4-crewai-147ada6db54c": [
       "agent-frameworks"
@@ -86,7 +88,8 @@
       "agent-frameworks"
     ],
     "a-guide-to-code-testing-rag-agents-without-real-llms-or-vector-dbs-51154ad920be": [
-      "evaluating-testing"
+      "evaluating-testing",
+      "rag-applications"
     ],
     "a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8": [
       "agent-frameworks"
@@ -110,13 +113,15 @@
       "agent-patterns"
     ],
     "building-your-first-multi-agent-system-with-n8n-0c959d7139a1": [
-      "agent-frameworks"
+      "agent-frameworks",
+      "agent-patterns"
     ],
     "building-your-first-no-code-agent-with-n8n-e9e9ea0c23d1": [
       "agent-frameworks"
     ],
     "chain-reaction-how-to-create-an-observable-workflow-using-llamaindex-and-chainlit-2b668fb1cee9": [
-      "agent-applications"
+      "agent-applications",
+      "agent-frameworks"
     ],
     "flash-loan-attacks-on-smart-contracts-cb08c72408bd": [
       "blockchain"
@@ -140,13 +145,16 @@
       "working-life"
     ],
     "how-to-build-your-own-change-data-capture-pipeline-using-apache-airflow-e485fbef82c7": [
-      "software-engineering"
+      "software-engineering",
+      "rag-applications"
     ],
     "how-to-deploy-almost-any-langchain-runnable-in-one-line-70e7ec1240d1": [
-      "agent-applications"
+      "agent-applications",
+      "agent-frameworks"
     ],
     "how-to-raft-your-llm-retrieval-augmented-finetuning-using-unsloth-4c3844a9a6e3": [
-      "training-llms"
+      "training-llms",
+      "rag-applications"
     ],
     "how-to-train-your-llm-simultaneously-with-10-different-teachers-ba556d4ed2c1": [
       "training-llms"
@@ -200,13 +208,15 @@
       "working-life"
     ],
     "model-context-protocol-hype-or-necessity-998874d95bc6": [
-      "agent-patterns"
+      "agent-patterns",
+      "agent-applications"
     ],
     "nginx-the-single-server-swiss-army-knife-3445197f8f86": [
       "agent-applications"
     ],
     "practice-vs-theory-software-development-at-the-workplace-a73e676e58c8": [
-      "working-life"
+      "working-life",
+      "software-engineering"
     ],
     "proof-of-stake-the-mining-free-blockchain-ddae684ffec5": [
       "blockchain"
@@ -221,10 +231,12 @@
       "rag-applications"
     ],
     "think-your-rag-app-is-safe-giskard-might-prove-you-wrong-6c88b08c5f7a": [
-      "evaluating-testing"
+      "evaluating-testing",
+      "rag-applications"
     ],
     "towards-general-discoverability-introducing-nacos-registry-60fa2e1a8731": [
-      "agent-applications"
+      "agent-applications",
+      "agent-patterns"
     ],
     "understanding-blockchains-from-scratch-f14c454af32f": [
       "blockchain"
@@ -233,10 +245,12 @@
       "rag-applications"
     ],
     "would-you-like-an-agent-with-that-introducing-the-deep-agents-sdk-c4e0670440ea": [
-      "agent-frameworks"
+      "agent-frameworks",
+      "agent-patterns"
     ],
     "would-you-like-an-app-with-that-introducing-the-adk-framework-aead05a8b9cd": [
-      "agent-frameworks"
+      "agent-frameworks",
+      "agent-applications"
     ],
     "would-you-like-an-llm-with-that-a-bento-cloud-drive-thru-7e70f77277d2": [
       "agent-applications"

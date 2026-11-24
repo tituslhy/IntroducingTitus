@@ -232,16 +232,38 @@ describe("themeCounts", () => {
     }
   });
 
-  it("counts each article once, under the one theme it is filed in", () => {
+  it("counts each article once, under the first theme it is filed in", () => {
     const assigned = Object.values(articleThemes.assignments as Record<string, string[]>);
-    expect(assigned.every((ids) => ids.length === 1)).toBe(true);
+    const known = new Set(articleThemes.themes.map((t) => t.id));
+    expect(assigned.every((ids) => ids.length === 1 || ids.length === 2)).toBe(true);
+    expect(assigned.every((ids) => ids.every((id) => known.has(id)))).toBe(true);
 
+    // Only the first theme of each article is counted; a second theme never adds to a chip.
     const expected = new Map<string, number>();
-    for (const ids of assigned) for (const id of ids) expected.set(id, (expected.get(id) ?? 0) + 1);
+    for (const ids of assigned) expected.set(ids[0], (expected.get(ids[0]) ?? 0) + 1);
 
     for (const chip of themeCounts()) {
       expect(chip.count).toBe(expected.get(chip.id));
     }
+  });
+
+  it("ignores second themes: a two-theme article adds to its first theme's count only", () => {
+    jest.isolateModules(() => {
+      jest.doMock("@/content/article-themes.json", () => ({
+        themes: [
+          { id: "a", name: "Alpha" },
+          { id: "b", name: "Beta" },
+        ],
+        assignments: { "post-1": ["a", "b"], "post-2": ["b"] },
+      }));
+      const { themeCounts: counts } = jest.requireActual<typeof import("./front-page")>("./front-page");
+      // If post-1 were also counted under Beta, Beta would show 2.
+      expect(counts()).toEqual([
+        { id: "a", name: "Alpha", count: 1 },
+        { id: "b", name: "Beta", count: 1 },
+      ]);
+    });
+    jest.dontMock("@/content/article-themes.json");
   });
 
   it("gives chips that add up to the article count, with no article counted twice", () => {

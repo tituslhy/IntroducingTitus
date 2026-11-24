@@ -8,7 +8,7 @@ import {
   type CopilotTool,
 } from "./copilot-tools";
 import type { Article } from "./articles";
-import { MAX_ARTICLES_PER_REPLY } from "./search-config";
+import { MAX_ARTICLES_PER_REPLY, MAX_READING_CALLS } from "./search-config";
 import { PAGE_TARGET_IDS } from "./profile";
 import type { SearchTrace } from "./writing-search";
 import type { TraceSpan } from "./copilot-loop";
@@ -138,13 +138,13 @@ describe("show_on_page tool run", () => {
 });
 
 describe("createCopilotTools", () => {
-  it("registers show_on_page (one call per reply), search_writing and read_writing (two each), in that order", () => {
+  it(`registers show_on_page (one call per reply), search_writing and read_writing (${MAX_READING_CALLS} each), in that order`, () => {
     const tools = createCopilotTools();
 
     expect(tools.map((t) => t.definition.name)).toEqual(["show_on_page", "search_writing", "read_writing"]);
     expect(tools[0].maxCallsPerReply).toBe(1);
-    expect(tools[1].maxCallsPerReply).toBe(2);
-    expect(tools[2].maxCallsPerReply).toBe(2);
+    expect(tools[1].maxCallsPerReply).toBe(MAX_READING_CALLS);
+    expect(tools[2].maxCallsPerReply).toBe(MAX_READING_CALLS);
   });
 
   it("defines show_on_page as a strict function tool with a required array of the page anchor ids", () => {
@@ -1422,6 +1422,11 @@ const EPSILON = fixtureArticle("epsilon", "eeeeeeeeeeee");
 const ZETA = fixtureArticle("zeta", "ffffffffffff");
 const ETA = fixtureArticle("eta", "111111111111");
 const THETA = fixtureArticle("theta", "222222222222");
+const IOTA = fixtureArticle("iota", "333333333333");
+const KAPPA = fixtureArticle("kappa", "444444444444");
+const LAMBDA = fixtureArticle("lambda", "555555555555");
+const MU = fixtureArticle("mu", "666666666666");
+const NU = fixtureArticle("nu", "777777777777");
 const LIMIT_NOTE = "Reading limit for this reply reached; answer from what you have.";
 
 /** A search_writing result for an article, as the search returns it. */
@@ -1460,7 +1465,7 @@ function pickStub() {
 describe("read_writing", () => {
   const signal = new AbortController().signal;
 
-  it("defines read_writing as a strict function tool taking 1 to 3 article ids and a focus, at most 2 calls a reply", () => {
+  it(`defines read_writing as a strict function tool taking 1 to 3 article ids and a focus, at most ${MAX_READING_CALLS} calls a reply`, () => {
     const tool = instance().readWriting;
 
     expect(tool.definition).toMatchObject({ type: "function", name: "read_writing", strict: true });
@@ -1473,7 +1478,7 @@ describe("read_writing", () => {
         focus: { type: "string" },
       },
     });
-    expect(tool.maxCallsPerReply).toBe(2);
+    expect(tool.maxCallsPerReply).toBe(MAX_READING_CALLS);
   });
 
   it("read_writing serves known ids with picked sections", async () => {
@@ -1548,26 +1553,29 @@ describe("read_writing", () => {
     ]);
   });
 
-  it("stops at 6 articles per reply across both tools", async () => {
-    expect(MAX_ARTICLES_PER_REPLY).toBe(6);
+  it("stops at the reply cap across both tools", async () => {
+    // The scenario below fills the cap exactly (nine, then one from a search page), so it is written for ten.
+    expect(MAX_ARTICLES_PER_REPLY).toBe(10);
     const emit = jest.fn();
-    const search = jest.fn(async () => [foundOf(EPSILON), foundOf(ZETA), foundOf(ETA), foundOf(THETA)]);
+    const search = jest.fn(async () => [foundOf(KAPPA), foundOf(LAMBDA), foundOf(MU), foundOf(NU)]);
     const { searchWriting, readWriting } = instance({
       search,
-      catalog: [ALPHA, BETA, GAMMA, DELTA, EPSILON, ZETA, ETA, THETA],
+      catalog: [ALPHA, BETA, GAMMA, DELTA, EPSILON, ZETA, ETA, THETA, IOTA, LAMBDA],
       pick: pickStub(),
     });
 
-    // Four new articles from read_writing.
-    const first = await readWriting.run({ articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc", "dddddddddddd"], focus: "f" }, { emit, signal });
-    expect(first).toMatchObject({ articles: [{ n: 1 }, { n: 2 }, { n: 3 }, { n: 4 }] });
+    // Nine new articles from three read_writing calls of three ids each (the most one call takes).
+    await readWriting.run({ articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc"], focus: "f" }, { emit, signal });
+    await readWriting.run({ articles: ["dddddddddddd", "eeeeeeeeeeee", "ffffffffffff"], focus: "f" }, { emit, signal });
+    const third = await readWriting.run({ articles: ["111111111111", "222222222222", "333333333333"], focus: "f" }, { emit, signal });
+    expect(third).toMatchObject({ articles: [{ n: 7 }, { n: 8 }, { n: 9 }] });
 
-    // Two of the search's first page fit in the remaining capacity; the page is truncated.
+    // One slot left: the search page is cut to it; the rest of the page is not served.
     const second = await searchWriting.run({ topics: ["many"], more: false }, { emit, signal });
-    expect((second as { articles: { title: string }[] }).articles.map((a) => a.title)).toEqual(["Title epsilon", "Title zeta"]);
+    expect((second as { articles: { title: string }[] }).articles.map((a) => a.title)).toEqual(["Title kappa"]);
 
-    // Capacity is spent, so a new article gets the note.
-    expect(await readWriting.run({ articles: ["222222222222"], focus: "f" }, { emit, signal })).toEqual({
+    // Capacity is spent, so a new article from either tool gets the note.
+    expect(await readWriting.run({ articles: ["555555555555"], focus: "f" }, { emit, signal })).toEqual({
       articles: [],
       note: LIMIT_NOTE,
     });
@@ -1582,7 +1590,7 @@ describe("read_writing", () => {
     expect(again).not.toHaveProperty("note");
 
     const sourceNumbers = emit.mock.calls.map(([event]) => event.n);
-    expect(sourceNumbers).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(sourceNumbers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 });
 
@@ -1659,14 +1667,16 @@ describe("writing tools share one reply cap, under parallel calls and for unknow
 
   it("read_writing at the cap still reports unknown ids", async () => {
     const emit = jest.fn();
-    const search = jest.fn(async () => [foundOf(EPSILON), foundOf(ZETA), foundOf(ETA)]);
+    const search = jest.fn(async () => [foundOf(KAPPA), foundOf(LAMBDA)]);
     const { searchWriting, readWriting } = instance({
       search,
-      catalog: [ALPHA, BETA, GAMMA, DELTA],
+      catalog: [ALPHA, BETA, GAMMA, DELTA, EPSILON, ZETA, ETA, THETA, IOTA],
       pick: pickStub(),
     });
-    // Four read plus two from the search page (the page is cut to the two remaining) = the cap of six.
-    await readWriting.run({ articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc", "dddddddddddd"], focus: "f" }, { emit, signal });
+    // Nine from three read_writing calls, then a search page cut to the one remaining = the cap of ten.
+    await readWriting.run({ articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc"], focus: "f" }, { emit, signal });
+    await readWriting.run({ articles: ["dddddddddddd", "eeeeeeeeeeee", "ffffffffffff"], focus: "f" }, { emit, signal });
+    await readWriting.run({ articles: ["111111111111", "222222222222", "333333333333"], focus: "f" }, { emit, signal });
     await searchWriting.run({ topics: ["many"], more: false }, { emit, signal });
 
     expect(await readWriting.run({ articles: ["unknownid0001"], focus: "f" }, { emit, signal })).toEqual({

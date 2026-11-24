@@ -145,9 +145,14 @@ describe('featured projects', () => {
     }
   })
 
-  it('opens the bassoon projector on its bear, the one illustration (the first frame after the title card)', () => {
+  it('opens the bassoon projector on its bear, the one illustration (the first frame after the title card), as a silent loop', () => {
     const { container } = render(<Projects />)
-    expect(articleFor(container, bassoon).querySelector('[data-reveal="1"] img')).toHaveAttribute('src', '/projects/bassoon-bear.webp')
+    const video = articleFor(container, bassoon).querySelector('[data-reveal="1"] video') as HTMLVideoElement
+    expect(video).toBeInTheDocument()
+    expect(video).toHaveAttribute('src', '/projects/bassoon-bear.mp4')
+    expect(video).toHaveAttribute('poster', '/projects/bassoon-bear-poster.webp')
+    expect(video.muted).toBe(true)
+    expect(video.loop).toBe(true)
   })
 
   it('gives fictional-bassoon’s projector three thumbs: the title card, the bear, then the Architecture', () => {
@@ -155,9 +160,21 @@ describe('featured projects', () => {
     const thumbs = articleFor(container, bassoon).querySelectorAll('.projector-strip button')
     expect(thumbs).toHaveLength(3)
     expect(thumbs).toHaveLength(bassoon.frames.length + 1)
-    expect(bassoon.frames.map((f) => f.kind)).toEqual(['image', 'diagram'])
-    expect(bassoon.frames[0]).toMatchObject({ kind: 'image', src: '/projects/bassoon-bear.webp' })
+    expect(bassoon.frames.map((f) => f.kind)).toEqual(['video', 'diagram'])
+    expect(bassoon.frames[0]).toMatchObject({
+      kind: 'video',
+      src: '/projects/bassoon-bear.mp4',
+      poster: '/projects/bassoon-bear-poster.webp',
+    })
     expect(bassoon.frames[1]).toMatchObject({ kind: 'diagram', diagram: 'bassoon-architecture' })
+  })
+
+  it('uses the bear’s poster as its strip thumb, so the film strip shows a still', () => {
+    const { container } = render(<Projects />)
+    const thumb = within(articleFor(container, bassoon)).getByRole('button', {
+      name: 'Frame 2: The name: a woodwind instrument I once thought was a bear · video made with Qwen',
+    })
+    expect(thumb.querySelector('img')).toHaveAttribute('src', '/projects/bassoon-bear-poster.webp')
   })
 
   it('shows the Architecture as the words “Architecture” on its thumb, the second frame after the bear', () => {

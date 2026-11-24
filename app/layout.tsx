@@ -71,7 +71,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${newsreader.variable} ${ibmPlexMono.variable}`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`${newsreader.variable} ${ibmPlexMono.variable}`}>
       <head>
         {/* Without JS the IntersectionObserver never fires; force reveals visible. */}
         <noscript>

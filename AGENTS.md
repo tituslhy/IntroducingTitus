@@ -91,7 +91,7 @@ Do not deviate from this stack unless explicitly instructed.
 - **Headshot:** Profile photo in masthead. File: `/public/headshot.jpeg` —
   rectangular 3:4, 1px ink border, `object-position: 50% 30%`, subtle saturate/
   contrast filter. No circle crop, no amber ring/glow.
-- **No stock photos. No illustrations, with one exception: the fictional-bassoon bear (`public/projects/bassoon-bear.webp`), the first still on that project's projector on Projects. Tech logos only in the front-page hero animation**
+- **No stock photos. No illustrations, with one exception: the fictional-bassoon bear (`public/projects/bassoon-bear.mp4`, a 5-second silent loop made with Qwen, poster `bassoon-bear-poster.webp`), the first frame after the title card on that project's projector on Projects. Tech logos only in the front-page hero animation**
   (files in `public/logos/`, credits in `public/logos/CREDITS.md`, never a tool I haven't used).
   **Employer logos** appear only on the Experience staff passes (`public/logos/companies/`), small and unaltered.
   Elsewhere, typography, headshot, and hairline structure carry the weight.

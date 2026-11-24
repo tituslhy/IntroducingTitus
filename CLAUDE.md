@@ -113,7 +113,7 @@ Do not deviate from this stack unless explicitly instructed.
   contrast filter. No circle crop, no amber ring/glow.
 - **Other photos of me:** only the chapter photos on About (`public/about/`: Toyota keychain, MITB poster,
   Illumina nameplate, UOB team selfie, SMU pillar, Dev Week hackathon win, SFF booth demo), in the periodic table's dark tile. Candid moments of the work, never holiday or lifestyle shots.
-- **No stock photos. No illustrations, with one exception: the fictional-bassoon bear (`public/projects/bassoon-bear.webp`), the first still on that project's projector on Projects. Tech logos only in the front-page hero animation and the About periodic table**
+- **No stock photos. No illustrations, with one exception: the fictional-bassoon bear (`public/projects/bassoon-bear.mp4`, a 5-second silent loop made with Qwen, poster `bassoon-bear-poster.webp`), the first frame after the title card on that project's projector on Projects. Tech logos only in the front-page hero animation and the About periodic table**
   (files in `public/logos/` and `public/logos/table/`, credits in `public/logos/CREDITS.md`, never a tool I haven't used —
   e.g. no TypeScript: I'm Python- and SQL-heavy, with basic JavaScript).
   **Employer logos** appear only on the Experience staff passes (`public/logos/companies/`), small and unaltered.

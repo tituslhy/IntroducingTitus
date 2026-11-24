@@ -361,12 +361,13 @@ export type MarginNote = {
 
 /**
  * A frame on a project's projector (Projects), after the title card (its figure, always first).
- * `image`: a still. `demo`: a YouTube demo, played on the page. `diagram`: one of the drawn diagrams in
+ * `image`: a still. `video`: a short silent loop (plays only while showing; its poster for reduced motion). `demo`: a YouTube demo, played on the page. `diagram`: one of the drawn diagrams in
  * components/projects (IlluminaDiagrams: a work project shows how it fits together, not screenshots;
  * BassoonArchitecture: fictional-bassoon's stack, following one chat message).
  */
 export type ProjectFrame =
   | { kind: 'image'; src: string; caption: string; ms?: number }
+  | { kind: 'video'; src: string; poster: string; caption: string; ms?: number }
   | { kind: 'demo'; youtubeId: string; caption: string }
   | { kind: 'diagram'; diagram: 'illumina-ready' | 'illumina-answer' | 'bassoon-architecture'; label: string; caption: string; ms?: number }
 
@@ -423,8 +424,14 @@ export const PROJECTS: Project[] = [
     ask: { label: 'fictional-bassoon', question: 'Why does fictional-bassoon have 54 containers?' },
     copilot: 'Named after a woodwind instrument I thought was a bear. Canon forever.',
     frames: [
-      // The one illustration on the site (see CLAUDE.md): the name, as a bear.
-      { kind: 'image', src: '/projects/bassoon-bear.webp', caption: 'The name: a woodwind instrument I once thought was a bear', ms: 5000 },
+      // The one illustration on the site (see CLAUDE.md): the name, as a bear playing it. Made with Qwen.
+      {
+        kind: 'video',
+        src: '/projects/bassoon-bear.mp4',
+        poster: '/projects/bassoon-bear-poster.webp',
+        caption: 'The name: a woodwind instrument I once thought was a bear · video made with Qwen',
+        ms: 5000,
+      },
       { kind: 'diagram', diagram: 'bassoon-architecture', label: 'Architecture', caption: 'The architecture: one chat message, start to finish', ms: 11000 },
     ],
   },

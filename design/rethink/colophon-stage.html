@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colophon — the diagram is the trace (mock)</title>
+<link rel="stylesheet" href="colophon-base.css">
+<style>
+  :root {
+    --cream: oklch(0.94 0.02 78);
+    --line: oklch(0.94 0.02 78 / 0.2);
+    --line-done: oklch(0.94 0.02 78 / 0.5);
+    --txt-idle: oklch(0.94 0.02 78 / 0.42);
+    --stage: oklch(0.19 0.012 60);
+    --stage-2: oklch(0.235 0.012 60);
+  }
+  .wrap { max-width: 1280px; }
+
+  /* Masthead: one line of type, the short version beside it. No tiles. */
+  .mast { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 56px; align-items: end; padding: 18px 0 26px; }
+  .mast h1 { font-size: 64px; white-space: nowrap; margin: 10px 0 12px; }
+  .mast .dek { margin: 0; font-size: 19px; }
+  .short { border-left: 1px solid var(--rule); padding-left: 28px; }
+  .short p { margin: 8px 0 0; font-size: 17.5px; line-height: 1.55; }
+
+  /* The stage */
+  .stage { background: var(--stage); color: var(--cream); border-radius: 28px; position: relative; overflow: hidden; }
+  .stage::before { content: ''; position: absolute; inset: -30% 45% 35% -15%; background: radial-gradient(closest-side, oklch(0.62 0.155 55 / .20), transparent); pointer-events: none; }
+  .stage::after { content: ''; position: absolute; inset: 0; background-image: radial-gradient(oklch(0.94 0.02 78 / .055) 1px, transparent 1px); background-size: 22px 22px; pointer-events: none; }
+  .bar { position: relative; z-index: 1; display: flex; align-items: center; gap: 14px; padding: 22px 28px 0; font-family: var(--mono); }
+  .play { white-space: nowrap; font: 500 13px var(--mono); background: var(--amber); color: #fff; border: 0; border-radius: 999px; padding: 10px 18px; }
+  .q { white-space: nowrap; font: 12.5px var(--mono); color: oklch(0.94 0.02 78 / .55); border: 1px solid oklch(0.94 0.02 78 / .18); border-radius: 999px; padding: 8px 14px; }
+  .q.on { color: var(--cream); border-color: oklch(0.94 0.02 78 / .6); background: oklch(0.94 0.02 78 / .06); }
+  .meta { margin-left: auto; font-size: 11px; letter-spacing: .04em; color: oklch(0.94 0.02 78 / .45); }
+
+  .body { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 8px; padding: 10px 28px 0 18px; }
+  svg.dg { width: 100%; height: auto; display: block; overflow: visible; }
+
+  .n rect { fill: oklch(0.94 0.02 78 / .015); stroke: var(--line); stroke-width: 1.2; transition: all .4s; }
+  .n .t { font: 500 14px var(--mono); fill: var(--txt-idle); }
+  .n .s { font: 11px var(--mono); fill: oklch(0.94 0.02 78 / .3); }
+  .n.done rect { stroke: var(--line-done); fill: oklch(0.94 0.02 78 / .05); }
+  .n.done .t { fill: var(--cream); } .n.done .s { fill: oklch(0.94 0.02 78 / .6); }
+  .n.on rect { stroke: var(--amber-hi); fill: oklch(0.62 0.155 55 / .2); filter: drop-shadow(0 0 10px oklch(0.62 0.155 55 / .7)); }
+  .n.on .t { fill: var(--amber-hi); } .n.on .s { fill: oklch(0.8 0.12 65 / .75); }
+  .n.off { opacity: .4; }
+  .chip { font: 500 11px var(--mono); fill: var(--amber-hi); opacity: 0; }
+  .done .chip, .on .chip, .chip.show { opacity: 1; }
+  .lbl { font: 10.5px var(--mono); letter-spacing: .1em; fill: oklch(0.94 0.02 78 / .35); }
+  .a { fill: none; stroke: var(--line); stroke-width: 1.2; }
+  .a.done { stroke: var(--line-done); }
+  .a.on { stroke: var(--amber-hi); stroke-dasharray: 5 5; }
+  .loop { fill: none; stroke: oklch(0.8 0.12 65 / .35); stroke-dasharray: 3 4; }
+  .pkt { fill: var(--amber-hi); filter: drop-shadow(0 0 6px var(--amber)); }
+
+  /* The drawer at the end of the line: the product's real face. */
+  .drawer { align-self: start; margin-top: 18px; background: var(--paper); color: var(--ink); border-radius: 20px; overflow: hidden; box-shadow: 0 0 0 1px oklch(0.94 0.02 78 / .15), 0 30px 60px -30px oklch(0.62 0.155 55 / .6); min-height: 470px; display: flex; flex-direction: column; }
+  .dh { display: flex; align-items: baseline; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--rule); }
+  .dh b { font: 500 19px var(--serif); } .dh b em { color: var(--amber); }
+  .dh span { font: 10.5px var(--mono); letter-spacing: .12em; color: var(--ink-faint); text-transform: uppercase; }
+  .db { padding: 16px 18px 18px; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+  .you { align-self: flex-end; background: var(--ink); color: var(--paper); font: 15px var(--serif); padding: 8px 14px; border-radius: 16px 16px 4px 16px; max-width: 90%; }
+  .stops { font: 10.5px var(--mono); color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .stops i { font-style: normal; border: 1px solid var(--rule); border-radius: 999px; padding: 3px 8px; background: var(--paper-deep); }
+  .reply { font: 15.5px/1.55 var(--serif); margin: 0; }
+  .reply sup { color: var(--amber); font: 600 10px var(--mono); }
+  .caret { display: inline-block; width: 7px; height: 15px; background: var(--amber); vertical-align: -2px; margin-left: 2px; }
+  .dots i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); margin-right: 4px; opacity: .7; }
+  .srcs { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 10px; font: 11px/1.6 var(--mono); color: var(--ink-soft); }
+  .srcs b { color: var(--amber); font-weight: 600; margin-right: 6px; }
+  .empty { margin: auto; text-align: center; font: italic 16px var(--serif); color: var(--ink-faint); max-width: 22ch; }
+
+  /* Timeline: the waterfall, folded into one line */
+  .tl { position: relative; z-index: 1; margin: 18px 28px 0; padding: 16px 0 22px; border-top: 1px solid oklch(0.94 0.02 78 / .12); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: center; font-family: var(--mono); }
+  .track { position: relative; height: 34px; }
+  .seg { position: absolute; top: 12px; height: 10px; border-radius: 3px; }
+  .seg.llm { background: oklch(0.62 0.155 55 / .9); }
+  .seg.tool { background: oklch(0.94 0.02 78 / .7); }
+  .seg.idle { background: oklch(0.94 0.02 78 / .1); }
+  .tick { position: absolute; top: 0; width: 2px; height: 8px; background: oklch(0.78 0.11 160); border-radius: 1px; }
+  .axis { position: absolute; top: 26px; font-size: 10px; color: oklch(0.94 0.02 78 / .35); transform: translateX(-50%); }
+  .head { position: absolute; top: -2px; bottom: 4px; width: 2px; background: var(--amber-hi); box-shadow: 0 0 10px var(--amber); }
+  .head::before { content: ''; position: absolute; top: -4px; left: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--amber-hi); }
+  .stats { display: flex; gap: 22px; font-size: 11px; color: oklch(0.94 0.02 78 / .5); letter-spacing: .04em; white-space: nowrap; }
+  .stats b { display: block; font: 500 17px var(--mono); color: var(--cream); letter-spacing: 0; }
+  .stats b.amber { color: var(--amber-hi); }
+  .trace-link { align-self: center; font-size: 11.5px; color: var(--amber-hi); border-bottom: 1px solid oklch(0.8 0.12 65 / .4); }
+
+  /* Popover: one span's input and output */
+  .pop { position: absolute; z-index: 3; width: 296px; background: var(--stage-2); border: 1px solid oklch(0.8 0.12 65 / .5); border-radius: 14px; padding: 14px 16px; font: 11.5px/1.55 var(--mono); color: oklch(0.94 0.02 78 / .8); box-shadow: 0 20px 40px -10px #000a; }
+  .pop h4 { margin: 0 0 8px; font: 500 13px var(--mono); color: var(--cream); display: flex; justify-content: space-between; }
+  .pop h4 span { color: var(--amber-hi); }
+  .pop .k { font-size: 10px; letter-spacing: .14em; color: oklch(0.94 0.02 78 / .4); margin: 10px 0 3px; }
+  .pop code { color: oklch(0.86 0.09 160); }
+
+  .overlay { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; pointer-events: none; }
+  .bigplay { pointer-events: auto; text-align: center; background: oklch(0.19 0.012 60 / .85); border: 1px solid oklch(0.8 0.12 65 / .4); padding: 22px 30px; border-radius: 22px; backdrop-filter: blur(4px); }
+  .bigplay .play { font-size: 15px; padding: 13px 24px; }
+  .bigplay p { margin: 12px 0 0; font: 12px var(--mono); color: oklch(0.94 0.02 78 / .55); }
+
+  .below { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 40px; padding: 46px 0 0; }
+  .below h2 { margin: 0; font: 500 30px var(--serif); } .below h2 small { display: block; font: 600 11px var(--mono); letter-spacing: .18em; color: var(--amber); margin-bottom: 6px; }
+  .below p { margin: 0 0 12px; font-size: 18px; line-height: 1.6; max-width: 75ch; }
+</style>
+</head>
+<body>
+<nav><b>T·L</b><span>01 Experience</span><span>02 Education</span><span>03 Projects</span><span>04 Writing</span><span>05 About</span><span class="on">06 Ask Titus</span><span class="cta">Get in touch</span></nav>
+<div class="wrap">
+
+  <header class="mast">
+    <div>
+      <div class="kicker">Colophon</div>
+      <h1>How <em>Ask Titus</em> works</h1>
+      <p class="dek">A small agent, built the way I’d build one for production: grounded in one source of truth, retrieving with a fast decision model, and fenced in by guardrails.</p>
+    </div>
+    <div class="short">
+      <div class="label"><b>01</b>The short version</div>
+      <p>It speaks as me, from the same data that renders this page. Ask about my writing and it reads my articles instead of guessing, then cites them. If the answer lives somewhere on this page, it shows you where. And when something isn’t on file, it says so rather than making it up.</p>
+    </div>
+  </header>
+
+  <section class="stage" id="stage">
+    <div class="bar">
+      <button class="play" id="playbtn">▶ Play</button>
+      <span class="q on">Have you used LangChain and LangGraph?</span>
+      <span class="q">How would you build production-ready agents?</span>
+      <span class="meta">recorded 24 Nov 2026 · replayed, no live calls</span>
+    </div>
+
+    <div class="body">
+      <svg class="dg" viewBox="0 0 880 520" aria-hidden="true">
+        <defs>
+          <marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="oklch(0.94 0.02 78 / .45)"/></marker>
+        </defs>
+
+        <!-- record -->
+        <g class="n" data-k="record"><rect x="330" y="4" width="220" height="44" rx="10"/><text class="t" x="440" y="24" text-anchor="middle">my record + library map</text><text class="s" x="440" y="40" text-anchor="middle">in the prompt</text></g>
+        <path class="a" data-k="record" d="M440,48 V84" marker-end="url(#ah)"/>
+
+        <!-- loop -->
+        <rect class="loop" x="300" y="64" width="280" height="248" rx="16"/>
+        <text class="lbl" x="314" y="82">AGENT LOOP</text><text class="lbl" x="566" y="82" text-anchor="end">≤4 ROUNDS</text>
+
+        <!-- main line -->
+        <g class="n" data-k="visitor"><rect x="10" y="100" width="104" height="50" rx="10"/><text class="t" x="62" y="130" text-anchor="middle">visitor</text></g>
+        <path class="a" data-k="guards" d="M114,125 H146" marker-end="url(#ah)"/>
+        <g class="n" data-k="guards"><rect x="148" y="100" width="104" height="50" rx="10"/><text class="t" x="200" y="124" text-anchor="middle">guards</text><text class="s" x="200" y="140" text-anchor="middle">scope · abuse</text></g>
+        <path class="a" data-k="guards" d="M252,125 H336" marker-end="url(#ah)"/>
+
+        <g class="n" data-k="gpt"><rect x="340" y="92" width="200" height="80" rx="12"/><text class="t" x="440" y="116" text-anchor="middle" style="font-size:16px">GPT</text><text class="s" x="440" y="134" text-anchor="middle">answer, or call tools?</text>
+          <text class="chip" data-chip="gpt" x="440" y="157" text-anchor="middle"></text></g>
+
+        <path class="a" data-k="calls" d="M390,172 V206" marker-end="url(#ah)"/><text class="lbl" x="382" y="194" text-anchor="end">calls</text>
+        <path class="a" data-k="results" d="M490,206 V174" marker-end="url(#ah)"/><text class="lbl" x="498" y="194">results</text>
+
+        <g class="n" data-k="tools"><rect x="340" y="208" width="200" height="92" rx="12"/>
+          <text class="lbl" x="354" y="228">TOOLS</text>
+          <text class="t" data-row="show" x="354" y="250" style="font-size:12.5px">show_on_page</text>
+          <text class="t" data-row="search" x="354" y="270" style="font-size:12.5px">search_writing(topics)</text>
+          <text class="t" data-row="read" x="354" y="290" style="font-size:12.5px">read_writing(ids)</text>
+        </g>
+
+        <path class="a" data-k="answer" d="M540,126 H626" marker-end="url(#ah)"/><text class="lbl" x="583" y="116" text-anchor="middle">answer</text>
+        <g class="n" data-k="checks"><rect x="628" y="100" width="134" height="50" rx="10"/><text class="t" x="695" y="124" text-anchor="middle">checks</text><text class="s" x="695" y="140" text-anchor="middle">citations · scope</text></g>
+        <path class="a" data-k="drawer" d="M762,125 H878" marker-end="url(#ah)"/><text class="lbl" x="820" y="116" text-anchor="middle">to the drawer</text>
+
+        <!-- search lane -->
+        <path class="a" data-k="search" d="M380,300 V330 H70 V350" marker-end="url(#ah)"/>
+        <text class="lbl" x="220" y="324" text-anchor="middle">each topic searched on its own</text>
+
+        <g class="n" data-k="t1"><rect x="14" y="352" width="112" height="34" rx="8"/><text class="t" x="70" y="374" text-anchor="middle" style="font-size:12.5px">LangChain</text></g>
+        <g class="n" data-k="t2"><rect x="14" y="400" width="112" height="34" rx="8"/><text class="t" x="70" y="422" text-anchor="middle" style="font-size:12.5px">LangGraph</text></g>
+        <path class="a" data-k="f1" d="M126,369 H150" marker-end="url(#ah)"/><path class="a" data-k="f2" d="M126,417 H150" marker-end="url(#ah)"/>
+
+        <g class="n" data-k="f1"><rect x="152" y="352" width="128" height="34" rx="8"/><text class="t" x="164" y="374" style="font-size:12.5px">Jev filter</text><text class="chip" x="270" y="374" text-anchor="end">65→8</text></g>
+        <g class="n" data-k="f2"><rect x="152" y="400" width="128" height="34" rx="8"/><text class="t" x="164" y="422" style="font-size:12.5px">Jev filter</text><text class="chip" x="270" y="422" text-anchor="end">65→3</text></g>
+        <path class="a" data-k="r1" d="M280,369 H302" marker-end="url(#ah)"/><path class="a" data-k="r2" d="M280,417 H302" marker-end="url(#ah)"/>
+        <g class="n" data-k="r1"><rect x="304" y="352" width="118" height="34" rx="8"/><text class="t" x="316" y="374" style="font-size:12.5px">Jev rank</text><text class="chip" x="412" y="374" text-anchor="end">0.23s</text></g>
+        <g class="n" data-k="r2"><rect x="304" y="400" width="118" height="34" rx="8"/><text class="t" x="316" y="422" style="font-size:12.5px">Jev rank</text><text class="chip" x="412" y="422" text-anchor="end">0.23s</text></g>
+        <text class="lbl chipnote" x="216" y="452" text-anchor="middle" data-note="filter">filter 0.32s each, in parallel</text>
+
+        <path class="a" data-k="sec" d="M422,369 H446 V384" /><path class="a" data-k="sec" d="M422,417 H446 V402" />
+        <path class="a" data-k="sec" d="M446,393 H470" marker-end="url(#ah)"/>
+        <g class="n" data-k="sec"><rect x="468" y="370" width="176" height="46" rx="10"/><text class="t" x="556" y="390" text-anchor="middle" style="font-size:12.5px">Jev sections</text><text class="s" x="556" y="406" text-anchor="middle">best parts of 3 articles</text>
+          <text class="chip" x="556" y="434" text-anchor="middle">×3 · 0.21–0.29s</text></g>
+        <path class="a" data-k="back" d="M644,393 H820 V250 H544" marker-end="url(#ah)"/>
+        <text class="lbl" x="826" y="330" transform="rotate(90 826 330)" text-anchor="middle">article text back to GPT</text>
+        <circle class="pkt" data-pkt cx="700" cy="393" r="4.5"/>
+        <circle class="pkt" data-pkt cx="820" cy="300" r="4.5"/>
+
+        <!-- read lane: not used on this question -->
+        <g class="n off" data-k="read"><rect x="622" y="200" width="186" height="44" rx="10"/><text class="t" x="715" y="219" text-anchor="middle" style="font-size:12.5px">read_writing</text><text class="s" x="715" y="235" text-anchor="middle">ids from the library map</text></g>
+        <path class="a off" d="M540,290 H596 V222 H618" marker-end="url(#ah)" style="opacity:.35"/>
+        <text class="lbl" x="715" y="262" text-anchor="middle" style="opacity:.6" data-offnote>not needed this time</text>
+
+        <!-- show_on_page: back up to the page -->
+        <text class="chip" data-chip="show" x="300" y="248" text-anchor="end">→ 4 stops on the page</text>
+      </svg>
+
+      <aside class="drawer" id="drawer">
+        <div class="dh"><b>Ask <em>Titus</em></b><span>the drawer</span></div>
+        <div class="db" id="db"></div>
+      </aside>
+    </div>
+
+    <div class="tl">
+      <div class="track" id="track"></div>
+      <div class="stats" id="stats"></div>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+    <div class="pop" id="pop" hidden></div>
+  </section>
+
+  <div class="below">
+    <h2><small>03</small>Four kinds of question</h2>
+    <div><p>Most questions are about my record, and GPT answers those straight from the prompt. Questions about what I’ve written go to search; broad ones, like how I’d build production-ready agents, get split into parts and read part by part…</p></div>
+  </div>
+</div>
+
+<script>
+const S = new URLSearchParams(location.search).get('s') || 'idle';
+const T = 12.10;              // recorded total, seconds
+const at = { idle: 0, run: 5.62, done: T }[S];
+const $ = (q) => document.querySelector(q);
+const all = (q) => [...document.querySelectorAll(q)];
+
+// Which parts are finished / running at time `at` (recorded times, seconds).
+const spans = {
+  visitor: [0, 0], guards: [0, 0], record: [0, 0],
+  gpt: [0, 12.10], calls: [4.96, 4.96], tools: [4.96, 5.81], search: [4.96, 4.96],
+  t1: [4.96, 4.96], t2: [4.96, 4.96], f1: [4.96, 5.28], f2: [4.96, 5.28], r1: [5.28, 5.50], r2: [5.28, 5.51],
+  sec: [5.52, 5.81], back: [5.81, 5.81], results: [5.81, 5.81], answer: [12.10, 12.10], checks: [12.10, 12.10], drawer: [12.10, 12.10],
+};
+for (const [k, [a, b]] of Object.entries(spans)) {
+  const st = S === 'idle' ? '' : at >= b && !(k === 'gpt' && at < T) ? 'done' : at >= a ? 'on' : '';
+  all(`[data-k="${k}"]`).forEach((el) => st && el.classList.add(st));
+}
+// GPT is on during round 1 and round 2; between them it waits.
+if (S === 'run') { all('[data-k="gpt"]').forEach((el) => { el.classList.remove('on'); el.classList.add('done'); }); }
+const gptChip = $('[data-chip="gpt"]');
+gptChip.textContent = S === 'done' ? 'round 1 4.96s · round 2 6.29s' : S === 'run' ? 'round 1 · 4.96s' : '';
+if (S !== 'idle') { $('[data-chip="show"]').classList.add('show'); $('[data-row="show"]').style.fill = 'var(--cream)'; $('[data-row="search"]').style.fill = 'var(--cream)'; }
+if (S === 'run') { $('[data-row="search"]').style.fill = 'var(--amber-hi)'; }
+if (S !== 'run') all('[data-pkt]').forEach((p) => p.remove());
+if (S === 'idle') { $('[data-offnote]').remove(); all('.chipnote').forEach((e) => e.remove()); }
+
+// Drawer
+const db = $('#db');
+const Q = '<div class="you">Have you used LangChain and LangGraph?</div>';
+const STOPS = '<div class="stops">showing you on the page: <i>LangChain</i><i>LangGraph</i><i>Illumina</i><i>UOB</i></div>';
+const A1 = 'Yes. I picked up both at Illumina in August 2024: I’ve used LangChain every day since then, and LangGraph in work projects; at UOB, I used LangGraph in production-oriented agent work. I think of LangChain as useful for building the agent itself, and LangGraph when I need explicit, controlled workflow orchestration—a distinction I explored in my writing <sup>1,2,3</sup>';
+const A2 = 'I wrote those articles between October 2024 and October 2025; the frameworks move quickly, so check their current docs before following implementation steps.';
+const SRC = '<div class="srcs"><div><b>1</b>Langchain — Part 1 of LLM series</div><div><b>2</b>Langgraph — Part 1 of LLM Multi-Agents series</div><div><b>3</b>LangChain 1.0 — A second look</div></div>';
+db.innerHTML = S === 'idle'
+  ? '<p class="empty">The reply lands here, the way it did in the real drawer.</p>'
+  : S === 'run'
+  ? Q + STOPS + '<div class="dots"><i></i><i></i><i></i></div>'
+  : Q + STOPS + `<p class="reply">${A1}.</p><p class="reply">${A2}</p>` + SRC;
+
+// Timeline
+const pct = (s) => `${(s / 13) * 100}%`;
+const track = $('#track');
+const seg = (a, b, cls) => `<div class="seg ${cls}" style="left:${pct(a)};width:calc(${pct(b - a)} - 2px)"></div>`;
+let h = '';
+if (S === 'idle') h += seg(0, T, 'idle');
+else {
+  h += seg(0, 4.96, 'llm') + seg(4.96, 5.81, 'tool') + seg(5.81, Math.min(at, T), 'llm');
+  if (at < T) h += seg(at, T, 'idle');
+  for (const t of [4.96, 4.96, 5.28, 5.28, 5.52, 5.52, 5.52]) h += `<div class="tick" style="left:${pct(t)}"></div>`;
+  h += `<div class="head" style="left:${pct(at)}"></div>`;
+}
+for (const s of [0, 2, 4, 6, 8, 10, 12]) h += `<div class="axis" style="left:${pct(s)}">${s}s</div>`;
+track.innerHTML = h;
+$('#stats').innerHTML = S === 'idle'
+  ? '<span><b>12.10s</b>recorded</span><span><b>12</b>spans</span><span><b>9</b>model calls</span><span class="trace-link">view as a trace ▾</span>'
+  : `<span><b class="amber">${at.toFixed(2)}s</b>of 12.10s</span><span><b>${S === 'done' ? 12 : 10}</b>spans</span><span><b>${S === 'done' ? 9 : 7}</b>model calls</span><span class="trace-link">view as a trace ▾</span>`;
+
+// Overlay / button
+$('#playbtn').textContent = S === 'done' ? '↻ Replay' : S === 'run' ? '❚❚ Pause' : '▶ Play';
+if (S === 'idle') $('#overlay').innerHTML = '<div class="bigplay"><button class="play">▶ Watch a real reply</button><p>12 seconds, replayed at 3×. Click any box for what went in and out.</p></div>';
+if (S === 'done') { const b = document.createElement('span'); b.className = 'q'; b.style.marginLeft = '0'; }
+
+// Popover: GPT round 1, as if clicked
+if (S === 'run') {
+  const pop = $('#pop');
+  pop.hidden = false;
+  pop.style.left = '522px'; pop.style.top = '150px';
+  pop.innerHTML = `<h4>gpt round 1 <span>4.96s</span></h4>
+    <div class="k">INPUT</div>question: “Have you used LangChain and LangGraph?”<br>tools: show_on_page, search_writing, read_writing
+    <div class="k">OUTPUT</div><code>search_writing</code>(topics: “LangChain”, “LangGraph”)<br><code>show_on_page</code>(tool-langchain, tool-langgraph, role-illumina, role-uob)
+    <div class="k">MODEL</div>gpt-6-luna · system prompt not shown`;
+}
+</script>
+</body>
+</html>
