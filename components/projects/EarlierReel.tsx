@@ -45,15 +45,17 @@ export default function EarlierReel({ projects, footer }: { projects: EarlierPro
             </p>
           )}
           <p className="m-0 mt-2.5 font-serif text-[17px] leading-[1.45] text-ink">{e.blurb}</p>
-          <a
-            href={e.github}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`${e.title} on GitHub`}
-            className="mt-4 inline-block rounded-full border border-latte-accent px-3 py-1.5 font-mono text-[12px] text-latte-accent transition-colors hover:bg-latte-accent hover:text-paper"
-          >
-            GitHub ↗
-          </a>
+          {e.github && (
+            <a
+              href={e.github}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`${e.title} on GitHub`}
+              className="mt-4 inline-block rounded-full border border-latte-accent px-3 py-1.5 font-mono text-[12px] text-latte-accent transition-colors hover:bg-latte-accent hover:text-paper"
+            >
+              GitHub ↗
+            </a>
+          )}
         </div>
       </div>
       <div className="col-start-2 row-span-2 row-start-1 min-w-0 max-[820px]:col-start-1 max-[820px]:row-span-1 max-[820px]:row-start-2">

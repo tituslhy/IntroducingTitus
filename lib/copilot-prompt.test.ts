@@ -12,6 +12,7 @@ import {
   ROLES,
   PAGE_TARGET_IDS,
   SOCIAL,
+  type Education,
   type Role,
 } from './profile'
 import { buildSystemPrompt, promptTokens, renderLibrary } from './copilot-prompt'
@@ -31,6 +32,17 @@ const normaliseDashes = (s: string) => s.replace(/\s*[—–]\s*/g, ' – ')
 const TEMPLATE_PATH = join(__dirname, '..', 'copilot-system-prompt.md')
 const template = readFileSync(TEMPLATE_PATH, 'utf-8')
 const rendered = buildSystemPrompt(template)
+
+describe('no rendered token contains "undefined"', () => {
+  it.each(Object.keys(promptTokens()))('token {{%s}} renders without "undefined"', (name) => {
+    const value = buildSystemPrompt(`{{${name}}}`)
+    expect(value).not.toContain('undefined')
+  })
+
+  it('the full rendered prompt contains no "undefined"', () => {
+    expect(rendered).not.toContain('undefined')
+  })
+})
 
 describe('buildSystemPrompt', () => {
   it('replaces known tokens with their values', () => {
@@ -242,16 +254,37 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
         expect(projectsText).toContain(EARLIER_HEADING);
       });
 
-      it('writes one line per earlier project, with topics, blurb, result and GitHub', () => {
+      it('writes one line per earlier project, with topics, blurb, result, copilot note and GitHub', () => {
         const lines = projectsText.split('\n').filter((l) => l.startsWith('- '));
         expect(lines).toHaveLength(EARLIER_PROJECTS.length);
         const skimlit = EARLIER_PROJECTS.find((e) => e.title === 'Skimlit')!;
-        expect(lines).toContain(`- Skimlit (NLP, Streamlit): ${skimlit.blurb} 84.8% test accuracy. GitHub: ${skimlit.github}`);
+        expect(lines).toContain(
+          `- Skimlit (NLP, Streamlit): ${skimlit.blurb} ${skimlit.result!.value} ${skimlit.result!.label}. ${skimlit.copilot} GitHub: ${skimlit.github}`,
+        );
       });
 
       it('leaves the result out of a line for an earlier project that reported none', () => {
         const watchlist = EARLIER_PROJECTS.find((e) => e.title === 'Watchlist')!;
-        expect(projectsText).toContain(`- Watchlist (Full stack, MongoDB): ${watchlist.blurb} GitHub: ${watchlist.github}`);
+        expect(watchlist.result).toBeUndefined();
+        expect(projectsText).toContain(`- Watchlist (Full stack, MongoDB): ${watchlist.blurb} ${watchlist.copilot} GitHub: ${watchlist.github}`);
+      });
+
+      it('ends the Backdoor Catcher line with its copilot note and no GitHub link, since its repo is gone', () => {
+        const backdoor = EARLIER_PROJECTS.find((e) => e.title === 'The AI Backdoor Catcher')!;
+        expect(backdoor.github).toBeUndefined();
+        expect(backdoor.result).toBeUndefined();
+        expect(backdoor.copilot).toBeDefined();
+        const line = projectsText.split('\n').find((l) => l.startsWith('- The AI Backdoor Catcher ('))!;
+        expect(line).toBe(`- The AI Backdoor Catcher (Computer vision, AI security): ${backdoor.blurb} ${backdoor.copilot}`);
+        expect(line).not.toContain('GitHub:');
+      });
+
+      it('puts each earlier project\'s copilot note before its "GitHub:" link', () => {
+        for (const e of EARLIER_PROJECTS.filter((x) => x.copilot && x.github)) {
+          const line = projectsText.split('\n').find((l) => l.startsWith(`- ${e.title} (`))!;
+          expect(line).toContain(e.copilot);
+          expect(line.indexOf(e.copilot!)).toBeLessThan(line.indexOf('GitHub:'));
+        }
       });
     });
   })
@@ -323,6 +356,67 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
 
     it('lists the certifications in a labelled line at the foot of the section', () => {
       expect(rendered).toContain(`**Certifications:** ${CERTIFICATIONS.join(', ')}.`)
+    })
+
+    it('includes the Oxford part\'s copilot text in the EDUCATION token', () => {
+      const oxford = EDUCATION.flatMap((e) => e.parts ?? []).find((p) => p.short === 'Oxford')!
+      expect(oxford.copilot).toBeDefined()
+      const education = buildSystemPrompt('{{EDUCATION}}')
+      expect(education).toContain(oxford.copilot!)
+      expect(education).toContain('circular economy')
+    })
+
+    it('gives SMU its degree-level copilot note in the EDUCATION token, after the SMU degree line', () => {
+      const smu = EDUCATION.find((e) => e.slug === 'smu')!;
+      expect(smu.copilot).toBeDefined();
+      const education = buildSystemPrompt('{{EDUCATION}}');
+      expect(education).toContain(smu.copilot!);
+      expect(education).toContain('collaborative filtering');
+      const degreeAt = education.indexOf(`**${smu.institution}** — ${smu.degree}`);
+      expect(degreeAt).toBeGreaterThanOrEqual(0);
+      expect(education.indexOf(smu.copilot!)).toBeGreaterThan(degreeAt);
+    });
+
+    it('renders a degree with no copilot without the word "undefined"', async () => {
+      // Every real degree now has a copilot note, so the no-copilot path is exercised by
+      // stripping NUS (degree note and all three part notes) in a fresh module registry.
+      const real = EDUCATION.find((e) => e.slug === 'nus')!
+      expect(real.copilot).toBeDefined()
+      expect(real.parts!.every((p) => p.copilot)).toBe(true)
+
+      let education = ''
+      await jest.isolateModulesAsync(async () => {
+        jest.doMock('./profile', () => {
+          const actual = jest.requireActual('./profile')
+          const stripCopilot = ({ copilot: _c, ...rest }: { copilot?: string }) => rest
+          return {
+            ...actual,
+            EDUCATION: actual.EDUCATION.map((e: { slug: string; parts?: { copilot?: string }[] }) =>
+              e.slug === 'nus' ? { ...stripCopilot(e), parts: e.parts?.map(stripCopilot) } : e,
+            ),
+          }
+        })
+        const fresh = await import('./copilot-prompt')
+        education = fresh.buildSystemPrompt('{{EDUCATION}}')
+      })
+      jest.dontMock('./profile')
+
+      // Booleans only: a failing toContain would print the whole rendered section.
+      expect(education.includes(`**${real.institution}** — ${real.degree}`)).toBe(true)
+      expect(education.includes(real.copilot!)).toBe(false)
+      for (const p of real.parts!) {
+        expect(education.includes(`During this degree, ${p.institution} — ${p.programme}`)).toBe(true)
+        expect(education.includes(p.copilot!)).toBe(false)
+      }
+      expect(education.includes('undefined')).toBe(false)
+    })
+
+    it('separates a part line, its copilot and the next part line with a blank line', () => {
+      const nus = EDUCATION.find((e) => e.slug === 'nus')!
+      const oxford = nus.parts!.find((p) => p.short === 'Oxford')!
+      const next = nus.parts![nus.parts!.indexOf(oxford) + 1]
+      const education = buildSystemPrompt('{{EDUCATION}}')
+      expect(education).toContain(`${oxford.copilot}\n\nDuring this degree, ${next.institution} — ${next.programme}`)
     })
   })
 

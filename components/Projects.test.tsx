@@ -365,7 +365,11 @@ describe('earlier work', () => {
     render(<Projects />)
     EARLIER_PROJECTS.forEach((e, i) => {
       pick(i)
-      const links = screen.getAllByRole('link', { name: /on GitHub$/ })
+      const links = screen.queryAllByRole('link', { name: /on GitHub$/ })
+      if (!e.github) {
+        expect(links).toHaveLength(0)
+        return
+      }
       expect(links).toHaveLength(1)
       expect(links[0]).toHaveAttribute('aria-label', `${e.title} on GitHub`)
       expect(links[0]).toHaveAttribute('href', e.github)

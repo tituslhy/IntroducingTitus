@@ -238,6 +238,8 @@ export type EducationPart = HonorGroups & {
   /** The big line in its box: the grade, or the selection when there was no grade. */
   standing: string
   ask: AskPrompt
+  /** Copilot-only, first-person narrative. Not rendered on the page. */
+  copilot?: string
 }
 
 export type Education = HonorGroups & {
@@ -257,6 +259,8 @@ export type Education = HonorGroups & {
   /** A public piece about me and this degree, linked beside the ask pill, e.g. the school's interview. */
   feature?: { label: string; href: string }
   parts?: EducationPart[]
+  /** Copilot-only, first-person narrative. Not rendered on the page. */
+  copilot?: string
 }
 
 export const EDUCATION: Education[] = [
@@ -273,6 +277,8 @@ export const EDUCATION: Education[] = [
     achievements: ['1st place, Food Image Classification competition', '3rd place, Recommender Systems competition'],
     ask: { label: 'my Master’s', question: 'What did you study in your Master’s at SMU?' },
     feature: { label: 'Watch SMU’s interview with me', href: 'https://youtu.be/SvFH6uKAyfE' },
+    copilot:
+      'My joke answer for why I studied artificial intelligence: there was no master’s in actual intelligence. The real answer: the degree was the realisation of my dream of becoming a data scientist, and I wanted to do it all. Not just classical machine learning, but deep learning; learning from unstructured data such as images, in computer vision; recommender systems, where the data has many gaps (collaborative filtering is amazing); machine-learning engineering pipelines; AI security; and multi-agent systems, the ant-colony-optimisation kind, like those used to train StarCraft II AIs. I also learned IoT and built my own pipe-sensor pipeline. Every module stuck with me. Since I work on agents now, I use the thinking more than the specific skills, feature engineering above all. In both competitions every team got the same problem: classify a set of fruit images with a computer-vision model, and get the best recommendations out of a generic recommender-systems problem set. My approach was experimental: once I had the basic shape of a solution, most of the gains came from tuning, such as training for more epochs, adjusting the learning rate, adding parameters, and ensembling.',
   },
   {
     slug: 'nus',
@@ -289,6 +295,8 @@ export const EDUCATION: Education[] = [
       '88th percentile globally, Bloomberg Aptitude Test',
     ],
     ask: { label: 'NUS', question: 'What did you do at NUS?' },
+    copilot:
+      'Why chemical engineering: I wanted to help solve climate change, and I was interested in all the sciences (chemistry, maths, physics, biology); chemical engineering felt like the marriage of all of them. What still shows in how I work is the engineering approach to problems: decompose them recursively into smaller sub-problems, and solve those. My final-year project was in Prof Neal Chung’s membrane group, on pressure-retarded osmosis with sewage water. The main problem was designing membrane modules that could withstand fouling from the contaminants and still generate clean, usable energy. Prof Chung’s group was the world’s best membrane research team at the time, so I was very fortunate to get a place. I learned the small details behind membrane design, and how to build experiments iteratively, each one improving on the last. I also interned in Prof Mark Saeys’ catalysis team, on catalyst design for Fischer–Tropsch synthesis, mainly trying new catalyst designs and running simulations. Neither line of research panned out, but both were ambitious and I’m glad I tried them. At the Shell Global Energy, Water & Food Security Roundtable I framed sustainability as a game-theory problem. My point wasn’t that the science isn’t there; it’s that there’s no incentive to change globally. It is always more convenient to kick the can down the road, and pursuing long-term goals brings short-term costs such as lost voter confidence and inflation. That lack of incentive percolates down to businesses and to individuals. I’m honestly not sure how I was picked.',
     parts: [
       {
         institution: 'University of Connecticut',
@@ -303,6 +311,8 @@ export const EDUCATION: Education[] = [
           '"Most Inspiring Student", AIChE UConn chapter',
         ],
         ask: { label: 'UConn', question: 'What was your exchange at UConn like?' },
+        copilot:
+          'I took PhD modules in catalysis and polymer chemistry, mainly to push beyond my comfort zone, and to keep up with cutting-edge research in case I wanted to join one of those research teams for a PhD (in the end I didn’t do one). I was well stretched: everyone else in the class was a domain expert with novel research ideas, and I benefited just from being in the room. The “Most Inspiring Student” award from the AIChE student chapter was for my results in class and my project presentations. As a year 2, I did the equivalent of the final-year capstone with the year 4 students, designing a power plant in Aspen HYSYS, and did well.',
       },
       {
         institution: 'University of Oxford',
@@ -313,6 +323,8 @@ export const EDUCATION: Education[] = [
         scholarships: ['IARU-Santander Scholarship'],
         achievements: ['1 of 14 selected worldwide'],
         ask: { label: 'Oxford', question: 'What did you do at the Oxford summer school?' },
+        copilot:
+          'The programme explored global challenges and their solutions through four topics. Urbanisation: heavy migration from rural areas to cities for better jobs raises the cost of living, strains city infrastructure and pushes city boundaries outward, which cuts domestic farm output (usually rural) and leaves a country leaning more on imports. Waste management: the 3Rs (reduce, reuse, recycle), why they work and why they often don’t, and the circular economy. Overfishing and water pollution. Climate change. For each topic we worked in teams: we prepared cases, debated for and against each position, and wrote essays and gave presentations. A lot of work for a summer school, and honestly very fun; the preparation was very rich.',
       },
       {
         institution: 'NUS Suzhou Research Institute',
@@ -322,6 +334,8 @@ export const EDUCATION: Education[] = [
         standing: '1 of 3 chemical engineers selected',
         scholarships: ['Market Immersion Award, IE Singapore Young Talent Programme'],
         ask: { label: 'Suzhou', question: 'What was the Suzhou winter school about?' },
+        copilot:
+          'The winter school was about how business is done in China: how cultural beliefs, modern and traditional, shape the way people there think about different issues, and why they are so assiduous about some matters and laissez-faire about others. It was like an MBA industry visit: we saw how they worked and learned from it. One lesson stayed with me: neither raw intelligence nor vision decides success there. 关系 (guanxi) does, the ability to build relationships and draw on other people’s strengths to succeed.',
       },
     ],
   },
@@ -341,6 +355,8 @@ export const EDUCATION: Education[] = [
       'Sports Leaders Award',
     ],
     ask: { label: 'Anderson JC', question: 'What did you do at Anderson Junior College?' },
+    copilot:
+      'Top Student: I was one of seven in my cohort to score straight As, in Physics, Chemistry, Mathematics and Economics, alongside the compulsory common curriculum. Honestly, all I did was study hard and give myself a lot of positive affirmation. The Alpha Students Programme is for academically gifted students, and I was enrolled in it; its students are expected to give back. I was chess club president and class monitor, led my class’s volunteering initiative, and joined the college’s wider initiatives. My studies together with those awards earned the Certificate of Distinction. As chess club president I started cross-learning between the chess and xiangqi (Chinese chess) sides, and grew enrolment from 4 to 50 in xiangqi alone, and from 1 to 40 in chess. That was mainly creative marketing: I networked to get us a good booth position at the open house and ran a blitz exhibition; people loved watching players hit the clocks and make good moves. We also won every national competition, every one of them, so one morning our results took up the whole assembly’s announcements, which was good publicity. I played on the xiangqi side and led by example, captaining the team to every win while playing well myself. The Sports Leaders Award was for chess. Yes, it counts as a sport. For the Community Involvement Programme I volunteered with Lions Befrienders, keeping elderly people company, and spent time with children with special needs (I don’t remember that organisation’s name). It made me sad that some people seem left behind in society, and in every stint I did my best to bring them warmth and joy.',
   },
 ]
 
@@ -422,7 +438,14 @@ export const PROJECTS: Project[] = [
       outcome: `${FICTIONAL_BASSOON_COVERAGE} test coverage, CodeRabbit-audited, public repo.`,
     },
     ask: { label: 'fictional-bassoon', question: 'Why does fictional-bassoon have 54 containers?' },
-    copilot: 'Named after a woodwind instrument I thought was a bear. Canon forever.',
+    copilot: [
+      'Named after a woodwind instrument I thought was a bear. Canon forever.',
+      'The aim: a showcase of distributed-systems engineering applied to AI agents. The app inside it is called Relay, a full-stack chat app with streamed answers, visible internet-search activity, saved conversations and local tracing dashboards.',
+      'How one message travels: the browser posts to FastAPI, which subscribes to a Redis pub/sub channel for that job and queues the work on RabbitMQ. A Celery worker runs the LangGraph deep agent (Tavily for internet search), which publishes every event to Redis, and FastAPI re-emits each one to the browser as Server-Sent Events.',
+      'It speaks three open agent protocols, each version-pinned. AG-UI is the event stream to the browser (run, step, reasoning, tool-call and text events). A2UI lets the model write interactive screens itself: ask it to compare FastAPI, Flask and Django and let you pick, and it lays out cards and a choice list, your pick goes back as one action, and it tailors a follow-up. That is a restricted A2UI v1.0 profile (six components, one select_option action), validated on the server and again in the browser, and never executable. A2A lets other agents discover and call it (an Agent Card plus JSON-RPC, JWT auth); it is an A2A server only and does not call other agents.',
+      'Design choices: SSE over WebSockets, because updates only flow server to client and SSE rides plain HTTP. Celery and RabbitMQ so a long agent run never holds an HTTP request open. Redis Sentinel for resilient pub/sub. Two PgBouncer pools: transaction mode for short API queries, session mode for the agent’s long-lived state connections. Citus sharded by thread_id, with threads and messages colocated and users as a reference table. Langfuse on ClickHouse and MinIO for LLM tracing, and the LGTM stack (Loki, Grafana, Tempo, Prometheus) for the infrastructure. Both halves hold a 90% test-coverage gate.',
+      'What is honestly unfinished, as the README records it: LangGraph’s checkpoint tables cannot be distributed in Citus yet, so they fall back to the coordinator; Grafana’s log panel has no data yet; AG-UI reasoning events have not been seen in a live run; A2UI is a restricted candidate profile, not full conformance; and A2A task status lives in one process and does not survive a restart.',
+    ].join('\n\n'),
     frames: [
       // The one illustration on the site (see CLAUDE.md): the name, as a bear playing it. Made with Qwen.
       {
@@ -489,7 +512,11 @@ export const PROJECTS: Project[] = [
     demo: 'https://www.youtube.com/watch?v=uLtMD3J4U40',
     accent: 'amber',
     ask: { label: 'TheMarginCall', question: 'How do the agents in TheMarginCall work together?' },
-    copilot: 'Ships with a group chat mode and a self-service analysis workspace.',
+    copilot: [
+      'The aim: a group of LLM agents that help someone make better investment decisions. There is a demo on YouTube: https://www.youtube.com/watch?v=uLtMD3J4U40. Two modes: a group chat with every agent, run by Autogen’s group chat manager, and a workspace where an analyst asks questions of a SQL database in plain English and explores the Plotly charts it draws (VannaAI with ChromaDB). The front end is Chainlit.',
+      'The agents are LlamaIndex agents wrapped in Autogen’s LLamaIndexConversableAgent. The data analyst (statistics such as correlations and compound annual growth) is a ReAct agent, because data analysis is the broadest job and has the most tools. The technical analyst (stochastic RSI, Bollinger bands, Ichimoku cloud) and the fundamental analyst have one tool each, so they are simple function-calling agents. The researcher, the professor and the reporter are ReAct agents, because they juggle several tools and their reasoning helps them pick the right one. The researcher reads SEC filings through RAG (SEC API, LlamaIndex’s simple vector store, Cohere rerank, prompt compression with GPT-2) and searches the web with Tavily. The professor answers concept questions from Investopedia articles in Qdrant, with dense and BM42 hybrid search, and reviews the analysts’ recommendations. The reporter writes the report, then drafts and sends emails through Gmail.',
+      'What I tried and dropped: LangGraph or CrewAI for the group chat, because I could not show the agents’ intermediate messages cleanly; DSPy prompt optimisation for the professor, shelved after breaking changes in LlamaIndex and DSPy; and a Neo4j property-graph index for the professor, because building the knowledge graph cost too much. The open problem I named in the repo: choosing the right tool inside an agent, and the right agent inside the group chat.',
+    ].join('\n\n'),
     frames: [{ kind: 'demo', youtubeId: 'uLtMD3J4U40', caption: 'The demo · press play to watch it here' }],
   },
 ]
@@ -500,26 +527,29 @@ export type EarlierProject = {
   /** Two topic labels, e.g. ["Computer vision", "Video"]. */
   topics: [string, string]
   blurb: string
-  github: string
+  /** Missing when the repo is gone (a teammate's, since taken down). */
+  github?: string
   /** The repo's own cover picture. */
   image: string
   /** Logos and drawings are shown whole on white; photos are shown whole on black (the projector's screen). */
   fit?: 'contain'
   /** A result worth a big number, when the project reported one. */
   result?: { value: string; label: string }
+  /** Copilot-only, first-person narrative. Not rendered on the page. */
+  copilot?: string
 }
 
 const PORTFOLIO_IMG = 'https://raw.githubusercontent.com/tituslhy/Portfolio/main/portfolio/static/imgs'
 
 export const EARLIER_PROJECTS: EarlierProject[] = [
-  { title: 'GiftMaker', topics: ['Speech recognition', 'NLP'], blurb: 'Stitches recorded video messages together, transcribes them with Whisper, and has an LLM write something new from what was said.', github: 'https://github.com/tituslhy/GiftMaker', image: `${PORTFOLIO_IMG}/AI_gift.png`, fit: 'contain' },
-  { title: 'You Only Edit Once', topics: ['Computer vision', 'Video'], blurb: 'An AI video editor for leisure divers: object detection trims underwater footage and picks out frames to beautify.', github: 'https://github.com/teyang-lau/you-only-edit-once', image: `${PORTFOLIO_IMG}/YOEO.png`, fit: 'contain' },
-  { title: 'The AI Backdoor Catcher', topics: ['Computer vision', 'AI security'], blurb: 'Finds backdoors hidden in vision models by reconstructing their triggers, using neural attention distillation and mean absolute deviation.', github: 'https://github.com/spencerkmarley/cs612-ai-sys-eval-project', image: `${PORTFOLIO_IMG}/backdoor.png` },
-  { title: 'Skimlit', topics: ['NLP', 'Streamlit'], blurb: 'Makes long medical abstracts skimmable, following the PubMed 200k RCT paper on its own data.', github: 'https://github.com/tituslhy/Skimlit', image: `${PORTFOLIO_IMG}/skimlit.png`, result: { value: '84.8%', label: 'test accuracy' } },
-  { title: 'A Song for Singapore', topics: ['NLP', 'Generative'], blurb: 'GPT-2, trained on Singapore’s patriotic songs, writes new lyrics; OpenAI’s Jukebox tries to set them to music.', github: 'https://github.com/quekhyg/NLP-Lyric-Generator', image: `${PORTFOLIO_IMG}/Singapore.jpeg` },
-  { title: 'Barista Board', topics: ['Recommender systems', 'NLP'], blurb: 'Recommends cafés from scraped Yelp reviews, with matrix and tensor factorisation over ratings, text, images, dates and places.', github: 'https://github.com/teyang-lau/Coffee_Joint_Recommender_System', image: `${PORTFOLIO_IMG}/coffee.jpeg` },
-  { title: 'Facemask classification', topics: ['Computer vision', 'MLOps'], blurb: 'A light classifier for the edge, with a GCP pipeline that retrains it when misclassification climbs, and quantisation to shrink it.', github: 'https://github.com/tituslhy/Face-mask-classification', image: `${PORTFOLIO_IMG}/facemask.jpeg` },
-  { title: 'Watchlist', topics: ['Full stack', 'MongoDB'], blurb: 'My first full-stack app: log the films you love, and play a clip from each one’s page.', github: 'https://github.com/tituslhy/watchlist', image: `${PORTFOLIO_IMG}/movie.png` },
+  { title: 'GiftMaker', topics: ['Speech recognition', 'NLP'], blurb: 'Stitches recorded video messages together, transcribes them with Whisper, and has an LLM write something new from what was said.', github: 'https://github.com/tituslhy/GiftMaker', image: `${PORTFOLIO_IMG}/AI_gift.png`, fit: 'contain', copilot: 'I tested it on my own collection of video montages from friends appreciating other friends. The LLM step can be ChatGPT, or Falcon on Hugging Face with Flan-T5 as the fallback when Falcon’s free calls run out; it can also skip the LLM and just return the stitched video and transcript. The fun example: writing a friend’s whole dating profile, in HTML, from what everyone said about them.' },
+  { title: 'You Only Edit Once', topics: ['Computer vision', 'Video'], blurb: 'An AI video editor for leisure divers: object detection trims underwater footage and picks out frames to beautify.', github: 'https://github.com/teyang-lau/you-only-edit-once', image: `${PORTFOLIO_IMG}/YOEO.png`, fit: 'contain', copilot: 'A team project: I was one of the anchor contributors and the de facto scrum master, facilitating the team’s exchanges; I built most of the modules and reviewed the others’ work.' },
+  { title: 'The AI Backdoor Catcher', topics: ['Computer vision', 'AI security'], blurb: 'Finds backdoors hidden in vision models by reconstructing their triggers, using neural attention distillation and mean absolute deviation.', image: `${PORTFOLIO_IMG}/backdoor.png`, copilot: 'A team project: I was one of the anchor contributors and the de facto scrum master, facilitating the team’s exchanges; I built most of the modules and reviewed the others’ work.' },
+  { title: 'Skimlit', topics: ['NLP', 'Streamlit'], blurb: 'Makes long medical abstracts skimmable, following the PubMed 200k RCT paper on its own data.', github: 'https://github.com/tituslhy/Skimlit', image: `${PORTFOLIO_IMG}/skimlit.png`, result: { value: '84.8%', label: 'test accuracy' }, copilot: 'Each sentence of an abstract is labelled with its role (background, objective, methods, results, conclusions), so you can skim it. I compared models on 10% of the data for 3 epochs: a Naive Bayes TF-IDF baseline (72.2%), Conv1D on learned word embeddings (79.7%), frozen Universal Sentence Encoder embeddings (71.2%), character embeddings alone (65.2%), and a word-and-character hybrid (73.1%). The winner was a tribrid model that also takes each sentence’s position and the abstract’s length (83.0%); trained on all the data for 5 epochs it reached 84.8% test accuracy. The lesson: where a sentence sits matters a lot. It runs as a FastAPI backend with a Streamlit front end.' },
+  { title: 'A Song for Singapore', topics: ['NLP', 'Generative'], blurb: 'GPT-2, trained on Singapore’s patriotic songs, writes new lyrics; OpenAI’s Jukebox tries to set them to music.', github: 'https://github.com/quekhyg/NLP-Lyric-Generator', image: `${PORTFOLIO_IMG}/Singapore.jpeg`, copilot: 'A team project: I was one of the anchor contributors and the de facto scrum master, facilitating the team’s exchanges; I built most of the modules and reviewed the others’ work.' },
+  { title: 'Barista Board', topics: ['Recommender systems', 'NLP'], blurb: 'Recommends cafés from scraped Yelp reviews, with matrix and tensor factorisation over ratings, text, images, dates and places.', github: 'https://github.com/teyang-lau/Coffee_Joint_Recommender_System', image: `${PORTFOLIO_IMG}/coffee.jpeg`, copilot: 'A team project: I was one of the anchor contributors and the de facto scrum master, facilitating the team’s exchanges; I built most of the modules and reviewed the others’ work.' },
+  { title: 'Facemask classification', topics: ['Computer vision', 'MLOps'], blurb: 'A light classifier for the edge, with a GCP pipeline that retrains it when misclassification climbs, and quantisation to shrink it.', github: 'https://github.com/tituslhy/Face-mask-classification', image: `${PORTFOLIO_IMG}/facemask.jpeg`, copilot: 'Built as an end-to-end MLOps exercise on Google Cloud Vertex AI: a training pipeline, a continuous-monitoring pipeline that watches the model and its data, and a monitoring dashboard.' },
+  { title: 'Watchlist', topics: ['Full stack', 'MongoDB'], blurb: 'My first full-stack app: log the films you love, and play a clip from each one’s page.', github: 'https://github.com/tituslhy/watchlist', image: `${PORTFOLIO_IMG}/movie.png`, copilot: 'Built with Flask and Flask-WTF on MongoDB. Passwords are stored only as hashes. You can edit any film’s details, and there is a dark mode, just for fun. It was a proof of concept, so I never deployed it.' },
 ]
 
 // ---------------------------------------------------------------------------

@@ -284,13 +284,18 @@ describe("earlier projects", () => {
     expect(EARLIER_PROJECTS).toHaveLength(8);
   });
 
-  it("gives every earlier project a title, two topics, a blurb, a GitHub link and a picture", () => {
+  it("gives every earlier project a title, two topics, a blurb and a picture, and a GitHub link except the Backdoor Catcher", () => {
     for (const e of EARLIER_PROJECTS) {
       expect(e.title.trim().length).toBeGreaterThan(0);
       expect(e.topics).toHaveLength(2);
       expect(e.topics.every((t) => t.trim().length > 0)).toBe(true);
       expect(e.blurb.trim().length).toBeGreaterThan(0);
-      expect(e.github).toMatch(/^https:\/\/github\.com\//);
+      if (e.title === "The AI Backdoor Catcher") {
+        expect(e.github).toBeUndefined();
+      } else {
+        expect(e.github).toMatch(/^https:\/\/github\.com\//);
+      }
+      if (e.github !== undefined) expect(e.github).toMatch(/^https:\/\//);
       expect(e.image).toMatch(/^https:\/\/raw\.githubusercontent\.com\/tituslhy\/Portfolio\//);
     }
   });
@@ -350,3 +355,20 @@ describe("tool page targets", () => {
   });
 });
 
+describe("EDUCATION copilot notes", () => {
+  const allNotes = EDUCATION.flatMap((e) => [
+    { label: e.institution, note: e.copilot },
+    ...(e.parts ?? []).map((p) => ({ label: `${e.institution} — ${p.programme}`, note: p.copilot })),
+  ]);
+
+  it("gives every degree and every part a non-empty copilot note", () => {
+    const missing = allNotes.filter(({ note }) => typeof note !== "string" || note.trim() === "").map(({ label }) => label);
+    expect(missing).toEqual([]);
+  });
+
+  it("writes every copilot note in the first person (no he, his or 'Titus built')", () => {
+    const thirdPerson = /\b(he|his|Titus built)\b/;
+    const offenders = allNotes.filter(({ note }) => note !== undefined && thirdPerson.test(note)).map(({ label }) => label);
+    expect(offenders).toEqual([]);
+  });
+});

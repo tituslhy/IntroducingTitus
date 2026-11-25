@@ -74,7 +74,7 @@ function renderProjects(): string {
   })
     .concat(
       '### Earlier projects, before GenAI (several built with teammates)\n\n' +
-        EARLIER_PROJECTS.map((e) => `- ${e.title} (${e.topics.join(', ')}): ${e.blurb}${e.result ? ` ${e.result.value} ${e.result.label}.` : ''} GitHub: ${e.github}`).join('\n')
+        EARLIER_PROJECTS.map((e) => `- ${e.title} (${e.topics.join(', ')}): ${e.blurb}${e.result ? ` ${e.result.value} ${e.result.label}.` : ''}${e.copilot ? ` ${e.copilot}` : ''}${e.github ? ` GitHub: ${e.github}` : ''}`).join('\n')
     )
     .join('\n\n')
 }
@@ -87,10 +87,12 @@ function renderEducation(): string {
   const degrees = EDUCATION.map((e) => {
     const { figure, caption, note } = e.standing
     const parts = (e.parts ?? []).map(
-      (p) => `During this degree, ${p.institution} — ${p.programme} (${p.dates}): ${p.standing}. ${groups(p)}`.trim(),
+      (p) => [`During this degree, ${p.institution} — ${p.programme} (${p.dates}): ${p.standing}. ${groups(p)}`.trim(), p.copilot].filter(Boolean).join(' '),
     )
     const result = `Result: ${figure} ${caption}${note ? ` (${note})` : ''}.`
-    return [`**${e.institution}** — ${e.degree} (${proseDates(e.dates)}). ${result} ${groups(e)}`.trim(), ...parts].join(' ')
+    return [`**${e.institution}** — ${e.degree} (${proseDates(e.dates)}). ${result} ${groups(e)}`.trim(), e.copilot, ...parts]
+      .filter(Boolean)
+      .join('\n\n')
   })
   return [...degrees, `**Certifications:** ${CERTIFICATIONS.join(', ')}.`].join('\n\n')
 }

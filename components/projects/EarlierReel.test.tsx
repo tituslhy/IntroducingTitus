@@ -66,11 +66,36 @@ describe('EarlierReel', () => {
     render(<EarlierReel projects={EARLIER_PROJECTS} />)
     EARLIER_PROJECTS.forEach((e, i) => {
       pick(i)
-      const links = screen.getAllByRole('link', { name: /on GitHub$/ })
+      const links = screen.queryAllByRole('link', { name: /on GitHub$/ })
+      if (!e.github) {
+        expect(links).toHaveLength(0)
+        return
+      }
       expect(links).toHaveLength(1)
       expect(links[0]).toHaveAttribute('href', e.github)
       expect(links[0]).toHaveAttribute('aria-label', `${e.title} on GitHub`)
     })
+  })
+
+  it('renders no GitHub link for a project without one, while the other frames still link theirs', () => {
+    const orphan: EarlierProject = {
+      title: 'Taken-down project',
+      topics: ['Robotics', 'Control'],
+      blurb: 'Its repo is gone.',
+      image: 'https://example.com/orphan.png',
+    }
+    const other: EarlierProject = { ...solo, title: 'Other project', github: 'https://github.com/example/other' }
+    render(<EarlierReel projects={[solo, orphan, other]} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Frame 2: Taken-down project' }))
+    expect(writeUp()).toHaveTextContent('Frame 02 of 03')
+    expect(screen.queryByRole('link', { name: /GitHub/ })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Frame 1: Solo project' }))
+    expect(screen.getByRole('link', { name: 'Solo project on GitHub' })).toHaveAttribute('href', solo.github)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Frame 3: Other project' }))
+    expect(screen.getByRole('link', { name: 'Other project on GitHub' })).toHaveAttribute('href', other.github)
   })
 
   it('shows a single project as Frame 01 of 01, with no Pause button to press', () => {
