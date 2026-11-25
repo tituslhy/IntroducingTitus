@@ -83,7 +83,8 @@ function framesOf(p: Project): ProjectorFrame[] {
     ),
     thumb: <span className={`${THUMB_WORDS} text-[15px] ${indigo ? 'text-[oklch(0.82_0.08_254)]' : 'text-amber-hi'}`}>{p.figure.value}</span>,
   }
-  return [title, ...p.frames.map((f) => toFrame(f, p))]
+  // On a phone only the diagrams get the tall screen; the title card and stills stay widescreen.
+  return [{ ...title, compact: true }, ...p.frames.map((f) => ({ ...toFrame(f, p), compact: f.kind !== 'diagram' }))]
 }
 
 /** Name, context, sub-line and links: the left of a project. */

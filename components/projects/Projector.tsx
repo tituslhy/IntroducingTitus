@@ -11,6 +11,11 @@ export type ProjectorFrame = {
   caption: string
   /** How long it stays up while playing, in ms. */
   ms?: number
+  /**
+   * Keeps the plain widescreen screen on a phone even when the projector is `tall` or `fit` (a title card,
+   * a still, a video): only the diagrams need the extra height, and the screen eases between the two.
+   */
+  compact?: boolean
 }
 
 /** Anything inside a frame (the demo video, say) can stop the projector by dispatching this. */
@@ -122,7 +127,7 @@ export default function Projector({
       className="projector rounded-[20px] bg-[var(--film-edge)] px-3 pt-3"
     >
       <div
-        className={`projector-screen relative aspect-video overflow-hidden rounded-xl bg-black ${tall ? 'projector-tall' : ''} ${fit ? 'projector-fit' : ''}`}
+        className={`projector-screen relative aspect-video overflow-hidden rounded-xl bg-black ${tall ? 'projector-tall' : ''} ${fit ? 'projector-fit' : ''} ${(tall || fit) && frames[at]?.compact ? 'projector-compact' : ''}`}
       >
         {frames.map((f, i) => (
           <div key={i} data-reveal={i} hidden={i !== at} className="projector-frame absolute inset-0">
@@ -169,7 +174,7 @@ export default function Projector({
               setPlaying(!playing)
               setHalted(playing)
             }}
-            className="shrink-0 rounded-full border border-[oklch(0.5_0.02_70)] px-3 py-[5px] font-mono text-[12px] text-paper transition-colors hover:border-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
+            className="tap shrink-0 rounded-full border border-[oklch(0.5_0.02_70)] px-3 py-[5px] font-mono text-[12px] text-paper transition-colors hover:border-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
           >
             {playing ? '❚❚ Pause' : '▶ Play'}
           </button>

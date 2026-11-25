@@ -790,7 +790,7 @@ export default function CopilotBubble({
             </p>
             <a
               href={COLOPHON_PATH}
-              className="mt-1.5 inline-block font-mono text-[10.5px] tracking-[0.04em] text-ink-faint underline decoration-dotted underline-offset-[3px] transition-colors hover:text-amber"
+              className="tap mt-1.5 inline-block font-mono text-[10.5px] tracking-[0.04em] text-ink-faint underline decoration-dotted underline-offset-[3px] transition-colors hover:text-amber"
             >
               How this works <span aria-hidden="true">↗</span>
             </a>
@@ -798,7 +798,7 @@ export default function CopilotBubble({
           <div className="flex flex-shrink-0 items-center gap-1">
             <button
               onClick={() => setIsExpanded((prev) => !prev)}
-              className="p-1.5 text-ink-faint transition-colors hover:text-amber"
+              className="p-1.5 text-ink-faint transition-colors hover:text-amber max-[640px]:p-3"
               aria-label={isExpanded ? "Collapse chat" : "Expand chat"}
               title={isExpanded ? "Collapse" : "Expand"}
             >
@@ -806,7 +806,7 @@ export default function CopilotBubble({
             </button>
             <button
               onClick={() => setIsOpen(false)}
-              className="p-1.5 text-ink-faint transition-colors hover:text-amber"
+              className="p-1.5 text-ink-faint transition-colors hover:text-amber max-[640px]:p-3"
               aria-label="Close chat"
               title="Close"
             >

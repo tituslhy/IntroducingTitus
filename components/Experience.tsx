@@ -146,7 +146,7 @@ export default function Experience() {
 
         <Link
           href="/education"
-          className="mt-[clamp(32px,4vw,48px)] inline-flex items-baseline gap-2 font-mono text-[12.5px] text-ink-soft transition-colors hover:text-ink"
+          className="tap mt-[clamp(32px,4vw,48px)] inline-flex items-baseline gap-2 font-mono text-[12.5px] text-ink-soft transition-colors hover:text-ink"
         >
           Next: Education <span className="text-amber">→</span>
         </Link>

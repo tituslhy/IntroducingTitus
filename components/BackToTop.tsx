@@ -4,7 +4,7 @@ export default function BackToTop() {
   return (
     <a
       href="#top"
-      className="shrink-0 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft transition-colors duration-150 hover:text-amber focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
+      className="tap shrink-0 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft transition-colors duration-150 hover:text-amber focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2"
     >
       Back to top <span aria-hidden="true">↑</span>
     </a>

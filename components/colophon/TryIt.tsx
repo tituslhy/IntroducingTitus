@@ -1016,7 +1016,7 @@ export default function TryIt({
             aria-expanded={traceOpen}
             aria-controls="colophon-trace"
             onClick={() => setTraceOpen((o) => !o)}
-            className="border-b border-[oklch(0.8_0.12_65/0.4)] text-[11.5px] text-amber-hi hover:border-amber-hi"
+            className="tap border-b border-[oklch(0.8_0.12_65/0.4)] text-[11.5px] text-amber-hi hover:border-amber-hi"
           >
             {traceOpen ? 'hide the trace ▴' : 'view as a trace ▾'}
           </button>

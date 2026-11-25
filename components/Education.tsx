@@ -119,7 +119,7 @@ function Entry({ entry }: { entry: EducationEntry }) {
               href={entry.feature.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-[18px] font-mono text-[13px] text-ink underline decoration-amber underline-offset-4 hover:text-amber"
+              className="tap mt-[18px] font-mono text-[13px] text-ink underline decoration-amber underline-offset-4 hover:text-amber"
             >
               {entry.feature.label} <span aria-hidden="true">↗</span>
             </a>
