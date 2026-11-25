@@ -1,4 +1,4 @@
-import { COPILOT_OPEN_EVENT, openCopilot, type CopilotOpenDetail } from "./copilot-events";
+import { COPILOT_OPEN_EVENT, COPILOT_TOUR_EVENT, openCopilot, startTour, type CopilotOpenDetail } from "./copilot-events";
 
 describe("openCopilot", () => {
   let listener: jest.Mock;
@@ -52,5 +52,55 @@ describe("openCopilot", () => {
     } finally {
       window.removeEventListener(COPILOT_OPEN_EVENT, onEvent);
     }
+  });
+});
+
+describe("startTour", () => {
+  it("dispatches copilot:tour on window exactly once", () => {
+    const listener = jest.fn();
+    window.addEventListener(COPILOT_TOUR_EVENT, listener);
+    try {
+      startTour();
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect((listener.mock.calls[0][0] as Event).type).toBe("copilot:tour");
+    } finally {
+      window.removeEventListener(COPILOT_TOUR_EVENT, listener);
+    }
+  });
+
+  it("names the event copilot:tour, apart from copilot:open", () => {
+    expect(COPILOT_TOUR_EVENT).toBe("copilot:tour");
+    expect(COPILOT_TOUR_EVENT).not.toBe(COPILOT_OPEN_EVENT);
+  });
+
+  it("does not fire the open event, which would send a question", () => {
+    const open = jest.fn();
+    window.addEventListener(COPILOT_OPEN_EVENT, open);
+    try {
+      startTour();
+      expect(open).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener(COPILOT_OPEN_EVENT, open);
+    }
+  });
+
+  it("fires again on every call, so the tour can be restarted", () => {
+    const listener = jest.fn();
+    window.addEventListener(COPILOT_TOUR_EVENT, listener);
+    try {
+      startTour();
+      startTour();
+      expect(listener).toHaveBeenCalledTimes(2);
+    } finally {
+      window.removeEventListener(COPILOT_TOUR_EVENT, listener);
+    }
+  });
+
+  it("stops reaching a listener that was removed", () => {
+    const listener = jest.fn();
+    window.addEventListener(COPILOT_TOUR_EVENT, listener);
+    window.removeEventListener(COPILOT_TOUR_EVENT, listener);
+    startTour();
+    expect(listener).not.toHaveBeenCalled();
   });
 });

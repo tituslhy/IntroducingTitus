@@ -39,6 +39,8 @@ html {
 }
 
 body {
+  /* Ask Titus's highlighter wash reaches 10px past what it marks; never let that scroll the page sideways. */
+  overflow-x: clip;
   /* Colour + typeface are applied via Tailwind classes in app/layout.tsx
      (bg-paper text-ink font-serif). IBM Plex Mono is the base fallback for
      any element that doesn't opt into the serif. */
@@ -529,4 +531,17 @@ body {
 @media (pointer: coarse), (max-width: 640px) {
   .tap { position: relative; }
   .tap::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%); }
+}
+
+/* The recorded tour ringing something in the drawer (the Ask Titus button, the job-description mode). */
+.tour-ring {
+  outline: 3px solid var(--amber);
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tour-ring { animation: tour-ring 1.4s ease-in-out 2; }
+  @keyframes tour-ring {
+    0%, 100% { outline-offset: 4px; }
+    50% { outline-offset: 8px; }
+  }
 }

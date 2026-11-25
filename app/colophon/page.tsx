@@ -230,7 +230,7 @@ export default function ColophonPage() {
       <div className="mx-auto max-w-[1280px] px-[clamp(18px,4vw,56px)]">
         <article className="pb-[clamp(32px,5vw,64px)]">
           {/* Masthead: the title on the left, the short version beside it as plain text */}
-          <header className="grid gap-x-14 gap-y-7 pt-[clamp(28px,4vw,56px)] min-[1024px]:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] min-[1024px]:items-end">
+          <header id="colophon-page" className="grid gap-x-14 gap-y-7 pt-[clamp(28px,4vw,56px)] min-[1024px]:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] min-[1024px]:items-end">
             <div>
               <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber">Colophon</p>
               <h1 className="mt-3 font-serif text-[clamp(44px,4.6vw,64px)] font-medium leading-[1.02] tracking-[-0.025em] [text-wrap:balance]">

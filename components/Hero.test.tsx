@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { COPILOT_TOUR_EVENT } from '@/lib/copilot-events'
 import { STARTER_PROMPTS } from '@/lib/starter-prompts'
 import { CURRENT_ROLE, SOCIAL, EMAIL } from '@/lib/profile'
 import { KEEP_OUT_ATTR } from '@/lib/hero-keepout'
@@ -46,10 +47,30 @@ describe('Hero', () => {
     expect(screen.getByText(new RegExp(`${CURRENT_ROLE.role} · ${CURRENT_ROLE.company} · ${CURRENT_ROLE.location}`))).toBeInTheDocument()
   })
 
-  it('links "View experience" to /experience and "Read the writing" to /writing', () => {
+  it('has a "Show me around" button first, then "View experience" as a link to /experience', () => {
     render(<Hero />)
-    expect(screen.getByRole('link', { name: /view experience/i })).toHaveAttribute('href', '/experience')
-    expect(screen.getByRole('link', { name: /read the writing/i })).toHaveAttribute('href', '/writing')
+    const tour = screen.getByRole('button', { name: /show me around/i })
+    const experience = screen.getByRole('link', { name: /view experience/i })
+    expect(experience).toHaveAttribute('href', '/experience')
+    expect(tour.compareDocumentPosition(experience) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('no longer has a "Read the writing" link', () => {
+    render(<Hero />)
+    expect(screen.queryByRole('link', { name: /read the writing/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/read the writing/i)).not.toBeInTheDocument()
+  })
+
+  it('starts the tour when "Show me around" is clicked', () => {
+    const heard = jest.fn()
+    window.addEventListener(COPILOT_TOUR_EVENT, heard)
+    try {
+      render(<Hero />)
+      fireEvent.click(screen.getByRole('button', { name: /show me around/i }))
+      expect(heard).toHaveBeenCalledTimes(1)
+    } finally {
+      window.removeEventListener(COPILOT_TOUR_EVENT, heard)
+    }
   })
 
   it('does not link the CTAs to old in-page anchors', () => {
@@ -58,12 +79,13 @@ describe('Hero', () => {
     expect(hrefs.some((h) => h?.startsWith('#'))).toBe(false)
   })
 
-  it('renders the CTA buttons with border and padding classes', () => {
+  it('renders "Show me around" as the dark primary button and "View experience" as the outlined one', () => {
     render(<Hero />)
+    const tour = screen.getByRole('button', { name: /show me around/i })
     const experience = screen.getByRole('link', { name: /view experience/i })
-    const writing = screen.getByRole('link', { name: /read the writing/i })
-    expect(experience).toHaveClass('bg-ink')
-    expect(writing).toHaveClass('border', 'border-ink')
+    expect(tour).toHaveClass('bg-ink', 'text-paper')
+    expect(experience).toHaveClass('border', 'border-ink')
+    expect(experience).not.toHaveClass('bg-ink')
   })
 
   it('renders GitHub, LinkedIn and Medium as external links that open in a new tab', () => {
@@ -121,20 +143,23 @@ describe('Hero', () => {
   })
 })
 
-describe('Hero: Ask Titus on phones', () => {
-  it('renders the first two starter prompts from HeroAsk, as buttons under the hero text', () => {
+describe('Hero: the Ask card is gone', () => {
+  it('no longer renders the "How it works" Ask Titus card', () => {
     render(<Hero />)
-    expect(screen.getByRole('button', { name: STARTER_PROMPTS[0] })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: STARTER_PROMPTS[1] })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: STARTER_PROMPTS[2] })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'How it works' })).not.toBeInTheDocument()
   })
 
-  it('puts the Ask card after the resume link, inside the hero text block', () => {
+  it('no longer renders starter prompts as buttons under the hero text', () => {
+    render(<Hero />)
+    for (const prompt of STARTER_PROMPTS) {
+      expect(screen.queryByRole('button', { name: prompt })).not.toBeInTheDocument()
+    }
+  })
+
+  it('keeps the tour button inside the masthead, marked keep-out for the animation', () => {
     const { container } = render(<Hero />)
-    const resume = screen.getByText('on request').closest('a') as HTMLElement
-    const ask = screen.getByRole('link', { name: 'How it works' }).closest('.min-\\[900px\\]\\:hidden') as HTMLElement
-    expect(ask).toBeInTheDocument()
-    expect(resume.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(container.querySelector('section#masthead')).toContainElement(ask)
+    const tour = screen.getByRole('button', { name: /show me around/i })
+    expect(container.querySelector('section#masthead')).toContainElement(tour)
+    expect(tour.closest(`[${KEEP_OUT_ATTR}]`)).not.toBeNull()
   })
 })

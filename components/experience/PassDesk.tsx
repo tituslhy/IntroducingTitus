@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import StaffPasses, { type Pass } from '@/components/experience/StaffPasses'
-import { REVEAL_EVENT } from '@/lib/reveal'
+import { REVEAL_EVENT, SHOW_EVENT, takePendingShow, type ShowDetail } from '@/lib/reveal'
 
 /**
  * The staff passes and the roles under them. One role shows at a time, the picked pass's, right under
@@ -23,6 +23,7 @@ export default function PassDesk({
   const [picked, setPicked] = useState<string | null>(passes.at(-1)?.slug ?? null)
   const [all, setAll] = useState(false)
   const list = useRef<HTMLDivElement>(null)
+  const toggleRef = useRef<HTMLButtonElement>(null)
 
   // Something scrolling to a hidden role (lib/reveal) asks for it: show that role instead.
   useEffect(() => {
@@ -36,6 +37,25 @@ export default function PassDesk({
     return () => el.removeEventListener(REVEAL_EVENT, onReveal)
   }, [])
 
+  // Ask Titus pointing at "all-roles" (the toggle) lists every role. The request can come as an event, or be
+  // waiting from just before this page finished mounting.
+  useEffect(() => {
+    const el = toggleRef.current
+    if (!el) return
+    const wantsAll = (ids: string[]) => ids.includes('all-roles')
+    const show = (ids: string[]) => {
+      if (wantsAll(ids)) setAll(true)
+    }
+    const onShow = (e: Event) => {
+      takePendingShow(wantsAll) // handled here, so it isn't replayed when the desk mounts again
+      show((e as CustomEvent<ShowDetail>).detail?.ids ?? [])
+    }
+    el.addEventListener(SHOW_EVENT, onShow)
+    const waiting = takePendingShow(wantsAll)
+    if (waiting) show(waiting)
+    return () => el.removeEventListener(SHOW_EVENT, onShow)
+  }, [])
+
   const pick = (slug: string) => {
     setPicked(slug)
     if (!all) return
@@ -45,6 +65,8 @@ export default function PassDesk({
 
   const toggle = (
     <button
+      ref={toggleRef}
+      id="all-roles"
       type="button"
       aria-pressed={all}
       onClick={() => setAll((on) => !on)}

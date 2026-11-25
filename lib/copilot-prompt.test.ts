@@ -762,3 +762,15 @@ describe('show_on_page targets (the list the model picks from)', () => {
     }
   })
 })
+
+describe('About Me, the Assistant (rendered prompt): the whole site is a tool', () => {
+  it('tells the assistant the whole site is a tool it can use', () => {
+    expect(buildSystemPrompt(template)).toContain('the whole site is a tool you can use')
+  })
+
+  it('lists all-roles and the colophon among the targets the model can pick', () => {
+    const block = promptTokens().PAGE_TARGETS
+    expect(block).toContain('`all-roles` (/experience)')
+    expect(block).toContain('`colophon-page` (/colophon)')
+  })
+})

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { REVEAL_EVENT } from "@/lib/reveal";
+import { REVEAL_EVENT, SHOW_EVENT, requestShow, takePendingShow } from "@/lib/reveal";
 import PassDesk from "./PassDesk";
 import type { Pass } from "./StaffPasses";
 
@@ -191,6 +191,91 @@ describe("PassDesk", () => {
       unmount();
       // The detached box still exists; dispatching on it must not throw or touch React state.
       expect(() => hidden.dispatchEvent(new CustomEvent(REVEAL_EVENT, { bubbles: true, detail: "beta" }))).not.toThrow();
+    });
+  });
+
+  describe("a show request from Ask Titus", () => {
+    const allShown = () => passes.every((p) => !box(p.slug).hasAttribute("hidden"));
+    const show = (el: Element, ids: string[]) => act(() => { el.dispatchEvent(new CustomEvent(SHOW_EVENT, { bubbles: true, detail: { ids } })); });
+
+    beforeEach(() => {
+      // Clear any request left by an earlier test.
+      takePendingShow(() => true);
+    });
+
+    it("gives the toggle the id Ask Titus points at", () => {
+      render(<PassDesk passes={passes} name={NAME} roles={roles} />);
+      expect(toggle()).toHaveAttribute("id", "all-roles");
+    });
+
+    it("shows every role when a SHOW_EVENT naming all-roles reaches the toggle", () => {
+      render(<PassDesk passes={passes} name={NAME} roles={roles} />);
+      expect(box("alpha")).toHaveAttribute("hidden");
+      show(toggle(), ["all-roles"]);
+      expect(allShown()).toBe(true);
+      expect(toggle()).toHaveAttribute("aria-pressed", "true");
+      expect(toggle()).toHaveTextContent("Show one at a time");
+    });
+
+    it("shows every role when all-roles is one of several ids", () => {
+      render(<PassDesk passes={passes} name={NAME} roles={roles} />);
+      show(toggle(), ["all-roles", "dossier"]);
+      expect(allShown()).toBe(true);
+    });
+
+    it("shows every role when requestShow is called on the toggle", () => {
+      render(<PassDesk passes={passes} name={NAME} roles={roles} />);
+      act(() => requestShow(toggle(), ["all-roles"]));
+      expect(allShown()).toBe(true);
+    });
+
+    it("keeps every role shown if the request comes twice", () => {
+      render(<PassDesk passes={passes} name={NAME} roles={roles} />);
+      show(toggle(), ["all-roles"]);
+      show(toggle(), ["all-roles"]);
+      expect(allShown()).toBe(true);
+      expect(toggle()).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("does not turn on show-all for a request that names a role", () => {
+      render(<PassDesk passes={passes} name={NAME} roles={roles} />);
+      show(toggle(), ["role-uob"]);
+      expect(toggle()).toHaveAttribute("aria-pressed", "false");
+      expect(box("alpha")).toHaveAttribute("hidden");
+      expect(box("beta")).toHaveAttribute("hidden");
+    });
+
+    it("does not turn on show-all for a request with no ids", () => {
+      render(<PassDesk passes={passes} name={NAME} roles={roles} />);
+      show(toggle(), []);
+      expect(toggle()).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("shows every role on mount when the request was made before the desk rendered", () => {
+      requestShow(document.createElement("button"), ["all-roles"]);
+      render(<PassDesk passes={passes} name={NAME} roles={roles} />);
+      expect(allShown()).toBe(true);
+      expect(toggle()).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("takes the pending request once, so it is not replayed", () => {
+      requestShow(document.createElement("button"), ["all-roles"]);
+      render(<PassDesk passes={passes} name={NAME} roles={roles} />);
+      expect(takePendingShow(() => true)).toBeNull();
+    });
+
+    it("leaves a pending request for another owner alone when it does not name all-roles", () => {
+      requestShow(document.createElement("button"), ["role-uob"]);
+      render(<PassDesk passes={passes} name={NAME} roles={roles} />);
+      expect(toggle()).toHaveAttribute("aria-pressed", "false");
+      expect(takePendingShow(() => true)).toEqual(["role-uob"]);
+    });
+
+    it("stops listening once unmounted", () => {
+      const { unmount } = render(<PassDesk passes={passes} name={NAME} roles={roles} />);
+      const button = toggle();
+      unmount();
+      expect(() => show(button, ["all-roles"])).not.toThrow();
     });
   });
 

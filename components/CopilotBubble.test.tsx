@@ -3,7 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { TextEncoder, TextDecoder } from "util";
 import CopilotBubble from "./CopilotBubble";
 import { ARTICLE_COUNT_NUMBER } from "@/lib/content";
-import { openCopilot } from "@/lib/copilot-events";
+import { openCopilot, startTour } from "@/lib/copilot-events";
+import { PAGE_TARGETS } from "@/lib/profile";
+import { SITE_TOUR, TOUR_TARGET_IDS, stepDurationMs } from "@/lib/site-tour";
 import { STARTER_PROMPTS } from "@/lib/starter-prompts";
 import { SHOW_EVENT } from "@/lib/reveal";
 
@@ -1987,5 +1989,801 @@ describe("CopilotBubble: a dropped connection", () => {
 
     await waitFor(() => expect(screen.getByText(/quota exceeded for this session/i)).toBeInTheDocument());
     expect(screen.queryByText(DROPPED)).not.toBeInTheDocument();
+  });
+});
+
+describe("CopilotBubble: the Show me around tour", () => {
+  const WIDE = "(min-width: 1024px)";
+  const REDUCED = "(prefers-reduced-motion: reduce)";
+  const steps = SITE_TOUR.steps;
+  const total = steps.length;
+  const dur = (i: number) => stepDurationMs(steps[i]);
+  /** Time from the start of the tour to the start of step `i` (0-based). */
+  const startOf = (i: number) => steps.slice(0, i).reduce((sum, st) => sum + stepDurationMs(st), 0);
+  const ALL_DONE = startOf(total);
+
+  const TARGETS = PAGE_TARGETS.map((t) => ({ id: t.id, label: t.label, path: t.path, page: "Page", tool: "tool" in t ? t.tool : undefined }));
+  // Page anchors the tour names, as they would be on screen. Tests remove some to model a page that never renders them.
+  const pageTargetIds = Array.from(new Set(steps.flatMap((st) => st.targets))).filter((id) => TOUR_TARGET_IDS.includes(id) && !["ask-button", "fit-mode"].includes(id));
+
+  let originalMatchMedia: typeof window.matchMedia;
+  let mediaListeners: Map<string, Set<() => void>>;
+  let mediaState: Record<string, boolean>;
+  let scrollToSpy: jest.Mock;
+  const originalScrollTo = window.scrollTo;
+
+  /** matchMedia that answers from `mediaState`, and lets a test flip a query and tell its listeners. */
+  function installMatchMedia() {
+    mediaListeners = new Map();
+    window.matchMedia = jest.fn((query: string) => ({
+      get matches() {
+        return !!mediaState[query];
+      },
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn((_type: string, fn: () => void) => {
+        if (!mediaListeners.has(query)) mediaListeners.set(query, new Set());
+        mediaListeners.get(query)!.add(fn);
+      }),
+      removeEventListener: jest.fn((_type: string, fn: () => void) => mediaListeners.get(query)?.delete(fn)),
+      dispatchEvent: jest.fn(() => true),
+    })) as unknown as typeof window.matchMedia;
+  }
+  function setMedia(query: string, matches: boolean) {
+    mediaState[query] = matches;
+    act(() => {
+      mediaListeners.get(query)?.forEach((fn) => fn());
+    });
+  }
+
+  const advance = (ms: number) => act(() => void jest.advanceTimersByTime(ms));
+  const play = (steps_ = 0) => {
+    act(() => startTour());
+    if (steps_) advance(startOf(steps_) + 1);
+  };
+  const fab = () => document.getElementById("ask-button") as HTMLElement;
+  const isOpen = () => fab().getAttribute("aria-expanded") === "true";
+  const caption = () => screen.queryByRole("region", { name: "Site tour" });
+  const say = (i: number) => screen.queryByLabelText(steps[i].say);
+  const recorded = () => screen.queryByText("Recorded tour");
+
+  function renderBubble() {
+    return render(<CopilotBubble targets={TARGETS} />);
+  }
+
+  /** The drawer's own "next" button, whose accessible name leaves out its decorative arrow. */
+  const nextButton = (n: number) => screen.getByRole("button", { name: `Next · ${n} of ${total}` });
+
+  /** Types a question into the open drawer and sends it; the (mocked) reply streams in after. */
+  async function ask(question: string) {
+    fireEvent.change(screen.getByPlaceholderText(/ask about my work/i), { target: { value: question } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+    });
+  }
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    mockPush.mockReset();
+    mockPathname = "/";
+    originalMatchMedia = window.matchMedia;
+    mediaState = { [WIDE]: true };
+    installMatchMedia();
+    scrollToSpy = jest.fn();
+    window.scrollTo = scrollToSpy as unknown as typeof window.scrollTo;
+    if (!global.TextDecoder) global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+    global.fetch = jest.fn();
+    global.crypto = { randomUUID: jest.fn(() => "tour-id-" + Math.random().toString(36).slice(2)) } as unknown as Crypto;
+    window.history.replaceState({}, "", "/");
+    for (const id of pageTargetIds) {
+      const el = document.createElement("div");
+      el.id = id;
+      el.setAttribute("data-test-tour-target", "");
+      document.body.append(el);
+    }
+  });
+
+  afterEach(() => {
+    act(() => void jest.runOnlyPendingTimers());
+    jest.useRealTimers();
+    window.matchMedia = originalMatchMedia;
+    window.scrollTo = originalScrollTo;
+    document.querySelectorAll("[data-test-tour-target]").forEach((el) => el.remove());
+    window.history.replaceState({}, "", "/");
+  });
+
+  describe("starting", () => {
+    it("gives the Ask Titus button the id the tour rings", () => {
+      renderBubble();
+      expect(fab()).toBeInTheDocument();
+      expect(fab()).toHaveAttribute("aria-label", "Open Ask Titus");
+    });
+
+    it("gives the hiring prompt the id fit-mode", () => {
+      renderBubble();
+      act(() => openCopilot());
+      const fit = document.getElementById("fit-mode");
+      expect(fit).toBeInTheDocument();
+      expect(fit?.tagName).toBe("BUTTON");
+      expect(fit).toHaveTextContent(/hiring/i);
+    });
+
+    it("does not start by itself", () => {
+      renderBubble();
+      advance(ALL_DONE);
+      expect(isOpen()).toBe(false);
+      expect(recorded()).not.toBeInTheDocument();
+    });
+
+    it("opens and plays on copilot:tour: the drawer is open and \"Recorded tour\" is visible", () => {
+      renderBubble();
+      play();
+      expect(isOpen()).toBe(true);
+      expect(screen.getByRole("dialog", { name: /ask titus/i })).toBeInTheDocument();
+      expect(recorded()).toBeInTheDocument();
+      expect(say(0)).toBeInTheDocument();
+    });
+
+    it("hides the starter prompts' intro behind the tour thread, which comes first", () => {
+      renderBubble();
+      play();
+      const thread = document.getElementById("copilot-tour")!;
+      const intro = screen.getByText(INTRO);
+      expect(thread.compareDocumentPosition(intro) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("tells screen readers each step: the line and 'tour, step n of total'", () => {
+      renderBubble();
+      play();
+      expect(document.querySelector("[aria-live=polite]")).toHaveTextContent(`${steps[0].say} (tour, step 1 of ${total})`);
+      advance(dur(0) + 1);
+      expect(document.querySelector("[aria-live=polite]")).toHaveTextContent(`${steps[1].say} (tour, step 2 of ${total})`);
+    });
+
+    it("leaves recruiter mode for chat when the tour starts", () => {
+      renderBubble();
+      act(() => openCopilot("fit"));
+      expect(screen.getByRole("textbox", { name: "Job description" })).toBeInTheDocument();
+      play();
+      expect(screen.queryByRole("textbox", { name: "Job description" })).not.toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/ask about my work/i)).toBeInTheDocument();
+    });
+
+    it("stops listening for the tour event on unmount", () => {
+      const { unmount } = renderBubble();
+      unmount();
+      expect(() => act(() => startTour())).not.toThrow();
+    });
+  });
+
+  describe("the first two steps", () => {
+    it("play in the open drawer on a narrow screen too", () => {
+      mediaState[WIDE] = false;
+      renderBubble();
+      play();
+      expect(isOpen()).toBe(true);
+      expect(caption()).not.toBeInTheDocument();
+      advance(dur(0) + 1);
+      expect(isOpen()).toBe(true);
+      expect(caption()).not.toBeInTheDocument();
+      expect(recorded()).toBeInTheDocument();
+    });
+
+    it("ring the Ask Titus button and the hiring prompt on step 2", () => {
+      renderBubble();
+      play();
+      advance(dur(0) + 1);
+      expect(fab()).toHaveClass("tour-ring");
+      // The second ring comes 2 s later (the step's targets are spaced across it, at most 2 s apart).
+      advance(2000);
+      expect(document.getElementById("fit-mode")).toHaveClass("tour-ring");
+    });
+
+    it("take the rings off again after a moment", () => {
+      renderBubble();
+      play();
+      advance(dur(0) + 2002);
+      advance(3000);
+      expect(fab()).not.toHaveClass("tour-ring");
+      expect(document.getElementById("fit-mode")).not.toHaveClass("tour-ring");
+    });
+  });
+
+  describe("from step 3", () => {
+    it("shows the caption on narrow screens, and the drawer closes", () => {
+      mediaState[WIDE] = false;
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      expect(caption()).toBeInTheDocument();
+      expect(isOpen()).toBe(false);
+      expect(screen.getByText(`Titus · Recorded tour · 3 of ${total}`)).toBeInTheDocument();
+      expect(screen.getAllByLabelText(steps[2].say).length).toBeGreaterThan(0);
+    });
+
+    it("keeps the narration in the drawer on wide screens, with no caption", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      expect(caption()).not.toBeInTheDocument();
+      expect(isOpen()).toBe(true);
+      expect(say(2)).toBeInTheDocument();
+    });
+
+    it("lists the steps so far in the drawer, earlier ones as plain text", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      expect(screen.getByText(steps[0].say)).toBeInTheDocument();
+      expect(screen.getByText(steps[1].say)).toBeInTheDocument();
+      expect(say(2)).toBeInTheDocument();
+      expect(say(3)).not.toBeInTheDocument();
+    });
+
+    it("uses the expanded drawer's wider breakpoint (1440px) when the drawer is expanded", () => {
+      mediaState[WIDE] = true; // 1024+ but not 1440+
+      renderBubble();
+      act(() => openCopilot());
+      fireEvent.click(screen.getByRole("button", { name: /expand/i }));
+      play();
+      advance(startOf(2) + 1);
+      expect(caption()).toBeInTheDocument();
+      setMedia("(min-width: 1440px)", true);
+      expect(caption()).not.toBeInTheDocument();
+    });
+
+    it("moves the page to the step's target", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 600);
+      expect(scrollToSpy).toHaveBeenCalled();
+      expect(document.getElementById(steps[2].targets[0])).toHaveClass("copilot-spotlight");
+    });
+
+    it("moves a page that is not open yet with the router, and does not go back", async () => {
+      document.getElementById(steps[2].targets[0])?.remove();
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      expect(mockPush).toHaveBeenCalledWith("/experience", { scroll: false });
+      expect(mockPush).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("switching layout on resize", () => {
+    it("switches layout on resize without changing step", () => {
+      renderBubble();
+      play();
+      advance(startOf(3) + 1);
+      expect(caption()).not.toBeInTheDocument();
+      expect(say(3)).toBeInTheDocument();
+
+      // The window narrows (a rotate, a resize): the narration moves out to the caption, on the same step.
+      setMedia(WIDE, false);
+      expect(caption()).toBeInTheDocument();
+      expect(isOpen()).toBe(false);
+      expect(screen.getByText(`Titus · Recorded tour · 4 of ${total}`)).toBeInTheDocument();
+      expect(screen.getAllByLabelText(steps[3].say).length).toBeGreaterThan(0);
+
+      // And widens again: back into the drawer, still step 4.
+      setMedia(WIDE, true);
+      expect(caption()).not.toBeInTheDocument();
+      expect(isOpen()).toBe(true);
+      expect(say(3)).toBeInTheDocument();
+      expect(nextButton(4)).toBeInTheDocument();
+    });
+
+    it("keeps its clock across the switch, so the step still ends on time", () => {
+      renderBubble();
+      play();
+      advance(startOf(3) + 1);
+      setMedia(WIDE, false);
+      advance(dur(3) - 2);
+      expect(screen.getByText(new RegExp(`Recorded tour · 4 of ${total}`))).toBeInTheDocument();
+      advance(2);
+      expect(screen.getByText(new RegExp(`Recorded tour · 5 of ${total}`))).toBeInTheDocument();
+    });
+
+    it("does nothing to the drawer in the first two steps", () => {
+      renderBubble();
+      play();
+      setMedia(WIDE, false);
+      expect(isOpen()).toBe(true);
+      expect(caption()).not.toBeInTheDocument();
+    });
+  });
+
+  describe("the drawer's controls (wide screens)", () => {
+    it("reads Pause, then Resume, and pausing stops the clock", () => {
+      renderBubble();
+      play();
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
+      advance(ALL_DONE);
+      expect(say(0)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+      expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+      advance(dur(0) + 1);
+      expect(say(1)).toBeInTheDocument();
+    });
+
+    it("reads \"Next · n of total →\" and goes to the next step at once", () => {
+      renderBubble();
+      play();
+      const next = nextButton(1);
+      fireEvent.click(next);
+      expect(say(1)).toBeInTheDocument();
+      expect(nextButton(2)).toBeInTheDocument();
+    });
+
+    it("reads \"Finish →\" on the last step, and finishing ends the tour", () => {
+      renderBubble();
+      play();
+      advance(startOf(total - 1) + 1);
+      expect(screen.queryByRole("button", { name: /^Next/ })).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Finish" }));
+      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+      expect(say(total - 1)).toBeInTheDocument();
+    });
+
+    it("ends the tour with \"End tour\": the closing line, the drawer open", () => {
+      renderBubble();
+      play();
+      advance(startOf(4) + 1);
+      fireEvent.click(screen.getByRole("button", { name: "End tour" }));
+      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+      expect(say(total - 1)).toBeInTheDocument();
+      expect(say(4)).not.toBeInTheDocument();
+      expect(isOpen()).toBe(true);
+    });
+
+    it("keeps going when the visitor clicks inside the drawer", () => {
+      renderBubble();
+      play();
+      fireEvent.pointerDown(screen.getByRole("dialog", { name: /ask titus/i }));
+      fireEvent.keyDown(screen.getByPlaceholderText(/ask about my work/i), { key: "a" });
+      expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+    });
+
+    it("pauses when the visitor takes over the page", () => {
+      renderBubble();
+      play();
+      fireEvent.wheel(document.body);
+      expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
+    });
+
+    it("shows no controls once it is over", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(screen.queryByRole("button", { name: /^(Pause|Resume|End tour)$/ })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("the phone caption", () => {
+    beforeEach(() => {
+      mediaState[WIDE] = false;
+    });
+
+    it("has Pause/Resume, \"Skip →\" and ✕ (End tour)", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      const region = within(caption()!);
+      fireEvent.click(region.getByRole("button", { name: "Pause" }));
+      expect(region.getByRole("button", { name: "Resume" })).toBeInTheDocument();
+      fireEvent.click(region.getByRole("button", { name: "Resume" }));
+      expect(region.getByRole("button", { name: /^Skip/ })).toHaveTextContent("Skip →");
+      expect(region.getByRole("button", { name: "End tour" })).toHaveTextContent("✕");
+    });
+
+    it("moves to the next step on Skip", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      fireEvent.click(within(caption()!).getByRole("button", { name: /^Skip/ }));
+      expect(screen.getByText(`Titus · Recorded tour · 4 of ${total}`)).toBeInTheDocument();
+    });
+
+    it("reads \"Finish →\" on the last step", () => {
+      renderBubble();
+      play();
+      advance(startOf(total - 1) + 1);
+      expect(within(caption()!).getByRole("button", { name: /^Finish/ })).toHaveTextContent("Finish →");
+    });
+
+    it("ends the tour with ✕, and the drawer opens with the closing line", () => {
+      renderBubble();
+      play();
+      advance(startOf(3) + 1);
+      fireEvent.click(within(caption()!).getByRole("button", { name: "End tour" }));
+      expect(caption()).not.toBeInTheDocument();
+      expect(isOpen()).toBe(true);
+      expect(say(total - 1)).toBeInTheDocument();
+    });
+
+    it("does not pause when the visitor taps the caption itself", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      fireEvent.pointerDown(caption()!);
+      expect(within(caption()!).getByRole("button", { name: "Pause" })).toBeInTheDocument();
+    });
+
+    it("pauses when the visitor taps the page, and the caption offers Resume", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      fireEvent.pointerDown(document.body);
+      expect(within(caption()!).getByRole("button", { name: "Resume" })).toBeInTheDocument();
+    });
+
+    it("does not say what the closed drawer holds: the tour thread is not rendered twice", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      expect(document.getElementById("copilot-tour")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("the end", () => {
+    it("ends with the drawer open and the input focused", () => {
+      mediaState[WIDE] = false;
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(isOpen()).toBe(true);
+      expect(caption()).not.toBeInTheDocument();
+      advance(200);
+      expect(screen.getByPlaceholderText(/ask about my work/i)).toHaveFocus();
+    });
+
+    it("shows only the closing line, above the usual starters, under the Recorded tour header", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(recorded()).toBeInTheDocument();
+      expect(say(total - 1)).toBeInTheDocument();
+      expect(screen.queryByText(steps[total - 2].say)).not.toBeInTheDocument();
+      expect(say(0)).not.toBeInTheDocument();
+      const thread = document.getElementById("copilot-tour")!;
+      expect(thread.compareDocumentPosition(screen.getByText(INTRO)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      for (const prompt of STARTER_PROMPTS) expect(screen.getByRole("button", { name: new RegExp(prompt.slice(0, 20)) })).toBeInTheDocument();
+    });
+
+    it("clears the closing line when the visitor sends a message", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse([deltaLine("An answer.")]));
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      await ask("Hello?");
+      expect(recorded()).not.toBeInTheDocument();
+      expect(say(total - 1)).not.toBeInTheDocument();
+      expect(await screen.findByText("An answer.")).toBeInTheDocument();
+    });
+
+    it("restarts at step 1 when the tour is started again after it ended", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(say(total - 1)).toBeInTheDocument();
+      play();
+      expect(say(0)).toBeInTheDocument();
+      expect(nextButton(1)).toBeInTheDocument();
+      expect(say(total - 1)).not.toBeInTheDocument();
+    });
+
+    it("restarts at step 1 when started again mid-tour", () => {
+      renderBubble();
+      play();
+      advance(startOf(4) + 1);
+      play();
+      expect(nextButton(1)).toBeInTheDocument();
+    });
+  });
+
+  describe("leaving the tour", () => {
+    it("clicking the Ask Titus button mid-tour ends it, with the drawer open, rather than closing the drawer", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      fireEvent.click(fab());
+      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+      expect(isOpen()).toBe(true);
+      expect(say(total - 1)).toBeInTheDocument();
+    });
+
+    it("sending a message mid-tour stops it quietly: no closing line, no more narration", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse([deltaLine("Sure thing.")]));
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      await ask("What do you do?");
+      expect(recorded()).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+      expect(say(total - 1)).not.toBeInTheDocument();
+      advance(ALL_DONE);
+      expect(say(total - 1)).not.toBeInTheDocument();
+      expect(screen.getByText("What do you do?")).toBeInTheDocument();
+    });
+
+    it("a nav to another page mid-tour ends it quietly, with no navigation back", () => {
+      const { rerender } = renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      const pushes = mockPush.mock.calls.length;
+      mockPathname = "/writing";
+      rerender(<CopilotBubble targets={TARGETS} />);
+      expect(recorded()).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+      expect(caption()).not.toBeInTheDocument();
+      advance(ALL_DONE);
+      expect(mockPush).toHaveBeenCalledTimes(pushes);
+      expect(say(total - 1)).not.toBeInTheDocument();
+    });
+
+    it("a nav on the narrow caption ends it too, without opening the drawer's closing line", () => {
+      mediaState[WIDE] = false;
+      const { rerender } = renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      expect(caption()).toBeInTheDocument();
+      mockPathname = "/about";
+      rerender(<CopilotBubble targets={TARGETS} />);
+      expect(caption()).not.toBeInTheDocument();
+      expect(recorded()).not.toBeInTheDocument();
+    });
+
+    it("leaves the tour alone when the page it opened itself shows up in the path", () => {
+      document.getElementById(steps[2].targets[0])?.remove();
+      const { rerender } = renderBubble();
+      play();
+      advance(startOf(2) + 1); // the router is asked for /experience
+      mockPathname = "/experience";
+      rerender(<CopilotBubble targets={TARGETS} />);
+      expect(recorded()).toBeInTheDocument();
+      expect(nextButton(3)).toBeInTheDocument();
+    });
+
+    it("clears every timer when it unmounts mid-tour, so nothing fires afterwards", () => {
+      const { unmount } = renderBubble();
+      play();
+      advance(startOf(2) + 600); // step 3 has moved the page and is waiting for step 4
+      const pushes = mockPush.mock.calls.length;
+      const scrolls = scrollToSpy.mock.calls.length;
+      unmount();
+      expect(() => advance(ALL_DONE)).not.toThrow();
+      expect(mockPush).toHaveBeenCalledTimes(pushes);
+      expect(scrollToSpy).toHaveBeenCalledTimes(scrolls);
+    });
+  });
+
+  describe("closing the drawer", () => {
+    const closeX = () => within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "Close chat" });
+
+    it("the drawer's x stops the tour mid-tour: idle, no closing line, nothing more narrated", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      fireEvent.click(closeX());
+      expect(isOpen()).toBe(false);
+      expect(recorded()).not.toBeInTheDocument();
+      expect(caption()).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+      advance(ALL_DONE);
+      expect(isOpen()).toBe(false);
+      expect(say(total - 1)).not.toBeInTheDocument();
+    });
+
+    it("the drawer's x stops the tour from paused, too", () => {
+      renderBubble();
+      play();
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      fireEvent.click(closeX());
+      expect(isOpen()).toBe(false);
+      expect(recorded()).not.toBeInTheDocument();
+    });
+
+    it("the drawer's x still just closes the drawer when no tour is playing, and puts focus on the Ask Titus button", () => {
+      renderBubble();
+      act(() => openCopilot());
+      fireEvent.click(closeX());
+      expect(isOpen()).toBe(false);
+      expect(fab()).toHaveFocus();
+    });
+
+    it("does not move focus to the Ask Titus button when the tour itself closes the drawer (step 3 on a narrow screen)", () => {
+      mediaState[WIDE] = false;
+      renderBubble();
+      play();
+      advance(300); // the input has taken focus, as it does on any opening
+      expect(screen.getByPlaceholderText(/ask about my work/i)).toHaveFocus();
+      advance(startOf(2));
+      expect(isOpen()).toBe(false);
+      expect(caption()).toBeInTheDocument();
+      expect(fab()).not.toHaveFocus();
+    });
+
+    it("does not move focus to the button either when the window narrows mid-tour and the drawer steps aside", () => {
+      renderBubble();
+      play();
+      advance(startOf(3) + 300);
+      setMedia(WIDE, false);
+      expect(isOpen()).toBe(false);
+      expect(fab()).not.toHaveFocus();
+    });
+
+    it("still puts focus on the Ask Titus button when a visitor closes the drawer after the tour moved it", () => {
+      mediaState[WIDE] = false;
+      renderBubble();
+      play();
+      advance(startOf(2) + 1); // the tour closed the drawer
+      fireEvent.click(within(caption()!).getByRole("button", { name: "End tour" })); // done: the drawer opens
+      expect(isOpen()).toBe(true);
+      advance(300);
+      fireEvent.click(closeX());
+      expect(isOpen()).toBe(false);
+      expect(fab()).toHaveFocus();
+    });
+  });
+
+  describe("keeping the newest line in view", () => {
+    /** Gives the drawer's scroll box and the tour thread the geometry jsdom lacks. */
+    function layOut({ blockBottom, scrollerTop, clientHeight, scrollTop = 0 }: { blockBottom: number; scrollerTop: number; clientHeight: number; scrollTop?: number }) {
+      const block = document.getElementById("copilot-tour") as HTMLElement;
+      const scroller = block.closest<HTMLElement>(".overflow-y-auto") as HTMLElement;
+      const rect = (top: number, bottom: number) => () => ({ top, bottom, left: 0, right: 0, width: 0, height: bottom - top, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+      block.getBoundingClientRect = rect(0, blockBottom);
+      scroller.getBoundingClientRect = rect(scrollerTop, scrollerTop + clientHeight);
+      Object.defineProperty(scroller, "clientHeight", { value: clientHeight, configurable: true });
+      scroller.scrollTop = scrollTop;
+      return scroller;
+    }
+
+    it("scrolls the drawer so the bottom of the tour thread (its newest line and controls) is in view", () => {
+      renderBubble();
+      play();
+      const scroller = layOut({ blockBottom: 900, scrollerTop: 100, clientHeight: 300 });
+      advance(dur(0) + 1); // step 2 comes in
+      // bottom within the scroll box = 900 - 100 + 0; show it with 16px to spare under a 300px viewport.
+      expect(scroller.scrollTop).toBe(900 - 100 - 300 + 16);
+    });
+
+    it("takes the box's current scroll into account", () => {
+      renderBubble();
+      play();
+      const scroller = layOut({ blockBottom: 500, scrollerTop: 100, clientHeight: 300, scrollTop: 200 });
+      advance(dur(0) + 1);
+      expect(scroller.scrollTop).toBe(500 - 100 + 200 - 300 + 16);
+    });
+
+    it("never scrolls above the top when the thread is short", () => {
+      renderBubble();
+      play();
+      const scroller = layOut({ blockBottom: 150, scrollerTop: 100, clientHeight: 300, scrollTop: 40 });
+      advance(dur(0) + 1);
+      expect(scroller.scrollTop).toBe(0);
+    });
+
+    it("lays out the typed line at its full size from the start, so the thread does not grow as it types", () => {
+      renderBubble();
+      play();
+      const typing = document.querySelector("#copilot-tour .opacity-0");
+      expect(typing).toHaveTextContent(steps[0].say);
+    });
+  });
+
+  describe("a conversation that already exists", () => {
+    async function converse() {
+      (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse([deltaLine("Hello, I am Titus.")]));
+      act(() => openCopilot());
+      await ask("Who are you?");
+      expect(await screen.findByText("Hello, I am Titus.")).toBeInTheDocument();
+    }
+
+    it("skips the missing fit-mode ring, plays the step anyway, and goes on", async () => {
+      renderBubble();
+      await converse();
+      expect(document.getElementById("fit-mode")).not.toBeInTheDocument();
+      play();
+      advance(startOf(1) + 1);
+      expect(say(1)).toBeInTheDocument();
+      expect(fab()).toHaveClass("tour-ring"); // the button that is there is still rung
+      advance(dur(1) + 1);
+      expect(say(2)).toBeInTheDocument();
+    });
+
+    it("keeps the conversation after the tour", async () => {
+      renderBubble();
+      await converse();
+      play();
+      advance(ALL_DONE);
+      expect(screen.getByText("Who are you?")).toBeInTheDocument();
+      expect(screen.getAllByText("Hello, I am Titus.")).toHaveLength(1);
+      expect(say(total - 1)).toBeInTheDocument();
+    });
+
+    it("shows the tour under the conversation, not over it", async () => {
+      renderBubble();
+      await converse();
+      play();
+      const thread = document.getElementById("copilot-tour")!;
+      const answer = screen.getByText("Hello, I am Titus.");
+      expect(answer.compareDocumentPosition(thread) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("keeps the conversation when the tour is ended, and when the caption comes and goes", async () => {
+      mediaState[WIDE] = false;
+      renderBubble();
+      await converse();
+      play();
+      advance(startOf(2) + 1);
+      expect(caption()).toBeInTheDocument();
+      fireEvent.click(within(caption()!).getByRole("button", { name: "End tour" }));
+      expect(screen.getByText("Who are you?")).toBeInTheDocument();
+      expect(screen.getAllByText("Hello, I am Titus.")).toHaveLength(1);
+    });
+  });
+
+  describe("a target that never appears", () => {
+    it("skips that stop and carries on with the tour", async () => {
+      const target = steps[2].targets[0];
+      document.getElementById(target)?.remove();
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      expect(mockPush).toHaveBeenCalledTimes(1);
+      // waitForElement gives up after 3 s; the page never renders it.
+      advance(3500);
+      expect(scrollToSpy).not.toHaveBeenCalled();
+      expect(nextButton(3)).toBeInTheDocument();
+      advance(dur(2));
+      expect(say(3)).toBeInTheDocument();
+      expect(nextButton(4)).toBeInTheDocument();
+    });
+
+    it("skips a stop that is not on this page and not on the page it was asked for", () => {
+      // The element is missing, but the page is already where it should live: nothing to push to.
+      const target = steps[2].targets[0];
+      document.getElementById(target)?.remove();
+      const path = TARGETS.find((t) => t.id === target)!.path;
+      window.history.replaceState({}, "", path);
+      mockPathname = path;
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      expect(mockPush).not.toHaveBeenCalled();
+      advance(dur(2));
+      expect(say(3)).toBeInTheDocument();
+    });
+  });
+
+  describe("reduced motion", () => {
+    it("shows the narration whole, with no typing, and keeps the same timings", () => {
+      mediaState[REDUCED] = true;
+      renderBubble();
+      play();
+      const line = screen.getByText(steps[0].say);
+      expect(line).toBeInTheDocument();
+      expect(document.querySelector("#copilot-tour .opacity-0")).toBeEmptyDOMElement();
+      advance(dur(0) + 1);
+      expect(screen.getByText(steps[1].say)).toBeInTheDocument();
+    });
+
+    it("scrolls the page without smooth behaviour", () => {
+      mediaState[REDUCED] = true;
+      renderBubble();
+      play();
+      advance(startOf(2) + 600);
+      expect(scrollToSpy).toHaveBeenCalledWith(expect.objectContaining({ behavior: "instant" }));
+    });
+
+    it("types the narration in when motion is allowed", () => {
+      renderBubble();
+      play();
+      expect(document.querySelector("#copilot-tour .opacity-0")).not.toBeNull();
+    });
   });
 });

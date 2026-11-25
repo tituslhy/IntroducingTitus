@@ -1,6 +1,6 @@
 import { existsSync } from "fs";
 import path from "path";
-import { ARTICLE_COUNT_SHORT } from "./content";
+import { ARTICLE_COUNT_SHORT, COLOPHON_PATH } from "./content";
 import { TOOLS, toolTargetId } from "./about";
 import {
   ASK_FOLIO,
@@ -41,7 +41,8 @@ describe("site sign-off", () => {
 });
 
 describe("page targets", () => {
-  const sitePaths = SITE_PAGES.map((p) => p.path);
+  // The colophon is the nav's last item ("Ask Titus"), a route of its own rather than one of the numbered pages.
+  const sitePaths = [...SITE_PAGES.map((p) => p.path), COLOPHON_PATH];
   const pathFor = (id: string) => PAGE_TARGETS.find((t) => t.id === id)?.path;
 
   it("every target names a route that is one of the nav pages", () => {
@@ -69,6 +70,27 @@ describe("page targets", () => {
     for (const target of PAGE_TARGETS.filter((t) => t.id.startsWith("role-"))) {
       expect(target.path).toBe("/experience");
     }
+  });
+
+  it("offers all-roles on /experience, so Ask Titus can open every role at once", () => {
+    expect(PAGE_TARGET_IDS).toContain("all-roles");
+    expect(PAGE_TARGETS.find((t) => t.id === "all-roles")).toEqual({
+      id: "all-roles",
+      path: "/experience",
+      label: "All roles",
+      about: "every role at once, instead of one pass at a time",
+    });
+  });
+
+  it("offers the colophon as colophon-page (the footer owns id colophon) at COLOPHON_PATH, so Ask Titus can open how it works", () => {
+    expect(COLOPHON_PATH).toBe("/colophon");
+    expect(PAGE_TARGET_IDS).toContain("colophon-page");
+    expect(PAGE_TARGETS.find((t) => t.id === "colophon-page")).toEqual({
+      id: "colophon-page",
+      path: COLOPHON_PATH,
+      label: "How Ask Titus works",
+      about: "how I, the assistant, am built and tested",
+    });
   });
 
   it("sends the education section and every degree to /education, not /experience", () => {

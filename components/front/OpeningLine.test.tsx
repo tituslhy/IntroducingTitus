@@ -1,4 +1,5 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { COPILOT_TOUR_EVENT } from '@/lib/copilot-events'
 import { ARTICLE_COUNT_NUMBER, YEARS_EXPERIENCE_NUMBER, numberToWords } from '@/lib/content'
 import { FRONT_STATS } from '@/lib/front-page'
 import { OPEN_SOURCE, SOCIAL } from '@/lib/profile'
@@ -35,6 +36,32 @@ describe('OpeningLine', () => {
     expect(numberToWords(8)).toBe('eight')
     render(<OpeningLine />)
     expect(screen.getByText(/^Eight years putting AI into production\./)).toBeInTheDocument()
+  })
+
+  it('invites a tour under the tiles: "Short on time? Let me show you around"', () => {
+    render(<OpeningLine />)
+    expect(screen.getByRole('button', { name: /short on time\? let me show you around/i })).toBeInTheDocument()
+  })
+
+  it('puts the tour line after the sentence and the tiles, and before the down button', () => {
+    const { container } = render(<OpeningLine />)
+    const tour = screen.getByRole('button', { name: /short on time/i })
+    const grid = container.querySelector('.grid-cols-2')!
+    const down = screen.getByRole('link', { name: "Scroll down to what's on this site" })
+    expect(grid.compareDocumentPosition(tour) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(tour.compareDocumentPosition(down) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('starts the tour when the line is clicked', () => {
+    const heard = jest.fn()
+    window.addEventListener(COPILOT_TOUR_EVENT, heard)
+    try {
+      render(<OpeningLine />)
+      fireEvent.click(screen.getByRole('button', { name: /short on time/i }))
+      expect(heard).toHaveBeenCalledTimes(1)
+    } finally {
+      window.removeEventListener(COPILOT_TOUR_EVENT, heard)
+    }
   })
 
   it('has the down button beneath the sentence', () => {

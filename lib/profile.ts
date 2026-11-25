@@ -15,6 +15,7 @@ import { TOOLS, toolTargetId } from './about'
 import {
   AGENT_SUITE_URL,
   ARTICLE_COUNT_SHORT,
+  COLOPHON_PATH,
   FICTIONAL_BASSOON_COVERAGE,
   ILLUMINA_SAVINGS_FIGURE,
   ILLUMINA_SAVINGS_PROSE,
@@ -636,7 +637,7 @@ export type PageTarget = {
   /** DOM id on its page. */
   id: string
   /** The route the anchor lives on; show_on_page navigates there first. */
-  path: SitePath
+  path: SitePath | typeof COLOPHON_PATH
   /** Short label for the "See on page" control, e.g. "Illumina, 2023". */
   label: string
   /** What lives there, for the model. */
@@ -653,6 +654,7 @@ export const PAGE_TARGETS: PageTarget[] = [
   { id: 'lede', path: '/about', label: 'About', about: 'how I went from chemical engineering to AI, and what drives me' },
   { id: 'stack', path: '/about', label: 'Stack', about: 'every tool I have used, as a periodic table that lights up in the order I picked each one up, with what I use every day' },
   { id: 'dossier', path: '/experience', label: 'Experience', about: 'my full career timeline' },
+  { id: 'all-roles', path: '/experience', label: 'All roles', about: 'every role at once, instead of one pass at a time' },
   ...ROLES.map((r) => ({
     id: `role-${r.slug}`,
     path: '/experience' as const,
@@ -671,6 +673,7 @@ export const PAGE_TARGETS: PageTarget[] = [
   { id: 'earlier-work', path: '/projects', label: 'Earlier work', about: 'my projects from before GenAI' },
   { id: 'open-source', path: '/projects', label: 'Open source', about: 'my open-source contributions' },
   { id: 'writing', path: '/writing', label: 'Writing', about: 'my featured Medium articles' },
+  { id: 'colophon-page', path: COLOPHON_PATH, label: 'How Ask Titus works', about: 'how I, the assistant, am built and tested' },
   ...TOOLS.map((t) => ({ id: toolTargetId(t), path: '/about' as const, label: t.name, about: `${t.name} in the periodic table`, tool: true as const })),
 ]
 

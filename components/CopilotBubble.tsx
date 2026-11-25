@@ -21,7 +21,11 @@ import {
   toSource,
   type Source,
 } from "@/lib/citations";
-import { COPILOT_OPEN_EVENT, type CopilotOpenDetail } from "@/lib/copilot-events";
+import { COPILOT_OPEN_EVENT, COPILOT_TOUR_EVENT, type CopilotOpenDetail } from "@/lib/copilot-events";
+import { SITE_TOUR } from "@/lib/site-tour";
+import { useTourPlayer } from "./tour/useTourPlayer";
+import TourCaption from "./tour/TourCaption";
+import TourThread from "./tour/TourThread";
 import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH } from "@/lib/content";
 import { STARTER_PROMPTS } from "@/lib/starter-prompts";
 import { firstStop, groupStops, type Stop } from "@/lib/page-stops";
@@ -82,6 +86,10 @@ const SIDE_BY_SIDE_QUERY = "(min-width: 1024px)";
 const EXPANDED_SIDE_BY_SIDE_QUERY = "(min-width: 1440px)";
 const SPOTLIGHT_CLASS = "copilot-spotlight";
 const SPOTLIGHT_MS = 2800;
+/** The ring the tour puts on something in the drawer (app/globals.css). */
+const TOUR_RING_CLASS = "tour-ring";
+/** Tour steps that play in the open drawer on every screen: the greeting and the drawer's own features. */
+const TOUR_DRAWER_STEPS = 2;
 
 
 const AssistantAvatar = () => (
@@ -196,6 +204,8 @@ export default function CopilotBubble({
   const drawerRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLButtonElement>(null);
   const wasOpenRef = useRef(false);
+  // Set when the tour itself opened or closed the drawer, so focus isn't pulled to the button mid-tour.
+  const tourMovedDrawerRef = useRef(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const spotlightRef = useRef<{ els: HTMLElement[]; timer: ReturnType<typeof setTimeout> } | null>(null);
@@ -239,9 +249,10 @@ export default function CopilotBubble({
 
   // Restore focus to the FAB whenever the drawer transitions from open to closed
   useEffect(() => {
-    if (wasOpenRef.current && !isOpen) {
+    if (wasOpenRef.current && !isOpen && !tourMovedDrawerRef.current) {
       fabRef.current?.focus();
     }
+    tourMovedDrawerRef.current = false;
     wasOpenRef.current = isOpen;
   }, [isOpen]);
 
@@ -350,6 +361,96 @@ export default function CopilotBubble({
     [showStop, targetsById]
   );
 
+  // ---- The recorded "Show me around" tour (lib/site-tour.ts) ----
+
+  /** A tour stop: like showStop, but always moves the page (the visitor asked for the tour) and says when it's there. */
+  const showTourStop = useCallback(
+    async (stop: Stop): Promise<boolean> => {
+      if (document.getElementById(stop.ids[0])) {
+        revealStop(stop);
+        return true;
+      }
+      if (stop.path === window.location.pathname) return false;
+      router.push(stop.path, { scroll: false });
+      const found = await waitForElement(stop.ids[0]);
+      if (found) revealStop(stop);
+      return found !== null;
+    },
+    [revealStop, router]
+  );
+
+  /** Rings something in the drawer (the Ask Titus button, the job-description mode) without moving the page. */
+  const ringDrawer = useCallback((id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove(TOUR_RING_CLASS);
+    void el.offsetWidth;
+    el.classList.add(TOUR_RING_CLASS);
+    setTimeout(() => el.classList.remove(TOUR_RING_CLASS), SPOTLIGHT_MS);
+  }, []);
+
+  const tour = useTourPlayer({ tour: SITE_TOUR, showStop: showTourStop, ringDrawer, pathname, targetsById });
+  const touring = tour.status === "playing" || tour.status === "paused";
+  // Whether the drawer sits beside the page (so the page shows while it narrates), kept live across resizes.
+  const [sideBySide, setSideBySide] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(isExpanded ? EXPANDED_SIDE_BY_SIDE_QUERY : SIDE_BY_SIDE_QUERY);
+    const update = () => setSideBySide(mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, [isExpanded]);
+  // The first two steps introduce the drawer itself; after that, where it would cover the page, it steps aside.
+  const captionMode = touring && tour.index >= TOUR_DRAWER_STEPS && !sideBySide;
+  // Once the tour is over, its closing line stays at the top of the drawer until the visitor asks something.
+  const [tourOutro, setTourOutro] = useState(false);
+
+  useEffect(() => {
+    if (!touring) return;
+    setIsOpen((open) => {
+      if (open !== !captionMode) tourMovedDrawerRef.current = true;
+      return !captionMode;
+    });
+  }, [touring, captionMode]);
+
+  useEffect(() => {
+    if (tour.status !== "done") return;
+    setTourOutro(true);
+    setIsOpen(true);
+    setTimeout(() => inputRef.current?.focus(), 150);
+  }, [tour.status]);
+
+  // Keep the newest line of the tour and its controls in view inside the drawer.
+  useEffect(() => {
+    if (!touring) return;
+    const scroller = messagesScrollRef.current;
+    const block = document.getElementById("copilot-tour");
+    if (!scroller || !block) return;
+    const bottom = block.getBoundingClientRect().bottom - scroller.getBoundingClientRect().top + scroller.scrollTop;
+    scroller.scrollTop = Math.max(0, bottom - scroller.clientHeight + 16);
+  }, [touring, tour.index, isOpen]);
+
+  useEffect(() => {
+    if (touring && tour.step) setLiveMessage(`${tour.step.say} (tour, step ${tour.index + 1} of ${tour.total})`);
+  }, [touring, tour.step, tour.index, tour.total]);
+
+  const tourStopRef = useRef(tour.stop);
+  tourStopRef.current = tour.stop;
+  const startTourRef = useRef(tour.start);
+  startTourRef.current = tour.start;
+  useEffect(() => {
+    const onTour = () => {
+      setMode("chat");
+      setFitNotice(null);
+      setTourOutro(false);
+      setReturnNote(null);
+      setIsOpen(true);
+      startTourRef.current();
+    };
+    window.addEventListener(COPILOT_TOUR_EVENT, onTour);
+    return () => window.removeEventListener(COPILOT_TOUR_EVENT, onTour);
+  }, []);
+
   // While an answer is on its way, scrolling or tapping the page (not the drawer) means the visitor is reading.
   useEffect(() => {
     if (!busy) return;
@@ -389,6 +490,8 @@ export default function CopilotBubble({
   const sendMessage = useCallback(async (textOverride?: string) => {
     const content = (textOverride ?? input).trim();
     if (!content || busy) return;
+    tourStopRef.current();
+    setTourOutro(false);
 
     const userMessage: Message = { id: crypto.randomUUID(), role: "user", content };
     const updatedMessages = [...messages, userMessage];
@@ -738,12 +841,41 @@ export default function CopilotBubble({
   // scrolling, but never taller than the space above the FAB.
   const panelHeight = isExpanded ? "min(80vh, 740px)" : "min(700px, calc(100dvh - 9rem))";
 
+  const tourSteps = touring ? SITE_TOUR.steps.slice(0, tour.index + 1) : tourOutro ? SITE_TOUR.steps.slice(-1) : [];
+  const tourControl =
+    "tap rounded-full px-3 py-1.5 font-mono text-[11px] transition-colors hover:bg-paper-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber";
+  const tourBlock =
+    tourSteps.length > 0 && !captionMode ? (
+      <TourThread
+        steps={tourSteps}
+        label={<AssistantLabel />}
+        instant={prefersReducedMotion}
+        controls={
+          touring ? (
+            <div className="flex flex-wrap items-center gap-1 pt-1">
+              <button type="button" onClick={tour.status === "paused" ? tour.resume : tour.pause} className={`${tourControl} bg-paper-deep`}>
+                {tour.status === "paused" ? "Resume" : "Pause"}
+              </button>
+              <button type="button" onClick={tour.skip} className={tourControl}>
+                {tour.index + 1 >= tour.total ? "Finish" : `Next · ${tour.index + 1} of ${tour.total}`}{" "}
+                <span aria-hidden="true" className="text-amber">→</span>
+              </button>
+              <button type="button" onClick={tour.end} className={`${tourControl} ml-auto text-ink-soft`}>
+                End tour
+              </button>
+            </div>
+          ) : undefined
+        }
+      />
+    ) : null;
+
   // 44px up (plus the safe area), so the button clears the page footer and the browser's bottom bar.
   return (
     <div className="fixed bottom-[calc(44px+env(safe-area-inset-bottom))] right-4 z-50 flex flex-col items-end gap-3 sm:right-6">
       {/* Drawer */}
       <div
         ref={drawerRef}
+        data-tour-ui
         role="dialog"
         aria-modal="true"
         aria-labelledby="copilot-heading"
@@ -806,7 +938,11 @@ export default function CopilotBubble({
               {isExpanded ? <CollapseIcon /> : <ExpandIcon />}
             </button>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                // Closing the drawer mid-tour stops the tour too (nothing left to narrate in).
+                tour.stop();
+                setIsOpen(false);
+              }}
               className="p-1.5 text-ink-faint transition-colors hover:text-amber max-[640px]:p-3"
               aria-label="Close chat"
               title="Close"
@@ -822,6 +958,7 @@ export default function CopilotBubble({
 
         {/* Messages */}
         <div ref={messagesScrollRef} className="flex-1 space-y-5 overflow-y-auto px-5 py-5" style={{ minHeight: 0 }}>
+          {messages.length === 0 && tourBlock}
           {messages.length === 0 && !busy && (
             <div>
               <p className="mb-4 font-serif text-[15px] leading-snug text-ink-soft">
@@ -850,6 +987,7 @@ export default function CopilotBubble({
                 <li>
                   <button
                     type="button"
+                    id="fit-mode"
                     onClick={enterFitMode}
                     disabled={busy}
                     className="group flex w-full items-baseline gap-3 border-t border-rule py-3 text-left transition-colors hover:bg-paper-deep disabled:opacity-50"
@@ -996,6 +1134,7 @@ export default function CopilotBubble({
             </article>
             );
           })}
+          {messages.length > 0 && tourBlock}
 
           {isLoading && (
             <TypingIndicator caption={loadingCaption ?? (turningTo && `Turning to ${turningTo}…`)} />
@@ -1062,7 +1201,20 @@ export default function CopilotBubble({
         </div>
       </div>
 
-      {returnNote && !isOpen && (
+      {captionMode && tour.step && (
+        <TourCaption
+          say={tour.step.say}
+          index={tour.index}
+          total={tour.total}
+          paused={tour.status === "paused"}
+          instant={prefersReducedMotion}
+          onPause={tour.pause}
+          onResume={tour.resume}
+          onSkip={tour.skip}
+          onEnd={tour.end}
+        />
+      )}
+      {returnNote && !isOpen && !touring && (
         <p
           role="status"
           className="m-0 max-w-[min(240px,calc(100vw-110px))] truncate rounded-full bg-paper-deep px-3 py-1.5 font-mono text-[10.5px] text-ink-soft shadow-[0_4px_14px_rgba(29,24,18,.12)]"
@@ -1075,7 +1227,8 @@ export default function CopilotBubble({
           and body copy at narrow widths); full "Ask Titus" pill from sm up. */}
       <button
         ref={fabRef}
-        onClick={() => setIsOpen((prev) => !prev)}
+        id="ask-button"
+        onClick={() => (touring ? tour.end() : setIsOpen((prev) => !prev))}
         className="flex items-center gap-2.5 rounded-full border border-ink bg-ink p-3.5 text-paper shadow-[0_0_0_1px_rgba(247,242,233,.28),0_6px_18px_rgba(29,24,18,.18)] transition-colors hover:border-amber hover:bg-amber sm:px-4 sm:py-3"
         aria-label={isOpen ? "Close chat" : "Open Ask Titus"}
         aria-expanded={isOpen}

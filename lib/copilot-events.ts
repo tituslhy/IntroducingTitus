@@ -11,3 +11,10 @@ export function openCopilot(mode: CopilotOpenDetail["mode"] = "chat", prompt?: s
   const detail: CopilotOpenDetail = prompt ? { mode, prompt } : { mode };
   window.dispatchEvent(new CustomEvent<CopilotOpenDetail>(COPILOT_OPEN_EVENT, { detail }));
 }
+
+/** Starts the recorded "Show me around" tour (lib/site-tour.ts); the drawer listens for it. */
+export const COPILOT_TOUR_EVENT = "copilot:tour";
+
+export function startTour(): void {
+  window.dispatchEvent(new CustomEvent(COPILOT_TOUR_EVENT));
+}

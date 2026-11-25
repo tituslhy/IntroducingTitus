@@ -1,0 +1,47 @@
+{
+  "draft": true,
+  "recordedAt": null,
+  "model": null,
+  "steps": [
+    {
+      "say": "Hi, I'm Titus, and welcome to my site. It has an agent built in: me. The whole website is a tool I can use, so let me show you around.",
+      "targets": []
+    },
+    {
+      "say": "You can ask me anything about my work, any time, from this button. If you're hiring, paste a job description and I'll tell you honestly how I fit.",
+      "targets": ["ask-button", "fit-mode"]
+    },
+    {
+      "say": "Start with Experience. I'm a Lead AI Engineer at Mastercard. Each pass on this desk is one role, and I've picked up my current one.",
+      "targets": ["role-mastercard"]
+    },
+    {
+      "say": "Pick up any pass and that role opens below: here's UOB, and Illumina. Or see every role at once.",
+      "targets": ["role-uob", "role-illumina", "all-roles"]
+    },
+    {
+      "say": "To find out more about my education, go here. I have a Master of IT in Business (AI track) from Singapore Management University.",
+      "targets": ["edu-smu"]
+    },
+    {
+      "say": "My projects play like films. This is fictional-bassoon, one I built on my own; each projector runs through its stills by itself.",
+      "targets": ["project-fictional-bassoon"]
+    },
+    {
+      "say": "My writing is a newspaper, The Titus Times: every article I've published, by year and by theme. I can read them for you, too.",
+      "targets": ["writing"]
+    },
+    {
+      "say": "About is a periodic table of every tool I've used, lighting up in the order I picked each one up.",
+      "targets": ["tool-langgraph"]
+    },
+    {
+      "say": "Want to learn more about me, the copilot? Click here: this page shows how I'm built and tested.",
+      "targets": ["colophon-page"]
+    },
+    {
+      "say": "That was a recorded run. Now ask me anything, and watch me drive the site live.",
+      "targets": []
+    }
+  ]
+}
