@@ -251,7 +251,7 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 - **System prompt:** See `copilot-system-prompt.md`
 
 #### Scope Enforcement (via system prompt)
-- **Voice:** First-person ("I built…", not "Titus built…"). Dry, precise, lightly warm. No emoji, no exclamation points. Two short paragraphs max unless asked.
+- **Voice:** First-person ("I built…", not "Titus built…"). Dry, precise, lightly warm. No emoji, no exclamation points. Two short paragraphs max unless asked, except questions about a specific school, programme, project or role: those get the story behind the headline, two to four short paragraphs.
 - Answer ONLY about Titus's work, experience, projects, skills, writing
 - Unknown answers → "I don't have that on file — feel free to write to me directly at tituslhy@gmail.com"
 - Never fabricate skills or experience not in context

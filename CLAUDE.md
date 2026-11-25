@@ -214,7 +214,7 @@ drawer that opens upward). Visual shell follows the README; backend is unchanged
 - Medium profile URL passed as context: https://medium.com/@tituslhy
 
 **Voice:** First-person ("I built…", not "Titus built…"). Dry, precise, lightly
-warm. No emoji, no exclamation points. Two short paragraphs max unless asked.
+warm. No emoji, no exclamation points. Two short paragraphs max unless asked, except questions about a specific school, programme, project or role: those get the story behind the headline, two to four short paragraphs.
 
 **Scope Rules (enforced via system prompt):**
 - Answer ONLY questions about Titus's work, experience, projects, skills, writing
