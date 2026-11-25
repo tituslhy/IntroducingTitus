@@ -388,7 +388,12 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
       await jest.isolateModulesAsync(async () => {
         jest.doMock('./profile', () => {
           const actual = jest.requireActual('./profile')
-          const stripCopilot = ({ copilot: _c, ...rest }: { copilot?: string }) => rest
+          // Generic over any object: the constraint can't be `{ copilot?: string }`, a weak type
+          // that rejects a degree's slug/parts shape for having no property in common.
+          const stripCopilot = <T extends object>(item: T): Omit<T, 'copilot'> => {
+            const { copilot: _c, ...rest } = item as T & { copilot?: string }
+            return rest
+          }
           return {
             ...actual,
             EDUCATION: actual.EDUCATION.map((e: { slug: string; parts?: { copilot?: string }[] }) =>

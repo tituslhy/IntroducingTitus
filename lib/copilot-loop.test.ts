@@ -1,5 +1,5 @@
 import type OpenAI from "openai";
-import { copilotStream, type LoopObserver, type TraceSpan } from "./copilot-loop";
+import { copilotStream, MAX_ROUNDS, type LoopObserver, type TraceSpan } from "./copilot-loop";
 import { createCopilotTools, type CopilotTool } from "./copilot-tools";
 import { MAX_READING_CALLS } from "./search-config";
 import type { Article } from "./articles";
@@ -8,7 +8,7 @@ type FakeEvent = Record<string, unknown>;
 
 /** A fake Responses client: each create() call replays the next round's events (or throws). */
 function fakeOpenAI(rounds: Array<FakeEvent[] | Error>) {
-  const create = jest.fn(async () => {
+  const create = jest.fn(async (_params: Record<string, unknown>, _options?: unknown) => {
     const round = rounds.shift();
     if (round === undefined) throw new Error("unexpected extra create call");
     if (round instanceof Error) throw round;
@@ -226,6 +226,28 @@ describe("copilotStream tracing hooks", () => {
     const items = await collect(copilotStream(openai, input, [echoTool], new AbortController().signal, undefined, observer));
 
     expect(items).toContainEqual({ kind: "text", text: "Still here" });
+  });
+});
+
+describe("copilotStream verbosity", () => {
+  it("asks for high verbosity on every round, including the last round where function tools are withheld", async () => {
+    // Four rounds, each making a call, so the loop runs to MAX_ROUNDS and every create() is observed.
+    const { openai, create } = fakeOpenAI([
+      [created("resp_1"), call("c1", "echo", "{}"), done],
+      [created("resp_2"), call("c2", "echo", "{}"), done],
+      [created("resp_3"), call("c3", "echo", "{}"), done],
+      [created("resp_4"), text("Final"), done],
+    ]);
+
+    await collect(copilotStream(openai, input, [echoTool], new AbortController().signal));
+
+    expect(create).toHaveBeenCalledTimes(MAX_ROUNDS);
+    create.mock.calls.forEach(([params]) => {
+      expect(params).toHaveProperty("text", { verbosity: "high" });
+    });
+    // The last round offers no function tools, so the verbosity setting is the only shape it carries.
+    const lastParams = create.mock.calls[MAX_ROUNDS - 1][0];
+    expect(lastParams).not.toHaveProperty("tools");
   });
 });
 
