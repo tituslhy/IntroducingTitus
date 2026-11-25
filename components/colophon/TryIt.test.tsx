@@ -870,6 +870,29 @@ describe("TryIt playback", () => {
     expect(link).toHaveTextContent("1");
   });
 
+  it("draws a comma before a citation that follows another, and none after text", () => {
+    const SECOND_URL = "https://medium.com/@tituslhy/lora";
+    const text = "Both say so [1][2]. Also see [2] and [1].";
+    const adjacent: Recording = {
+      ...search,
+      answer: text,
+      spans: search.spans.map((s) => (s.id === 6 ? { ...s, outputs: { ...s.outputs, text } } : s)),
+      sources: [
+        { n: 1, title: "Agents with LangGraph", url: SRC_URL },
+        { n: 2, title: "Teaching Toothless to Bite", url: SECOND_URL },
+      ],
+    };
+    const { container } = renderTryIt([adjacent]);
+    playTo(6000, adjacent);
+
+    const sups = [...container.querySelectorAll("sup")];
+    expect(sups.map((sup) => sup.textContent)).toEqual(["1", ",2", "2", "1"]);
+    expect(sups[1].querySelector("span")).toHaveTextContent(/^,$/);
+    expect(sups[0].querySelector("span")).toBeNull();
+    expect(sups[2].querySelector("span")).toBeNull();
+    expect(sups[3].querySelector("span")).toBeNull();
+  });
+
   it("shows the page stops once a show_on_page span has ended, and the sources only at the end", () => {
     renderTryIt([broad]);
     playTo(1200, broad);

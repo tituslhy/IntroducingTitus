@@ -17,6 +17,7 @@ import {
   collectCitations,
   linkCitations,
   sourceForHref,
+  citeFollows,
   toSource,
   type Source,
 } from "@/lib/citations";
@@ -913,6 +914,7 @@ export default function CopilotBubble({
                             if (!source) return <>[{children}]</>;
                             return (
                               <sup className="ml-px font-mono text-[9.5px] leading-none">
+                                {citeFollows(href) && <span className="text-ink-faint">,</span>}
                                 <a
                                   href={source.url}
                                   target="_blank"

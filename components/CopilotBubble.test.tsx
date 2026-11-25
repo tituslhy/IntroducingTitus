@@ -1183,6 +1183,38 @@ describe("CopilotBubble", () => {
       expect(screen.queryByText(/\[1\]/)).not.toBeInTheDocument();
     });
 
+    it("draws a comma between adjacent citations: [1][2] renders 1, then a comma, then 2", async () => {
+      const SECOND = "https://medium.com/@tituslhy/lora";
+      await askAndWait([
+        source(1, "Your agent needs a bouncer"),
+        source(2, "Teaching Toothless to Bite", SECOND),
+        delta("Both say so [1][2]."),
+      ]);
+
+      const first = await screen.findByRole("link", { name: "Source 1: Your agent needs a bouncer" });
+      const second = screen.getByRole("link", { name: "Source 2: Teaching Toothless to Bite" });
+      expect(second).toHaveAttribute("href", SECOND);
+      const [supOne, supTwo] = [first.closest("sup"), second.closest("sup")];
+      expect(supOne).toHaveTextContent(/^1$/);
+      expect(supOne?.querySelector("span")).toBeNull();
+      expect(supTwo?.textContent).toBe(",2");
+      expect(supTwo?.querySelector("span")).toHaveTextContent(/^,$/);
+      expect(supOne?.nextElementSibling).toBe(supTwo);
+    });
+
+    it("draws no comma between citations separated by text", async () => {
+      await askAndWait([
+        source(1, "Your agent needs a bouncer"),
+        source(2, "Teaching Toothless to Bite", "https://medium.com/@tituslhy/lora"),
+        delta("Yes [1] and more [2]."),
+      ]);
+
+      await screen.findByRole("link", { name: "Source 1: Your agent needs a bouncer" });
+      const sups = [...document.querySelectorAll("sup")];
+      expect(sups.map((sup) => sup.textContent)).toEqual(["1", "2"]);
+      expect(document.querySelectorAll("sup span")).toHaveLength(0);
+    });
+
     it("keeps an [n] marker plain when the server never sent that source", async () => {
       await askAndWait([source(1, "Your agent needs a bouncer"), delta("See [7] and [1].")]);
 

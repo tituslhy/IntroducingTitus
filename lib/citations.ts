@@ -59,15 +59,25 @@ export const CITE_SCHEME = "cite:";
  * Turns bare `[n]` markers into `cite:n` links that the Markdown renderer
  * draws as superscript footnotes. Skips code spans and fenced blocks, real
  * Markdown links (`[1](…)`), double brackets (`[[1]]`), and index-like text such as
- * `arr[1]`. Adjacent citations (`[1][2]`) are both linked.
+ * `arr[1]`. Adjacent citations (`[1][2]`) are all linked; every one after the first in a run is marked
+ * `cite:,n`, so the drawer draws a comma before it ("1,2,3", not "123").
  */
 export function linkCitations(content: string): string {
   return content
     .split(/(```[\s\S]*?(?:```|$)|`[^`\n]*`)/)
     .map((part, i) =>
-      i % 2 === 1 ? part : part.replace(/(?<![\w[])\[(\d{1,2})\](?![(\]])/g, `[$1](${CITE_SCHEME}$1)`)
+      i % 2 === 1
+        ? part
+        : part.replace(/(?<![\w[])((?:\[\d{1,2}\])+)(?![(\]])/g, (run) =>
+            (run.match(/\d{1,2}/g) ?? []).map((n, k) => `[${n}](${CITE_SCHEME}${k > 0 ? "," : ""}${n})`).join("")
+          )
     )
     .join("");
+}
+
+/** True for a citation that follows another in a run (`cite:,n`): the drawer puts a comma before it. */
+export function citeFollows(href: string | undefined): boolean {
+  return !!href?.startsWith(`${CITE_SCHEME},`);
 }
 
 /** Lets `cite:` through react-markdown's URL sanitiser; everything else keeps the default rules. */
@@ -78,6 +88,6 @@ export function citationUrlTransform(url: string): string {
 /** The source a `cite:n` href points at, or null. */
 export function sourceForHref(href: string | undefined, sources: readonly Source[] | undefined): Source | null {
   if (!href?.startsWith(CITE_SCHEME) || !sources) return null;
-  const n = Number(href.slice(CITE_SCHEME.length));
+  const n = Number(href.slice(CITE_SCHEME.length).replace(/^,/, ""));
   return sources.find((s) => s.n === n) ?? null;
 }

@@ -14,7 +14,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import ReplyDiagram, { type BoxState, type DiagramKey } from '@/components/colophon/ReplyDiagram'
 import type { Recording, ReplaySpan, SpanKind } from '@/lib/colophon-trace'
-import { citationUrlTransform, linkCitations, sourceForHref } from '@/lib/citations'
+import { citationUrlTransform, citeFollows, linkCitations, sourceForHref } from '@/lib/citations'
 import { groupStops, type StopTarget } from '@/lib/page-stops'
 import { MIN_SCORE, RELEVANT } from '@/lib/search-config'
 
@@ -652,7 +652,8 @@ function Drawer({
                       const source = sourceForHref(href, rec.sources)
                       if (!source) return <>{children}</>
                       return (
-                        <sup className="ml-[2px] font-mono text-[10px] leading-none [sup+&]:ml-0 [sup+&]:before:text-ink-faint [sup+&]:before:content-[',']">
+                        <sup className="ml-[2px] font-mono text-[10px] leading-none">
+                          {citeFollows(href) && <span className="text-ink-faint">,</span>}
                           <a href={source.url} target="_blank" rel="noopener noreferrer" title={source.title} className="text-amber no-underline hover:underline">
                             {source.n}
                           </a>

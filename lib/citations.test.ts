@@ -15,6 +15,7 @@ import {
   CITE_SCHEME,
   MAX_CITATIONS,
   citationUrlTransform,
+  citeFollows,
   collectCitations,
   linkCitations,
   sourceForHref,
@@ -56,7 +57,36 @@ describe("linkCitations", () => {
   });
 
   it("links adjacent markers, as models write them: [1][2] becomes two footnotes", () => {
-    expect(linkCitations("Both say so [1][2].")).toBe("Both say so [1](cite:1)[2](cite:2).");
+    expect(linkCitations("Both say so [1][2].")).toBe("Both say so [1](cite:1)[2](cite:,2).");
+  });
+
+  it("marks every citation after the first in an adjacent run with a comma (cite:,n)", () => {
+    expect(linkCitations("Three say so [1][2][3].")).toBe("Three say so [1](cite:1)[2](cite:,2)[3](cite:,3).");
+  });
+
+  it("handles a run of three with two-digit numbers", () => {
+    expect(linkCitations("See [4][12][9]")).toBe("See [4](cite:4)[12](cite:,12)[9](cite:,9)");
+  });
+
+  it("keeps two separate runs in one sentence apart, each starting its own comma sequence", () => {
+    expect(linkCitations("Both [1][2] and also [3][4] say so.")).toBe(
+      "Both [1](cite:1)[2](cite:,2) and also [3](cite:3)[4](cite:,4) say so."
+    );
+  });
+
+  it("leaves a citation separated by text as a plain cite:n, with no comma", () => {
+    expect(linkCitations("First [1], then later [2].")).toBe("First [1](cite:1), then later [2](cite:2).");
+    expect(linkCitations("[1] and [2]")).toBe("[1](cite:1) and [2](cite:2)");
+  });
+
+  it("links only the bare marker when a run is followed by a real Markdown link", () => {
+    expect(linkCitations("[1][2](https://real.link)")).toBe("[1](cite:1)[2](https://real.link)");
+  });
+
+  it("leaves a run inside inline code untouched, but links a run outside it", () => {
+    expect(linkCitations("Code `[1][2]` and prose [3][4].")).toBe(
+      "Code `[1][2]` and prose [3](cite:3)[4](cite:,4)."
+    );
   });
 
   it("links markers before punctuation and in comma-separated lists", () => {
@@ -117,6 +147,23 @@ describe("toSource", () => {
   });
 });
 
+describe("citeFollows", () => {
+  it("is true for a comma-marked citation (cite:,n)", () => {
+    expect(citeFollows(`${CITE_SCHEME},2`)).toBe(true);
+    expect(citeFollows("cite:,12")).toBe(true);
+  });
+
+  it("is false for a plain citation (cite:n)", () => {
+    expect(citeFollows("cite:2")).toBe(false);
+  });
+
+  it("is false for anything that is not a citation", () => {
+    expect(citeFollows("https://example.com/,2")).toBe(false);
+    expect(citeFollows(undefined)).toBe(false);
+    expect(citeFollows("")).toBe(false);
+  });
+});
+
 describe("citationUrlTransform", () => {
   it("keeps cite: links so the renderer can draw footnotes", () => {
     expect(citationUrlTransform(`${CITE_SCHEME}3`)).toBe("cite:3");
@@ -143,6 +190,14 @@ describe("sourceForHref", () => {
 
   it("returns null for a number the server never sent", () => {
     expect(sourceForHref("cite:9", sources)).toBeNull();
+  });
+
+  it("resolves a comma-marked cite:,n href to the same source as cite:n", () => {
+    expect(sourceForHref("cite:,2", sources)).toEqual(sources[1]);
+  });
+
+  it("returns null for a comma-marked number the server never sent", () => {
+    expect(sourceForHref("cite:,9", sources)).toBeNull();
   });
 
   it("returns null for a non-cite href", () => {
