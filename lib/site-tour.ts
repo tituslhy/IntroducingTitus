@@ -107,3 +107,9 @@ function load(): SiteTour {
 
 /** The tour the site plays. */
 export const SITE_TOUR: SiteTour = load()
+
+/**
+ * Whether the "Show me around" buttons show: everywhere (local builds, Vercel previews) except the live site
+ * while the tour is still the hand-written draft. There the hero keeps its earlier buttons.
+ */
+export const TOUR_ON_SITE = !SITE_TOUR.draft || process.env.NEXT_PUBLIC_VERCEL_ENV !== 'production'

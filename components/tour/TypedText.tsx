@@ -7,7 +7,7 @@ const WORDS_PER_SECOND = 12
 
 /**
  * Narration that types itself in word by word, the way Ask Titus's replies stream. With `instant` (reduced
- * motion) it appears whole. The full text is always in the accessible name, so screen readers never get half.
+ * motion) it appears whole. Screen readers always get the full text (a visually hidden copy), never half.
  * It types once per mount: give it a new `key` for new text. The untyped rest is laid out but invisible, so the
  * text's box is its full size from the start and nothing below it jumps.
  */
@@ -30,7 +30,8 @@ export default function TypedText({ text, instant }: { text: string; instant: bo
   }, [text, instant, words.length])
 
   return (
-    <span aria-label={text}>
+    <span>
+      <span className="sr-only">{text}</span>
       <span aria-hidden="true">
         {words.slice(0, instant ? words.length : shown).join('')}
         <span className="opacity-0">{words.slice(instant ? words.length : shown).join('')}</span>

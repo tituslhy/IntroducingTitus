@@ -2046,7 +2046,10 @@ describe("CopilotBubble: the Show me around tour", () => {
   const fab = () => document.getElementById("ask-button") as HTMLElement;
   const isOpen = () => fab().getAttribute("aria-expanded") === "true";
   const caption = () => screen.queryByRole("region", { name: "Site tour" });
-  const say = (i: number) => screen.queryByLabelText(steps[i].say);
+  /** The narration of step `i` where it is typed in (the drawer's newest line, or the caption): found by its visually hidden full copy. */
+  const say = (i: number) => Array.from(document.querySelectorAll(".sr-only")).find((el) => el.textContent === steps[i].say) ?? null;
+  /** The caption's own live announcement of step `i`. */
+  const announced = (i: number) => (caption() ? within(caption()!).queryByText(`${steps[i].say} (tour, step ${i + 1} of ${total})`) : null);
   const recorded = () => screen.queryByText("Recorded tour");
 
   function renderBubble() {
@@ -2200,7 +2203,8 @@ describe("CopilotBubble: the Show me around tour", () => {
       expect(caption()).toBeInTheDocument();
       expect(isOpen()).toBe(false);
       expect(screen.getByText(`Titus · Recorded tour · 3 of ${total}`)).toBeInTheDocument();
-      expect(screen.getAllByLabelText(steps[2].say).length).toBeGreaterThan(0);
+      expect(announced(2)).toBeInTheDocument();
+      expect(announced(2)).toHaveAttribute("aria-live", "polite");
     });
 
     it("keeps the narration in the drawer on wide screens, with no caption", () => {
@@ -2265,7 +2269,7 @@ describe("CopilotBubble: the Show me around tour", () => {
       expect(caption()).toBeInTheDocument();
       expect(isOpen()).toBe(false);
       expect(screen.getByText(`Titus · Recorded tour · 4 of ${total}`)).toBeInTheDocument();
-      expect(screen.getAllByLabelText(steps[3].say).length).toBeGreaterThan(0);
+      expect(announced(3)).toBeInTheDocument();
 
       // And widens again: back into the drawer, still step 4.
       setMedia(WIDE, true);
@@ -2332,7 +2336,7 @@ describe("CopilotBubble: the Show me around tour", () => {
       renderBubble();
       play();
       advance(startOf(4) + 1);
-      fireEvent.click(screen.getByRole("button", { name: "End tour" }));
+      fireEvent.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "End tour" }));
       expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
       expect(say(total - 1)).toBeInTheDocument();
       expect(say(4)).not.toBeInTheDocument();
@@ -2560,6 +2564,216 @@ describe("CopilotBubble: the Show me around tour", () => {
     });
   });
 
+  describe("the visitor taking over from the tour", () => {
+    const dialog = () => screen.getByRole("dialog", { name: /ask titus/i });
+    const quietlyStopped = () => {
+      expect(recorded()).not.toBeInTheDocument();
+      expect(caption()).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Resume" })).not.toBeInTheDocument();
+      expect(say(total - 1)).not.toBeInTheDocument();
+    };
+
+    it("Escape in the drawer stops the tour, quietly, and closes the drawer", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      fireEvent.keyDown(screen.getByPlaceholderText(/ask about my work/i), { key: "Escape" });
+      expect(isOpen()).toBe(false);
+      quietlyStopped();
+      advance(ALL_DONE);
+      expect(isOpen()).toBe(false);
+      quietlyStopped();
+    });
+
+    it("Escape does not pause-and-resume: a paused tour is stopped too", () => {
+      renderBubble();
+      play();
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      fireEvent.keyDown(dialog(), { key: "Escape" });
+      quietlyStopped();
+    });
+
+    it("Escape with no tour just closes the drawer", () => {
+      renderBubble();
+      act(() => openCopilot());
+      fireEvent.keyDown(screen.getByPlaceholderText(/ask about my work/i), { key: "Escape" });
+      expect(isOpen()).toBe(false);
+      expect(recorded()).not.toBeInTheDocument();
+    });
+
+    it("taking up the \"I'm hiring\" starter stops the tour quietly and opens the job-description box", () => {
+      renderBubble();
+      play();
+      advance(startOf(1) + 1);
+      fireEvent.click(document.getElementById("fit-mode")!);
+      expect(screen.getByRole("textbox", { name: "Job description" })).toBeInTheDocument();
+      expect(isOpen()).toBe(true);
+      quietlyStopped();
+      advance(ALL_DONE);
+      expect(screen.getByRole("textbox", { name: "Job description" })).toBeInTheDocument();
+      quietlyStopped();
+    });
+
+    it("a copilot:open fit request from elsewhere on the page stops it too", () => {
+      renderBubble();
+      play();
+      act(() => openCopilot("fit"));
+      expect(screen.getByRole("textbox", { name: "Job description" })).toBeInTheDocument();
+      quietlyStopped();
+    });
+
+    it("sending a job description after that leaves the tour stopped, and the brief is requested", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ brief: { roleTitle: "Staff Engineer", company: "Acme", verdict: "A fit.", requirements: [] } }) });
+      renderBubble();
+      play();
+      fireEvent.click(document.getElementById("fit-mode")!);
+      fireEvent.change(screen.getByRole("textbox", { name: "Job description" }), {
+        target: { value: "Staff GenAI Engineer at Acme. Build production RAG and multi-agent platforms on Kubernetes. Lead a small team." },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Check fit" }));
+      });
+      expect(global.fetch).toHaveBeenCalledWith("/api/fit", expect.anything());
+      advance(ALL_DONE);
+      quietlyStopped();
+    });
+
+    it("typing in the input stops the tour quietly, and keeps what was typed", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      const box = screen.getByPlaceholderText(/ask about my work/i);
+      fireEvent.change(box, { target: { value: "Actually, a question" } });
+      expect(box).toHaveValue("Actually, a question");
+      expect(isOpen()).toBe(true);
+      quietlyStopped();
+      advance(ALL_DONE);
+      expect(box).toHaveValue("Actually, a question");
+      quietlyStopped();
+    });
+
+    it("typing while paused stops it too", () => {
+      renderBubble();
+      play();
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      fireEvent.change(screen.getByPlaceholderText(/ask about my work/i), { target: { value: "hi" } });
+      quietlyStopped();
+    });
+
+    it("typing with no tour running does nothing to the tour", () => {
+      renderBubble();
+      act(() => openCopilot());
+      fireEvent.change(screen.getByPlaceholderText(/ask about my work/i), { target: { value: "hi" } });
+      advance(ALL_DONE);
+      expect(recorded()).not.toBeInTheDocument();
+    });
+
+    it("typing after the tour has ended leaves its closing line", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      fireEvent.change(screen.getByPlaceholderText(/ask about my work/i), { target: { value: "hi" } });
+      expect(say(total - 1)).toBeInTheDocument();
+    });
+  });
+
+  describe("the Ask Titus button during the tour", () => {
+    it("reads \"End tour\" while the tour plays or is paused, and the usual labels otherwise", () => {
+      renderBubble();
+      expect(fab()).toHaveAttribute("aria-label", "Open Ask Titus");
+      play();
+      expect(fab()).toHaveAttribute("aria-label", "End tour");
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      expect(fab()).toHaveAttribute("aria-label", "End tour");
+      fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+      advance(ALL_DONE);
+      expect(isOpen()).toBe(true);
+      expect(fab()).toHaveAttribute("aria-label", "Close chat");
+    });
+
+    it("reads \"End tour\" on a narrow screen while the caption shows", () => {
+      mediaState[WIDE] = false;
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      expect(caption()).toBeInTheDocument();
+      expect(fab()).toHaveAttribute("aria-label", "End tour");
+      expect(fab()).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("goes back to \"Open Ask Titus\" after the visitor stops the tour and closes the drawer", () => {
+      renderBubble();
+      play();
+      fireEvent.keyDown(screen.getByPlaceholderText(/ask about my work/i), { key: "Escape" });
+      expect(fab()).toHaveAttribute("aria-label", "Open Ask Titus");
+    });
+  });
+
+  describe("a page that finishes loading after the tour was paused or ended", () => {
+    const target = () => steps[2].targets[0];
+    // The wait for the page ends in a promise, so time has to move asynchronously for its follow-up to run.
+    const settle = (ms: number) => act(async () => void (await jest.advanceTimersByTimeAsync(ms)));
+    const appear = () => {
+      const el = document.createElement("div");
+      el.id = target();
+      el.setAttribute("data-test-tour-target", "");
+      document.body.append(el);
+      return el;
+    };
+    /** Plays to step 3 with its target missing, so the drawer asks the router and waits for the page. */
+    function waitingForPage() {
+      document.getElementById(target())?.remove();
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      expect(mockPush).toHaveBeenCalledWith("/experience", { scroll: false });
+    }
+
+    it("moves the page when it appears while the tour is playing (the control)", async () => {
+      waitingForPage();
+      const el = appear();
+      await settle(600);
+      expect(scrollToSpy).toHaveBeenCalled();
+      expect(el).toHaveClass("copilot-spotlight");
+    });
+
+    it("does not move the page when it appears after the visitor paused", async () => {
+      waitingForPage();
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      const el = appear();
+      await settle(600);
+      expect(scrollToSpy).not.toHaveBeenCalled();
+      expect(el).not.toHaveClass("copilot-spotlight");
+    });
+
+    it("does not move the page when it appears after the tour ended", async () => {
+      waitingForPage();
+      fireEvent.click(fab()); // mid-tour the button reads "End tour"
+      const el = appear();
+      await settle(600);
+      expect(scrollToSpy).not.toHaveBeenCalled();
+      expect(el).not.toHaveClass("copilot-spotlight");
+    });
+
+    it("does not move the page when it appears after the tour was stopped (Escape)", async () => {
+      waitingForPage();
+      fireEvent.keyDown(screen.getByPlaceholderText(/ask about my work/i), { key: "Escape" });
+      appear();
+      await settle(600);
+      expect(scrollToSpy).not.toHaveBeenCalled();
+    });
+
+    it("moves the page if the visitor paused and resumed before it appeared", async () => {
+      waitingForPage();
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+      appear();
+      await settle(600);
+      expect(scrollToSpy).toHaveBeenCalled();
+    });
+  });
+
   describe("closing the drawer", () => {
     const closeX = () => within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "Close chat" });
 
@@ -2765,11 +2979,12 @@ describe("CopilotBubble: the Show me around tour", () => {
       mediaState[REDUCED] = true;
       renderBubble();
       play();
-      const line = screen.getByText(steps[0].say);
-      expect(line).toBeInTheDocument();
+      expect(say(0)).toBeInTheDocument();
       expect(document.querySelector("#copilot-tour .opacity-0")).toBeEmptyDOMElement();
+      expect(Array.from(document.querySelectorAll("#copilot-tour [aria-hidden=true]")).some((el) => el.textContent === steps[0].say)).toBe(true);
       advance(dur(0) + 1);
-      expect(screen.getByText(steps[1].say)).toBeInTheDocument();
+      expect(say(1)).toBeInTheDocument();
+      expect(Array.from(document.querySelectorAll("#copilot-tour [aria-hidden=true]")).some((el) => el.textContent === steps[1].say)).toBe(true);
     });
 
     it("scrolls the page without smooth behaviour", () => {

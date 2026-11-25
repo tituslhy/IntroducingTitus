@@ -2,6 +2,7 @@ import { PAGE_TARGET_IDS } from "./profile";
 import {
   DRAWER_TARGET_IDS,
   SITE_TOUR,
+  TOUR_ON_SITE,
   TOUR_BUDGET_MS,
   TOUR_TARGET_IDS,
   parseTour,
@@ -307,3 +308,43 @@ describe("SITE_TOUR", () => {
     for (const s of SITE_TOUR.steps) expect(s.say).not.toMatch(/\bTitus (is|has|built|works)\b/);
   });
 });
+
+describe("TOUR_ON_SITE", () => {
+  const env = process.env as Record<string, string | undefined>
+  const original = env.NEXT_PUBLIC_VERCEL_ENV
+  afterEach(() => {
+    if (original === undefined) delete env.NEXT_PUBLIC_VERCEL_ENV
+    else env.NEXT_PUBLIC_VERCEL_ENV = original
+    jest.dontMock("@/content/site-tour.json")
+  })
+
+  /** Loads the module afresh with a given Vercel environment and draft flag. */
+  function load(vercelEnv: string | undefined, draft: boolean): boolean {
+    if (vercelEnv === undefined) delete env.NEXT_PUBLIC_VERCEL_ENV
+    else env.NEXT_PUBLIC_VERCEL_ENV = vercelEnv
+    let value = false
+    jest.isolateModules(() => {
+      jest.doMock("@/content/site-tour.json", () => ({ draft, recordedAt: null, model: null, steps: [] }))
+      // isolateModules needs a synchronous load, so this one import is a require().
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      value = require("./site-tour").TOUR_ON_SITE
+    })
+    return value
+  }
+
+  it("is false on the live site (Vercel production) while the tour is a draft", () => {
+    expect(load("production", true)).toBe(false)
+  })
+
+  it.each(["preview", "development", undefined])("is true while a draft anywhere but production: %s", (vercelEnv) => {
+    expect(load(vercelEnv, true)).toBe(true)
+  })
+
+  it("is true on the live site once a real recording replaces the draft", () => {
+    expect(load("production", false)).toBe(true)
+  })
+
+  it("is a boolean, matching the shipped tour in this environment", () => {
+    expect(typeof TOUR_ON_SITE).toBe("boolean")
+  })
+})

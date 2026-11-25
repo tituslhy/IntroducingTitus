@@ -2,21 +2,17 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { COPILOT_TOUR_EVENT } from '@/lib/copilot-events'
 import TourButton from './TourButton'
 
-// A tour the tests can flip between draft and recorded.
-const mockTour = { draft: true }
+// Whether the buttons show: the tests flip it.
+let mockOnSite = true
 jest.mock('@/lib/site-tour', () => ({
   __esModule: true,
-  get SITE_TOUR() {
-    return mockTour
+  get TOUR_ON_SITE() {
+    return mockOnSite
   },
 }))
 
-const env = process.env as Record<string, string | undefined>
-const originalEnv = env.NODE_ENV
-
 afterEach(() => {
-  env.NODE_ENV = originalEnv
-  mockTour.draft = true
+  mockOnSite = true
 })
 
 describe('TourButton', () => {
@@ -80,33 +76,41 @@ describe('TourButton', () => {
     })
   })
 
-  describe('while the tour is still a draft', () => {
-    it('renders nothing, for either variant, in production', () => {
-      env.NODE_ENV = 'production'
-      mockTour.draft = true
-      const { container: a } = render(<TourButton variant="primary" />)
-      const { container: b } = render(<TourButton variant="line" />)
-      expect(a).toBeEmptyDOMElement()
-      expect(b).toBeEmptyDOMElement()
+  describe('the line variant owns its paragraph', () => {
+    it('wraps its button in a p, so there is nothing left behind when it is hidden', () => {
+      const { container } = render(<TourButton variant="line" />)
+      const p = container.querySelector('p')!
+      expect(container.firstElementChild).toBe(p)
+      expect(p).toContainElement(screen.getByRole('button', { name: /short on time/i }))
+      expect(p).toHaveClass('m-0', 'mt-6')
     })
 
-    it('shows in development, so Titus can try it', () => {
-      env.NODE_ENV = 'development'
-      render(<TourButton variant="primary" />)
-      expect(screen.getByRole('button', { name: /show me around/i })).toBeInTheDocument()
-    })
-
-    it('shows in test', () => {
-      env.NODE_ENV = 'test'
-      render(<TourButton variant="line" />)
-      expect(screen.getByRole('button', { name: /short on time/i })).toBeInTheDocument()
+    it('does not wrap the primary button in a paragraph', () => {
+      const { container } = render(<TourButton variant="primary" />)
+      expect(container.querySelector('p')).toBeNull()
+      expect(container.firstElementChild?.tagName).toBe('BUTTON')
     })
   })
 
-  describe('once a real recording replaces the draft', () => {
-    it('shows both variants in production', () => {
-      env.NODE_ENV = 'production'
-      mockTour.draft = false
+  describe('when the tour is not on the site (the live site, still a draft)', () => {
+    beforeEach(() => {
+      mockOnSite = false
+    })
+
+    it('renders nothing for the primary variant', () => {
+      const { container } = render(<TourButton variant="primary" />)
+      expect(container).toBeEmptyDOMElement()
+    })
+
+    it('renders nothing for the line variant, not even its paragraph', () => {
+      const { container } = render(<TourButton variant="line" />)
+      expect(container).toBeEmptyDOMElement()
+    })
+  })
+
+  describe('when the tour is on the site (local builds, previews, or a real recording)', () => {
+    it('shows both variants', () => {
+      mockOnSite = true
       render(
         <>
           <TourButton variant="primary" />

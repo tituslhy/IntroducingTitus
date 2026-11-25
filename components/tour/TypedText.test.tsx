@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import TypedText from './TypedText'
 
 const TEXT = 'One two three four five'
@@ -14,6 +14,8 @@ const typed = (container: HTMLElement) => {
   clone.querySelectorAll('.opacity-0').forEach((el) => el.remove())
   return clone.textContent
 }
+/** The visually hidden full copy that screen readers read, whatever has been typed so far. */
+const readAloud = (container: HTMLElement) => container.querySelector('.sr-only')?.textContent ?? null
 /** The untyped rest, which is laid out but invisible. */
 const untyped = (container: HTMLElement) => container.querySelector('.opacity-0')?.textContent ?? ''
 
@@ -25,9 +27,15 @@ afterEach(() => {
 })
 
 describe('TypedText', () => {
-  it('carries the full text as its accessible name from the first frame', () => {
-    render(<TypedText text={TEXT} instant={false} />)
-    expect(screen.getByLabelText(TEXT)).toBeInTheDocument()
+  it('has the full text in a visually hidden copy from the first frame', () => {
+    const { container } = render(<TypedText text={TEXT} instant={false} />)
+    expect(readAloud(container)).toBe(TEXT)
+    expect(container.querySelectorAll('.sr-only')).toHaveLength(1)
+  })
+
+  it('has no aria-label: the narration is read from its text, once', () => {
+    const { container } = render(<TypedText text={TEXT} instant={false} />)
+    expect(container.querySelector('[aria-label]')).toBeNull()
   })
 
   it('starts empty and types word by word', () => {
@@ -95,9 +103,9 @@ describe('TypedText', () => {
     expect(jest.getTimerCount()).toBe(0)
   })
 
-  it('keeps the full text as the name when instant too', () => {
-    render(<TypedText text={TEXT} instant />)
-    expect(screen.getByLabelText(TEXT)).toBeInTheDocument()
+  it('keeps the full hidden copy when instant too', () => {
+    const { container } = render(<TypedText text={TEXT} instant />)
+    expect(readAloud(container)).toBe(TEXT)
   })
 
   it('shows nothing for empty text, and does not throw', () => {
@@ -112,10 +120,19 @@ describe('TypedText', () => {
     expect(jest.getTimerCount()).toBe(0)
   })
 
-  it('hides the visible words from screen readers, so they never hear half a sentence', () => {
+  it('hides the typed words from screen readers, so they never hear half a sentence, or the sentence twice', () => {
     const { container } = render(<TypedText text={TEXT} instant={false} />)
-    expect(container.querySelector('[aria-hidden="true"]')).toBeInTheDocument()
-    expect(container.firstElementChild).toHaveAttribute('aria-label', TEXT)
+    const visible = container.querySelector('[aria-hidden="true"]')!
+    expect(visible).toBeInTheDocument()
+    expect(visible.querySelector('.sr-only')).toBeNull()
+    expect(container.querySelector('.sr-only')!.closest('[aria-hidden="true"]')).toBeNull()
+  })
+
+  it('keeps the hidden copy whole while the visible part types', () => {
+    const { container } = render(<TypedText text={TEXT} instant={false} />)
+    act(() => void jest.advanceTimersByTime(TICK * 2))
+    expect(typed(container)).toBe('One two ')
+    expect(readAloud(container)).toBe(TEXT)
   })
 
   it('types a new text from the start when given a new key', () => {

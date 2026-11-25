@@ -177,7 +177,15 @@ export function useTourPlayer({
     }
     const types = ['wheel', 'touchmove', 'pointerdown', 'keydown'] as const
     types.forEach((t) => window.addEventListener(t, onUser, { capture: true, passive: true }))
-    return () => types.forEach((t) => window.removeEventListener(t, onUser, { capture: true }))
+    // A tab in the background isn't being watched: hold the tour until they come back and press Resume.
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') pause()
+    }
+    document.addEventListener('visibilitychange', onHidden)
+    return () => {
+      types.forEach((t) => window.removeEventListener(t, onUser, { capture: true }))
+      document.removeEventListener('visibilitychange', onHidden)
+    }
   }, [status, pause])
 
   useEffect(() => clearTimers, [])

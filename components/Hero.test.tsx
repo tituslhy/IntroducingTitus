@@ -14,6 +14,18 @@ jest.mock('@/components/front/HeroAnimation', () => ({
   },
 }))
 
+// Whether the tour's buttons are on the site (false on the live site while the tour is still a draft).
+let mockOnSite = true
+jest.mock('@/lib/site-tour', () => ({
+  ...jest.requireActual<typeof import('@/lib/site-tour')>('@/lib/site-tour'),
+  get TOUR_ON_SITE() {
+    return mockOnSite
+  },
+}))
+afterEach(() => {
+  mockOnSite = true
+})
+
 describe('Hero', () => {
   it('renders the hero stage section', () => {
     const { container } = render(<Hero />)
@@ -161,5 +173,43 @@ describe('Hero: the Ask card is gone', () => {
     const tour = screen.getByRole('button', { name: /show me around/i })
     expect(container.querySelector('section#masthead')).toContainElement(tour)
     expect(tour.closest(`[${KEEP_OUT_ATTR}]`)).not.toBeNull()
+  })
+})
+
+describe('Hero: before the tour is on the live site', () => {
+  beforeEach(() => {
+    mockOnSite = false
+  })
+
+  it('has no "Show me around" button', () => {
+    render(<Hero />)
+    expect(screen.queryByRole('button', { name: /show me around/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps the earlier buttons: "View experience" dark, then "Read the writing" outlined', () => {
+    render(<Hero />)
+    const experience = screen.getByRole('link', { name: /view experience/i })
+    const writing = screen.getByRole('link', { name: /read the writing/i })
+    expect(experience).toHaveAttribute('href', '/experience')
+    expect(experience).toHaveClass('bg-ink', 'text-paper')
+    expect(writing).toHaveAttribute('href', '/writing')
+    expect(writing).toHaveClass('border', 'border-ink')
+    expect(experience.compareDocumentPosition(writing) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('still has the social links and the resume line', () => {
+    render(<Hero />)
+    expect(screen.getByRole('link', { name: 'GitHub' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /resume available on request/i })).toBeInTheDocument()
+  })
+})
+
+describe('Hero: once the tour is on the site', () => {
+  it('shows [Show me around] then [View experience, outlined], and no "Read the writing"', () => {
+    mockOnSite = true
+    render(<Hero />)
+    expect(screen.getByRole('button', { name: /show me around/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /view experience/i })).toHaveClass('border', 'border-ink')
+    expect(screen.queryByRole('link', { name: /read the writing/i })).not.toBeInTheDocument()
   })
 })

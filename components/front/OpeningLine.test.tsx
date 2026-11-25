@@ -5,6 +5,18 @@ import { FRONT_STATS } from '@/lib/front-page'
 import { OPEN_SOURCE, SOCIAL } from '@/lib/profile'
 import OpeningLine from './OpeningLine'
 
+// Whether the tour's buttons are on the site (false on the live site while the tour is still a draft).
+let mockOnSite = true
+jest.mock('@/lib/site-tour', () => ({
+  ...jest.requireActual<typeof import('@/lib/site-tour')>('@/lib/site-tour'),
+  get TOUR_ON_SITE() {
+    return mockOnSite
+  },
+}))
+afterEach(() => {
+  mockOnSite = true
+})
+
 /** The four stat tiles, found by their link targets. Each one is a link, so it has a role. */
 const tileFor = (href: string) => document.querySelector<HTMLAnchorElement>(`a[href="${href}"]`) as HTMLAnchorElement
 
@@ -50,6 +62,22 @@ describe('OpeningLine', () => {
     const down = screen.getByRole('link', { name: "Scroll down to what's on this site" })
     expect(grid.compareDocumentPosition(tour) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(tour.compareDocumentPosition(down) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('leaves nothing behind where the tour line would be when the tour is not on the site', () => {
+    mockOnSite = false
+    const { container } = render(<OpeningLine />)
+    expect(screen.queryByRole('button', { name: /short on time/i })).not.toBeInTheDocument()
+    // The sentence is the only paragraph left: no empty <p> with margins.
+    expect(container.querySelectorAll('p')).toHaveLength(1)
+    expect(screen.getByRole('link', { name: "Scroll down to what's on this site" })).toBeInTheDocument()
+  })
+
+  it('does not wrap the tour line in a second paragraph of its own', () => {
+    const { container } = render(<OpeningLine />)
+    const button = screen.getByRole('button', { name: /short on time/i })
+    expect(button.closest('p')?.parentElement).toBe(container.firstElementChild)
+    expect(container.querySelectorAll('p')).toHaveLength(2) // the sentence, and the tour line's own
   })
 
   it('starts the tour when the line is clicked', () => {

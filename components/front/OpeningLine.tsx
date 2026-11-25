@@ -50,9 +50,7 @@ export default function OpeningLine() {
           <StatTile figure={String(contributions)} label="open-source contributions" href="/projects#open-source" />
         </div>
       </div>
-      <p className="m-0 mt-6 min-[900px]:mt-8">
-        <TourButton variant="line" />
-      </p>
+      <TourButton variant="line" />
       <div className="flex justify-center">
         <DownButton targetId="on-this-site" />
       </div>

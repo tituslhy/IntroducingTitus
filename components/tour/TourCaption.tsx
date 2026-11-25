@@ -41,7 +41,11 @@ export default function TourCaption({
         <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-amber" />
         Titus · Recorded tour · {index + 1} of {total}
       </p>
-      <p className="m-0 mt-1.5 font-serif text-[17px] leading-[1.4]">
+      {/* The drawer (and its live region) is closed while the caption shows, so the caption announces itself. */}
+      <p className="sr-only" aria-live="polite">
+        {say} (tour, step {index + 1} of {total})
+      </p>
+      <p className="m-0 mt-1.5 font-serif text-[17px] leading-[1.4]" aria-hidden="true">
         <TypedText key={index} text={say} instant={instant} />
       </p>
       <div className="mt-1 flex flex-wrap items-center gap-1">

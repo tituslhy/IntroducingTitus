@@ -20,15 +20,20 @@ describe('TourThread', () => {
 
   it('shows every step so far, in order, newest last', () => {
     const { container } = render(<TourThread steps={steps} label={null} instant />)
-    const lines = Array.from(container.querySelectorAll('.border-l p'), (p) => p.textContent)
-    expect(lines).toEqual(['First line.', 'Second line.', 'Third line.'])
+    const lines = Array.from(container.querySelectorAll('.border-l p'))
+    expect(lines).toHaveLength(3)
+    expect(lines[0]).toHaveTextContent('First line.')
+    expect(lines[1]).toHaveTextContent('Second line.')
+    expect(lines[2]).toHaveTextContent('Third line.')
   })
 
-  it('types only the newest line; earlier ones are plain text', () => {
-    render(<TourThread steps={steps} label={null} instant />)
-    expect(screen.getByLabelText('Third line.')).toBeInTheDocument()
-    expect(screen.queryByLabelText('First line.')).not.toBeInTheDocument()
-    expect(screen.getByText('First line.')).toBeInTheDocument()
+  it('types only the newest line, which is read from a hidden copy; earlier ones are plain text', () => {
+    const { container } = render(<TourThread steps={steps} label={null} instant />)
+    const lines = Array.from(container.querySelectorAll('.border-l p'))
+    expect(lines[0].querySelector('.sr-only')).toBeNull()
+    expect(lines[1].querySelector('.sr-only')).toBeNull()
+    expect(lines[2].querySelector('.sr-only')).toHaveTextContent('Third line.')
+    expect(lines[0].textContent).toBe('First line.')
   })
 
   it('has the id the drawer scrolls to', () => {

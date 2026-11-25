@@ -38,10 +38,24 @@ describe('TourCaption', () => {
   })
 
   it('shows the whole narration, with no truncation classes anywhere', () => {
-    const { container } = render(<TourCaption say={SAY} index={1} total={4} paused={false} instant onPause={jest.fn()} onResume={jest.fn()} onSkip={jest.fn()} onEnd={jest.fn()} />)
-    expect(screen.getAllByLabelText(SAY).length).toBeGreaterThan(0)
+    setup()
+    const container = screen.getByRole('region', { name: 'Site tour' })
     expect(container.textContent).toContain(SAY)
     expect(container.querySelector('[class*="truncate"], [class*="line-clamp"], [class*="text-ellipsis"], [class*="overflow-hidden"]')).toBeNull()
+  })
+
+  it('announces each step itself in a polite live region: "{say} (tour, step n of total)"', () => {
+    setup({ index: 2, total: 10 })
+    const live = screen.getByText(`${SAY} (tour, step 3 of 10)`)
+    expect(live).toHaveAttribute('aria-live', 'polite')
+    expect(live).toHaveClass('sr-only')
+  })
+
+  it('hides the visible narration from screen readers, so the live line is the only thing announced', () => {
+    setup()
+    const visible = screen.getByRole('region', { name: 'Site tour' }).querySelector('p.font-serif')!
+    expect(visible).toHaveAttribute('aria-hidden', 'true')
+    expect(visible).toHaveTextContent(SAY)
   })
 
   it('is capped to the screen width so it can sit above the Ask Titus button', () => {
@@ -114,12 +128,11 @@ describe('TourCaption', () => {
     expect(screen.getByRole('button', { name: 'Pause' }).parentElement).toHaveClass('flex-wrap')
   })
 
-  it('types the narration in when not instant, with the full text already in its accessible name', () => {
+  it('types the narration in when not instant: the rest is laid out but invisible, and the live line is whole', () => {
     jest.useFakeTimers()
     try {
       const { container } = render(<TourCaption say={SAY} index={0} total={4} paused={false} instant={false} onPause={jest.fn()} onResume={jest.fn()} onSkip={jest.fn()} onEnd={jest.fn()} />)
-      expect(screen.getByLabelText(SAY)).toBeInTheDocument()
-      // The words that have not been typed yet are laid out but invisible.
+      expect(screen.getByText(`${SAY} (tour, step 1 of 4)`)).toBeInTheDocument()
       expect(container.querySelector('.opacity-0')).toHaveTextContent(SAY)
     } finally {
       jest.useRealTimers()

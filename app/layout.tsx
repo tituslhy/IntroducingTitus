@@ -4,7 +4,7 @@ import './globals.css'
 import CopilotBubble from '@/components/CopilotBubble'
 import Navigation from '@/components/Navigation'
 import { EMAIL, PAGE_TARGETS, SITE_DESCRIPTION, SITE_PAGES, SITE_TITLE } from '@/lib/profile'
-import { SITE_URL } from '@/lib/content'
+import { COLOPHON_PATH, SITE_URL } from '@/lib/content'
 
 // Self-hosted (not next/font/google): a font-fetch failure would otherwise be
 // a build-time or first-paint dependency on Google's servers, and typography
@@ -88,7 +88,7 @@ export default function RootLayout({
             id,
             label,
             path,
-            page: SITE_PAGES.find((p) => p.path === path)?.label,
+            page: SITE_PAGES.find((p) => p.path === path)?.label ?? (path === COLOPHON_PATH ? 'Ask Titus' : undefined),
             ...(tool && { tool }),
           }))}
           email={EMAIL}

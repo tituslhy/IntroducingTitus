@@ -309,6 +309,56 @@ describe('useTourPlayer: pause, resume, skip, end', () => {
     remove.mockRestore()
   })
 
+  describe('a tab in the background', () => {
+    const setVisibility = (state: 'hidden' | 'visible') => {
+      Object.defineProperty(document, 'visibilityState', { value: state, configurable: true })
+      fireEvent(document, new Event('visibilitychange'))
+    }
+    afterEach(() => setVisibility('visible'))
+
+    it('pauses when the tab goes hidden, and holds the clock until Resume', () => {
+      const { result, advance } = setup()
+      act(() => result.current.start())
+      advance(1000)
+      act(() => setVisibility('hidden'))
+      expect(result.current.status).toBe('paused')
+      advance(60_000)
+      expect(result.current.index).toBe(0)
+      act(() => setVisibility('visible'))
+      expect(result.current.status).toBe('paused') // it waits for the visitor to press Resume
+      act(() => result.current.resume())
+      advance(2999)
+      expect(result.current.index).toBe(0)
+      advance(1)
+      expect(result.current.index).toBe(1)
+    })
+
+    it('does not pause when the tab becomes visible', () => {
+      const { result } = setup()
+      act(() => result.current.start())
+      act(() => setVisibility('visible'))
+      expect(result.current.status).toBe('playing')
+    })
+
+    it('ignores the tab going hidden when no tour is playing', () => {
+      const { result } = setup()
+      act(() => setVisibility('hidden'))
+      expect(result.current.status).toBe('idle')
+    })
+
+    it('stops listening once the tour is paused, done or unmounted', () => {
+      const add = jest.spyOn(document, 'addEventListener')
+      const remove = jest.spyOn(document, 'removeEventListener')
+      const { result, unmount } = setup()
+      act(() => result.current.start())
+      expect(add.mock.calls.some((c) => c[0] === 'visibilitychange')).toBe(true)
+      unmount()
+      expect(remove.mock.calls.some((c) => c[0] === 'visibilitychange')).toBe(true)
+      add.mockRestore()
+      remove.mockRestore()
+    })
+  })
+
   it('pause does nothing unless playing', () => {
     const { result } = setup()
     act(() => result.current.pause())

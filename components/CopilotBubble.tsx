@@ -206,6 +206,8 @@ export default function CopilotBubble({
   const wasOpenRef = useRef(false);
   // Set when the tour itself opened or closed the drawer, so focus isn't pulled to the button mid-tour.
   const tourMovedDrawerRef = useRef(false);
+  // Whether the tour is playing right now, for its async page moves (see showTourStop).
+  const tourPlayingRef = useRef(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const spotlightRef = useRef<{ els: HTMLElement[]; timer: ReturnType<typeof setTimeout> } | null>(null);
@@ -373,7 +375,8 @@ export default function CopilotBubble({
       if (stop.path === window.location.pathname) return false;
       router.push(stop.path, { scroll: false });
       const found = await waitForElement(stop.ids[0]);
-      if (found) revealStop(stop);
+      // Paused, ended or stopped while the page was loading: don't move it under the visitor.
+      if (found && tourPlayingRef.current) revealStop(stop);
       return found !== null;
     },
     [revealStop, router]
@@ -391,6 +394,9 @@ export default function CopilotBubble({
 
   const tour = useTourPlayer({ tour: SITE_TOUR, showStop: showTourStop, ringDrawer, pathname, targetsById });
   const touring = tour.status === "playing" || tour.status === "paused";
+  useEffect(() => {
+    tourPlayingRef.current = tour.status === "playing";
+  }, [tour.status]);
   // Whether the drawer sits beside the page (so the page shows while it narrates), kept live across resizes.
   const [sideBySide, setSideBySide] = useState(false);
   useEffect(() => {
@@ -692,6 +698,9 @@ export default function CopilotBubble({
   }, [sendMessage]);
 
   const enterFitMode = useCallback(() => {
+    // The visitor took up the tour's invitation: the tour gets out of the way.
+    tourStopRef.current();
+    setTourOutro(false);
     setMode("fit");
     setFitNotice(null);
     setIsExpanded(true);
@@ -718,6 +727,7 @@ export default function CopilotBubble({
   const sendFit = useCallback(async () => {
     const jd = input.trim();
     if (!jd || busy) return;
+    tourStopRef.current();
     if (jd.length < MIN_JD_CHARS) {
       setFitNotice(FIT_ERRORS.job_description_too_short);
       return;
@@ -807,6 +817,7 @@ export default function CopilotBubble({
   const handleDrawerKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Escape") {
       e.preventDefault();
+      tour.stop();
       setIsOpen(false);
       return;
     }
@@ -1162,7 +1173,11 @@ export default function CopilotBubble({
             <textarea
               ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                // Typing into the drawer means the visitor is talking to me: stop the tour quietly.
+                if (touring) tour.stop();
+                setInput(e.target.value);
+              }}
               onKeyDown={handleKeyDown}
               placeholder={mode === "fit" ? "Paste the job description…" : "Ask about my work…"}
               aria-label={mode === "fit" ? "Job description" : "Message"}
@@ -1230,7 +1245,7 @@ export default function CopilotBubble({
         id="ask-button"
         onClick={() => (touring ? tour.end() : setIsOpen((prev) => !prev))}
         className="flex items-center gap-2.5 rounded-full border border-ink bg-ink p-3.5 text-paper shadow-[0_0_0_1px_rgba(247,242,233,.28),0_6px_18px_rgba(29,24,18,.18)] transition-colors hover:border-amber hover:bg-amber sm:px-4 sm:py-3"
-        aria-label={isOpen ? "Close chat" : "Open Ask Titus"}
+        aria-label={touring ? "End tour" : isOpen ? "Close chat" : "Open Ask Titus"}
         aria-expanded={isOpen}
       >
         {isOpen ? <CloseIcon size={18} /> : <CopilotIcon />}

@@ -4,6 +4,7 @@ import HeroAnimation from '@/components/front/HeroAnimation'
 import TourButton from '@/components/front/TourButton'
 import { KEEP_OUT_ATTR } from '@/lib/hero-keepout'
 import { CURRENT_ROLE, SOCIAL } from '@/lib/profile'
+import { TOUR_ON_SITE } from '@/lib/site-tour'
 
 const keep = (v = 'true') => ({ [KEEP_OUT_ATTR]: v })
 
@@ -36,10 +37,24 @@ export default function Hero() {
           I build AI systems — <i className="text-amber">from architecture to the boardroom.</i>
         </p>
         <div {...keep()} className="mt-[26px] flex w-fit flex-wrap items-center gap-x-3 gap-y-3 font-mono text-[clamp(12.5px,1.7vw,15px)] min-[900px]:text-[12.5px]">
-          <TourButton variant="primary" />
-          <Link href="/experience" className="border border-ink px-[15px] py-[10px] transition-colors hover:bg-ink hover:text-paper">
-            View experience <b className="font-medium text-amber">→</b>
-          </Link>
+          {TOUR_ON_SITE ? (
+            <>
+              <TourButton variant="primary" />
+              <Link href="/experience" className="border border-ink px-[15px] py-[10px] transition-colors hover:bg-ink hover:text-paper">
+                View experience <b className="font-medium text-amber">→</b>
+              </Link>
+            </>
+          ) : (
+            // The live site, before the tour's first real recording: the earlier buttons.
+            <>
+              <Link href="/experience" className="bg-ink px-4 py-[11px] text-paper transition-colors hover:bg-amber">
+                View experience <b className="font-medium text-amber-line">→</b>
+              </Link>
+              <Link href="/writing" className="border border-ink px-[15px] py-[10px] transition-colors hover:bg-ink hover:text-paper">
+                Read the writing <b className="font-medium text-amber">→</b>
+              </Link>
+            </>
+          )}
           <span className="flex items-center gap-3 min-[900px]:ml-2.5">
             <a href={SOCIAL.github} target="_blank" rel="noopener noreferrer" className={socialClass}>
               GitHub
