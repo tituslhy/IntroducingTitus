@@ -1,46 +1,65 @@
 {
-  "draft": true,
-  "recordedAt": null,
-  "model": null,
+  "draft": false,
+  "recordedAt": "2026-11-25T23:18:28.719Z",
+  "model": "gpt-6-luna",
   "steps": [
     {
-      "say": "Hi, I'm Titus, and welcome to my site. It has an agent built in: me. The whole website is a tool I can use, so let me show you around.",
+      "say": "I’m Titus—welcome. The site has an agent built in: me, and the whole website is a tool I can use. I’ll show you around.",
       "targets": []
     },
     {
-      "say": "You can ask me anything about my work, any time, from this button. If you're hiring, paste a job description and I'll tell you honestly how I fit.",
-      "targets": ["ask-button", "fit-mode"]
+      "say": "Use Ask Titus to ask anything about my work, any time. If you’re hiring, paste a job description and I’ll honestly say how I fit.",
+      "targets": [
+        "ask-button",
+        "fit-mode"
+      ]
     },
     {
-      "say": "Start with Experience. I'm a Lead AI Engineer at Mastercard. Each pass on this desk is one role, and I've picked up my current one.",
-      "targets": ["role-mastercard"]
+      "say": "I’m Lead AI Engineer at Mastercard; this pass opens my current role.",
+      "targets": [
+        "role-mastercard"
+      ]
     },
     {
-      "say": "Pick up any pass and that role opens below: here's UOB, and Illumina. Or see every role at once.",
-      "targets": ["role-uob", "role-illumina", "all-roles"]
+      "say": "Each pass is one role: I’m picking up UOB and Illumina here, or you can see every role at once.",
+      "targets": [
+        "role-uob",
+        "role-illumina",
+        "all-roles"
+      ]
     },
     {
       "say": "To find out more about my education, go here. I have a Master of IT in Business (AI track) from Singapore Management University.",
-      "targets": ["edu-smu"]
+      "targets": [
+        "edu-smu"
+      ]
     },
     {
-      "say": "My projects play like films. This is fictional-bassoon, one I built on my own; each projector runs through its stills by itself.",
-      "targets": ["project-fictional-bassoon"]
+      "say": "My projects play like films. This one is fictional-bassoon, which I built on my own.",
+      "targets": [
+        "project-fictional-bassoon"
+      ]
     },
     {
-      "say": "My writing is a newspaper, The Titus Times: every article I've published, by year and by theme. I can read them for you, too.",
-      "targets": ["writing"]
+      "say": "My writing is a newspaper of articles by year and theme; I can read them for you too.",
+      "targets": [
+        "writing"
+      ]
     },
     {
-      "say": "About is a periodic table of every tool I've used, lighting up in the order I picked each one up.",
-      "targets": ["tool-langgraph"]
+      "say": "Here’s a periodic table of every tool I’ve used, lighting up in the order I picked each one up.",
+      "targets": [
+        "tool-langgraph"
+      ]
     },
     {
-      "say": "Want to learn more about me, the copilot? Click here: this page shows how I'm built and tested.",
-      "targets": ["colophon-page"]
+      "say": "Want to learn more about me, the copilot? Click here. This page shows how I’m built and tested.",
+      "targets": [
+        "colophon-page"
+      ]
     },
     {
-      "say": "That was a recorded run. Now ask me anything, and watch me drive the site live.",
+      "say": "That was a recorded run. Ask me anything now and watch me drive the site live.",
       "targets": []
     }
   ]
