@@ -271,7 +271,7 @@ export default function ColophonPage() {
                   id,
                   label,
                   path,
-                  page: SITE_PAGES.find((p) => p.path === path)?.label,
+                  page: SITE_PAGES.find((p) => p.path === path)?.label ?? (path === COLOPHON_PATH ? 'Ask Titus' : undefined),
                   ...(tool && { tool }),
                 }))}
               />
