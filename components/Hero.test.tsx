@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { COPILOT_TOUR_EVENT } from '@/lib/copilot-events'
 import { STARTER_PROMPTS } from '@/lib/starter-prompts'
 import { CURRENT_ROLE, SOCIAL, EMAIL } from '@/lib/profile'
@@ -211,5 +211,92 @@ describe('Hero: once the tour is on the site', () => {
     expect(screen.getByRole('button', { name: /show me around/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /view experience/i })).toHaveClass('border', 'border-ink')
     expect(screen.queryByRole('link', { name: /read the writing/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('Hero: the tour tile', () => {
+  it('sits right after the tagline, before the "View experience" row', () => {
+    render(<Hero />)
+    const tagline = screen.getByText(/I build AI systems/)
+    const tour = screen.getByRole('button', { name: /show me around/i })
+    const experience = screen.getByRole('link', { name: /view experience/i })
+    expect(tagline.compareDocumentPosition(tour) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(tour.compareDocumentPosition(experience) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('has its own wrapper, marked keep-out for the animation and capped at 600px', () => {
+    render(<Hero />)
+    const tour = screen.getByRole('button', { name: /show me around/i })
+    const wrapper = tour.parentElement as HTMLElement
+    expect(wrapper).toHaveAttribute(KEEP_OUT_ATTR)
+    expect(wrapper).toHaveClass('max-w-[600px]')
+    // The wrapper holds the tile alone, not the "View experience" row.
+    expect(wrapper).not.toContainElement(screen.getByRole('link', { name: /view experience/i }))
+  })
+
+  it('shows the label with the duration, the title and the line beneath', () => {
+    render(<Hero />)
+    const tour = screen.getByRole('button', { name: /show me around/i })
+    expect(tour).toHaveTextContent(/Show me around · \d+ s/)
+    expect(tour).toHaveTextContent('Let my AI copilot give you the tour.')
+    expect(tour).toHaveTextContent('It opens the pages and talks you through them')
+  })
+
+  it('keeps "View experience" and the social links in a row of their own, apart from the tile', () => {
+    render(<Hero />)
+    const experience = screen.getByRole('link', { name: /view experience/i })
+    const row = experience.parentElement as HTMLElement
+    expect(row).not.toContainElement(screen.getByRole('button', { name: /show me around/i }))
+    expect(Array.from(row.querySelectorAll('a'), (a) => a.textContent?.trim())).toEqual([
+      expect.stringContaining('View experience'),
+      'GitHub',
+      'LinkedIn',
+      'Medium',
+    ])
+  })
+
+  it('has no "Read the writing" link or text', () => {
+    render(<Hero />)
+    expect(screen.queryByText(/read the writing/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('Hero: the fallback (tour not on the live site yet)', () => {
+  beforeEach(() => {
+    mockOnSite = false
+  })
+
+  it('has no tour tile', () => {
+    const { container } = render(<Hero />)
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(container.textContent).not.toMatch(/Let my AI copilot give you the tour/)
+  })
+
+  it('has the two earlier buttons in one row, with the social links after them', () => {
+    render(<Hero />)
+    const experience = screen.getByRole('link', { name: /view experience/i })
+    const writing = screen.getByRole('link', { name: /read the writing/i })
+    expect(experience.parentElement).toBe(writing.parentElement)
+    expect(experience.parentElement).toContainElement(screen.getByRole('link', { name: 'GitHub' }))
+  })
+
+  it('has one keep-out box fewer than with the tour tile', () => {
+    const off = render(<Hero />).container.querySelectorAll(`[${KEEP_OUT_ATTR}]`).length
+    cleanup()
+    mockOnSite = true
+    const on = render(<Hero />).container.querySelectorAll(`[${KEEP_OUT_ATTR}]`).length
+    expect(on).toBe(off + 1)
+  })
+})
+
+describe('Hero: the layout from 900px', () => {
+  it('is at least 600px tall rather than fixed, and the text column is in flow', () => {
+    const { container } = render(<Hero />)
+    const section = container.querySelector('section#masthead') as HTMLElement
+    expect(section).toHaveClass('min-[900px]:min-h-[600px]')
+    expect(section.className).not.toMatch(/min-\[900px\]:h-\[600px\]/)
+    const column = screen.getByRole('heading', { level: 1 }).parentElement as HTMLElement
+    expect(column).toHaveClass('min-[900px]:pb-[290px]')
+    expect(column.className).not.toMatch(/min-\[900px\]:absolute/)
   })
 })

@@ -1,5 +1,6 @@
 'use client'
 
+import TourProgress from './TourProgress'
 import TypedText from './TypedText'
 
 const buttonClass =
@@ -14,6 +15,7 @@ export default function TourCaption({
   index,
   total,
   paused,
+  stepMs,
   instant,
   onPause,
   onResume,
@@ -24,6 +26,8 @@ export default function TourCaption({
   index: number
   total: number
   paused: boolean
+  /** How long this step stays up, for its progress bar. */
+  stepMs: number
   /** Reduced motion: the narration appears whole. */
   instant: boolean
   onPause: () => void
@@ -48,9 +52,28 @@ export default function TourCaption({
       <p className="m-0 mt-1.5 font-serif text-[17px] leading-[1.4]" aria-hidden="true">
         <TypedText key={index} text={say} instant={instant} />
       </p>
+      <div className="mt-2.5">
+        <TourProgress step={index} ms={stepMs} paused={paused} />
+      </div>
+      {paused && (
+        <p role="status" className="m-0 mt-2 flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink">
+          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-amber" />
+          Paused · press Resume to carry on
+        </p>
+      )}
       <div className="mt-1 flex flex-wrap items-center gap-1">
-        <button type="button" onClick={paused ? onResume : onPause} className={`${buttonClass} bg-paper-deep hover:bg-paper-band`}>
-          {paused ? 'Resume' : 'Pause'}
+        <button
+          type="button"
+          onClick={paused ? onResume : onPause}
+          className={`${buttonClass} ${paused ? 'tour-resume bg-ink text-paper hover:bg-amber hover:text-ink' : 'bg-paper-deep hover:bg-paper-band'}`}
+        >
+          {paused ? (
+            <>
+              <span aria-hidden="true" className="text-amber-hi">▶</span> Resume
+            </>
+          ) : (
+            'Pause'
+          )}
         </button>
         <button type="button" onClick={onSkip} className={`${buttonClass} hover:bg-paper-deep`}>
           {index + 1 >= total ? 'Finish' : 'Skip'} <span aria-hidden="true" className="text-amber">→</span>

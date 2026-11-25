@@ -13,6 +13,17 @@ type Action = { kind: 'ring'; id: string } | { kind: 'stop'; stop: Stop }
 
 const isDrawerId = (id: string) => (DRAWER_TARGET_IDS as readonly string[]).includes(id)
 
+/** Keys that scroll the page: the only key presses that count as the visitor taking over (not Cmd-Tab, not a screenshot shortcut). */
+const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '])
+
+const isScrollKey = (e: Event) => {
+  const k = e as KeyboardEvent
+  if (k.metaKey || k.ctrlKey || k.altKey || !SCROLL_KEYS.has(k.key)) return false
+  // Typing a space in a field isn't scrolling.
+  const t = e.target as HTMLElement | null
+  return !(t?.isContentEditable || t?.closest?.('input, textarea, select'))
+}
+
 /** What a step does, in order: drawer rings first, then the page stops (tool tiles grouped as one). */
 function actionsOf(step: TourStep, byId: Map<string, StopTarget>): Action[] {
   const rings: Action[] = step.targets.filter(isDrawerId).map((id) => ({ kind: 'ring', id }))
@@ -42,6 +53,8 @@ export function useTourPlayer({
 }) {
   const [status, setStatus] = useState<TourStatus>('idle')
   const [index, setIndex] = useState(0)
+  // Goes up each time the tour (re)starts, so anything keyed on a step restarts even when the index doesn't change.
+  const [run, setRun] = useState(0)
 
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const statusRef = useRef<TourStatus>('idle')
@@ -53,6 +66,8 @@ export function useTourPlayer({
   // Pages the current step may be on: where it started, and every page it opens.
   const allowedPaths = useRef<Set<string>>(new Set())
   const pathRef = useRef(pathname)
+  // True while the only reason it's paused is that the tab went into the background: coming back resumes it.
+  const pausedByHidden = useRef(false)
 
   // Kept in refs so timers always call the latest callbacks.
   const showStopRef = useRef(showStop)
@@ -106,6 +121,7 @@ export function useTourPlayer({
   const begin = useCallback(
     (i: number) => {
       clearTimers()
+      pausedByHidden.current = false
       indexRef.current = i
       setIndex(i)
       actionsRun.current = 0
@@ -121,12 +137,14 @@ export function useTourPlayer({
 
   const start = useCallback(() => {
     if (tour.steps.length === 0) return
+    setRun((r) => r + 1)
     set('playing')
     begin(0)
   }, [tour, begin])
 
   const pause = useCallback(() => {
     if (statusRef.current !== 'playing') return
+    pausedByHidden.current = false
     clearTimers()
     remaining.current = Math.max(0, remaining.current - (Date.now() - startedAt.current))
     set('paused')
@@ -134,6 +152,7 @@ export function useTourPlayer({
 
   const resume = useCallback(() => {
     if (statusRef.current !== 'paused') return
+    pausedByHidden.current = false
     set('playing')
     schedule(indexRef.current)
   }, [schedule])
@@ -167,32 +186,44 @@ export function useTourPlayer({
     if ((s === 'playing' || s === 'paused') && !allowedPaths.current.has(pathname)) stop()
   }, [pathname, stop])
 
-  // The visitor taking over the page pauses the tour.
+  // The visitor taking over the page (scrolling it, clicking it, scrolling keys) pauses the tour.
   useEffect(() => {
     if (status !== 'playing') return
     const onUser = (e: Event) => {
       const target = e.target as Element | null
       if (target?.closest?.('[data-tour-ui]')) return
+      if (e.type === 'keydown' && !isScrollKey(e)) return
       pause()
     }
     const types = ['wheel', 'touchmove', 'pointerdown', 'keydown'] as const
     types.forEach((t) => window.addEventListener(t, onUser, { capture: true, passive: true }))
-    // A tab in the background isn't being watched: hold the tour until they come back and press Resume.
-    const onHidden = () => {
-      if (document.visibilityState === 'hidden') pause()
-    }
-    document.addEventListener('visibilitychange', onHidden)
-    return () => {
-      types.forEach((t) => window.removeEventListener(t, onUser, { capture: true }))
-      document.removeEventListener('visibilitychange', onHidden)
-    }
+    return () => types.forEach((t) => window.removeEventListener(t, onUser, { capture: true }))
   }, [status, pause])
+
+  // A tab in the background (or a window covered by another) isn't being watched: hold the tour, and carry on
+  // by itself when they come back, unless something else paused it too.
+  const touring = status === 'playing' || status === 'paused'
+  useEffect(() => {
+    if (!touring) return
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        if (statusRef.current !== 'playing') return
+        pause()
+        pausedByHidden.current = true
+      } else if (pausedByHidden.current && statusRef.current === 'paused') {
+        resume()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [touring, pause, resume])
 
   useEffect(() => clearTimers, [])
 
   return {
     status,
     index,
+    run,
     step: status === 'idle' ? null : (tour.steps[index] ?? null),
     total: tour.steps.length,
     start,

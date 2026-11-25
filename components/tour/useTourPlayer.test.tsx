@@ -244,6 +244,41 @@ describe('useTourPlayer: what a step shows', () => {
   })
 })
 
+describe('useTourPlayer: run', () => {
+  it('starts at 0 and goes up by one on every start()', () => {
+    const { result } = setup()
+    expect(result.current.run).toBe(0)
+    act(() => result.current.start())
+    expect(result.current.run).toBe(1)
+    act(() => result.current.start())
+    expect(result.current.run).toBe(2)
+  })
+
+  it('does not change as steps advance, or on pause, resume or skip', () => {
+    const { result, advance } = setup()
+    act(() => result.current.start())
+    advance(PLAIN + 1)
+    act(() => result.current.pause())
+    act(() => result.current.resume())
+    act(() => result.current.skip())
+    expect(result.current.run).toBe(1)
+  })
+
+  it('restarts the tour from step 1 on a second start()', () => {
+    const { result, advance } = setup()
+    act(() => result.current.start())
+    advance(PLAIN + 1)
+    expect(result.current.index).toBe(1)
+    act(() => result.current.start())
+    expect(result.current.index).toBe(0)
+    expect(result.current.status).toBe('playing')
+    advance(PLAIN - 1)
+    expect(result.current.index).toBe(0)
+    advance(1)
+    expect(result.current.index).toBe(1)
+  })
+})
+
 describe('useTourPlayer: pause, resume, skip, end', () => {
   it('pauses on wheel and resumes where it was', () => {
     const { result, advance } = setup()
@@ -264,7 +299,7 @@ describe('useTourPlayer: pause, resume, skip, end', () => {
   it.each([
     ['wheel', () => fireEvent.wheel(document.body)],
     ['touchmove', () => fireEvent.touchMove(document.body)],
-    ['keydown', () => fireEvent.keyDown(document.body, { key: 'a' })],
+    ['a scroll key (ArrowDown)', () => fireEvent.keyDown(document.body, { key: 'ArrowDown' })],
     ['pointerdown', () => fireEvent.pointerDown(document.body)],
     ['pointerdown on the window itself', () => fireEvent.pointerDown(window)],
   ])('pauses on %s outside the tour\'s own controls', (_name, act_) => {
@@ -272,6 +307,122 @@ describe('useTourPlayer: pause, resume, skip, end', () => {
     act(() => result.current.start())
     act(() => void act_())
     expect(result.current.status).toBe('paused')
+  })
+
+  describe('keys', () => {
+    const press = (key: string, init: KeyboardEventInit = {}, target: Element | Window = document.body) =>
+      act(() => void fireEvent.keyDown(target, { key, ...init }))
+
+    it.each(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '])('pauses on the scroll key %j', (key) => {
+      const { result } = setup()
+      act(() => result.current.start())
+      press(key)
+      expect(result.current.status).toBe('paused')
+    })
+
+    it.each(['a', 'Enter', 'Tab', 'Escape', 'Shift', 'Meta', 'F5', 'ArrowLeft', 'ArrowRight'])('does not pause on %j', (key) => {
+      const { result } = setup()
+      act(() => result.current.start())
+      press(key)
+      expect(result.current.status).toBe('playing')
+    })
+
+    it.each([
+      ['Meta', { metaKey: true }],
+      ['Ctrl', { ctrlKey: true }],
+      ['Alt', { altKey: true }],
+    ])('does not pause on a scroll key held with %s', (_name, mod) => {
+      const { result } = setup()
+      act(() => result.current.start())
+      press('ArrowDown', mod)
+      press(' ', mod)
+      expect(result.current.status).toBe('playing')
+    })
+
+    it('does not pause on a screenshot shortcut (Meta+Shift+4)', () => {
+      const { result } = setup()
+      act(() => result.current.start())
+      press('4', { metaKey: true, shiftKey: true })
+      press('$', { metaKey: true, shiftKey: true })
+      expect(result.current.status).toBe('playing')
+    })
+
+    it.each([
+      ['an input', () => document.createElement('input')],
+      ['a textarea', () => document.createElement('textarea')],
+      ['a select', () => document.createElement('select')],
+    ])('does not pause on space (or arrows) typed in %s', (_name, make) => {
+      const field = make()
+      document.body.append(field)
+      try {
+        const { result } = setup()
+        act(() => result.current.start())
+        press(' ', {}, field)
+        press('ArrowDown', {}, field)
+        expect(result.current.status).toBe('playing')
+      } finally {
+        field.remove()
+      }
+    })
+
+    it('does not pause on space typed in an editable element (isContentEditable; jsdom does not compute it, so it is set by hand)', () => {
+      const editable = document.createElement('div')
+      Object.defineProperty(editable, 'isContentEditable', { value: true })
+      document.body.append(editable)
+      try {
+        const { result } = setup()
+        act(() => result.current.start())
+        press(' ', {}, editable)
+        press('ArrowDown', {}, editable)
+        expect(result.current.status).toBe('playing')
+      } finally {
+        editable.remove()
+      }
+    })
+
+    it('still pauses on space in an element that is not editable', () => {
+      const div = document.createElement('div')
+      Object.defineProperty(div, 'isContentEditable', { value: false })
+      document.body.append(div)
+      try {
+        const { result } = setup()
+        act(() => result.current.start())
+        press(' ', {}, div)
+        expect(result.current.status).toBe('paused')
+      } finally {
+        div.remove()
+      }
+    })
+
+    it('still pauses on space when the focus is on a button or the page', () => {
+      const button = document.createElement('button')
+      document.body.append(button)
+      try {
+        const { result } = setup()
+        act(() => result.current.start())
+        press(' ', {}, button)
+        expect(result.current.status).toBe('paused')
+      } finally {
+        button.remove()
+      }
+    })
+
+    it('pauses on a scroll key aimed at the window itself', () => {
+      const { result } = setup()
+      act(() => result.current.start())
+      press('PageDown', {}, window)
+      expect(result.current.status).toBe('paused')
+    })
+
+    it('still pauses on wheel, touchmove and pointerdown outside the tour UI', () => {
+      for (const fire of [() => fireEvent.wheel(document.body), () => fireEvent.touchMove(document.body), () => fireEvent.pointerDown(document.body)]) {
+        const { result, unmount } = setup()
+        act(() => result.current.start())
+        act(() => void fire())
+        expect(result.current.status).toBe('paused')
+        unmount()
+      }
+    })
   })
 
   it.each([
@@ -316,7 +467,7 @@ describe('useTourPlayer: pause, resume, skip, end', () => {
     }
     afterEach(() => setVisibility('visible'))
 
-    it('pauses when the tab goes hidden, and holds the clock until Resume', () => {
+    it('pauses when the tab goes hidden, and holds the clock while it is away', () => {
       const { result, advance } = setup()
       act(() => result.current.start())
       advance(1000)
@@ -324,13 +475,129 @@ describe('useTourPlayer: pause, resume, skip, end', () => {
       expect(result.current.status).toBe('paused')
       advance(60_000)
       expect(result.current.index).toBe(0)
+      expect(result.current.status).toBe('paused')
+    })
+
+    it('carries on by itself when the tab comes back, with the clock where it stopped', () => {
+      const { result, advance } = setup()
+      act(() => result.current.start())
+      advance(1000)
+      act(() => setVisibility('hidden'))
+      advance(60_000)
       act(() => setVisibility('visible'))
-      expect(result.current.status).toBe('paused') // it waits for the visitor to press Resume
-      act(() => result.current.resume())
-      advance(2999)
+      expect(result.current.status).toBe('playing')
+      expect(result.current.index).toBe(0)
+      advance(2999) // 4000 - 1000 left
       expect(result.current.index).toBe(0)
       advance(1)
       expect(result.current.index).toBe(1)
+    })
+
+    it('does not run a step\'s targets twice across a hide and a return', () => {
+      const t = tourOf([step(12, ['role-uob', 'role-illumina']), step(12), step(12)])
+      const { result, showStop, advance } = setup({ tour: t })
+      act(() => result.current.start())
+      advance(10)
+      act(() => setVisibility('hidden'))
+      act(() => setVisibility('visible'))
+      advance(5500)
+      expect(stopIds(showStop)).toEqual([['role-uob'], ['role-illumina']])
+    })
+
+    it('can hide and return more than once in a step', () => {
+      const { result, advance } = setup()
+      act(() => result.current.start())
+      advance(1000)
+      act(() => setVisibility('hidden'))
+      act(() => setVisibility('visible'))
+      advance(1000)
+      act(() => setVisibility('hidden'))
+      act(() => setVisibility('visible'))
+      expect(result.current.status).toBe('playing')
+      advance(1999)
+      expect(result.current.index).toBe(0)
+      advance(1)
+      expect(result.current.index).toBe(1)
+    })
+
+    it('stays paused on return if the visitor paused it first, then the tab went hidden', () => {
+      const { result, advance } = setup()
+      act(() => result.current.start())
+      advance(1000)
+      act(() => result.current.pause())
+      act(() => setVisibility('hidden'))
+      act(() => setVisibility('visible'))
+      expect(result.current.status).toBe('paused')
+      advance(60_000)
+      expect(result.current.index).toBe(0)
+    })
+
+    it('stays paused on return if the visitor paused it by scrolling, then hid the tab', () => {
+      const { result } = setup()
+      act(() => result.current.start())
+      fireEvent.wheel(document.body)
+      expect(result.current.status).toBe('paused')
+      act(() => setVisibility('hidden'))
+      act(() => setVisibility('visible'))
+      expect(result.current.status).toBe('paused')
+    })
+
+    it('stays paused on return if it was already paused when the tab went hidden (even after a hidden-pause cycle earlier)', () => {
+      const { result } = setup()
+      act(() => result.current.start())
+      act(() => setVisibility('hidden'))
+      act(() => setVisibility('visible'))
+      expect(result.current.status).toBe('playing')
+      act(() => result.current.pause())
+      act(() => setVisibility('hidden'))
+      act(() => setVisibility('visible'))
+      expect(result.current.status).toBe('paused')
+    })
+
+    it('stays paused on return if the visitor resumed and paused again by hand while the tab was away', () => {
+      const { result } = setup()
+      act(() => result.current.start())
+      act(() => setVisibility('hidden'))
+      // They press Resume while the tab is "hidden" (e.g. a picture-in-picture window), then pause again.
+      act(() => result.current.resume())
+      act(() => result.current.pause())
+      act(() => setVisibility('visible'))
+      expect(result.current.status).toBe('paused')
+    })
+
+    it('does not resume on return if the visitor skipped meanwhile (a new step starts playing, nothing to resume)', () => {
+      const { result, advance } = setup()
+      act(() => result.current.start())
+      act(() => setVisibility('hidden'))
+      act(() => result.current.skip())
+      expect(result.current.index).toBe(1)
+      expect(result.current.status).toBe('playing')
+      act(() => setVisibility('visible'))
+      expect(result.current.status).toBe('playing')
+      advance(WITH_TARGETS - 1)
+      expect(result.current.index).toBe(1) // no doubled timer from a second resume
+      advance(1)
+      expect(result.current.index).toBe(2)
+    })
+
+    it('does not resume a tour that was ended while the tab was away', () => {
+      const { result } = setup()
+      act(() => result.current.start())
+      act(() => setVisibility('hidden'))
+      act(() => result.current.end())
+      act(() => setVisibility('visible'))
+      expect(result.current.status).toBe('done')
+    })
+
+    it('stays paused after an auto-resume is followed by a manual pause', () => {
+      const { result } = setup()
+      act(() => result.current.start())
+      act(() => setVisibility('hidden'))
+      act(() => setVisibility('visible'))
+      fireEvent.wheel(document.body)
+      expect(result.current.status).toBe('paused')
+      act(() => setVisibility('visible'))
+      expect(result.current.status).toBe('paused')
     })
 
     it('does not pause when the tab becomes visible', () => {

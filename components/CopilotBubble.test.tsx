@@ -2313,6 +2313,66 @@ describe("CopilotBubble: the Show me around tour", () => {
       expect(say(1)).toBeInTheDocument();
     });
 
+    it("shows a progress bar for the current step, sized to that step and restarting on each one", () => {
+      renderBubble();
+      play();
+      const dialog = screen.getByRole("dialog", { name: /ask titus/i });
+      const bar = () => within(dialog).getByTestId("tour-progress");
+      expect(bar()).toHaveAttribute("aria-hidden", "true");
+      expect((bar().firstElementChild as HTMLElement).style.animationDuration).toBe(`${dur(0)}ms`);
+      expect((bar().firstElementChild as HTMLElement).style.animationPlayState).toBe("running");
+      const first = bar().firstElementChild;
+      advance(dur(0) + 1);
+      expect(within(dialog).getAllByTestId("tour-progress")).toHaveLength(1);
+      expect(bar().firstElementChild).not.toBe(first);
+      expect((bar().firstElementChild as HTMLElement).style.animationDuration).toBe(`${dur(1)}ms`);
+    });
+
+    it("freezes the progress bar and says \"Paused · press Resume to carry on\" while paused", () => {
+      renderBubble();
+      play();
+      expect(screen.queryByText(/Paused · press Resume/)).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      expect(screen.getByText("Paused · press Resume to carry on")).toBeInTheDocument();
+      expect((screen.getByTestId("tour-progress").firstElementChild as HTMLElement).style.animationPlayState).toBe("paused");
+      const resume = screen.getByRole("button", { name: "Resume" });
+      expect(resume).toHaveClass("tour-resume", "bg-ink", "text-paper");
+      fireEvent.click(resume);
+      expect(screen.queryByText(/Paused · press Resume/)).not.toBeInTheDocument();
+      expect((screen.getByTestId("tour-progress").firstElementChild as HTMLElement).style.animationPlayState).toBe("running");
+      expect(screen.getByRole("button", { name: "Pause" })).not.toHaveClass("tour-resume");
+    });
+
+    it("remounts the progress bar when the tour is started again part-way through a step", () => {
+      renderBubble();
+      play();
+      advance(1000);
+      const before = screen.getByTestId("tour-progress").firstElementChild;
+      play();
+      const after = screen.getByTestId("tour-progress").firstElementChild;
+      expect(after).not.toBe(before);
+      expect(before?.isConnected).toBe(false);
+      expect((after as HTMLElement).style.animationDuration).toBe(`${dur(0)}ms`);
+      expect(screen.getAllByTestId("tour-progress")).toHaveLength(1);
+    });
+
+    it("keeps the bar's width of the paused step: the same bar element is frozen, not restarted", () => {
+      renderBubble();
+      play();
+      advance(1000);
+      const before = screen.getByTestId("tour-progress").firstElementChild;
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      expect(screen.getByTestId("tour-progress").firstElementChild).toBe(before);
+    });
+
+    it("pauses the progress bar too when the visitor takes over the page", () => {
+      renderBubble();
+      play();
+      fireEvent.wheel(document.body);
+      expect(screen.getByText("Paused · press Resume to carry on")).toBeInTheDocument();
+      expect((screen.getByTestId("tour-progress").firstElementChild as HTMLElement).style.animationPlayState).toBe("paused");
+    });
+
     it("reads \"Next · n of total →\" and goes to the next step at once", () => {
       renderBubble();
       play();
@@ -2366,6 +2426,81 @@ describe("CopilotBubble: the Show me around tour", () => {
     });
   });
 
+  describe("the starter prompts during the tour (wide screens)", () => {
+    const heading = () => screen.queryByText("Start with one of these");
+    const starterButtons = () => STARTER_PROMPTS.flatMap((prompt) => screen.queryAllByText(prompt));
+
+    it("are shown before the tour starts", () => {
+      renderBubble();
+      act(() => openCopilot());
+      expect(heading()).toBeInTheDocument();
+      expect(starterButtons().length).toBeGreaterThan(0);
+    });
+
+    it("stay up in steps 1 and 2, which introduce the drawer (step 2 rings #fit-mode, one of them)", () => {
+      renderBubble();
+      play();
+      expect(heading()).toBeInTheDocument();
+      expect(document.getElementById("fit-mode")).toBeInTheDocument();
+      advance(dur(0) + 1);
+      expect(say(1)).toBeInTheDocument();
+      expect(heading()).toBeInTheDocument();
+      expect(document.getElementById("fit-mode")).toBeInTheDocument();
+      expect(starterButtons().length).toBeGreaterThan(0);
+    });
+
+    it("step aside from step 3 on, so the narration has the drawer to itself", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      expect(say(2)).toBeInTheDocument();
+      expect(heading()).not.toBeInTheDocument();
+      expect(starterButtons()).toHaveLength(0);
+      expect(document.getElementById("fit-mode")).not.toBeInTheDocument();
+      advance(dur(2) + 1);
+      expect(say(3)).toBeInTheDocument();
+      expect(heading()).not.toBeInTheDocument();
+    });
+
+    it("stay hidden through a pause and a resume in step 4", () => {
+      renderBubble();
+      play();
+      advance(startOf(3) + 1);
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      expect(heading()).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+      expect(heading()).not.toBeInTheDocument();
+    });
+
+    it("come back when the tour finishes", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+      expect(heading()).toBeInTheDocument();
+      expect(starterButtons().length).toBeGreaterThan(0);
+    });
+
+    it("come back when the visitor ends the tour with \"End tour\"", () => {
+      renderBubble();
+      play();
+      advance(startOf(4) + 1);
+      expect(heading()).not.toBeInTheDocument();
+      fireEvent.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "End tour" }));
+      expect(heading()).toBeInTheDocument();
+    });
+
+    it("are hidden at once when Next moves from step 2 to step 3", () => {
+      renderBubble();
+      play();
+      advance(dur(0) + 1);
+      expect(heading()).toBeInTheDocument();
+      fireEvent.click(nextButton(2));
+      expect(say(2)).toBeInTheDocument();
+      expect(heading()).not.toBeInTheDocument();
+    });
+  });
+
   describe("the phone caption", () => {
     beforeEach(() => {
       mediaState[WIDE] = false;
@@ -2381,6 +2516,32 @@ describe("CopilotBubble: the Show me around tour", () => {
       fireEvent.click(region.getByRole("button", { name: "Resume" }));
       expect(region.getByRole("button", { name: /^Skip/ })).toHaveTextContent("Skip →");
       expect(region.getByRole("button", { name: "End tour" })).toHaveTextContent("✕");
+    });
+
+    it("shows a progress bar sized to the step, and no bar or paused text once the tour is over", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      const bar = within(caption()!).getByTestId("tour-progress");
+      expect((bar.firstElementChild as HTMLElement).style.animationDuration).toBe(`${dur(2)}ms`);
+      advance(ALL_DONE);
+      expect(caption()).not.toBeInTheDocument();
+    });
+
+    it("says \"Paused · press Resume to carry on\" and offers a \"Resume\" while paused", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      const region = within(caption()!);
+      expect(region.queryByText(/Paused ·/)).not.toBeInTheDocument();
+      fireEvent.click(region.getByRole("button", { name: "Pause" }));
+      expect(region.getByText("Paused · press Resume to carry on")).toBeInTheDocument();
+      expect(region.getByRole("status")).toHaveTextContent("Paused · press Resume to carry on");
+      expect(region.getByRole("button", { name: "Resume" })).toHaveClass("tour-resume", "bg-ink", "text-paper");
+      expect((region.getByTestId("tour-progress").firstElementChild as HTMLElement).style.animationPlayState).toBe("paused");
+      fireEvent.click(region.getByRole("button", { name: "Resume" }));
+      expect(region.queryByText(/Paused ·/)).not.toBeInTheDocument();
+      expect(region.getByRole("button", { name: "Pause" })).toBeInTheDocument();
     });
 
     it("moves to the next step on Skip", () => {
@@ -2879,6 +3040,126 @@ describe("CopilotBubble: the Show me around tour", () => {
       const scroller = layOut({ blockBottom: 150, scrollerTop: 100, clientHeight: 300, scrollTop: 40 });
       advance(dur(0) + 1);
       expect(scroller.scrollTop).toBe(0);
+    });
+
+    describe("as the drawer or the thread changes size", () => {
+      type FakeRO = { cb: () => void; observed: Element[]; disconnect: jest.Mock };
+      let instances: FakeRO[];
+      const globalRO = globalThis as unknown as { ResizeObserver?: unknown };
+      let originalRO: unknown;
+      const hadRO = "ResizeObserver" in globalThis;
+
+      beforeEach(() => {
+        originalRO = globalRO.ResizeObserver;
+        instances = [];
+        globalRO.ResizeObserver = class {
+          private readonly self: FakeRO;
+          constructor(cb: () => void) {
+            this.self = { cb, observed: [], disconnect: jest.fn() };
+            instances.push(this.self);
+          }
+          observe(el: Element) {
+            this.self.observed.push(el);
+          }
+          unobserve() {}
+          disconnect() {
+            this.self.disconnect();
+          }
+        };
+      });
+      afterEach(() => {
+        if (hadRO) globalRO.ResizeObserver = originalRO;
+        else delete globalRO.ResizeObserver;
+      });
+
+      const latest = () => instances[instances.length - 1];
+      const block = () => document.getElementById("copilot-tour") as HTMLElement;
+      const scrollerOf = () => block().closest<HTMLElement>(".overflow-y-auto") as HTMLElement;
+
+      it("watches both the drawer's scroll box and the tour thread", () => {
+        renderBubble();
+        play();
+        expect(instances.length).toBeGreaterThan(0);
+        expect(latest().observed).toHaveLength(2);
+        expect(latest().observed).toContain(scrollerOf());
+        expect(latest().observed).toContain(block());
+      });
+
+      it("pins again to the new geometry when it resizes (the drawer was still opening when the tour started)", () => {
+        renderBubble();
+        play();
+        // The drawer was a few px tall at the start: the thread's first narration would sit far above the view.
+        layOut({ blockBottom: 900, scrollerTop: 100, clientHeight: 20 });
+        act(() => latest().cb());
+        expect(scrollerOf().scrollTop).toBe(900 - 100 - 20 + 16);
+        // It has finished opening: a tall scroll box needs far less scrolling.
+        layOut({ blockBottom: 900, scrollerTop: 100, clientHeight: 700 });
+        act(() => latest().cb());
+        expect(scrollerOf().scrollTop).toBe(Math.max(0, 900 - 100 - 700 + 16));
+        expect(scrollerOf().scrollTop).toBe(116);
+      });
+
+      it("never pins above the top on a resize, and counts the current scroll", () => {
+        renderBubble();
+        play();
+        layOut({ blockBottom: 150, scrollerTop: 100, clientHeight: 300, scrollTop: 40 });
+        act(() => latest().cb());
+        expect(scrollerOf().scrollTop).toBe(0);
+        layOut({ blockBottom: 500, scrollerTop: 100, clientHeight: 300, scrollTop: 200 });
+        act(() => latest().cb());
+        expect(scrollerOf().scrollTop).toBe(500 - 100 + 200 - 300 + 16);
+      });
+
+      it("pins again when the Paused line grows the thread", () => {
+        renderBubble();
+        play();
+        layOut({ blockBottom: 500, scrollerTop: 100, clientHeight: 300 });
+        act(() => latest().cb());
+        expect(scrollerOf().scrollTop).toBe(116);
+        fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+        layOut({ blockBottom: 540, scrollerTop: 100, clientHeight: 300 });
+        act(() => latest().cb());
+        expect(scrollerOf().scrollTop).toBe(156);
+      });
+
+      it("disconnects the observer it replaces when the step changes", () => {
+        renderBubble();
+        play();
+        const first = latest();
+        advance(dur(0) + 1);
+        expect(latest()).not.toBe(first);
+        expect(first.disconnect).toHaveBeenCalled();
+        expect(latest().disconnect).not.toHaveBeenCalled();
+      });
+
+      it("disconnects every observer when the tour ends, and starts no new one", () => {
+        renderBubble();
+        play();
+        advance(dur(0) + 1);
+        fireEvent.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "End tour" }));
+        expect(instances.length).toBeGreaterThan(0);
+        for (const ro of instances) expect(ro.disconnect).toHaveBeenCalled();
+        const count = instances.length;
+        advance(ALL_DONE);
+        expect(instances).toHaveLength(count);
+      });
+
+      it("disconnects when the component unmounts mid-tour", () => {
+        const { unmount } = renderBubble();
+        play();
+        const ro = latest();
+        unmount();
+        expect(ro.disconnect).toHaveBeenCalled();
+      });
+    });
+
+    it("does not need ResizeObserver: with none defined (as in jsdom) the tour plays and still pins once", () => {
+      expect("ResizeObserver" in globalThis).toBe(false);
+      renderBubble();
+      expect(() => play()).not.toThrow();
+      const scroller = layOut({ blockBottom: 900, scrollerTop: 100, clientHeight: 300 });
+      expect(() => advance(dur(0) + 1)).not.toThrow();
+      expect(scroller.scrollTop).toBe(900 - 100 - 300 + 16);
     });
 
     it("lays out the typed line at its full size from the start, so the thread does not grow as it types", () => {

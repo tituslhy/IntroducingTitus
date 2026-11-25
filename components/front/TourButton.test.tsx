@@ -1,11 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { COPILOT_TOUR_EVENT } from '@/lib/copilot-events'
-import TourButton from './TourButton'
+import { SITE_TOUR, tourDurationMs } from '@/lib/site-tour'
+import TourButton, { TOUR_SECONDS } from './TourButton'
 
-// Whether the buttons show: the tests flip it.
+// Whether the tour's tile shows: the tests flip it.
 let mockOnSite = true
 jest.mock('@/lib/site-tour', () => ({
-  __esModule: true,
+  ...jest.requireActual<typeof import('@/lib/site-tour')>('@/lib/site-tour'),
   get TOUR_ON_SITE() {
     return mockOnSite
   },
@@ -25,100 +26,92 @@ describe('TourButton', () => {
     window.removeEventListener(COPILOT_TOUR_EVENT, listener)
   })
 
-  describe('primary', () => {
-    it('is a button reading "Show me around" with an amber arrow', () => {
-      render(<TourButton variant="primary" />)
-      const button = screen.getByRole('button', { name: /show me around/i })
-      expect(button).toHaveAttribute('type', 'button')
-      expect(button).toHaveTextContent('Show me around →')
-      expect(button.querySelector('b')).toHaveTextContent('→')
+  describe('TOUR_SECONDS', () => {
+    it('is the recording length to the nearest 5 seconds, never under 5', () => {
+      const expected = Math.max(5, Math.round(tourDurationMs(SITE_TOUR) / 5000) * 5)
+      expect(TOUR_SECONDS).toBe(expected)
+      expect(TOUR_SECONDS % 5).toBe(0)
+      expect(TOUR_SECONDS).toBeGreaterThanOrEqual(5)
     })
 
-    it('is the dark hero button, in the same classes as the old "View experience" link', () => {
-      render(<TourButton variant="primary" />)
-      const button = screen.getByRole('button', { name: /show me around/i })
-      expect(button).toHaveClass('bg-ink', 'text-paper', 'hover:bg-amber')
+    it('is within 2.5 seconds of the real length', () => {
+      expect(Math.abs(TOUR_SECONDS - tourDurationMs(SITE_TOUR) / 1000)).toBeLessThanOrEqual(2.5)
+    })
+  })
+
+  describe('the tile', () => {
+    it('is one button of type "button", with no variants', () => {
+      render(<TourButton />)
+      const buttons = screen.getAllByRole('button')
+      expect(buttons).toHaveLength(1)
+      expect(buttons[0]).toHaveAttribute('type', 'button')
+    })
+
+    it('shows the label with the duration, the title, and the line beneath', () => {
+      render(<TourButton />)
+      const button = screen.getByRole('button')
+      expect(button).toHaveTextContent(`Show me around · ${TOUR_SECONDS} s`)
+      expect(button).toHaveTextContent('Let my AI copilot give you the tour.')
+      expect(button).toHaveTextContent('It opens the pages and talks you through them')
+    })
+
+    it('is named by an aria-label that says what it is, with the length: "Show me around: a N-second tour by my AI copilot"', () => {
+      render(<TourButton />)
+      const button = screen.getByRole('button', { name: `Show me around: a ${TOUR_SECONDS}-second tour by my AI copilot` })
+      expect(button).toHaveAttribute('aria-label', `Show me around: a ${TOUR_SECONDS}-second tour by my AI copilot`)
+      expect(screen.getByRole('button', { name: /show me around/i })).toBe(button)
+    })
+
+    it('keeps its visible text as it was, whatever the accessible name says', () => {
+      render(<TourButton />)
+      const button = screen.getByRole('button')
+      expect(button.textContent).toContain(`Show me around · ${TOUR_SECONDS} s`)
+      expect(button.getAttribute('aria-label')).not.toContain(' · ')
+    })
+
+    it('is the dark glow tile', () => {
+      render(<TourButton />)
+      expect(screen.getByRole('button')).toHaveClass('glow-tile', 'bg-ink', 'text-paper')
+    })
+
+    it('hides the play icon circle and the arrow from screen readers', () => {
+      render(<TourButton />)
+      const button = screen.getByRole('button')
+      const hidden = Array.from(button.querySelectorAll('[aria-hidden="true"]'))
+      expect(hidden.some((el) => el.querySelector('svg'))).toBe(true)
+      expect(hidden.some((el) => el.textContent?.trim() === '→')).toBe(true)
     })
 
     it('starts the tour when clicked', () => {
-      render(<TourButton variant="primary" />)
-      fireEvent.click(screen.getByRole('button', { name: /show me around/i }))
+      render(<TourButton />)
+      fireEvent.click(screen.getByRole('button'))
       expect(listener).toHaveBeenCalledTimes(1)
     })
 
     it('does not start the tour on its own', () => {
-      render(<TourButton variant="primary" />)
+      render(<TourButton />)
       expect(listener).not.toHaveBeenCalled()
     })
-  })
 
-  describe('line', () => {
-    it('is a button reading "Short on time? Let me show you around"', () => {
-      render(<TourButton variant="line" />)
-      const button = screen.getByRole('button', { name: /short on time\? let me show you around/i })
-      expect(button).toHaveAttribute('type', 'button')
-    })
-
-    it('is serif italic, a tap target, with the arrow in amber and hidden from screen readers', () => {
-      render(<TourButton variant="line" />)
-      const button = screen.getByRole('button', { name: /short on time/i })
-      expect(button).toHaveClass('tap', 'font-serif', 'italic')
-      const arrow = button.querySelector('span')!
-      expect(arrow).toHaveTextContent('→')
-      expect(arrow).toHaveClass('text-amber')
-      expect(arrow).toHaveAttribute('aria-hidden', 'true')
-    })
-
-    it('starts the tour when clicked', () => {
-      render(<TourButton variant="line" />)
-      fireEvent.click(screen.getByRole('button', { name: /short on time/i }))
-      expect(listener).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  describe('the line variant owns its paragraph', () => {
-    it('wraps its button in a p, so there is nothing left behind when it is hidden', () => {
-      const { container } = render(<TourButton variant="line" />)
-      const p = container.querySelector('p')!
-      expect(container.firstElementChild).toBe(p)
-      expect(p).toContainElement(screen.getByRole('button', { name: /short on time/i }))
-      expect(p).toHaveClass('m-0', 'mt-6')
-    })
-
-    it('does not wrap the primary button in a paragraph', () => {
-      const { container } = render(<TourButton variant="primary" />)
+    it('has no paragraph wrapper: the button is the root', () => {
+      const { container } = render(<TourButton />)
       expect(container.querySelector('p')).toBeNull()
       expect(container.firstElementChild?.tagName).toBe('BUTTON')
     })
   })
 
   describe('when the tour is not on the site (the live site, still a draft)', () => {
-    beforeEach(() => {
+    it('renders nothing at all', () => {
       mockOnSite = false
-    })
-
-    it('renders nothing for the primary variant', () => {
-      const { container } = render(<TourButton variant="primary" />)
+      const { container } = render(<TourButton />)
       expect(container).toBeEmptyDOMElement()
     })
 
-    it('renders nothing for the line variant, not even its paragraph', () => {
-      const { container } = render(<TourButton variant="line" />)
-      expect(container).toBeEmptyDOMElement()
-    })
-  })
-
-  describe('when the tour is on the site (local builds, previews, or a real recording)', () => {
-    it('shows both variants', () => {
-      mockOnSite = true
-      render(
-        <>
-          <TourButton variant="primary" />
-          <TourButton variant="line" />
-        </>
-      )
-      expect(screen.getByRole('button', { name: /show me around/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /short on time/i })).toBeInTheDocument()
+    it('cannot be clicked, so no tour starts', () => {
+      mockOnSite = false
+      render(<TourButton />)
+      expect(screen.queryByRole('button')).not.toBeInTheDocument()
+      expect(listener).not.toHaveBeenCalled()
     })
   })
 })

@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import CountUp from '@/components/tiles/CountUp'
 import DownButton from './DownButton'
-import TourButton from './TourButton'
 import { FRONT_STATS } from '@/lib/front-page'
 import { SOCIAL } from '@/lib/profile'
 
@@ -50,7 +49,6 @@ export default function OpeningLine() {
           <StatTile figure={String(contributions)} label="open-source contributions" href="/projects#open-source" />
         </div>
       </div>
-      <TourButton variant="line" />
       <div className="flex justify-center">
         <DownButton targetId="on-this-site" />
       </div>

@@ -22,9 +22,10 @@ import {
   type Source,
 } from "@/lib/citations";
 import { COPILOT_OPEN_EVENT, COPILOT_TOUR_EVENT, type CopilotOpenDetail } from "@/lib/copilot-events";
-import { SITE_TOUR } from "@/lib/site-tour";
+import { DRAWER_TARGET_IDS, SITE_TOUR, stepDurationMs } from "@/lib/site-tour";
 import { useTourPlayer } from "./tour/useTourPlayer";
 import TourCaption from "./tour/TourCaption";
+import TourProgress from "./tour/TourProgress";
 import TourThread from "./tour/TourThread";
 import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH } from "@/lib/content";
 import { STARTER_PROMPTS } from "@/lib/starter-prompts";
@@ -89,7 +90,12 @@ const SPOTLIGHT_MS = 2800;
 /** The ring the tour puts on something in the drawer (app/globals.css). */
 const TOUR_RING_CLASS = "tour-ring";
 /** Tour steps that play in the open drawer on every screen: the greeting and the drawer's own features. */
-const TOUR_DRAWER_STEPS = 2;
+// The tour's first steps point at things in the drawer (its button, the job-description starter): the drawer stays
+// open, with its starters, until the last of them; after that, phones narrate over the page instead.
+const TOUR_DRAWER_STEPS = SITE_TOUR.steps.reduce(
+  (n, s, i) => (s.targets.some((t) => (DRAWER_TARGET_IDS as readonly string[]).includes(t)) ? i + 1 : n),
+  0
+);
 
 
 const AssistantAvatar = () => (
@@ -426,14 +432,24 @@ export default function CopilotBubble({
     setTimeout(() => inputRef.current?.focus(), 150);
   }, [tour.status]);
 
-  // Keep the newest line of the tour and its controls in view inside the drawer.
+  // Keep the newest line of the tour and its controls in view inside the drawer. Re-pinned whenever the drawer or
+  // the tour block changes size: the drawer is still opening (a few px tall) when the tour starts, and the
+  // "Paused" line adds height under the narration.
   useEffect(() => {
     if (!touring) return;
     const scroller = messagesScrollRef.current;
     const block = document.getElementById("copilot-tour");
     if (!scroller || !block) return;
-    const bottom = block.getBoundingClientRect().bottom - scroller.getBoundingClientRect().top + scroller.scrollTop;
-    scroller.scrollTop = Math.max(0, bottom - scroller.clientHeight + 16);
+    const pin = () => {
+      const bottom = block.getBoundingClientRect().bottom - scroller.getBoundingClientRect().top + scroller.scrollTop;
+      scroller.scrollTop = Math.max(0, bottom - scroller.clientHeight + 16);
+    };
+    pin();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(pin);
+    ro.observe(scroller);
+    ro.observe(block);
+    return () => ro.disconnect();
   }, [touring, tour.index, isOpen]);
 
   useEffect(() => {
@@ -855,6 +871,7 @@ export default function CopilotBubble({
   const tourSteps = touring ? SITE_TOUR.steps.slice(0, tour.index + 1) : tourOutro ? SITE_TOUR.steps.slice(-1) : [];
   const tourControl =
     "tap rounded-full px-3 py-1.5 font-mono text-[11px] transition-colors hover:bg-paper-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber";
+  const tourPaused = tour.status === "paused";
   const tourBlock =
     tourSteps.length > 0 && !captionMode ? (
       <TourThread
@@ -864,8 +881,27 @@ export default function CopilotBubble({
         controls={
           touring ? (
             <div className="flex flex-wrap items-center gap-1 pt-1">
-              <button type="button" onClick={tour.status === "paused" ? tour.resume : tour.pause} className={`${tourControl} bg-paper-deep`}>
-                {tour.status === "paused" ? "Resume" : "Pause"}
+              <div className="mb-1.5 w-full">
+                <TourProgress step={`${tour.run}-${tour.index}`} ms={stepDurationMs(SITE_TOUR.steps[tour.index])} paused={tourPaused} />
+              </div>
+              {tourPaused && (
+                <p role="status" className="m-0 mb-1 flex w-full items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-ink">
+                  <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-amber" />
+                  Paused · press Resume to carry on
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={tourPaused ? tour.resume : tour.pause}
+                className={`${tourControl} ${tourPaused ? "tour-resume bg-ink text-paper hover:bg-amber hover:text-ink" : "bg-paper-deep"}`}
+              >
+                {tourPaused ? (
+                  <>
+                    <span aria-hidden="true" className="text-amber-hi">▶</span> Resume
+                  </>
+                ) : (
+                  "Pause"
+                )}
               </button>
               <button type="button" onClick={tour.skip} className={tourControl}>
                 {tour.index + 1 >= tour.total ? "Finish" : `Next · ${tour.index + 1} of ${tour.total}`}{" "}
@@ -970,7 +1006,9 @@ export default function CopilotBubble({
         {/* Messages */}
         <div ref={messagesScrollRef} className="flex-1 space-y-5 overflow-y-auto px-5 py-5" style={{ minHeight: 0 }}>
           {messages.length === 0 && tourBlock}
-          {messages.length === 0 && !busy && (
+          {/* The starters stay up through the tour's drawer steps (step 2 points at the job-description one),
+              then step aside so the narration has the drawer to itself; they're back when it ends. */}
+          {messages.length === 0 && !busy && !(touring && tour.index >= TOUR_DRAWER_STEPS) && (
             <div>
               <p className="mb-4 font-serif text-[15px] leading-snug text-ink-soft">
                 Ask about my roles, projects or any of my {ARTICLE_COUNT_NUMBER} articles, or paste a job description to
@@ -1221,7 +1259,8 @@ export default function CopilotBubble({
           say={tour.step.say}
           index={tour.index}
           total={tour.total}
-          paused={tour.status === "paused"}
+          paused={tourPaused}
+          stepMs={stepDurationMs(tour.step)}
           instant={prefersReducedMotion}
           onPause={tour.pause}
           onResume={tour.resume}

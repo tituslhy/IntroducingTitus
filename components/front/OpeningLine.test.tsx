@@ -50,43 +50,39 @@ describe('OpeningLine', () => {
     expect(screen.getByText(/^Eight years putting AI into production\./)).toBeInTheDocument()
   })
 
-  it('invites a tour under the tiles: "Short on time? Let me show you around"', () => {
-    render(<OpeningLine />)
-    expect(screen.getByRole('button', { name: /short on time\? let me show you around/i })).toBeInTheDocument()
+  it('no longer has a "Short on time? Let me show you around" line: the tour lives in the hero', () => {
+    const { container } = render(<OpeningLine />)
+    expect(screen.queryByText(/short on time/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/show you around/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(container.textContent).not.toMatch(/short on time/i)
   })
 
-  it('puts the tour line after the sentence and the tiles, and before the down button', () => {
-    const { container } = render(<OpeningLine />)
-    const tour = screen.getByRole('button', { name: /short on time/i })
-    const grid = container.querySelector('.grid-cols-2')!
-    const down = screen.getByRole('link', { name: "Scroll down to what's on this site" })
-    expect(grid.compareDocumentPosition(tour) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(tour.compareDocumentPosition(down) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  it('has no tour button, whether or not the tour is on the site', () => {
+    for (const onSite of [true, false]) {
+      mockOnSite = onSite
+      const { unmount } = render(<OpeningLine />)
+      expect(screen.queryByRole('button', { name: /show me around|short on time/i })).not.toBeInTheDocument()
+      unmount()
+    }
   })
 
-  it('leaves nothing behind where the tour line would be when the tour is not on the site', () => {
-    mockOnSite = false
+  it('has just the sentence as its one paragraph', () => {
     const { container } = render(<OpeningLine />)
-    expect(screen.queryByRole('button', { name: /short on time/i })).not.toBeInTheDocument()
-    // The sentence is the only paragraph left: no empty <p> with margins.
     expect(container.querySelectorAll('p')).toHaveLength(1)
     expect(screen.getByRole('link', { name: "Scroll down to what's on this site" })).toBeInTheDocument()
   })
 
-  it('does not wrap the tour line in a second paragraph of its own', () => {
-    const { container } = render(<OpeningLine />)
-    const button = screen.getByRole('button', { name: /short on time/i })
-    expect(button.closest('p')?.parentElement).toBe(container.firstElementChild)
-    expect(container.querySelectorAll('p')).toHaveLength(2) // the sentence, and the tour line's own
-  })
-
-  it('starts the tour when the line is clicked', () => {
+  it('does not start a tour from anything in it', () => {
     const heard = jest.fn()
     window.addEventListener(COPILOT_TOUR_EVENT, heard)
     try {
       render(<OpeningLine />)
-      fireEvent.click(screen.getByRole('button', { name: /short on time/i }))
-      expect(heard).toHaveBeenCalledTimes(1)
+      screen.getAllByRole('link').forEach((a) => {
+        a.addEventListener('click', (e) => e.preventDefault())
+        fireEvent.click(a)
+      })
+      expect(heard).not.toHaveBeenCalled()
     } finally {
       window.removeEventListener(COPILOT_TOUR_EVENT, heard)
     }

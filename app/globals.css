@@ -134,10 +134,11 @@ body {
   display: none;
 }
 
-/* Front page: the logo field fades out over the hero's bottom ~14%, with no rule line under it. */
+/* Front page: the logo field fades out over the hero's bottom 84px, with no rule line under it. A fixed height,
+   not a share of the hero, so a taller hero (the tour tile) doesn't fade into the band where the scenes play. */
 .hero-anim canvas {
-  -webkit-mask-image: linear-gradient(to bottom, #000 86%, transparent);
-  mask-image: linear-gradient(to bottom, #000 86%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 84px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 84px), transparent);
 }
 
 /* The front page's scroll-down button. */
@@ -155,6 +156,15 @@ body {
   z-index: -1;
   background: radial-gradient(closest-side, oklch(0.62 0.155 55 / 0.35), transparent 70%);
   animation: glow-drift 14s ease-in-out infinite alternate;
+}
+/* The tour: a step's progress bar fills left to right; Resume pulses while the tour waits on the visitor. */
+.tour-progress { transform-origin: left; animation-name: tour-progress; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes tour-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.tour-resume { animation: tour-resume 1.6s ease-in-out infinite; }
+@keyframes tour-resume {
+  0%   { box-shadow: 0 0 0 0 oklch(0.62 0.155 55 / 0.55); }
+  70%  { box-shadow: 0 0 0 9px oklch(0.62 0.155 55 / 0); }
+  100% { box-shadow: 0 0 0 0 oklch(0.62 0.155 55 / 0); }
 }
 /* Illumina's tile on Projects: the one place indigo glows. */
 .glow-tile-indigo::before { background: radial-gradient(closest-side, oklch(0.5 0.14 254 / 0.55), transparent 70%); }
@@ -222,7 +232,7 @@ body {
   to   { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .glow-tile::before, .result-flash, .paper-turn { animation: none; }
+  .glow-tile::before, .result-flash, .paper-turn, .tour-resume { animation: none; }
 }
 
 /* ---------------------------------------------------------------------------
