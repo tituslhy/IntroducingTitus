@@ -440,3 +440,29 @@ describe('retired navigation', () => {
     expect(container.querySelector('section#projects > button')).toBeNull()
   })
 })
+
+describe('fictional-bassoon projector: compact frames', () => {
+  const bassoonArticle = (container: HTMLElement) => articleFor(container, bassoon)
+  const screenOf = (container: HTMLElement) => bassoonArticle(container).querySelector('.projector > .relative.aspect-video') as HTMLElement
+  const titleCaption = `${bassoon.figure.value} ${bassoon.caption}`
+  const [videoFrame, diagramFrame] = bassoon.frames
+
+  it('marks the title card, the bear video and not the Architecture diagram as compact', () => {
+    const { container } = render(<Projects />)
+    const article = bassoonArticle(container)
+    fireEvent.click(within(article).getByRole('button', { name: `Frame 1: ${titleCaption}` }))
+    expect(screenOf(container)).toHaveClass('projector-compact')
+
+    fireEvent.click(within(article).getByRole('button', { name: `Frame 2: ${videoFrame.caption}` }))
+    expect(screenOf(container)).toHaveClass('projector-compact')
+
+    fireEvent.click(within(article).getByRole('button', { name: `Frame 3: ${diagramFrame.caption}` }))
+    expect(screenOf(container)).not.toHaveClass('projector-compact')
+    expect(screenOf(container)).toHaveClass('projector-fit')
+  })
+
+  it('starts on the title card, so the screen is compact before anything is picked', () => {
+    const { container } = render(<Projects />)
+    expect(screenOf(container)).toHaveClass('projector-compact')
+  })
+})

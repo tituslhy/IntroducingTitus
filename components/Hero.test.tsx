@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { STARTER_PROMPTS } from '@/lib/starter-prompts'
 import { CURRENT_ROLE, SOCIAL, EMAIL } from '@/lib/profile'
 import { KEEP_OUT_ATTR } from '@/lib/hero-keepout'
 import Hero from './Hero'
@@ -117,5 +118,23 @@ describe('Hero', () => {
     expect(screen.queryByText('Currently')).not.toBeInTheDocument()
     expect(screen.queryByText(/of production ai/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/8\+ years/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('Hero: Ask Titus on phones', () => {
+  it('renders the first two starter prompts from HeroAsk, as buttons under the hero text', () => {
+    render(<Hero />)
+    expect(screen.getByRole('button', { name: STARTER_PROMPTS[0] })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: STARTER_PROMPTS[1] })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: STARTER_PROMPTS[2] })).not.toBeInTheDocument()
+  })
+
+  it('puts the Ask card after the resume link, inside the hero text block', () => {
+    const { container } = render(<Hero />)
+    const resume = screen.getByText('on request').closest('a') as HTMLElement
+    const ask = screen.getByRole('link', { name: 'How it works' }).closest('.min-\\[900px\\]\\:hidden') as HTMLElement
+    expect(ask).toBeInTheDocument()
+    expect(resume.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(container.querySelector('section#masthead')).toContainElement(ask)
   })
 })

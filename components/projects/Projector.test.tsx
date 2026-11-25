@@ -387,3 +387,61 @@ describe('Projector: what a moving frame sees (ProjectorMotion)', () => {
     expect(motionValues()).toEqual(['false', 'false'])
   })
 })
+
+describe('Projector: compact frames on a tall or fitted screen', () => {
+  const mixed: ProjectorFrame[] = [
+    { node: <p>Title card</p>, thumb: <span>T1</span>, caption: 'Title caption', compact: true },
+    { node: <p>Diagram</p>, thumb: <span>T2</span>, caption: 'Diagram caption', ms: 11000 },
+    { node: <p>Still</p>, thumb: <span>T3</span>, caption: 'Still caption', compact: true },
+  ]
+  const frameThumb = (caption: string) => screen.getByRole('button', { name: new RegExp(`: ${caption}$`) })
+  const screenOf = () => group().querySelector('.projector-screen') as HTMLElement
+  const isCompact = () => screenOf().classList.contains('projector-compact')
+
+  it('adds projector-compact on a fitted screen while a compact frame shows', () => {
+    render(<Projector label="Test reel" frames={mixed} fit />)
+    expect(screenOf()).toHaveClass('projector-fit')
+    expect(isCompact()).toBe(true)
+  })
+
+  it('adds projector-compact on a tall screen while a compact frame shows', () => {
+    render(<Projector label="Test reel" frames={mixed} tall />)
+    expect(screenOf()).toHaveClass('projector-tall')
+    expect(isCompact()).toBe(true)
+  })
+
+  it('drops projector-compact when a non-compact frame is picked from the thumbnails, and returns for a compact one', () => {
+    render(<Projector label="Test reel" frames={mixed} fit />)
+    expect(isCompact()).toBe(true)
+
+    fireEvent.click(frameThumb('Diagram caption'))
+    expect(isCompact()).toBe(false)
+    expect(screenOf()).toHaveClass('projector-fit')
+
+    fireEvent.click(frameThumb('Still caption'))
+    expect(isCompact()).toBe(true)
+  })
+
+  it('drops projector-compact on a tall screen when a diagram is picked', () => {
+    render(<Projector label="Test reel" frames={mixed} tall />)
+    fireEvent.click(frameThumb('Diagram caption'))
+    expect(isCompact()).toBe(false)
+    expect(screenOf()).toHaveClass('projector-tall')
+  })
+
+  it('never adds projector-compact when the projector is neither tall nor fit, even on a compact frame', () => {
+    render(<Projector label="Test reel" frames={mixed} />)
+    expect(screenOf()).not.toHaveClass('projector-tall', 'projector-fit')
+    expect(isCompact()).toBe(false)
+
+    fireEvent.click(frameThumb('Still caption'))
+    expect(screenOf().querySelector('[data-reveal="2"]')).not.toHaveAttribute('hidden')
+    expect(isCompact()).toBe(false)
+  })
+
+  it('leaves the Pause/Play button with the tap class, and the strip without projector-compact', () => {
+    render(<Projector label="Test reel" frames={mixed} fit />)
+    expect(screen.getByRole('button', { name: '❚❚ Pause' }).className).toMatch(/\btap\b/)
+    expect(group().querySelector('.projector-strip')).not.toHaveClass('projector-compact')
+  })
+})
