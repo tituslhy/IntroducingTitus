@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import TourCaption from './TourCaption'
 
 const SAY = 'Pick up any pass and that role opens below: here is UOB, and Illumina. Or see every role at once.'
@@ -231,38 +231,51 @@ describe('TourCaption', () => {
       expect(screen.queryByRole('list', { name: 'Example questions' })).not.toBeInTheDocument()
     })
 
-    it('shows each question as a button under the narration', () => {
+    it('shows each question as a read-only list item under the narration', () => {
       setup({ ask: QS })
-      const list = screen.getByRole('list', { name: 'Example questions' })
-      expect(list).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: QS[0] })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: QS[1] })).toBeInTheDocument()
       const region = screen.getByRole('region', { name: 'Site tour' })
+      const list = screen.getByRole('list', { name: 'Example questions' })
       expect(region).toContainElement(list)
+      const items = within(list).getAllByRole('listitem')
+      expect(items).toHaveLength(2)
+      expect(items[0]).toHaveTextContent(`\u201c${QS[0]}\u201d`)
+      expect(items[1]).toHaveTextContent(`\u201c${QS[1]}\u201d`)
     })
 
-    it('calls onAsk with the question pressed', () => {
-      const onAsk = jest.fn()
-      setup({ ask: QS, onAsk })
-      fireEvent.click(screen.getByRole('button', { name: QS[1] }))
-      expect(onAsk).toHaveBeenCalledWith(QS[1])
+    it('announces the examples after the line, then the step count, in the live region', () => {
+      setup({ ask: QS, index: 6, total: 10 })
+      const live = screen.getByText(`${SAY} Examples: ${QS[0]} ${QS[1]} (tour, step 7 of 10)`)
+      expect(live).toHaveAttribute('aria-live', 'polite')
+      expect(live).toHaveClass('sr-only')
     })
 
-    it('enables the questions by default and disables them while askDisabled', () => {
-      const { unmount } = render(<TourCaption {...baseProps({ ask: QS })} />)
-      for (const b of screen.getAllByRole('button', { name: new RegExp(QS[0].slice(0, 15)) })) expect(b).toBeEnabled()
+    it('announces just the line when there are no examples', () => {
+      setup({ ask: [], index: 2, total: 10 })
+      expect(screen.getByText(`${SAY} (tour, step 3 of 10)`)).toBeInTheDocument()
+      expect(screen.queryByText(/Examples:/)).not.toBeInTheDocument()
+    })
+
+    it('has no button for a question: the only buttons are the tour controls', () => {
+      const { unmount } = render(<TourCaption {...baseProps()} />)
+      const controls = screen.getAllByRole('button').map((b) => b.textContent)
       unmount()
-      const onAsk = jest.fn()
-      render(<TourCaption {...baseProps({ ask: QS, onAsk, askDisabled: true })} />)
-      const q = screen.getByRole('button', { name: QS[1] })
-      expect(q).toBeDisabled()
-      fireEvent.click(q)
-      expect(onAsk).not.toHaveBeenCalled()
+      render(<TourCaption {...baseProps({ ask: QS })} />)
+      expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(controls)
+      expect(screen.queryByRole('button', { name: QS[0] })).not.toBeInTheDocument()
     })
 
-    it('does not throw when a question is pressed and no onAsk was given', () => {
-      setup({ ask: QS })
-      expect(() => fireEvent.click(screen.getByRole('button', { name: QS[0] }))).not.toThrow()
+    it('clicking a question calls no tour control', () => {
+      const props = setup({ ask: QS })
+      fireEvent.click(screen.getAllByRole('listitem')[1])
+      expect(props.onPause).not.toHaveBeenCalled()
+      expect(props.onResume).not.toHaveBeenCalled()
+      expect(props.onSkip).not.toHaveBeenCalled()
+      expect(props.onEnd).not.toHaveBeenCalled()
+    })
+
+    it('keeps showing the questions while paused', () => {
+      setup({ ask: QS, paused: true })
+      expect(screen.getAllByRole('listitem')).toHaveLength(2)
     })
   })
 })

@@ -13,7 +13,7 @@ import { join } from "node:path";
 import OpenAI from "openai";
 import { buildSystemPrompt } from "../lib/copilot-prompt";
 import { MODEL } from "../lib/copilot-loop";
-import { parseTour, stepDurationMs, tourDurationMs, tourJsonSchema, tourProblems } from "../lib/site-tour";
+import { parseTour, stepDurationAt, tourDurationMs, tourJsonSchema, tourProblems } from "../lib/site-tour";
 
 const OUT = join(process.cwd(), "content", "site-tour.json");
 const TOUR_QUESTION = "Show me around.";
@@ -40,7 +40,7 @@ async function main() {
 
   tour.steps.forEach((s, i) =>
     console.log(
-      `${String(i + 1).padStart(2)}. (${(stepDurationMs(s) / 1000).toFixed(1)}s) ${s.say}\n    → ${s.targets.join(", ") || "—"}` +
+      `${String(i + 1).padStart(2)}. (${(stepDurationAt(tour, i) / 1000).toFixed(1)}s) ${s.say}\n    → ${s.targets.join(", ") || "—"}` +
         (s.ask?.length ? `\n    ? ${s.ask.join("\n    ? ")}` : "")
     )
   );

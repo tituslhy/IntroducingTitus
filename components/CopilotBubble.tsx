@@ -22,7 +22,7 @@ import {
   type Source,
 } from "@/lib/citations";
 import { COPILOT_OPEN_EVENT, COPILOT_TOUR_EVENT, announceTourPage, type CopilotOpenDetail } from "@/lib/copilot-events";
-import { DRAWER_TARGET_IDS, SITE_TOUR, stepDurationMs, type TourStep } from "@/lib/site-tour";
+import { DRAWER_TARGET_IDS, SITE_TOUR, spokenStep, stepDurationAt, type TourStep } from "@/lib/site-tour";
 import { useTourPlayer } from "./tour/useTourPlayer";
 import TourAsk from "./tour/TourAsk";
 import TourCaption from "./tour/TourCaption";
@@ -511,7 +511,7 @@ export default function CopilotBubble({
   }, [touring, tour.index, isOpen]);
 
   useEffect(() => {
-    if (touring && tour.step) setLiveMessage(`${tour.step.say} (tour, step ${tour.index + 1} of ${tour.total})`);
+    if (touring && tour.step) setLiveMessage(`${spokenStep(tour.step)} (tour, step ${tour.index + 1} of ${tour.total})`);
   }, [touring, tour.step, tour.index, tour.total]);
 
   const tourStopRef = useRef(tour.stop);
@@ -930,12 +930,6 @@ export default function CopilotBubble({
   const tourControl =
     "tap rounded-full px-3 py-1.5 font-mono text-[11px] transition-colors hover:bg-paper-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber";
   const tourPaused = tour.status === "paused";
-  // An example question from the tour: asked for real, which ends the tour (sendMessage stops it).
-  const askExample = (q: string) => {
-    tour.stop();
-    setIsOpen(true);
-    void sendMessage(q);
-  };
   // The job-description button under a tour line: the one that tells them to press it, and the closing line (which
   // says it's "right below"). Only one #fit-mode at a time: the starters hide theirs while either shows.
   const tourFitButton = (
@@ -954,7 +948,7 @@ export default function CopilotBubble({
   const tourExtras = (step: TourStep, i: number) => (
     <>
       {i === TOUR_FIT_STEP && tourFitButton}
-      {step.ask?.length ? <TourAsk questions={step.ask} onAsk={askExample} disabled={busy} /> : null}
+      {step.ask?.length ? <TourAsk questions={step.ask} /> : null}
     </>
   );
   const tourBlock =
@@ -968,7 +962,7 @@ export default function CopilotBubble({
           touring ? (
             <div className="flex flex-wrap items-center gap-1 pt-1">
               <div className="mb-1.5 w-full">
-                <TourProgress step={`${tour.run}-${tour.index}`} ms={stepDurationMs(SITE_TOUR.steps[tour.index])} paused={tourPaused} />
+                <TourProgress step={`${tour.run}-${tour.index}`} ms={stepDurationAt(SITE_TOUR, tour.index)} paused={tourPaused} />
               </div>
               {tourPaused && (
                 <p role="status" className="m-0 mb-1 flex w-full items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-ink">
@@ -1363,10 +1357,8 @@ export default function CopilotBubble({
           index={tour.index}
           total={tour.total}
           paused={tourPaused}
-          stepMs={stepDurationMs(tour.step)}
+          stepMs={stepDurationAt(SITE_TOUR, tour.index)}
           ask={tour.step.ask ?? []}
-          onAsk={askExample}
-          askDisabled={busy}
           instant={prefersReducedMotion}
           onPause={tour.pause}
           onResume={tour.resume}

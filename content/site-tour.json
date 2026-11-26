@@ -41,7 +41,7 @@
       ]
     },
     {
-      "say": "My writing is a newspaper of articles by year and theme. I can answer questions on any of them; try one of these.",
+      "say": "My writing is a newspaper of articles by year and theme, and I can answer questions on any of them. Here are two examples; you’ll find them in Ask Titus after the tour too.",
       "targets": [
         "writing"
       ],

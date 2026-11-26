@@ -7,7 +7,10 @@ import {
   TOUR_ON_SITE,
   TOUR_BUDGET_MS,
   TOUR_TARGET_IDS,
+  TYPE_WORDS_PER_SECOND,
   parseTour,
+  spokenStep,
+  stepDurationAt,
   stepDurationMs,
   tourDurationMs,
   tourJsonSchema,
@@ -109,10 +112,136 @@ describe("stepDurationMs", () => {
   });
 });
 
+describe("stepDurationAt", () => {
+  it("equals stepDurationMs for every step but the last", () => {
+    const t = tour([step(words(30), ["role-uob"]), step(words(3)), step(words(30), ["writing"], ["a"]), step(words(30))]);
+    for (const i of [0, 1, 2]) expect(stepDurationAt(t, i)).toBe(stepDurationMs(t.steps[i]));
+  });
+
+  it("equals stepDurationMs for a middle step that shows nothing", () => {
+    const t = tour([step(words(30)), step(words(30)), step(words(30))]);
+    expect(stepDurationAt(t, 0)).toBe(10000);
+    expect(stepDurationAt(t, 1)).toBe(10000);
+  });
+
+  it("is words at 12 a second plus 1200 ms for a last step with no targets", () => {
+    expect(stepDurationAt(tour([step("a"), step("b"), step(words(24))]), 2)).toBe(3200);
+    expect(stepDurationAt(tour([step("a"), step("b"), step(words(60))]), 2)).toBe(6200);
+  });
+
+  it("rounds the last step to a whole millisecond", () => {
+    // 17 words: 17/12 s = 1416.67 ms, plus 1200.
+    const d = stepDurationAt(tour([step("a"), step("b"), step(words(17))]), 2);
+    expect(d).toBe(2617);
+    expect(Number.isInteger(d)).toBe(true);
+  });
+
+  it("ignores the 4 s floor and the 16 s ceiling on a closing step with no targets", () => {
+    expect(stepDurationAt(tour([step("a"), step("b"), step(words(3))]), 2)).toBe(2500);
+    expect(stepDurationAt(tour([step("a"), step("b"), step(words(300))]), 2)).toBe(26200);
+  });
+
+  it("floors a short closing line at 2500 ms", () => {
+    expect(stepDurationAt(tour([step("a"), step("b"), step("One.")]), 2)).toBe(2500);
+    expect(stepDurationAt(tour([step("a"), step("b"), step(words(13))]), 2)).toBe(2500);
+    // 15 words: 1250 + 1200 = 2450, still under; 16 words: 1333 + 1200 = 2533, over.
+    expect(stepDurationAt(tour([step("a"), step("b"), step(words(15))]), 2)).toBe(2500);
+    expect(stepDurationAt(tour([step("a"), step("b"), step(words(16))]), 2)).toBe(2533);
+  });
+
+  it("uses stepDurationMs for a last step with example questions, even with no targets", () => {
+    const t = tour([step("a"), step("b"), step(words(24), [], ["x", "y"])]);
+    expect(stepDurationAt(t, 2)).toBe(stepDurationMs(t.steps[2]));
+    expect(stepDurationAt(t, 2)).toBe(10000);
+  });
+
+  it("treats an empty ask list as no ask: the short closing timing applies", () => {
+    expect(stepDurationAt(tour([step("a"), step("b"), step(words(24), [], [])]), 2)).toBe(3200);
+  });
+
+  it("uses stepDurationMs for a last step that has targets", () => {
+    const t = tour([step("a"), step("b"), step(words(30), ["role-uob"])]);
+    expect(stepDurationAt(t, 2)).toBe(stepDurationMs(t.steps[2]));
+    expect(stepDurationAt(t, 2)).toBe(12000);
+  });
+
+  it("is a closing step only when last: the same line mid-tour keeps its reading time", () => {
+    const closing = step(words(24));
+    expect(stepDurationAt(tour([closing, step("b"), step("c")]), 0)).toBe(stepDurationMs(closing));
+    expect(stepDurationAt(tour([step("a"), step("b"), closing]), 2)).toBe(3200);
+  });
+
+  it("treats a one-step tour's only step as the last", () => {
+    expect(stepDurationAt(tour([step(words(24))]), 0)).toBe(3200);
+    expect(stepDurationAt(tour([step(words(24), ["role-uob"])]), 0)).toBe(10000);
+  });
+
+  it("counts whitespace-only words as none: an empty closing line is the 2500 ms floor", () => {
+    expect(stepDurationAt(tour([step("a"), step("b"), step("  ")]), 2)).toBe(2500);
+  });
+
+  it("makes the shipped tour's closing step last about 3.5 s, not its reading time", () => {
+    const i = SITE_TOUR.steps.length - 1;
+    expect(SITE_TOUR.steps[i].targets).toEqual([]);
+    const d = stepDurationAt(SITE_TOUR, i);
+    expect(d).toBeGreaterThan(3000);
+    expect(d).toBeLessThan(4000);
+    expect(d).toBeLessThan(stepDurationMs(SITE_TOUR.steps[i]));
+  });
+});
+
+describe("TYPE_WORDS_PER_SECOND", () => {
+  it("is 12, the speed the drawer types at", () => {
+    expect(TYPE_WORDS_PER_SECOND).toBe(12);
+  });
+});
+
+describe("spokenStep", () => {
+  it("is the line alone when there is no ask", () => {
+    expect(spokenStep(step("Hello there."))).toBe("Hello there.");
+    expect(spokenStep(step("Hello there.", ["writing"]))).toBe("Hello there.");
+  });
+
+  it("is the line alone for an empty ask list", () => {
+    expect(spokenStep(step("Hello there.", [], []))).toBe("Hello there.");
+  });
+
+  it("adds the examples after the line: \"Examples: \" then the questions joined by a space", () => {
+    expect(spokenStep(step("Try these.", ["writing"], ["One?", "Two?"]))).toBe("Try these. Examples: One? Two?");
+    expect(spokenStep(step("Try this.", [], ["Only?"]))).toBe("Try this. Examples: Only?");
+  });
+
+  it("reads the shipped writing step with both of its questions", () => {
+    const writing = SITE_TOUR.steps.find((s) => s.ask?.length) as TourStep;
+    const spoken = spokenStep(writing);
+    expect(spoken.startsWith(`${writing.say} Examples: `)).toBe(true);
+    for (const q of writing.ask ?? []) expect(spoken).toContain(q);
+  });
+});
+
 describe("tourDurationMs", () => {
-  it("sums its steps", () => {
+  it("sums its steps, the closing step by stepDurationAt", () => {
     const t = tour([step(words(30), ["role-uob"]), step(words(3)), step(words(30))]);
-    expect(tourDurationMs(t)).toBe(12000 + 4000 + 10000);
+    // 12000 + 4000 + (30 words / 12 per s + 1.2 s = 3700)
+    expect(tourDurationMs(t)).toBe(12000 + 4000 + 3700);
+  });
+
+  it("sums stepDurationAt over every step", () => {
+    const t = tour([step(words(30), ["role-uob"]), step(words(3)), step(words(40), ["writing"], ["a"]), step(words(20))]);
+    const sum = t.steps.reduce((acc, _, i) => acc + stepDurationAt(t, i), 0);
+    expect(tourDurationMs(t)).toBe(sum);
+  });
+
+  it("uses stepDurationMs for a last step with targets", () => {
+    const t = tour([step(words(30)), step(words(30), ["role-uob"])]);
+    expect(tourDurationMs(t)).toBe(10000 + 12000);
+  });
+
+  it("is the shipped tour's stepDurationAt sum, shorter than the old reading-time sum", () => {
+    const old = SITE_TOUR.steps.reduce((acc, s) => acc + stepDurationMs(s), 0);
+    const now = SITE_TOUR.steps.reduce((acc, _, i) => acc + stepDurationAt(SITE_TOUR, i), 0);
+    expect(tourDurationMs(SITE_TOUR)).toBe(now);
+    expect(now).toBeLessThan(old);
   });
 
   it("is 0 for a tour with no steps", () => {
@@ -288,14 +417,16 @@ describe("tourProblems", () => {
   });
 
   it("flags a tour over 120000 ms, with the total in seconds", () => {
-    // 10 steps of 200 words hit the 16 s ceiling: 160 s.
+    // 9 steps of 200 words hit the 16 s ceiling (144 s); the closing step is 200 words / 12 per s + 1.2 s = 17.9 s.
     const steps = Array.from({ length: 10 }, () => step(words(200)));
-    expect(tourProblems(tour(steps))).toEqual(["runs 160s; the limit is 120s"]);
+    expect(tourDurationMs(tour(steps))).toBe(9 * 16000 + 17867);
+    expect(tourProblems(tour(steps))).toEqual(["runs 162s; the limit is 120s"]);
   });
 
   it("allows a tour that lands exactly on the budget", () => {
-    // 7 steps at the 16000 ms ceiling, plus a 24-word step (8000 ms): 120000.
-    const exact = [...Array.from({ length: 7 }, () => step(words(200))), step(words(24))];
+    // 7 steps at the 16000 ms ceiling, plus a 24-word step (8000 ms): 120000. The last step shows something, so it
+    // keeps its reading time.
+    const exact = [step(words(24)), ...Array.from({ length: 5 }, () => step(words(200))), step(words(200)), step(words(200), ["writing"])];
     expect(tourDurationMs(tour(exact))).toBe(TOUR_BUDGET_MS);
     expect(tourProblems(tour(exact))).toEqual([]);
   });
@@ -388,7 +519,9 @@ describe("SITE_TOUR", () => {
     const withQuestions = SITE_TOUR.steps.filter((s) => s.ask && s.ask.length > 0);
     expect(withQuestions).toHaveLength(1);
     expect(withQuestions[0].targets).toEqual(["writing"]);
-    expect(withQuestions[0].say).toContain("I can answer questions on any of them; try one of these.");
+    expect(withQuestions[0].say).toBe(
+      "My writing is a newspaper of articles by year and theme, and I can answer questions on any of them. Here are two examples; you\u2019ll find them in Ask Titus after the tour too.",
+    );
     expect(withQuestions[0].ask).toEqual([
       "How would you build production-ready agents?",
       "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?",

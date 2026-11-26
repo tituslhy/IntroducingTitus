@@ -5,65 +5,53 @@ const QUESTIONS = ['How would you build production-ready agents?', 'What did you
 
 describe('TourAsk', () => {
   it('renders nothing for no questions', () => {
-    const { container } = render(<TourAsk questions={[]} onAsk={jest.fn()} />)
+    const { container } = render(<TourAsk questions={[]} />)
     expect(container).toBeEmptyDOMElement()
   })
 
   it('is a list labelled "Example questions"', () => {
-    render(<TourAsk questions={QUESTIONS} onAsk={jest.fn()} />)
+    render(<TourAsk questions={QUESTIONS} />)
     expect(screen.getByRole('list', { name: 'Example questions' })).toBeInTheDocument()
     expect(screen.getAllByRole('listitem')).toHaveLength(2)
   })
 
-  it('has one button per question, with the question in its text, in order', () => {
-    render(<TourAsk questions={QUESTIONS} onAsk={jest.fn()} />)
-    const buttons = screen.getAllByRole('button')
-    expect(buttons).toHaveLength(2)
-    expect(buttons[0]).toHaveTextContent(QUESTIONS[0])
-    expect(buttons[1]).toHaveTextContent(QUESTIONS[1])
+  it('has one list item per question, in curly quotes, in order', () => {
+    render(<TourAsk questions={QUESTIONS} />)
+    const items = screen.getAllByRole('listitem')
+    expect(items).toHaveLength(2)
+    expect(items[0]).toHaveTextContent(`“${QUESTIONS[0]}”`)
+    expect(items[1]).toHaveTextContent(`“${QUESTIONS[1]}”`)
   })
 
-  it('hides the arrow from assistive tech', () => {
-    render(<TourAsk questions={[QUESTIONS[0]]} onAsk={jest.fn()} />)
-    const arrow = screen.getByText('→')
-    expect(arrow).toHaveAttribute('aria-hidden', 'true')
-    expect(screen.getByRole('button', { name: QUESTIONS[0] })).toBeInTheDocument()
+  it('is read-only: no buttons, links or other controls', () => {
+    const { container } = render(<TourAsk questions={QUESTIONS} />)
+    expect(screen.queryAllByRole('button')).toHaveLength(0)
+    expect(container.querySelector('button, a, input, [role="button"], [tabindex]')).toBeNull()
   })
 
-  it('calls onAsk with the question that was clicked, once', () => {
-    const onAsk = jest.fn()
-    render(<TourAsk questions={QUESTIONS} onAsk={onAsk} />)
-    fireEvent.click(screen.getByRole('button', { name: QUESTIONS[1] }))
-    expect(onAsk).toHaveBeenCalledTimes(1)
-    expect(onAsk).toHaveBeenCalledWith(QUESTIONS[1])
+  it('does nothing when a question is clicked (nothing to press)', () => {
+    const { container } = render(<TourAsk questions={QUESTIONS} />)
+    const before = container.innerHTML
+    fireEvent.click(screen.getAllByRole('listitem')[0])
+    expect(container.innerHTML).toBe(before)
   })
 
-  it('does not call onAsk until a button is pressed', () => {
-    const onAsk = jest.fn()
-    render(<TourAsk questions={QUESTIONS} onAsk={onAsk} />)
-    expect(onAsk).not.toHaveBeenCalled()
+  it('puts each question in one span, with no aria-hidden part (nothing is hidden from a screen reader)', () => {
+    const { container } = render(<TourAsk questions={QUESTIONS} />)
+    expect(container.querySelector('[aria-hidden]')).toBeNull()
+    for (const li of screen.getAllByRole('listitem')) {
+      expect(li.children).toHaveLength(1)
+      expect(li.children[0].tagName).toBe('SPAN')
+    }
+  })
+
+  it('keeps the list role explicit, so the list is announced even with list-none styling', () => {
+    render(<TourAsk questions={QUESTIONS} />)
+    expect(screen.getByRole('list', { name: 'Example questions' })).toHaveAttribute('role', 'list')
   })
 
   it('wraps long questions rather than cutting them off', () => {
-    const { container } = render(<TourAsk questions={QUESTIONS} onAsk={jest.fn()} />)
+    const { container } = render(<TourAsk questions={QUESTIONS} />)
     expect(container.querySelector('[class*="truncate"], [class*="line-clamp"], [class*="overflow-hidden"]')).toBeNull()
-  })
-
-  it('is enabled by default', () => {
-    render(<TourAsk questions={QUESTIONS} onAsk={jest.fn()} />)
-    for (const b of screen.getAllByRole('button')) expect(b).toBeEnabled()
-  })
-
-  it('disables every button while an answer is coming in, and ignores clicks', () => {
-    const onAsk = jest.fn()
-    render(<TourAsk questions={QUESTIONS} onAsk={onAsk} disabled />)
-    for (const b of screen.getAllByRole('button')) expect(b).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: QUESTIONS[0] }))
-    expect(onAsk).not.toHaveBeenCalled()
-  })
-
-  it('keeps a 44px touch target on phones', () => {
-    render(<TourAsk questions={QUESTIONS} onAsk={jest.fn()} />)
-    for (const b of screen.getAllByRole('button')) expect(b.className).toContain('max-[640px]:min-h-[44px]')
   })
 })

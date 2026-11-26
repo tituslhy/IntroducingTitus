@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { groupStops, type Stop, type StopTarget } from '@/lib/page-stops'
-import { DRAWER_TARGET_IDS, stepDurationMs, type SiteTour, type TourStep } from '@/lib/site-tour'
+import { DRAWER_TARGET_IDS, stepDurationAt, type SiteTour, type TourStep } from '@/lib/site-tour'
 
 export type TourStatus = 'idle' | 'playing' | 'paused' | 'done'
 
@@ -33,7 +33,7 @@ function actionsOf(step: TourStep, byId: Map<string, StopTarget>): Action[] {
 }
 
 /**
- * Plays a recorded tour: each step's narration stays up for stepDurationMs while its targets run in order.
+ * Plays a recorded tour: each step's narration stays up for stepDurationAt while its targets run in order.
  * Scrolling, tapping or typing outside the tour's own controls (anything inside `[data-tour-ui]`) pauses it;
  * leaving for a page the step didn't open stops it without a word. After the last step (or ✕) it's "done".
  */
@@ -102,7 +102,7 @@ export function useTourPlayer({
   const schedule = useCallback((i: number) => {
     const step = tour.steps[i]
     const actions = actionsOf(step, byIdRef.current)
-    const gap = Math.min(MAX_ACTION_GAP_MS, stepDurationMs(step) / Math.max(1, actions.length))
+    const gap = Math.min(MAX_ACTION_GAP_MS, stepDurationAt(tour, i) / Math.max(1, actions.length))
     startedAt.current = Date.now()
     const ctrl = new AbortController()
     inFlight.current = ctrl
@@ -138,7 +138,7 @@ export function useTourPlayer({
       indexRef.current = i
       setIndex(i)
       actionsRun.current = 0
-      remaining.current = stepDurationMs(tour.steps[i])
+      remaining.current = stepDurationAt(tour, i)
       allowedPaths.current = new Set([pathRef.current])
       schedule(i)
     },

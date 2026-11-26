@@ -5,7 +5,7 @@ import CopilotBubble from "./CopilotBubble";
 import { ARTICLE_COUNT_NUMBER } from "@/lib/content";
 import { COPILOT_TOUR_PAGE_EVENT, openCopilot, startTour } from "@/lib/copilot-events";
 import { PAGE_TARGETS } from "@/lib/profile";
-import { SITE_TOUR, TOUR_TARGET_IDS, stepDurationMs } from "@/lib/site-tour";
+import { SITE_TOUR, TOUR_TARGET_IDS, spokenStep, stepDurationAt, stepDurationMs } from "@/lib/site-tour";
 import { STARTER_PROMPTS } from "@/lib/starter-prompts";
 import { REVEAL_EVENT, SHOW_EVENT } from "@/lib/reveal";
 
@@ -1997,9 +1997,9 @@ describe("CopilotBubble: the Show me around tour", () => {
   const REDUCED = "(prefers-reduced-motion: reduce)";
   const steps = SITE_TOUR.steps;
   const total = steps.length;
-  const dur = (i: number) => stepDurationMs(steps[i]);
+  const dur = (i: number) => stepDurationAt(SITE_TOUR, i);
   /** Time from the start of the tour to the start of step `i` (0-based). */
-  const startOf = (i: number) => steps.slice(0, i).reduce((sum, st) => sum + stepDurationMs(st), 0);
+  const startOf = (i: number) => steps.slice(0, i).reduce((sum, _st, k) => sum + stepDurationAt(SITE_TOUR, k), 0);
   const ALL_DONE = startOf(total);
 
   const TARGETS = PAGE_TARGETS.map((t) => ({ id: t.id, label: t.label, path: t.path, page: "Page", tool: "tool" in t ? t.tool : undefined }));
@@ -2144,6 +2144,17 @@ describe("CopilotBubble: the Show me around tour", () => {
       expect(document.querySelector("[aria-live=polite]")).toHaveTextContent(`${steps[0].say} (tour, step 1 of ${total})`);
       advance(dur(0) + 1);
       expect(document.querySelector("[aria-live=polite]")).toHaveTextContent(`${steps[1].say} (tour, step 2 of ${total})`);
+    });
+
+    it("gives the drawer's closing progress bar the closing step's stepDurationAt, not its reading time", () => {
+      renderBubble();
+      play();
+      advance(startOf(total - 1) + 1);
+      const dialog = screen.getByRole("dialog", { name: /ask titus/i });
+      const bar = within(dialog).getByTestId("tour-progress");
+      const closing = (bar.firstElementChild as HTMLElement).style.animationDuration;
+      expect(closing).toBe(`${stepDurationAt(SITE_TOUR, total - 1)}ms`);
+      expect(closing).not.toBe(`${stepDurationMs(steps[total - 1])}ms`);
     });
 
     it("leaves recruiter mode for chat when the tour starts", () => {
@@ -3051,11 +3062,11 @@ describe("CopilotBubble: the Show me around tour", () => {
     const questions = steps[askStep].ask!;
     const list = () => screen.queryByRole("list", { name: "Example questions" });
     const mockReply = () => (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse([deltaLine("A real answer.")]));
-    const sentBody = () => JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+    const curly = (q: string) => `\u201c${q}\u201d`;
 
     it("the shipped tour has a step with questions to test with", () => {
       expect(askStep).toBeGreaterThan(-1);
-      expect(questions.length).toBeGreaterThan(0);
+      expect(questions).toHaveLength(2);
     });
 
     it("show nothing before that step", () => {
@@ -3065,15 +3076,17 @@ describe("CopilotBubble: the Show me around tour", () => {
       expect(list()).not.toBeInTheDocument();
     });
 
-    it("show under the step's line in the drawer, one button each", () => {
+    it("show under the step's line in the drawer, as plain list items with no buttons", () => {
       renderBubble();
       play();
       advance(startOf(askStep) + 1);
       const ul = list()!;
       expect(ul).toBeInTheDocument();
       expect(document.getElementById("copilot-tour")).toContainElement(ul);
-      for (const q of questions) expect(within(ul).getByRole("button", { name: q })).toBeInTheDocument();
-      expect(within(ul).getAllByRole("button")).toHaveLength(questions.length);
+      const items = within(ul).getAllByRole("listitem");
+      expect(items).toHaveLength(questions.length);
+      questions.forEach((q, i) => expect(items[i]).toHaveTextContent(curly(q)));
+      expect(within(ul).queryAllByRole("button")).toHaveLength(0);
       const line = say(askStep) as HTMLElement;
       expect(line.compareDocumentPosition(ul) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
@@ -3087,47 +3100,76 @@ describe("CopilotBubble: the Show me around tour", () => {
       expect(list()).not.toBeInTheDocument();
     });
 
-    it("send the question for real when pressed: it is posted to the chat and the tour stops", async () => {
+    it("do nothing when clicked: no message is sent and the tour plays on", () => {
       mockReply();
       renderBubble();
       play();
       advance(startOf(askStep) + 1);
-      await act(async () => {
-        fireEvent.click(within(list()!).getByRole("button", { name: questions[0] }));
-      });
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect((global.fetch as jest.Mock).mock.calls[0][0]).toBe("/api/chat");
-      expect(sentBody().messages).toEqual([{ role: "user", content: questions[0] }]);
-      expect(recorded()).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
-      expect(await screen.findByText("A real answer.")).toBeInTheDocument();
-      expect(list()).not.toBeInTheDocument();
-      expect(isOpen()).toBe(true);
+      for (const li of within(list()!).getAllByRole("listitem")) fireEvent.click(li);
+      for (const q of questions) fireEvent.click(screen.getByText(curly(q)));
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(recorded()).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+      expect(list()).toBeInTheDocument();
+      expect(say(askStep)).toBeInTheDocument();
+      // The clock is untouched: the next step still arrives on time.
+      advance(dur(askStep));
+      expect(say(askStep + 1)).toBeInTheDocument();
     });
 
-    it("send the second question just the same", async () => {
-      mockReply();
+    it("do not pause the tour when clicked (they are the tour's own UI)", () => {
       renderBubble();
       play();
       advance(startOf(askStep) + 1);
-      await act(async () => {
-        fireEvent.click(within(list()!).getByRole("button", { name: questions[1] }));
-      });
-      expect(sentBody().messages[0].content).toBe(questions[1]);
+      fireEvent.pointerDown(within(list()!).getAllByRole("listitem")[0]);
+      fireEvent.click(within(list()!).getAllByRole("listitem")[0]);
+      expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+      expect(screen.queryByText(/Paused · press Resume/)).not.toBeInTheDocument();
     });
 
-    it("send it from a paused tour, and stop it", async () => {
-      mockReply();
+    it("are still there, unpressable, while the tour is paused", () => {
       renderBubble();
       play();
       advance(startOf(askStep) + 1);
       fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      expect(within(list()!).getAllByRole("listitem")).toHaveLength(questions.length);
+      expect(within(list()!).queryAllByRole("button")).toHaveLength(0);
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("are read out after the line, in the live region, with the step count", () => {
+      renderBubble();
+      play();
+      advance(startOf(askStep) + 1);
+      expect(spokenStep(steps[askStep])).toBe(`${steps[askStep].say} Examples: ${questions.join(" ")}`);
+      expect(document.querySelector("[aria-live=polite]")).toHaveTextContent(`${spokenStep(steps[askStep])} (tour, step ${askStep + 1} of ${total})`);
+    });
+
+    it("show as starter buttons in the drawer's empty state after the tour ends, and sending one works", async () => {
+      mockReply();
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(list()).not.toBeInTheDocument();
+      expect(screen.getByText("Start with one of these")).toBeInTheDocument();
+      for (const q of questions) {
+        const btn = screen.getByText(q).closest("button");
+        expect(btn).not.toBeNull();
+        expect(btn).toBeEnabled();
+        expect(STARTER_PROMPTS).toContain(q);
+      }
       await act(async () => {
-        fireEvent.click(within(list()!).getByRole("button", { name: questions[0] }));
+        fireEvent.click(screen.getByText(questions[1]).closest("button")!);
       });
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect(recorded()).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Resume" })).not.toBeInTheDocument();
+      expect(JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body).messages).toEqual([{ role: "user", content: questions[1] }]);
+    });
+
+    it("show as starter buttons when the tour is ended early, too", () => {
+      renderBubble();
+      play();
+      advance(startOf(askStep) + 1);
+      fireEvent.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "End tour" }));
+      for (const q of questions) expect(screen.getByText(q).closest("button")).not.toBeNull();
     });
 
     describe("on a phone", () => {
@@ -3135,12 +3177,15 @@ describe("CopilotBubble: the Show me around tour", () => {
         mediaState[WIDE] = false;
       });
 
-      it("show in the caption, under the narration, not in a drawer thread", () => {
+      it("show in the caption, under the narration, as plain list items, not in a drawer thread", () => {
         renderBubble();
         play();
         advance(startOf(askStep) + 1);
         const ul = within(caption()!).getByRole("list", { name: "Example questions" });
-        for (const q of questions) expect(within(ul).getByRole("button", { name: q })).toBeInTheDocument();
+        const items = within(ul).getAllByRole("listitem");
+        expect(items).toHaveLength(questions.length);
+        questions.forEach((q, i) => expect(items[i]).toHaveTextContent(curly(q)));
+        expect(within(ul).queryAllByRole("button")).toHaveLength(0);
         expect(document.getElementById("copilot-tour")).not.toBeInTheDocument();
         expect(isOpen()).toBe(false);
       });
@@ -3152,21 +3197,33 @@ describe("CopilotBubble: the Show me around tour", () => {
         expect(within(caption()!).queryByRole("list", { name: "Example questions" })).not.toBeInTheDocument();
       });
 
-      it("open the drawer and send the question when pressed, which ends the caption", async () => {
+      it("do nothing when clicked: the drawer stays shut, nothing is sent and the caption stays", () => {
         mockReply();
         renderBubble();
         play();
         advance(startOf(askStep) + 1);
+        for (const li of within(caption()!).getAllByRole("listitem")) fireEvent.click(li);
         expect(isOpen()).toBe(false);
-        await act(async () => {
-          fireEvent.click(within(caption()!).getByRole("button", { name: questions[1] }));
-        });
-        expect(isOpen()).toBe(true);
-        expect(global.fetch).toHaveBeenCalledTimes(1);
-        expect(sentBody().messages).toEqual([{ role: "user", content: questions[1] }]);
+        expect(global.fetch).not.toHaveBeenCalled();
+        expect(caption()).toBeInTheDocument();
+        expect(within(caption()!).getByRole("list", { name: "Example questions" })).toBeInTheDocument();
+      });
+
+      it("are announced by the caption after the line, then the step count", () => {
+        renderBubble();
+        play();
+        advance(startOf(askStep) + 1);
+        const live = within(caption()!).getByText(`${steps[askStep].say} Examples: ${questions.join(" ")} (tour, step ${askStep + 1} of ${total})`);
+        expect(live).toHaveAttribute("aria-live", "polite");
+      });
+
+      it("show as starter buttons once the drawer is opened after the tour", () => {
+        renderBubble();
+        play();
+        advance(ALL_DONE);
         expect(caption()).not.toBeInTheDocument();
-        expect(recorded()).not.toBeInTheDocument();
-        expect(await screen.findByText("A real answer.")).toBeInTheDocument();
+        act(() => openCopilot());
+        for (const q of questions) expect(screen.getByText(q).closest("button")).not.toBeNull();
       });
     });
   });

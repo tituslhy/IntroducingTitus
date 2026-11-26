@@ -1,6 +1,6 @@
 import { act, fireEvent, renderHook } from '@testing-library/react'
 import type { Stop, StopTarget } from '@/lib/page-stops'
-import { stepDurationMs, type SiteTour, type TourStep } from '@/lib/site-tour'
+import { stepDurationAt, stepDurationMs, tourDurationMs, type SiteTour, type TourStep } from '@/lib/site-tour'
 import { useTourPlayer } from './useTourPlayer'
 
 const words = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`).join(' ')
@@ -21,6 +21,8 @@ const targetsById = new Map(TARGETS.map((t) => [t.id, t]))
 // Every step has 12 words (4000 ms), or 6000 ms with one target (2000 ms per target).
 const PLAIN = 4000
 const WITH_TARGETS = 6000
+// A closing step of 12 words that shows nothing: 12 / 12 s + 1.2 s = 2200 ms, floored at 2500 ms.
+const CLOSING = 2500
 
 const SIMPLE = tourOf([step(12), step(12, ['writing']), step(12)])
 
@@ -115,7 +117,75 @@ describe('useTourPlayer: moving through the steps', () => {
   it('takes the whole tour in the sum of its steps, as tourDurationMs says', () => {
     const { result, advance } = setup()
     act(() => result.current.start())
-    advance(PLAIN + WITH_TARGETS + PLAIN - 1)
+    const total = tourDurationMs(SIMPLE)
+    expect(total).toBe(PLAIN + WITH_TARGETS + CLOSING)
+    advance(total - 1)
+    expect(result.current.status).toBe('playing')
+    advance(1)
+    expect(result.current.status).toBe('done')
+  })
+
+  it('finishes a closing step that shows nothing sooner than its reading time (stepDurationAt)', () => {
+    const { result, advance } = setup()
+    act(() => result.current.start())
+    advance(PLAIN + WITH_TARGETS)
+    expect(result.current.index).toBe(2)
+    expect(result.current.status).toBe('playing')
+    expect(stepDurationAt(SIMPLE, 2)).toBeLessThan(stepDurationMs(SIMPLE.steps[2]))
+    advance(CLOSING - 1)
+    expect(result.current.status).toBe('playing')
+    advance(1)
+    expect(result.current.status).toBe('done')
+  })
+
+  it('is done (stepDurationMs - stepDurationAt) sooner than before once the closing step begins', () => {
+    const { result, advance } = setup()
+    act(() => result.current.start())
+    advance(PLAIN + WITH_TARGETS)
+    advance(stepDurationMs(SIMPLE.steps[2]) - 1)
+    expect(result.current.status).toBe('done')
+  })
+
+  it('keeps a closing step that shows something for its full stepDurationMs', () => {
+    const t = tourOf([step(12), step(12), step(12, ['writing'])])
+    const { result, advance } = setup({ tour: t })
+    act(() => result.current.start())
+    advance(PLAIN + PLAIN + WITH_TARGETS - 1)
+    expect(result.current.status).toBe('playing')
+    advance(1)
+    expect(result.current.status).toBe('done')
+    expect(tourDurationMs(t)).toBe(PLAIN + PLAIN + WITH_TARGETS)
+  })
+
+  it('keeps a closing step with example questions for its full stepDurationMs', () => {
+    const t = tourOf([step(12), step(12), { say: words(12), targets: [], ask: ['A?', 'B?'] }])
+    const { result, advance } = setup({ tour: t })
+    act(() => result.current.start())
+    advance(PLAIN + PLAIN + PLAIN + 2000 - 1)
+    expect(result.current.status).toBe('playing')
+    advance(1)
+    expect(result.current.status).toBe('done')
+  })
+
+  it('does not shorten a step that shows nothing in the middle of the tour', () => {
+    const t = tourOf([step(12), step(12), step(12)])
+    const { result, advance } = setup({ tour: t })
+    act(() => result.current.start())
+    advance(PLAIN - 1)
+    expect(result.current.index).toBe(0)
+    advance(1)
+    expect(result.current.index).toBe(1)
+  })
+
+  it('counts the closing step from where it was when paused and resumed (its stepDurationAt, not the reading time)', () => {
+    const { result, advance } = setup()
+    act(() => result.current.start())
+    advance(PLAIN + WITH_TARGETS + 1000)
+    act(() => result.current.pause())
+    advance(60_000)
+    expect(result.current.status).toBe('paused')
+    act(() => result.current.resume())
+    advance(CLOSING - 1000 - 1)
     expect(result.current.status).toBe('playing')
     advance(1)
     expect(result.current.status).toBe('done')

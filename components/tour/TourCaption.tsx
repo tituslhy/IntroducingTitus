@@ -18,8 +18,6 @@ export default function TourCaption({
   paused,
   stepMs,
   ask = [],
-  onAsk = () => {},
-  askDisabled = false,
   instant,
   onPause,
   onResume,
@@ -32,10 +30,8 @@ export default function TourCaption({
   paused: boolean
   /** How long this step stays up, for its progress bar. */
   stepMs: number
-  /** Example questions under the line; pressing one asks it for real. */
+  /** Example questions under the line, to read (they're Ask Titus's starters once the tour is over). */
   ask?: string[]
-  onAsk?: (q: string) => void
-  askDisabled?: boolean
   /** Reduced motion: the narration appears whole. */
   instant: boolean
   onPause: () => void
@@ -55,12 +51,12 @@ export default function TourCaption({
       </p>
       {/* The drawer (and its live region) is closed while the caption shows, so the caption announces itself. */}
       <p className="sr-only" aria-live="polite">
-        {say} (tour, step {index + 1} of {total})
+        {ask.length ? `${say} Examples: ${ask.join(' ')}` : say} (tour, step {index + 1} of {total})
       </p>
       <p className="m-0 mt-1.5 font-serif text-[17px] leading-[1.4]" aria-hidden="true">
         <TypedText key={index} text={say} instant={instant} />
       </p>
-      <TourAsk questions={ask} onAsk={onAsk} disabled={askDisabled} />
+      <TourAsk questions={ask} />
       <div className="mt-2.5">
         <TourProgress step={index} ms={stepMs} paused={paused} />
       </div>

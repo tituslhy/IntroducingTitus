@@ -14,8 +14,8 @@ names and titles exactly as written.
   warm. No emoji, no exclamation marks.
 - The whole tour reads in under 100 seconds at three words a second.
 - Use only the targets listed for each step, in that order.
-- `ask` is a list of example questions shown under a line as buttons; leave it empty except where a step says
-  otherwise, and copy the questions exactly.
+- `ask` is a list of example questions shown under a line, to read (not press: that would end the tour); leave it
+  empty except where a step says otherwise, and copy the questions exactly.
 
 ## The steps
 
@@ -33,8 +33,8 @@ names and titles exactly as written.
    Master of IT in Business (AI track) from Singapore Management University." Targets: `edu-smu`.
 6. Projects: your projects play like films; this one is fictional-bassoon, which you built on your own.
    Targets: `project-fictional-bassoon`.
-7. Writing: it's a newspaper of your articles, by year and theme; you can answer questions on any of them, and
-   they can try one of the examples below your line. Targets: `writing`. Ask: "How would you build
+7. Writing: it's a newspaper of your articles, by year and theme, and you can answer questions on any of them;
+   here are two examples, which they'll also find in Ask Titus after the tour. Targets: `writing`. Ask: "How would you build
    production-ready agents?", "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?".
 8. About: a periodic table of every tool you've used, lighting up in the order you picked each one up.
    Targets: `tool-langgraph`.

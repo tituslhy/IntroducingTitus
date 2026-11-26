@@ -7,10 +7,15 @@ import { PAGE_TARGET_IDS } from '@/lib/profile'
 import { STARTER_PROMPTS } from '@/lib/starter-prompts'
 import recorded from '@/content/site-tour.json'
 
+/** What a step says aloud to a screen reader: its line, then its example questions, if any. */
+export function spokenStep(step: TourStep): string {
+  return step.ask?.length ? `${step.say} Examples: ${step.ask.join(' ')}` : step.say
+}
+
 export type TourStep = {
   say: string
   targets: string[]
-  /** Example questions shown under the line as buttons that ask them (only Ask Titus's starter prompts). */
+  /** Example questions shown under the line, to read (only Ask Titus's starter prompts, so they're there after). */
   ask?: string[]
 }
 
@@ -46,8 +51,26 @@ export function stepDurationMs(step: TourStep): number {
   return Math.round(Math.min(MAX_STEP_MS, Math.max(MIN_STEP_MS, ms)))
 }
 
+/** How fast the drawer types a line, in words a second (components/tour/TypedText types at this speed). */
+export const TYPE_WORDS_PER_SECOND = 12
+/** After the closing line has typed out, how long before the tour finishes. */
+const FINAL_HOLD_MS = 1200
+/** The closing step never goes by quicker than this. */
+const MIN_FINAL_MS = 2500
+
+/**
+ * How long step `i` of `tour` stays up. The closing line (the last step, when it shows nothing) finishes soon
+ * after it has typed out: it stays on screen after the tour ends, so there's no need to wait out its reading time.
+ */
+export function stepDurationAt(tour: SiteTour, i: number): number {
+  const step = tour.steps[i]
+  if (i !== tour.steps.length - 1 || step.targets.length > 0 || step.ask?.length) return stepDurationMs(step)
+  const words = step.say.trim().split(/\s+/).filter(Boolean).length
+  return Math.max(MIN_FINAL_MS, Math.round((words / TYPE_WORDS_PER_SECOND) * 1000 + FINAL_HOLD_MS))
+}
+
 export function tourDurationMs(tour: SiteTour): number {
-  return tour.steps.reduce((sum, s) => sum + stepDurationMs(s), 0)
+  return tour.steps.reduce((sum, _, i) => sum + stepDurationAt(tour, i), 0)
 }
 
 const isStrings = (v: unknown): v is string[] => Array.isArray(v) && v.every((t) => typeof t === 'string')

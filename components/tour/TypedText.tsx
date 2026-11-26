@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { TYPE_WORDS_PER_SECOND } from '@/lib/site-tour'
 
-/** Words a second the narration types in at, a little ahead of reading speed. */
-const WORDS_PER_SECOND = 12
+/** Words a second the narration types in at, a little ahead of reading speed (the tour's timing counts on it). */
+const WORDS_PER_SECOND = TYPE_WORDS_PER_SECOND
 
 /**
  * Narration that types itself in word by word, the way Ask Titus's replies stream. With `instant` (reduced
