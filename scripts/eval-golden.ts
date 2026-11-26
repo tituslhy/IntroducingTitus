@@ -19,7 +19,16 @@ export type GoldenRow = {
   retrieval?: false;
   /** Experience-with rows: words from my record (lib/about.ts, lib/profile.ts) the reply must contain, case-insensitive. */
   record?: string[];
+  /** The card the reply should carry (show_card). Unset: no-search and none rows expect no card; others aren't scored. */
+  card?: CardExpect;
+  /**
+   * Whether show_on_page should filter the Writing page to articles (questions only about my articles do; answers
+   * that span the site don't). Unset: not scored.
+   */
+  pick?: boolean;
 };
+
+export type CardExpect = "evidence" | "compare" | "none";
 
 const PRODUCTION_AGENTS = ["Testing RAG Agents", "Agent Memory", "Needs a Bouncer", "introduction to LiteLLM"];
 
@@ -31,7 +40,8 @@ export const GOLDEN: GoldenRow[] = [
   { question: "Have you written about LoRA?", expect: { kind: "articles", titles: ["How to Train Your LLM"] } },
   { question: "What's RAFT?", expect: { kind: "articles", titles: ["How to RAFT your LLM"] } },
   { question: "What do you think about LiteLLM?", expect: { kind: "articles", titles: ["introduction to LiteLLM"] } },
-  { question: "What have you written about blockchain?", expect: { kind: "articles", keyword: "blockchain" } },
+  // Only about my articles: the Writing page is filtered to them, and no card.
+  { question: "What have you written about blockchain?", expect: { kind: "articles", keyword: "blockchain" }, card: "none", pick: true },
   { question: "How do you give agents memory?", expect: { kind: "articles", titles: ["Agent Memory"] } },
   { question: "How do Command and Send work in LangGraph?", expect: { kind: "articles", titles: ["second look at LangGraph"] } },
   { question: "How do you deploy a multi-server app with Helm?", expect: { kind: "articles", titles: ["Helm Charts"] } },
@@ -40,6 +50,7 @@ export const GOLDEN: GoldenRow[] = [
   {
     question: "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?",
     expect: { kind: "articles", titles: ["Low Rank Adaptation", "How to RAFT your LLM", "GRPO"] },
+    card: "compare",
   },
   // Multi-part: each part is its own topic, so Nginx isn't crowded out (the original miss).
   {
@@ -48,11 +59,21 @@ export const GOLDEN: GoldenRow[] = [
     topics: ["LiteLLM", "Helm charts", "Nginx"],
   },
   // Abstract and goal-shaped: answered by reasoning over the library tree, then read_writing.
-  { question: "How would you design production-ready agents?", expect: { kind: "articles", titles: PRODUCTION_AGENTS }, retrieval: false },
+  // Spans the site (roles, projects and articles): the evidence card, and no filter.
+  {
+    question: "How would you design production-ready agents?",
+    expect: { kind: "articles", titles: PRODUCTION_AGENTS },
+    retrieval: false,
+    card: "evidence",
+    pick: false,
+  },
+  // Only about my articles (a starter question): the Writing page is filtered to them, and no card.
   {
     question: "Which of your articles should I read to build production-ready agents?",
     expect: { kind: "articles", titles: PRODUCTION_AGENTS },
     retrieval: false,
+    card: "none",
+    pick: true,
   },
   // Experience-with: the record first (when, where), then the article that backs it.
   {
@@ -89,3 +110,10 @@ export const usedRecord = (row: GoldenRow, reply: string): boolean | null =>
 
 /** Whether the row counts toward the retrieval-only metrics (recall, precision, abstain). */
 export const countsForRetrieval = (row: GoldenRow): boolean => row.retrieval !== false;
+
+/** Whether a row expects the Writing page filtered to articles; null when not scored. */
+export const expectedPick = (row: GoldenRow): boolean | null => row.pick ?? null;
+
+/** The card a row expects: its own `card`, else none for rows that shouldn't search; null when not scored. */
+export const expectedCard = (row: GoldenRow): CardExpect | null =>
+  row.card ?? (row.expect.kind === "none" || row.expect.kind === "no-search" ? "none" : null);

@@ -487,7 +487,7 @@ const norm = (text: string) =>
   text.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').toLowerCase();
 const HIRING_LABEL = norm("I'm hiring \u2014 check my fit for a role");
 const WRITING_ASK = [
-  "How would you build production-ready agents?",
+  "Which of your articles should I read to build production-ready agents?",
   "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?",
 ];
 

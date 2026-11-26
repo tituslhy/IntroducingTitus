@@ -784,3 +784,104 @@ describe('About Me, the Assistant (rendered prompt): the whole site is a tool', 
     expect(block).toContain('`colophon-page` (/colophon)')
   })
 })
+
+describe("copilot-system-prompt.md: Cards section (rendered from the real template)", () => {
+  const cards = (() => {
+    const start = rendered.indexOf("## Cards");
+    const end = rendered.indexOf("\n## ", start + 1);
+    return rendered.slice(start, end === -1 ? undefined : end);
+  })();
+
+  it("has a Cards section", () => {
+    expect(rendered).toContain("## Cards");
+    expect(cards.length).toBeGreaterThan(200);
+  });
+
+  it("names the show_card tool and says a card is only for an answer that organises something no single page shows", () => {
+    expect(cards).toMatch(/`show_card`/);
+    expect(cards).toMatch(/only for an answer that organises something no single page of the site shows/);
+  });
+
+  it("describes the evidence card and the compare table, and no reading list", () => {
+    expect(cards).toMatch(/\*\*Evidence:\*\*/);
+    expect(cards).toMatch(/\*\*Compare:\*\*/);
+    expect(cards).not.toMatch(/[Rr]eading list/);
+  });
+
+  it("says an evidence card must be compound: two or more roles, projects or schools, and more than one part of the site", () => {
+    expect(cards).toMatch(/when your answer is compound/);
+    expect(cards).toMatch(/two or more of my roles, projects or schools \*and\* more than one part of the site/);
+  });
+
+  it("lists two to four places for an evidence card", () => {
+    expect(cards).toMatch(/two to four role, project or school targets/);
+  });
+
+  it("says one role and one article is not compound, so it is answered in prose", () => {
+    expect(cards).toMatch(/One role and one article is not compound: answer in prose/);
+  });
+
+  it("says Compare only when the visitor's question itself names two or three things to choose between", () => {
+    expect(cards).toMatch(/only when the visitor's question itself names two or three things to choose between/);
+  });
+
+  it("says Compare is never for a how-to or a single topic, and that every option is named in the answer", () => {
+    expect(cards).toMatch(/Never for a how-to or a single topic/);
+    expect(cards).toMatch(/Name every option in your answer\./);
+  });
+
+  it("says a compare option gets the id of my article on it, or null", () => {
+    expect(cards).toMatch(/Give each option the id of my article on it if I wrote one, otherwise null/);
+  });
+
+  it("says a question only about my articles never gets a card", () => {
+    expect(cards).toMatch(/A question only about my articles never gets one/);
+  });
+
+  it("tells the model never to put links, addresses or markup in card text", () => {
+    expect(cards).toMatch(/Never put links, addresses or markup in card text/);
+  });
+
+  it("tells the model its card's titles, dates and links come from my data", () => {
+    expect(cards).toMatch(/titles, dates and links come from my data/);
+  });
+
+  it("tells the model to call it once, and to answer in prose when it is not shown", () => {
+    expect(cards).toMatch(/Call it once/);
+    expect(cards).toMatch(/shown: false/);
+  });
+
+  it("tells the model not to write a [Card shown] line itself", () => {
+    expect(cards).toMatch(/never write such a line yourself/);
+  });
+});
+
+describe("copilot-system-prompt.md: Showing Things on the Page (rendered from the real template)", () => {
+  const showing = (() => {
+    const start = rendered.indexOf("## Showing Things on the Page");
+    const end = rendered.indexOf("\n## ", start + 1);
+    return rendered.slice(start, end === -1 ? undefined : end);
+  })();
+
+  it("has a bullet for questions only about my articles, which pass writing and the article ids", () => {
+    expect(showing).toMatch(/\*\*Questions only about my articles\*\*/);
+    expect(showing).toMatch(/pass `writing` and, in `articles`, the ids \(from My Library, or the `id` each article you read comes back with\)/);
+  });
+
+  it("says articles stays empty for every other question", () => {
+    expect(showing).toMatch(/For every other question, `articles` is empty\./);
+  });
+});
+
+describe("copilot-system-prompt.md: Searching My Writing, and show_on_page for a question only about my articles (rendered)", () => {
+  const searching = (() => {
+    const start = rendered.indexOf("## Searching My Writing");
+    const end = rendered.indexOf("\n## ", start + 1);
+    return rendered.slice(start, end === -1 ? undefined : end);
+  })();
+
+  it("says a question only about my articles calls show_on_page after reading, so the ids can be passed", () => {
+    expect(searching).toMatch(/except for a question only about my articles: there, call `show_on_page` after you've read, so you can pass the ids/);
+  });
+});
+

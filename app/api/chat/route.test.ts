@@ -68,7 +68,7 @@ import { POST, isTracingEnabled } from "./route";
 import { PAGE_TARGET_IDS } from "@/lib/profile";
 import { MAX_PAGE_TARGETS } from "@/lib/copilot-tools";
 import { ARTICLES } from "@/lib/articles";
-import { formatPublished } from "@/lib/citation-ledger";
+import { formatPublished, mediumPostId } from "@/lib/citation-ledger";
 import type { NextRequest } from "next/server";
 
 // next/jest loads .env files, and tracing turns on whenever a LangSmith key is set.
@@ -569,7 +569,7 @@ describe("POST", () => {
     });
   });
 
-  it("should offer show_on_page and search_writing as function tools, and no hosted web search", async () => {
+  it("should offer show_on_page, search_writing, read_writing and show_card as function tools, and no hosted web search", async () => {
     const request = createPostRequest(
       JSON.stringify({ messages: [{ role: "user", content: "Hello" }] })
     );
@@ -588,6 +588,7 @@ describe("POST", () => {
       "show_on_page",
       "search_writing",
       "read_writing",
+      "show_card",
     ]);
     expect(tools).not.toContainEqual({ type: "web_search_preview" });
   });
@@ -646,7 +647,12 @@ describe("POST", () => {
     // Tool results go back by previous_response_id.
     const followUp = mockCreate.mock.calls[1][0];
     expect(followUp.previous_response_id).toBe("resp_1");
-    expect(followUp.tools.map((t: { name?: string }) => t.name)).toEqual(["show_on_page", "search_writing", "read_writing"]);
+    expect(followUp.tools.map((t: { name?: string }) => t.name)).toEqual([
+      "show_on_page",
+      "search_writing",
+      "read_writing",
+      "show_card",
+    ]);
     // The per-reply budget is spent by the first call, so the second is refused as over-limit.
     expect(followUp.input).toEqual([
       { type: "function_call_output", call_id: "call_1", output: JSON.stringify({ shown: ["role-illumina"] }) },
@@ -1857,5 +1863,209 @@ describe("POST - citation ledger", () => {
       expect.objectContaining({ type: "source", n: 2, url: A.url }),
       expect.objectContaining({ type: "source", n: 6, url: "https://medium.com/@tituslhy/brand-new" }),
     ]);
+  });
+});
+
+describe("POST - cards", () => {
+  const originalApiKey = process.env.OPENAI_API_KEY;
+  const originalNodeEnv = process.env.NODE_ENV;
+  const RAFT = ARTICLES.find((a) => /How to RAFT your LLM/.test(a.title))!;
+  const RAFT_ID = mediumPostId(RAFT.url)!;
+
+  beforeEach(() => {
+    process.env.OPENAI_API_KEY = "test-key";
+    (process.env as Record<string, string>).NODE_ENV = "test";
+    mockCreate.mockReset();
+  });
+
+  afterEach(() => {
+    process.env.OPENAI_API_KEY = originalApiKey;
+    (process.env as Record<string, string>).NODE_ENV = originalNodeEnv || "";
+    mockCreate.mockReset();
+    jest.restoreAllMocks();
+  });
+
+  type FakeEvent = Parameters<typeof makeStream>[0][number];
+  const responseCreated = (id: string): FakeEvent => ({ type: "response.created", response: { id } });
+  const responseDone: FakeEvent = { type: "response.done" };
+  const outputText = (delta: string): FakeEvent => ({ type: "response.output_text.delta", delta });
+  const functionCall = (call_id: string, name: string, args: string): FakeEvent => ({
+    type: "response.output_item.done",
+    item: { type: "function_call", name, arguments: args, call_id },
+  });
+  /** The places an evidence card names: a role and a project, so it spans two pages of the site. */
+  const CARD_PLACES = [
+    { target: "role-illumina", line: "Built the RAG stack" },
+    { target: "project-margin-call", line: "Side project" },
+  ];
+  const SUMMARY = "[Card shown: where I did it, “Illumina”, “TheMarginCall”]";
+  const evidenceCard = (places = CARD_PLACES) => JSON.stringify({ card: { kind: "evidence", places, articles: [] } });
+  const compareCard = (articleIds: [string, string]) =>
+    JSON.stringify({
+      card: {
+        kind: "compare",
+        title: "RAFT or LoRA",
+        options: [
+          { name: "LoRA", article: null },
+          { name: "RAFT", article: articleIds[1] },
+        ],
+        rows: [{ label: "Trains on", cells: ["Adapters", "Docs"] }],
+      },
+    });
+
+  async function queueRounds(...rounds: FakeEvent[][]) {
+    for (const events of rounds) mockCreate.mockResolvedValueOnce(await makeStream(events));
+  }
+  const postChat = () =>
+    POST(createPostRequest(JSON.stringify({ messages: [{ role: "user", content: "Which should I read?" }] })) as unknown as NextRequest);
+  const parseLines = (ndjson: string): Array<Record<string, unknown>> => ndjson.split("\n").filter(Boolean).map((l) => JSON.parse(l));
+
+  it("relays an evidence card as one card line, before the answer's text, with its messages and summary", async () => {
+    await queueRounds(
+      [responseCreated("resp_1"), functionCall("call_1", "show_card", evidenceCard()), responseDone],
+      [responseCreated("resp_2"), outputText("Start with RAFT."), responseDone]
+    );
+
+    const lines = parseLines(await drainResponse(await postChat()));
+
+    const cards = lines.filter((l) => l.type === "card");
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toMatchObject({
+      type: "card",
+      id: "card_1",
+      flair: "plain",
+      summary: SUMMARY,
+    });
+    expect((cards[0].messages as unknown[])[0]).toMatchObject({ version: "1.0", createSurface: { surfaceId: "card_1" } });
+    expect(lines.findIndex((l) => l.type === "card")).toBeLessThan(lines.findIndex((l) => l.type === "delta"));
+  });
+
+  it("relays a compare table as a plain card", async () => {
+    await queueRounds(
+      [responseCreated("resp_1"), functionCall("call_1", "show_card", compareCard(["", RAFT_ID])), responseDone],
+      [responseCreated("resp_2"), outputText("LoRA is lighter."), responseDone]
+    );
+
+    const card = parseLines(await drainResponse(await postChat())).find((l) => l.type === "card");
+    expect(card).toMatchObject({ flair: "plain", summary: expect.stringMatching(/^\[Card shown: compare table of /) });
+  });
+
+  it("sends no card line, and tells the model it was not shown, when the card's places are not on my site", async () => {
+    await queueRounds(
+      [responseCreated("resp_1"), functionCall("call_1", "show_card", evidenceCard([{ target: "role-nasa", line: "x" }])), responseDone],
+      [responseCreated("resp_2"), outputText("Answer in prose."), responseDone]
+    );
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    const lines = parseLines(await drainResponse(await postChat()));
+
+    expect(lines.some((l) => l.type === "card")).toBe(false);
+    expect(lines.at(-1)).toEqual({ type: "delta", text: "Answer in prose." });
+    const toolOutput = JSON.parse(mockCreate.mock.calls[1][0].input[0].output);
+    expect(toolOutput).toMatchObject({ shown: false, error: expect.stringMatching(/answer without a card$/) });
+  });
+
+  it("gives the model shown true and the summary when the card is sent", async () => {
+    await queueRounds(
+      [responseCreated("resp_1"), functionCall("call_1", "show_card", evidenceCard()), responseDone],
+      [responseCreated("resp_2"), outputText("Start with RAFT."), responseDone]
+    );
+
+    await drainResponse(await postChat());
+
+    const toolOutput = JSON.parse(mockCreate.mock.calls[1][0].input[0].output);
+    expect(toolOutput).toEqual({ shown: true, card: SUMMARY });
+  });
+
+  it("relays at most one card per reply: a second show_card in a later round is refused by the tool limit", async () => {
+    await queueRounds(
+      [responseCreated("resp_1"), functionCall("call_1", "show_card", evidenceCard()), responseDone],
+      [responseCreated("resp_2"), functionCall("call_2", "show_card", evidenceCard([{ target: "role-mastercard", line: "Tech lead" }, { target: "edu-smu", line: "Studied AI" }])), responseDone],
+      [responseCreated("resp_3"), outputText("Done."), responseDone]
+    );
+
+    const lines = parseLines(await drainResponse(await postChat()));
+
+    expect(lines.filter((l) => l.type === "card")).toHaveLength(1);
+    const refused = JSON.parse(mockCreate.mock.calls[2][0].input[0].output);
+    expect(refused).toMatchObject({ error: expect.stringMatching(/over|limit|call/i) });
+  });
+
+  it("keeps one card across a retry: the first attempt's card is sent, and the retry's is not", async () => {
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    mockCreate
+      .mockResolvedValueOnce(
+        await makeStream([responseCreated("resp_1"), functionCall("call_1", "show_card", evidenceCard()), responseDone])
+      )
+      // The first attempt fails after its card and before any text, so the route retries untraced.
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValueOnce(
+        await makeStream([responseCreated("resp_2"), functionCall("call_2", "show_card", evidenceCard([{ target: "role-mastercard", line: "Tech lead" }, { target: "edu-smu", line: "Studied AI" }])), responseDone])
+      )
+      .mockResolvedValueOnce(await makeStream([outputText("Answer."), responseDone]));
+
+    const lines = parseLines(await drainResponse(await postChat()));
+
+    const cards = lines.filter((l) => l.type === "card");
+    expect(cards).toHaveLength(1);
+    expect(cards[0].id).toBe("card_1");
+    expect(cards[0].summary).toContain("Illumina");
+    expect(cards[0].summary).not.toContain("Mastercard");
+    expect(lines.at(-1)).toEqual({ type: "delta", text: "Answer." });
+  });
+
+  it("logs card: true on the request line when a card was sent", async () => {
+    const log = jest.spyOn(console, "log").mockImplementation(() => {});
+    await queueRounds(
+      [responseCreated("resp_1"), functionCall("call_1", "show_card", evidenceCard()), responseDone],
+      [responseCreated("resp_2"), outputText("Start with RAFT."), responseDone]
+    );
+
+    await drainResponse(await postChat());
+
+    const line = log.mock.calls.map(([l]) => JSON.parse(l as string)).find((l) => l.event === "copilot_chat_request");
+    expect(line).toMatchObject({ card: true });
+    expect(JSON.stringify(line)).not.toContain("TheMarginCall");
+  });
+
+  it("logs card: false on the request line for a reply with no card", async () => {
+    const log = jest.spyOn(console, "log").mockImplementation(() => {});
+    await queueRounds([responseCreated("resp_1"), outputText("Plain answer."), responseDone]);
+
+    await drainResponse(await postChat());
+
+    const line = log.mock.calls.map(([l]) => JSON.parse(l as string)).find((l) => l.event === "copilot_chat_request");
+    expect(line).toMatchObject({ card: false });
+  });
+
+  it("puts the card's summary in the trace outputs, and no card key when there is none", async () => {
+    const startTrace = jest.requireMock("@/lib/copilot-tracing").ChatTrace.start as jest.Mock;
+    const afterMock = jest.requireMock("next/server").after as jest.Mock;
+    afterMock.mockClear();
+    const finish = jest.fn<Promise<undefined>, [Record<string, unknown>, string?]>(async () => undefined);
+    const trace = { observer: jest.fn(() => ({ roundStart: jest.fn(() => ({ annotate() {}, step() {}, end() {}, fail() {} })), toolStart: jest.fn(() => ({ annotate() {}, step() {}, end() {}, fail() {} })) })), finish };
+    startTrace.mockReset();
+    startTrace.mockResolvedValue(trace);
+    process.env.LANGSMITH_API_KEY = "lsv2-test";
+    try {
+      await queueRounds(
+        [responseCreated("resp_1"), functionCall("call_1", "show_card", evidenceCard()), responseDone],
+        [responseCreated("resp_2"), outputText("Start with RAFT."), responseDone]
+      );
+      await drainResponse(await postChat());
+      for (const call of afterMock.mock.calls as unknown as Array<[() => Promise<unknown>]>) await call[0]();
+      expect(finish.mock.calls[0][0]).toMatchObject({ card: SUMMARY });
+
+      finish.mockClear();
+      afterMock.mockClear();
+      await queueRounds([responseCreated("resp_3"), outputText("No card."), responseDone]);
+      await drainResponse(await postChat());
+      for (const call of afterMock.mock.calls as unknown as Array<[() => Promise<unknown>]>) await call[0]();
+      expect(finish.mock.calls[0][0]).not.toHaveProperty("card");
+    } finally {
+      delete process.env.LANGSMITH_API_KEY;
+      startTrace.mockReset();
+      startTrace.mockResolvedValue(null);
+    }
   });
 });

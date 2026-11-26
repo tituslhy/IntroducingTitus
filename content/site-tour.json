@@ -46,7 +46,7 @@
         "writing"
       ],
       "ask": [
-        "How would you build production-ready agents?",
+        "Which of your articles should I read to build production-ready agents?",
         "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?"
       ]
     },

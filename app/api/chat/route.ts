@@ -276,6 +276,8 @@ export async function POST(request: NextRequest) {
       // Deduped across the initial attempt and any retry.
       const actionsShown = new Set<string>();
       const sourcesSent: { n: number; title: string; url: string }[] = [];
+      // At most one card per reply, across the initial attempt and any retry.
+      let cardSent: string | null = null;
       let traceError: string | undefined;
       const stats: LoopStats = { rounds: 0, toolCalls: 0 };
       // One tool set per request, shared by the attempt and any retry, so source
@@ -289,6 +291,11 @@ export async function POST(request: NextRequest) {
             if (event.type === "action") {
               if (!actionsShown.has(event.target) && actionsShown.size < MAX_ACTIONS_PER_REPLY) {
                 actionsShown.add(event.target);
+                streamController.enqueue(encodeEvent(encoder, event));
+              }
+            } else if (event.type === "card") {
+              if (cardSent === null) {
+                cardSent = event.summary;
                 streamController.enqueue(encodeEvent(encoder, event));
               }
             } else {
@@ -386,6 +393,7 @@ export async function POST(request: NextRequest) {
             inputChars: totalContentLength,
             outputChars: totalOutputChars,
             actionsShown: actionsShown.size,
+            card: cardSent !== null,
             rounds: stats.rounds,
             toolCalls: stats.toolCalls,
           })
@@ -402,6 +410,7 @@ export async function POST(request: NextRequest) {
             truncated: totalOutputChars >= MAX_OUTPUT_CHARS,
             actionsShown: Array.from(actionsShown),
             sources: sourcesSent,
+            ...(cardSent !== null && { card: cardSent }),
             rounds: stats.rounds,
             toolCalls: stats.toolCalls,
             ...(recovered && { recoveredError: traceError }),

@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useSyncExternalStore } from 'react'
+import { Suspense, useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import BackToTop from '@/components/BackToTop'
 import AskPill from '@/components/tiles/AskPill'
 import RiseIn from '@/components/tiles/RiseIn'
 import type { Correction } from '@/lib/profile'
 import type { Desk, Story } from '@/lib/writing-paper'
+import { PICK_PARAM, parsePick, pickQuestion } from '@/lib/writing-pick'
 
 /** From this hour in Singapore (and until LATE_UNTIL) the paper is the late edition. */
 const LATE_FROM = 19
@@ -85,6 +87,26 @@ function StoryBlock({ story, deskName, picture }: { story: Story; deskName: stri
   )
 }
 
+/**
+ * Reads the pick from the link (?read=id,id) and hands it up. Its own component, under Suspense, so reading the
+ * link never holds back the paper's static HTML: the paper renders first, the pick applies once the page loads.
+ */
+function PickFromLink({ onPick }: { onPick: (ids: string[]) => void }) {
+  const value = useSearchParams().get(PICK_PARAM)
+  useEffect(() => onPick(parsePick(value)), [value, onPick])
+  return null
+}
+
+/** "3 articles from 3 desks, 2025 to 2026": what a pick holds. */
+export function pickSummary(list: readonly Story[]): string {
+  // A story the themes file doesn't list sits on no desk, so it doesn't count as one.
+  const desks = new Set(list.flatMap((s) => (s.desk ? [s.desk] : []))).size
+  const years = list.map((s) => s.year).sort()
+  const span = years[0] === years[years.length - 1] ? `in ${years[0]}` : `${years[0]} to ${years[years.length - 1]}`
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+  return `${plural(list.length, 'article')}${desks ? ` from ${plural(desks, 'desk')}` : ''}, ${span}`
+}
+
 type Props = {
   stories: Story[]
   desks: Desk[]
@@ -100,18 +122,45 @@ export default function WritingPaper({ stories, desks, editions, folio, featured
   const [view, setView] = useState<{ year: string; desk: string | null }>({ year: editions[0]?.year ?? '', desk: null })
   // The visitor's clock, read after hydration; the server renders the day edition.
   const late = useSyncExternalStore(noSubscribe, lateNow, dayOnServer)
+  // The articles Ask Titus picked (lib/writing-pick.ts), from the link; empty for the ordinary paper.
+  const [pickIds, setPickIds] = useState<string[]>([])
+  const router = useRouter()
+  const pathname = usePathname()
 
   const deskName = (s: Story) => desks.find((d) => d.id === s.desk)?.name ?? 'Writing'
-  const list = view.desk ? stories.filter((s) => s.desk === view.desk) : stories.filter((s) => s.year === view.year)
+  const picked = pickIds.flatMap((id) => stories.filter((s) => s.id === id).slice(0, 1))
+  const picking = picked.length > 0
+  const question = picking ? pickQuestion(pickIds) : null
+  /** Back to the ordinary paper: the pick leaves the link too, so a reload doesn't bring it back. */
+  const leavePick = useCallback(() => {
+    setPickIds([])
+    router.replace(pathname, { scroll: false })
+  }, [router, pathname])
+  const choose = (next: { year: string; desk: string | null }) => {
+    if (picking) leavePick()
+    setView(next)
+  }
+  const list = picking
+    ? picked
+    : view.desk
+      ? stories.filter((s) => s.desk === view.desk)
+      : stories.filter((s) => s.year === view.year)
   const [lead, ...rest] = list
   const rail = rest.slice(0, 3)
   const row = rest.slice(3, 6)
   const briefs = rest.slice(6)
   const since = editions[editions.length - 1]?.year
-  const current = view.desk ? `${desks.find((d) => d.id === view.desk)?.name} desk` : `${view.year} edition`
+  const current = picking
+    ? 'Picked by Ask Titus'
+    : view.desk
+      ? `${desks.find((d) => d.id === view.desk)?.name} desk`
+      : `${view.year} edition`
 
   return (
     <section id="writing" className={`bg-paper text-ink transition-colors duration-500 ${late ? 'late-edition' : ''}`}>
+      <Suspense fallback={null}>
+        <PickFromLink onPick={setPickIds} />
+      </Suspense>
       <div className="mx-auto max-w-[1280px] border-t border-rule px-[clamp(18px,4vw,56px)] pt-[clamp(20px,3vw,40px)] pb-[clamp(28px,5vw,72px)] max-[720px]:border-t-0 [@media(max-height:480px)]:border-t-0">
         <div className="flex items-baseline gap-3.5 pb-[18px] font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
           <span className="font-semibold tracking-[0.08em] text-amber">{folio}</span>
@@ -158,14 +207,36 @@ export default function WritingPaper({ stories, desks, editions, folio, featured
           </span>
         </div>
 
+        {picking && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-[20px] bg-paper-deep px-[22px] py-[18px]">
+            <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-1.5">
+              <p className={`m-0 ${KICKER}`}>A special edition, picked by Ask Titus</p>
+              {question && (
+                <p className="m-0 font-serif text-[21px] italic leading-[1.3] text-[oklch(0.3_0.012_60)]">“{question}”</p>
+              )}
+              <p className="m-0 font-mono text-[12px] text-ink-soft">{pickSummary(picked)}</p>
+            </div>
+            <button
+              type="button"
+              onClick={leavePick}
+              className="group inline-flex min-h-[44px] flex-none items-center gap-2.5 rounded-full border border-ink bg-transparent px-5 font-mono text-[12px] uppercase tracking-[0.1em] text-ink transition-colors hover:bg-ink hover:text-paper"
+            >
+              Show the whole paper
+              <span aria-hidden="true" className="transition-transform group-hover:translate-x-1">
+                →
+              </span>
+            </button>
+          </div>
+        )}
+
         <nav aria-label="Editions" className="flex flex-wrap items-center gap-x-[22px] gap-y-1.5 border-b border-rule py-3.5">
           <span className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-faint">Editions</span>
           {editions.map((e) => (
             <button
               key={e.year}
               type="button"
-              aria-pressed={!view.desk && view.year === e.year}
-              onClick={() => setView({ year: e.year, desk: null })}
+              aria-pressed={!picking && !view.desk && view.year === e.year}
+              onClick={() => choose({ year: e.year, desk: null })}
               className="border-b-2 border-transparent bg-transparent py-1 font-serif text-[15px] font-medium text-ink-soft aria-pressed:border-amber aria-pressed:text-ink"
             >
               {e.year}
@@ -180,8 +251,8 @@ export default function WritingPaper({ stories, desks, editions, folio, featured
             <button
               key={d.id}
               type="button"
-              aria-pressed={view.desk === d.id}
-              onClick={() => setView((v) => ({ ...v, desk: v.desk === d.id ? null : d.id }))}
+              aria-pressed={!picking && view.desk === d.id}
+              onClick={() => choose({ ...view, desk: !picking && view.desk === d.id ? null : d.id })}
               className="group rounded-full bg-latte px-[13px] py-[7px] font-mono text-[12.5px] text-latte-soft transition-colors hover:bg-ink hover:text-paper aria-pressed:bg-ink aria-pressed:text-paper"
             >
               {d.name}
@@ -191,10 +262,12 @@ export default function WritingPaper({ stories, desks, editions, folio, featured
         </nav>
 
         {lead && (
-          <div key={`${view.year}-${view.desk}`} className="paper-turn">
+          <div key={picking ? `pick-${pickIds.join('-')}` : `${view.year}-${view.desk}`} className="paper-turn">
             <div className="mt-7 grid grid-cols-[2fr_1fr] max-[960px]:grid-cols-1">
               <article className="min-w-0 border-r border-rule pr-8 max-[960px]:border-b max-[960px]:border-r-0 max-[960px]:pb-6 max-[960px]:pr-0">
-                <p className={`m-0 ${KICKER}`}>Latest story · {deskName(lead)}</p>
+                <p className={`m-0 ${KICKER}`}>
+                  {picking ? 'First pick' : 'Latest story'} · {deskName(lead)}
+                </p>
                 <h3 className="m-0 mt-2.5 font-serif text-[clamp(34px,4.6vw,64px)] font-medium leading-[1.02] tracking-[-0.03em] [text-wrap:balance]">
                   <a href={lead.url} target="_blank" rel="noopener noreferrer" className={HEADLINE_LINK}>
                     {lead.title}

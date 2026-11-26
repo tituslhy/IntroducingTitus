@@ -8,6 +8,7 @@ import { PAGE_TARGETS } from "@/lib/profile";
 import { SITE_TOUR, TOUR_TARGET_IDS, spokenStep, stepDurationAt, stepDurationMs } from "@/lib/site-tour";
 import { STARTER_PROMPTS } from "@/lib/starter-prompts";
 import { REVEAL_EVENT, SHOW_EVENT } from "@/lib/reveal";
+import { pickQuestion } from "@/lib/writing-pick";
 
 // The drawer routes show_on_page to another page with the App Router. Tests give it a
 // router they can inspect, and a pathname they can set.
@@ -45,6 +46,17 @@ jest.mock("react-markdown", () => ({
     return React.createElement(React.Fragment, null, ...parts);
   },
 }));
+
+// The card renderer is lazy (next/dynamic) and draws A2UI with Google's engine. These tests check where the card
+// sits and what goes back in history, so the renderer is a stub that shows its label and message count.
+jest.mock("@/components/cards/A2uiCard", () => {
+  const React = jest.requireActual<typeof import("react")>("react");
+  return {
+    __esModule: true,
+    default: (props: { label: string; flair: string; messages: unknown[] }) =>
+      React.createElement("div", { "data-testid": "a2ui-card", "data-flair": props.flair }, `${props.label} (${props.messages.length} messages)`),
+  };
+});
 
 jest.mock("remark-gfm", () => ({
   __esModule: true,
@@ -266,7 +278,7 @@ describe("CopilotBubble", () => {
     // Assert
     expect(screen.getByText("What did you build at Illumina?")).toBeInTheDocument();
     expect(screen.getByText("What trade-offs shaped fictional-bassoon?")).toBeInTheDocument();
-    expect(screen.getByText("How would you build production-ready agents?")).toBeInTheDocument();
+    expect(screen.getByText(STARTER_PROMPTS[2])).toBeInTheDocument();
     expect(screen.getByText("LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?")).toBeInTheDocument();
     expect(screen.queryByText(/which article should i read first/i)).not.toBeInTheDocument();
   });
@@ -287,13 +299,13 @@ describe("CopilotBubble", () => {
     render(<CopilotBubble />);
     await user.click(screen.getByRole("button", { name: /open ask titus/i }));
 
-    await user.click(screen.getByText("How would you build production-ready agents?"));
+    await user.click(screen.getByText(STARTER_PROMPTS[2]));
 
     await waitFor(() => {
       expect(screen.getByText(/broad answer/i)).toBeInTheDocument();
     });
     const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
-    expect(body.messages).toEqual([{ role: "user", content: "How would you build production-ready agents?" }]);
+    expect(body.messages).toEqual([{ role: "user", content: STARTER_PROMPTS[2] }]);
   });
 
   it("should send starter prompt when clicked", async () => {
@@ -5165,5 +5177,250 @@ describe("CopilotBubble: the Show me around tour", () => {
       play();
       expect(document.querySelector("#copilot-tour .opacity-0")).not.toBeNull();
     });
+  });
+});
+
+describe("CopilotBubble cards", () => {
+  const SUMMARY = "[Card shown: where I did it, “Illumina”, “TheMarginCall”]";
+  const surface = [
+    { version: "1.0", createSurface: { surfaceId: "card_1", catalogId: "x", metadata: {} } },
+    { version: "1.0", updateComponents: { surfaceId: "card_1", components: [] } },
+  ];
+  const cardLine = (overrides: Record<string, unknown> = {}) =>
+    `${JSON.stringify({ type: "card", id: "card_1", kind: "evidence", summary: SUMMARY, flair: "plain", messages: surface, sources: [], ...overrides })}\n`;
+
+  beforeEach(() => {
+    global.fetch = jest.fn();
+    if (!global.TextDecoder) {
+      global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+    }
+  });
+
+  async function openAndAsk(question: string) {
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), `${question}{Enter}`);
+    return user;
+  }
+
+  it("draws a streamed evidence card under the reply text, labelled for what it is, once the reply has arrived", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      createStreamingResponse([cardLine(), deltaLine("Start with RAFT.")])
+    );
+    await openAndAsk("How would you design production-ready agents?");
+
+    const card = await screen.findByTestId("a2ui-card");
+    expect(card).toHaveTextContent("Where I did it, and sources (2 messages)");
+    expect(card).toHaveAttribute("data-flair", "plain");
+    const reply = screen.getByText("Start with RAFT.");
+    expect(reply.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("shows a compare card with the Compare table label", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      createStreamingResponse([cardLine({ kind: "compare", summary: "[Card shown: compare table of “A”, “B” on “x”]" }), deltaLine("A is light.")])
+    );
+    await openAndAsk("LoRA or RAFT?");
+
+    const card = await screen.findByTestId("a2ui-card");
+    expect(card).toHaveTextContent("Compare table (2 messages)");
+    expect(card).toHaveAttribute("data-flair", "plain");
+  });
+
+  it("does not draw a card for a malformed card event, and still shows the reply", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse([cardLine({ flair: "neon" }), deltaLine("Plain answer.")]));
+    await openAndAsk("Anything?");
+
+    await screen.findByText("Plain answer.");
+    expect(screen.queryByTestId("a2ui-card")).not.toBeInTheDocument();
+  });
+
+  it("does not draw a card with the retired clipping flair, or with the retired reading_list kind", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(createStreamingResponse([cardLine({ flair: "clipping" }), deltaLine("Old flair.")]))
+      .mockResolvedValueOnce(createStreamingResponse([cardLine({ kind: "reading_list" }), deltaLine("Old kind.")]));
+    const user = await openAndAsk("Old card?");
+    await screen.findByText("Old flair.");
+    expect(screen.queryByTestId("a2ui-card")).not.toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "Old kind?{Enter}");
+    await screen.findByText("Old kind.");
+    expect(screen.queryByTestId("a2ui-card")).not.toBeInTheDocument();
+  });
+
+  it("draws only the first card of a reply", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      createStreamingResponse([cardLine(), cardLine({ id: "card_2", summary: "[Card shown: another]" }), deltaLine("Answer.")])
+    );
+    await openAndAsk("Two cards?");
+
+    await screen.findByText("Answer.");
+    expect(screen.getAllByTestId("a2ui-card")).toHaveLength(1);
+  });
+
+  it("sends the card's one-line summary in history, in place of the card, on the next turn", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(createStreamingResponse([cardLine(), deltaLine("Start with RAFT.")]))
+      .mockResolvedValueOnce(createStreamingResponse([deltaLine("Next answer.")]));
+    const user = await openAndAsk("Which should I read?");
+    await screen.findByTestId("a2ui-card");
+    await screen.findByText("Start with RAFT.");
+
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "And after that?{Enter}");
+    await screen.findByText("Next answer.");
+
+    const body = JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body);
+    expect(body.messages).toEqual([
+      { role: "user", content: "Which should I read?" },
+      { role: "assistant", content: `Start with RAFT.\n\n${SUMMARY}` },
+      { role: "user", content: "And after that?" },
+    ]);
+    expect(JSON.stringify(body.messages)).not.toContain("createSurface");
+  });
+
+  it("sends an assistant reply with no card as its text alone", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(createStreamingResponse([deltaLine("Plain answer.")]))
+      .mockResolvedValueOnce(createStreamingResponse([deltaLine("Second.")]));
+    const user = await openAndAsk("Hi?");
+    await screen.findByText("Plain answer.");
+
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "More?{Enter}");
+    await screen.findByText("Second.");
+
+    const body = JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body);
+    expect(body.messages[1]).toEqual({ role: "assistant", content: "Plain answer." });
+  });
+
+  it("lists a source the card does not list in the Sources row, and leaves out one that it does", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      createStreamingResponse([
+        `{"type":"source","n":1,"title":"First article","url":"https://medium.com/a"}\n`,
+        `{"type":"source","n":2,"title":"Second article","url":"https://medium.com/b"}\n`,
+        cardLine({ sources: [2] }),
+        deltaLine("Both are useful."),
+      ])
+    );
+    await openAndAsk("Which two?");
+
+    await screen.findByText("Both are useful.");
+    expect(screen.getByRole("link", { name: /1 · First article/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Second article/ })).toBeNull();
+  });
+
+  it("keeps every source in the Sources row when the card lists none of them", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(
+      createStreamingResponse([
+        `{"type":"source","n":1,"title":"First article","url":"https://medium.com/a"}\n`,
+        `{"type":"source","n":2,"title":"Second article","url":"https://medium.com/b"}\n`,
+        cardLine({ sources: [] }),
+        deltaLine("Both."),
+      ])
+    );
+    await openAndAsk("Which two?");
+
+    await screen.findByText("Both.");
+    expect(screen.getByRole("link", { name: /1 · First article/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /2 · Second article/ })).toBeInTheDocument();
+  });
+});
+
+describe("CopilotBubble: a pick from show_on_page", () => {
+  const TWO = ["0000000a", "00000001"];
+  const TARGETS = [{ id: "writing", label: "Writing", path: "/writing", page: "Writing" }];
+  const SIDE_BY_SIDE = "(min-width: 1024px)";
+  let originalMatchMedia: typeof window.matchMedia;
+
+  beforeEach(() => {
+    originalMatchMedia = window.matchMedia;
+    global.fetch = jest.fn();
+    mockPush.mockReset();
+    mockPathname = "/";
+    window.history.replaceState({}, "", "/");
+  });
+
+  afterEach(async () => {
+    await letPageSettle();
+    window.matchMedia = originalMatchMedia;
+  });
+
+  function mockMatchMedia(matchingQueries: string[]) {
+    window.matchMedia = jest.fn((query: string) => ({
+      matches: matchingQueries.includes(query),
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(() => true),
+    }));
+  }
+
+  const pickLine = (ids: string[]) => `${JSON.stringify({ type: "pick", articles: ids })}\n`;
+  const writingAction = actionLine("writing");
+
+  /** Asks a question whose reply carries the given stream, with the drawer open at the given media queries. */
+  async function askFor(lines: string[], matching: string[] = []) {
+    mockMatchMedia(matching);
+    (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse([...lines, deltaLine("Here they are.")]));
+    render(<CopilotBubble targets={TARGETS} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "Which of your articles should I read?{Enter}");
+    await waitFor(() => expect(screen.getByText("Here they are.")).toBeInTheDocument());
+    return user;
+  }
+
+  it("offers a button that opens the Writing page filtered to the picked articles, when the drawer covers the page", async () => {
+    const user = await askFor([pickLine(TWO), writingAction]);
+
+    await user.click(screen.getByRole("button", { name: /See these 2 on the Writing page/ }));
+    expect(mockPush).toHaveBeenCalledWith("/writing?read=0000000a,00000001", { scroll: false });
+  });
+
+  it("says this one, for a pick of one article", async () => {
+    await askFor([pickLine(["0000000a"]), writingAction]);
+    expect(screen.getByRole("button", { name: /See this one on the Writing page/ })).toBeInTheDocument();
+  });
+
+  it("shows the Writing stop as the pick line, not as a stop pill beside it", async () => {
+    await askFor([pickLine(TWO), writingAction]);
+    expect(screen.queryByText("See on page")).toBeNull();
+  });
+
+  it("has no pick line for a reply that picked no articles", async () => {
+    await askFor([]);
+    expect(screen.queryByRole("button", { name: /See (this one|these \d+) on the Writing page/ })).toBeNull();
+    expect(screen.queryByText(/filtered to/)).toBeNull();
+  });
+
+  it("takes the first pick of a reply, and ignores a later one", async () => {
+    await askFor([pickLine(TWO), pickLine(["00000002", "00000003", "00000004"]), writingAction]);
+    expect(screen.getByRole("button", { name: /See these 2 on the Writing page/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /these 3/ })).toBeNull();
+  });
+
+  it("moves the page to the filtered Writing page on its own when the drawer sits beside it, and says so", async () => {
+    await askFor([pickLine(TWO), writingAction], [SIDE_BY_SIDE]);
+    await letPageSettle();
+
+    expect(mockPush).toHaveBeenCalledWith("/writing?read=0000000a,00000001", { scroll: false });
+    expect(screen.getByRole("button", { name: /Writing page · filtered to these 2/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /See these 2 on the Writing page/ })).toBeNull();
+  });
+
+  it("shows the whole Writing page from “Show all” beside the page", async () => {
+    const user = await askFor([pickLine(TWO), writingAction], [SIDE_BY_SIDE]);
+    await letPageSettle();
+
+    await user.click(screen.getByRole("button", { name: "Show all" }));
+    expect(mockPush).toHaveBeenLastCalledWith("/writing", { scroll: false });
+  });
+
+  it("remembers the question that made the pick, for the Writing page's banner", async () => {
+    await askFor([pickLine(TWO), writingAction]);
+    expect(pickQuestion(TWO)).toBe("Which of your articles should I read?");
   });
 });

@@ -248,6 +248,28 @@ describe("ColophonPage new copy", () => {
   });
 });
 
+describe("ColophonPage cards copy", () => {
+  it("has a Cards entry after the guided tour that names show_card and A2UI v1.0, and says a question about my articles gets no card", () => {
+    render(<ColophonPage />);
+
+    const tour = screen.getByText("The guided tour");
+    const cards = screen.getByText("Cards");
+    expect(tour.compareDocumentPosition(cards) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const section = cards.closest("section")!;
+    expect(section.textContent ?? "").toMatch(/show_card/);
+    expect(section.textContent ?? "").toMatch(/A2UI v1\.0/);
+    expect(section.textContent ?? "").toMatch(/gets no card: the Writing page is filtered/);
+  });
+
+  it("guardrails has a row saying cards are built by the server and checked as A2UI", () => {
+    render(<ColophonPage />);
+
+    const section = screen.getByRole("heading", { level: 2, name: /guardrails/i }).closest("section")!;
+    const rows = within(within(section).getByRole("table")).getAllByRole("row").map((r) => r.textContent ?? "");
+    expect(rows.some((text) => /Cards built by the server from my data, checked as A2UI before/.test(text))).toBe(true);
+  });
+});
+
 describe("ColophonPage topics copy", () => {
   it("walkthrough calls search_writing with a list of topics", () => {
     render(<ColophonPage />);
@@ -272,12 +294,19 @@ describe("ColophonPage topics copy", () => {
 });
 
 describe("ColophonPage three tools and themes", () => {
-  it("stack section says Three tools, not Two tools", () => {
+  it("stack section says Four tools, not Three tools", () => {
     render(<ColophonPage />);
 
     const text = document.body.textContent ?? "";
-    expect(text).toMatch(/Three tools/);
+    expect(text).toMatch(/Four tools/);
+    expect(text).not.toMatch(/Three tools/);
     expect(text).not.toMatch(/Two tools/);
+  });
+
+  it("stack section names A2UI v1.0 (Google)", () => {
+    render(<ColophonPage />);
+
+    expect(document.body.textContent ?? "").toMatch(/A2UI v1\.0 \(Google\)/);
   });
 
   it("has a Reading by theme paragraph", () => {

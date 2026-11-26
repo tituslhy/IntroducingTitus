@@ -207,7 +207,7 @@ export const CHAPTERS: Chapter[] = [
   {
     at: '2023-12',
     label: '2023',
-    text: 'GenAI arrived while I was already doing machine learning. Lucky timing. As Illumina’s only data scientist, I built the whole stack, which is why most of this table lights up here.',
+    text: 'GenAI arrived while I was already doing machine learning. Lucky timing. Owning my projects end to end at Illumina, I built the whole stack, which is why most of this table lights up here.',
     photo: { src: '/about/illumina.jpg', position: '50% 50%', caption: 'Illumina, 2023–2025', alt: 'Titus holding up his nameplate under the Illumina sign' },
   },
   { at: '2025-05', label: '2024', text: 'Agents: I learned each framework by building with it, then wrote about it.', photo: { src: '/about/illumina.jpg', position: '50% 50%', caption: 'Illumina, 2023–2025', alt: 'Titus holding up his nameplate under the Illumina sign' } },

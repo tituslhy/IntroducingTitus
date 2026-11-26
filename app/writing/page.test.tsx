@@ -4,6 +4,13 @@ import { SOCIAL } from '@/lib/profile'
 import { desks, editions, stories } from '@/lib/writing-paper'
 import WritingPage, { metadata } from './page'
 
+// The paper reads a pick from the link and moves the link with the App Router; these page tests render it outside a router.
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn(), back: jest.fn() }),
+  usePathname: () => '/writing',
+  useSearchParams: () => new URLSearchParams(),
+}))
+
 describe('Writing page (/writing)', () => {
   it('renders the Writing paper, then the footer', () => {
     const { container } = render(<WritingPage />)

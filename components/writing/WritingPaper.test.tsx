@@ -3,9 +3,21 @@ import { renderToString } from 'react-dom/server'
 import { openCopilot } from '@/lib/copilot-events'
 import type { Correction } from '@/lib/profile'
 import type { Desk, Story } from '@/lib/writing-paper'
-import WritingPaper, { isLateEdition, paperDate, singaporeHour } from './WritingPaper'
+import { rememberPickQuestion } from '@/lib/writing-pick'
+import WritingPaper, { isLateEdition, paperDate, pickSummary, singaporeHour } from './WritingPaper'
 
 jest.mock('@/lib/copilot-events', () => ({ openCopilot: jest.fn() }))
+
+// The paper reads the pick from the link (useSearchParams) and moves the link with router.replace. The tests set the
+// query string and the pathname, and check the replace calls.
+const mockReplace = jest.fn()
+let mockSearch = ''
+let mockPathname = '/writing'
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: (...args: unknown[]) => mockReplace(...args), prefetch: jest.fn(), back: jest.fn() }),
+  usePathname: () => mockPathname,
+  useSearchParams: () => new URLSearchParams(mockSearch),
+}))
 
 const DAY = new Date('2026-11-21T04:00:00Z') // 12:00 in Singapore
 const LATE = new Date('2026-11-21T12:00:00Z') // 20:00 in Singapore
@@ -96,6 +108,9 @@ const OriginalIO = global.IntersectionObserver
 beforeEach(() => {
   jest.useFakeTimers({ now: DAY })
   jest.mocked(openCopilot).mockClear()
+  mockReplace.mockClear()
+  mockSearch = ''
+  mockPathname = '/writing'
 })
 
 afterEach(() => {
@@ -569,3 +584,164 @@ describe('WritingPaper', () => {
     })
   })
 })
+
+describe('a pick from Ask Titus (?read=)', () => {
+  /** Post ids for the fixture: 00000001 for the first story, 0000000a for the tenth. */
+  const hexId = (i: number) => (i + 1).toString(16).padStart(8, '0')
+  // The fixture with a Medium post id on each story, as the server gives them.
+  const PICKABLE: Story[] = FIXTURE.map((s, i) => ({ ...s, id: hexId(i) }))
+  // Index 4 is "five" (2026, blockchain, no cover); index 1 is "two" (2026, blockchain).
+  const FIVE = hexId(4)
+  const TWO = hexId(1)
+
+  beforeEach(() => {
+    rememberPickQuestion([], '')
+  })
+
+  it('shows the picked stories in the order the link gives them, the first leading', () => {
+    mockSearch = `read=${FIVE},${TWO}`
+    renderPaper({ stories: PICKABLE })
+
+    expect(screen.getByText('A special edition, picked by Ask Titus')).toBeInTheDocument()
+    const links = screen.getAllByRole('link', { name: /^Headline/ }).map((a) => a.textContent)
+    expect(links).toEqual(['Headline five', 'Headline two'])
+  })
+
+  it('names the lead as the first pick, with its desk', () => {
+    mockSearch = `read=${FIVE},${TWO}`
+    renderPaper({ stories: PICKABLE })
+    expect(paragraph('First pick · Blockchain')).toBeInTheDocument()
+    expect(screen.queryByText('Latest story · Blockchain')).toBeNull()
+  })
+
+  it('says how many articles, from how many desks, and over which years the pick holds', () => {
+    mockSearch = `read=${FIVE},${TWO}`
+    renderPaper({ stories: PICKABLE })
+    expect(screen.getByText('2 articles from 1 desk, in 2026')).toBeInTheDocument()
+  })
+
+  it('puts Picked by Ask Titus and the count in the dateline, in place of the edition', () => {
+    mockSearch = `read=${FIVE},${TWO}`
+    renderPaper({ stories: PICKABLE })
+    expect(span('Picked by Ask Titus · 2 articles')).toBeInTheDocument()
+    expect(screen.queryByText('2026 edition · 8 articles')).toBeNull()
+  })
+
+  it('shows the question that made the pick, when this visit remembers it for this pick', () => {
+    rememberPickQuestion([FIVE, TWO], 'Which of these should I read first?')
+    mockSearch = `read=${FIVE},${TWO}`
+    renderPaper({ stories: PICKABLE })
+    expect(screen.getByText('“Which of these should I read first?”')).toBeInTheDocument()
+  })
+
+  it('shows no question for a shared link, where the question was not remembered', () => {
+    rememberPickQuestion([FIVE], 'A question for one article')
+    mockSearch = `read=${FIVE},${TWO}`
+    renderPaper({ stories: PICKABLE })
+    expect(screen.queryByText(/A question for one article/)).toBeNull()
+    expect(screen.getByText('A special edition, picked by Ask Titus')).toBeInTheDocument()
+  })
+
+  it('shows an article once when the link repeats it', () => {
+    mockSearch = `read=${FIVE},${FIVE}`
+    renderPaper({ stories: PICKABLE })
+    expect(screen.getAllByRole('link', { name: /^Headline/ })).toHaveLength(1)
+    expect(screen.getByText('1 article from 1 desk, in 2026')).toBeInTheDocument()
+  })
+
+  it('leaves out any id that is not one of the stories, and shows the paper when none is left', () => {
+    mockSearch = 'read=ffffffff,eeeeeeee'
+    renderPaper({ stories: PICKABLE })
+    expect(screen.queryByText('A special edition, picked by Ask Titus')).toBeNull()
+    expect(screen.getByRole('button', { name: /^2026/ })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('ignores a link that is not a well-formed pick', () => {
+    mockSearch = 'read=zz,../../etc,<script>'
+    renderPaper({ stories: PICKABLE })
+    expect(screen.queryByText('A special edition, picked by Ask Titus')).toBeNull()
+  })
+
+  it('draws the ordinary paper on the server, since the pick applies once the page has loaded', () => {
+    mockSearch = `read=${FIVE},${TWO}`
+    const html = renderToString(
+      <WritingPaper
+        stories={PICKABLE}
+        desks={DESKS}
+        editions={EDITIONS}
+        folio="§ 06"
+        featuredBy={[]}
+        corrections={[]}
+        mediumUrl="https://medium.com/@tituslhy"
+      />,
+    )
+    expect(html).not.toContain('A special edition')
+    expect(html).toContain('Latest story')
+  })
+
+  it('presses no edition or desk while picking', () => {
+    mockSearch = `read=${FIVE},${TWO}`
+    renderPaper({ stories: PICKABLE })
+    expect(screen.getByRole('button', { name: /^2026/ })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: /^Blockchain/ })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('leaves the pick when an edition is pressed, and shows that edition', () => {
+    mockSearch = `read=${FIVE},${TWO}`
+    renderPaper({ stories: PICKABLE })
+    fireEvent.click(screen.getByRole('button', { name: /^2025/ }))
+    expect(mockReplace).toHaveBeenCalledWith('/writing', { scroll: false })
+    expect(screen.queryByText('A special edition, picked by Ask Titus')).toBeNull()
+    expect(screen.getByRole('button', { name: /^2025/ })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('leaves the pick when a desk is pressed, and filters to that desk', () => {
+    mockSearch = `read=${FIVE},${TWO}`
+    renderPaper({ stories: PICKABLE })
+    fireEvent.click(screen.getByRole('button', { name: /^Blockchain/ }))
+    expect(mockReplace).toHaveBeenCalledWith('/writing', { scroll: false })
+    expect(screen.queryByText('A special edition, picked by Ask Titus')).toBeNull()
+    expect(span('Blockchain desk · 4 articles')).toBeInTheDocument()
+  })
+
+  it('shows the whole paper again, and takes the pick out of the link, from “Show the whole paper”', () => {
+    mockSearch = `read=${FIVE},${TWO}`
+    renderPaper({ stories: PICKABLE })
+    fireEvent.click(screen.getByRole('button', { name: /Show the whole paper/ }))
+    expect(mockReplace).toHaveBeenCalledWith('/writing', { scroll: false })
+    expect(screen.queryByText('A special edition, picked by Ask Titus')).toBeNull()
+    expect(screen.getByRole('button', { name: /^2026/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Headline one')
+  })
+});
+
+describe('pickSummary', () => {
+  it('says one article, one desk and its year', () => {
+    expect(pickSummary([story('a', '2026-01-02', '2026', 'copilots')])).toBe('1 article from 1 desk, in 2026')
+  })
+
+  it('counts the desks, and spans the years when they differ', () => {
+    expect(
+      pickSummary([story('a', '2026-01-02', '2026', 'copilots'), story('b', '2024-03-01', '2024', 'blockchain'), story('c', '2025-02-02', '2025', 'copilots')]),
+    ).toBe('3 articles from 2 desks, 2024 to 2026')
+  })
+
+  it('does not count a story with no desk as a desk: one desk-less and one desked story is one desk', () => {
+    expect(pickSummary([story('a', '2026-01-02', '2026', undefined), story('b', '2026-02-02', '2026', 'copilots')])).toBe(
+      '2 articles from 1 desk, in 2026',
+    )
+  })
+
+  it('leaves out the desk part when no story has a desk', () => {
+    expect(pickSummary([story('a', '2026-01-02', '2026', undefined), story('b', '2026-02-02', '2026', undefined)])).toBe(
+      '2 articles, in 2026',
+    )
+  })
+
+  it('keeps the order of the list, and takes the span from the earliest and latest year', () => {
+    expect(pickSummary([story('a', '2026-01-02', '2026', 'copilots'), story('b', '2025-02-02', '2025', 'copilots')])).toBe(
+      '2 articles from 1 desk, 2025 to 2026',
+    )
+  })
+})
+

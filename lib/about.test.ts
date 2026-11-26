@@ -1,3 +1,4 @@
+import { ROLES } from "./profile";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -676,6 +677,14 @@ describe("toolTargetId", () => {
   it("gives every tool on the table a different id", () => {
     const ids = TOOLS.map((t) => toolTargetId(t));
     expect(new Set(ids).size).toBe(TOOLS.length);
+  });
+});
+
+describe("Illumina's story (the About chapter and the role) does not call me its only data scientist", () => {
+  it("has no sole or only data scientist claim in the About chapters or the Illumina role", () => {
+    const illumina = ROLES.find((r) => r.slug === "illumina")!;
+    const text = JSON.stringify({ chapters: CHAPTERS, role: illumina });
+    expect(text).not.toMatch(/\b(sole|only)\s+data\s+scientist/i);
   });
 });
 
