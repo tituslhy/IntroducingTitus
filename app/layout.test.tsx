@@ -1,7 +1,28 @@
 import { render, screen } from '@testing-library/react'
-import { ARTICLE_COUNT_SHORT } from '@/lib/content'
-import { SIGN_OFF_TITLE, SITE_DESCRIPTION, SITE_TITLE } from '@/lib/profile'
+import { ARTICLE_COUNT_SHORT, COLOPHON_PATH } from '@/lib/content'
+import { PAGE_TARGETS, SIGN_OFF_TITLE, SITE_DESCRIPTION, SITE_PAGES, SITE_TITLE } from '@/lib/profile'
 import RootLayout, { metadata } from './layout'
+
+// The layout mounts Navigation (usePathname) and CopilotBubble (useRouter, usePathname).
+// Outside the App Router neither hook has a context, so give them plain stand-ins.
+jest.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn(), back: jest.fn() }),
+}))
+
+// The real drawer, with a note of the targets the layout hands it.
+const mockBubbleTargets: { current: { id: string; label: string; path: string; page?: string; tool?: boolean }[] } = { current: [] }
+jest.mock('@/components/CopilotBubble', () => {
+  const actual = jest.requireActual<typeof import('@/components/CopilotBubble')>('@/components/CopilotBubble')
+  const React = jest.requireActual<typeof import('react')>('react')
+  return {
+    __esModule: true,
+    default: (props: { targets?: typeof mockBubbleTargets.current }) => {
+      mockBubbleTargets.current = props.targets ?? []
+      return React.createElement(actual.default, props)
+    },
+  }
+})
 
 describe('RootLayout metadata', () => {
   it('should export correct page title', () => {
@@ -125,6 +146,30 @@ describe('RootLayout component', () => {
     expect(noscriptElements.length).toBeGreaterThan(0)
   })
 
+  it('should render the site navigation once, above the page content', () => {
+    render(
+      <RootLayout>
+        <div>Page body</div>
+      </RootLayout>
+    )
+    const navs = screen.getAllByRole('navigation', { name: 'Site navigation' })
+    expect(navs).toHaveLength(1)
+    const body = document.body
+    const nav = navs[0]
+    const page = screen.getByText('Page body')
+    expect(nav.compareDocumentPosition(page) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(body.contains(nav)).toBe(true)
+  })
+
+  it('should mount the Ask Titus drawer button on every page', () => {
+    render(
+      <RootLayout>
+        <div>Page body</div>
+      </RootLayout>
+    )
+    expect(screen.getByRole('button', { name: /open ask titus/i })).toBeInTheDocument()
+  })
+
   it('should render children prop correctly', () => {
     render(
       <RootLayout>
@@ -133,5 +178,35 @@ describe('RootLayout component', () => {
     )
     const section = screen.getByText('Content Here')
     expect(section).toBeInTheDocument()
+  })
+})
+
+describe('RootLayout: the targets it hands the drawer', () => {
+  const targetFor = (id: string) => {
+    render(
+      <RootLayout>
+        <div>Page</div>
+      </RootLayout>
+    )
+    return mockBubbleTargets.current.find((t) => t.id === id)
+  }
+
+  it('names the colophon target\'s page "Ask Titus", as the nav does, since it is not one of the numbered pages', () => {
+    const colophon = targetFor('colophon-page')
+    expect(colophon).toMatchObject({ id: 'colophon-page', path: COLOPHON_PATH, page: 'Ask Titus' })
+    expect(SITE_PAGES.map((p) => p.path as string)).not.toContain(COLOPHON_PATH)
+  })
+
+  it('names every other target\'s page after its nav item', () => {
+    targetFor('lede')
+    for (const t of mockBubbleTargets.current.filter((t) => t.path !== COLOPHON_PATH)) {
+      expect(t.page).toBe(SITE_PAGES.find((p) => p.path === t.path)?.label)
+    }
+  })
+
+  it('hands over one target for every page target, and nothing from the copilot-only narrative', () => {
+    targetFor('lede')
+    expect(mockBubbleTargets.current.map((t) => t.id)).toEqual(PAGE_TARGETS.map((t) => t.id))
+    for (const t of mockBubbleTargets.current) expect(Object.keys(t).sort()).not.toContain('about')
   })
 })

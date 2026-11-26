@@ -47,9 +47,11 @@ Currently: {{CURRENT_ROLE}}. {{YEARS_EXPERIENCE}} building production AI. {{ARTI
 
 {{OPEN_SOURCE}}
 
-### Tech Stack
+### Tools
 
-{{TECH_STACK}}
+Each tool with the month I picked it up, where, and how much I used it. "Used at work" means I used it in a job; "projects only" means my own projects or study, never at work. Never upgrade one level to another when judging fit. A tool that isn't here is one I haven't used.
+
+{{TOOLS}}
 
 ---
 

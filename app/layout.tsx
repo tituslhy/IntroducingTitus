@@ -2,8 +2,9 @@ import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import './globals.css'
 import CopilotBubble from '@/components/CopilotBubble'
-import { EMAIL, PAGE_TARGETS, SITE_DESCRIPTION, SITE_TITLE } from '@/lib/profile'
-import { SITE_URL } from '@/lib/content'
+import Navigation from '@/components/Navigation'
+import { EMAIL, PAGE_TARGETS, SITE_DESCRIPTION, SITE_PAGES, SITE_TITLE } from '@/lib/profile'
+import { COLOPHON_PATH, SITE_URL } from '@/lib/content'
 
 // Self-hosted (not next/font/google): a font-fetch failure would otherwise be
 // a build-time or first-paint dependency on Google's servers, and typography
@@ -70,7 +71,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${newsreader.variable} ${ibmPlexMono.variable}`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`${newsreader.variable} ${ibmPlexMono.variable}`}>
       <head>
         {/* Without JS the IntersectionObserver never fires; force reveals visible. */}
         <noscript>
@@ -78,9 +79,20 @@ export default function RootLayout({
         </noscript>
       </head>
       <body className="bg-paper text-ink font-serif antialiased">
+        <Navigation />
         {children}
-        {/* Only id + label cross to the client; copilot-only narrative stays server-side. */}
-        <CopilotBubble targets={PAGE_TARGETS.map(({ id, label }) => ({ id, label }))} email={EMAIL} />
+        {/* The drawer lives here, so it keeps the conversation while the visitor moves between pages.
+            Only id, label and path cross to the client; copilot-only narrative stays server-side. */}
+        <CopilotBubble
+          targets={PAGE_TARGETS.map(({ id, label, path, tool }) => ({
+            id,
+            label,
+            path,
+            page: SITE_PAGES.find((p) => p.path === path)?.label ?? (path === COLOPHON_PATH ? 'Ask Titus' : undefined),
+            ...(tool && { tool }),
+          }))}
+          email={EMAIL}
+        />
       </body>
     </html>
   )

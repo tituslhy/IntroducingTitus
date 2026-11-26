@@ -1,0 +1,154 @@
+/**
+ * "Show me around": a recorded tour of the site by Ask Titus. `npm run tour:record` asks the copilot for the
+ * tour once (scripts/record-tour.ts) and writes content/site-tour.json; the drawer replays it (no API call).
+ * Each step is a line of narration plus the places it shows, in the same vocabulary as show_on_page.
+ */
+import { PAGE_TARGET_IDS } from '@/lib/profile'
+import { STARTER_PROMPTS } from '@/lib/starter-prompts'
+import recorded from '@/content/site-tour.json'
+
+/** What a step says aloud to a screen reader: its line, then its example questions, if any. */
+export function spokenStep(step: TourStep): string {
+  return step.ask?.length ? `${step.say} Examples: ${step.ask.join(' ')}` : step.say
+}
+
+export type TourStep = {
+  say: string
+  targets: string[]
+  /** Example questions shown under the line, to read (only Ask Titus's starter prompts, so they're there after). */
+  ask?: string[]
+}
+
+export type SiteTour = {
+  /** True until Titus has recorded and reviewed a real run; the tour buttons stay off the live site till then. */
+  draft: boolean
+  recordedAt: string | null
+  model: string | null
+  steps: TourStep[]
+}
+
+/** Things in the drawer a step can ring: the Ask Titus button and the job-description mode. Tour only. */
+export const DRAWER_TARGET_IDS = ['ask-button', 'fit-mode'] as const
+
+/** Every id a tour step may name. */
+export const TOUR_TARGET_IDS: string[] = [...PAGE_TARGET_IDS, ...DRAWER_TARGET_IDS]
+
+/** The whole tour stays under two minutes. */
+export const TOUR_BUDGET_MS = 120_000
+
+const WORDS_PER_SECOND = 3
+/** Time for the page to move to each thing a step shows. */
+const MOVE_MS = 2000
+/** Time to take in each example question a step offers. */
+const ASK_MS = 1000
+const MIN_STEP_MS = 4000
+const MAX_STEP_MS = 16000
+
+/** How long a step stays up: its reading time, plus a moment per thing it shows and per example question. */
+export function stepDurationMs(step: TourStep): number {
+  const words = step.say.trim().split(/\s+/).filter(Boolean).length
+  const ms = (words / WORDS_PER_SECOND) * 1000 + step.targets.length * MOVE_MS + (step.ask?.length ?? 0) * ASK_MS
+  return Math.round(Math.min(MAX_STEP_MS, Math.max(MIN_STEP_MS, ms)))
+}
+
+/** How fast the drawer types a line, in words a second (components/tour/TypedText types at this speed). */
+export const TYPE_WORDS_PER_SECOND = 12
+/** After the closing line has typed out, how long before the tour finishes. */
+const FINAL_HOLD_MS = 1200
+/** The closing step never goes by quicker than this. */
+const MIN_FINAL_MS = 2500
+
+/**
+ * How long step `i` of `tour` stays up. The closing line (the last step, when it shows nothing) finishes soon
+ * after it has typed out: it stays on screen after the tour ends, so there's no need to wait out its reading time.
+ */
+export function stepDurationAt(tour: SiteTour, i: number): number {
+  const step = tour.steps[i]
+  if (i !== tour.steps.length - 1 || step.targets.length > 0 || step.ask?.length) return stepDurationMs(step)
+  const words = step.say.trim().split(/\s+/).filter(Boolean).length
+  return Math.max(MIN_FINAL_MS, Math.round((words / TYPE_WORDS_PER_SECOND) * 1000 + FINAL_HOLD_MS))
+}
+
+export function tourDurationMs(tour: SiteTour): number {
+  return tour.steps.reduce((sum, _, i) => sum + stepDurationAt(tour, i), 0)
+}
+
+const isStrings = (v: unknown): v is string[] => Array.isArray(v) && v.every((t) => typeof t === 'string')
+
+const isStep = (s: unknown): s is TourStep =>
+  !!s &&
+  typeof s === 'object' &&
+  typeof (s as TourStep).say === 'string' &&
+  isStrings((s as TourStep).targets) &&
+  ((s as TourStep).ask === undefined || isStrings((s as TourStep).ask))
+
+/** The tour in `raw`, or null when it isn't shaped like one. Checks shape only; see tourProblems for content. */
+export function parseTour(raw: unknown): SiteTour | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  if (!Array.isArray(r.steps) || !r.steps.every(isStep)) return null
+  const str = (v: unknown) => (typeof v === 'string' ? v : null)
+  return {
+    draft: r.draft !== false,
+    recordedAt: str(r.recordedAt),
+    model: str(r.model),
+    steps: r.steps.map((s) => ({ say: s.say, targets: [...s.targets], ...(s.ask?.length ? { ask: [...s.ask] } : {}) })),
+  }
+}
+
+/** What's wrong with a tour, one readable line each; empty when it's fit to play. */
+export function tourProblems(tour: SiteTour): string[] {
+  const known = new Set(TOUR_TARGET_IDS)
+  const problems: string[] = []
+  if (tour.steps.length < 3) problems.push(`only ${tour.steps.length} steps; a tour needs at least 3`)
+  tour.steps.forEach((s, i) => {
+    if (!s.say.trim()) problems.push(`step ${i + 1}: says nothing`)
+    for (const t of s.targets) if (!known.has(t)) problems.push(`step ${i + 1}: unknown target ${t}`)
+    for (const q of s.ask ?? []) if (!STARTER_PROMPTS.includes(q)) problems.push(`step ${i + 1}: unknown example question ${q}`)
+    if (new Set(s.ask ?? []).size !== (s.ask?.length ?? 0)) problems.push(`step ${i + 1}: repeats an example question`)
+  })
+  // The job-description button shows under the one line that tells them to press it.
+  if (tour.steps.filter((s) => s.targets.includes('fit-mode')).length > 1) problems.push('fit-mode is named in more than one step')
+  const total = tourDurationMs(tour)
+  if (total > TOUR_BUDGET_MS) problems.push(`runs ${Math.round(total / 1000)}s; the limit is ${TOUR_BUDGET_MS / 1000}s`)
+  return problems
+}
+
+/** The structured-output schema the recorder asks the copilot to fill (OpenAI strict JSON schema). */
+export function tourJsonSchema() {
+  return {
+    type: 'object',
+    properties: {
+      steps: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            say: { type: 'string' },
+            targets: { type: 'array', items: { type: 'string', enum: TOUR_TARGET_IDS } },
+            ask: { type: 'array', items: { type: 'string', enum: [...STARTER_PROMPTS] } },
+          },
+          required: ['say', 'targets', 'ask'],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ['steps'],
+    additionalProperties: false,
+  }
+}
+
+function load(): SiteTour {
+  const tour = parseTour(recorded)
+  if (!tour) throw new Error('content/site-tour.json is not a tour; run npm run tour:record')
+  return tour
+}
+
+/** The tour the site plays. */
+export const SITE_TOUR: SiteTour = load()
+
+/**
+ * Whether the "Show me around" buttons show: everywhere (local builds, Vercel previews) except the live site
+ * while the tour is still the hand-written draft. There the hero keeps its earlier buttons.
+ */
+export const TOUR_ON_SITE = !SITE_TOUR.draft || process.env.NEXT_PUBLIC_VERCEL_ENV !== 'production'

@@ -29,7 +29,7 @@ describe("Footer", () => {
   it("should render LinkedIn social link with correct href", () => {
     render(<Footer />);
     const linkedinLink = screen.getByRole("link", { name: /linkedin/i });
-    expect(linkedinLink).toHaveAttribute("href", "https://www.linkedin.com/in/titus-lim-hsien-yong-70223254/");
+    expect(linkedinLink).toHaveAttribute("href", "https://www.linkedin.com/in/titus-lim-hsien-yong/");
   });
 
   it("should render Medium social link with correct href", () => {

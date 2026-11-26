@@ -1,0 +1,111 @@
+# Unit Tests (Next.js / TypeScript / Jest + RTL)
+
+> OpenCode equivalent of `.cursor/rules/unit-tests.mdc`. OpenCode has no
+> glob-scoped "apply only when editing a test file", so this is loaded with
+> every session (see `instructions` in `.opencode/opencode.jsonc`). It is small
+> and always relevant to this repo's tests.
+
+## Core Philosophy
+- Test BEHAVIOR, not implementation details
+- Tests should read like documentation
+- If a test breaks on a refactor that doesn't change behavior, the test is wrong
+- Never test implementation — test what the user sees, not how the code works internally
+
+## Test Structure
+- Always use Arrange-Act-Assert with a blank line between each section
+- One behavioral concept per test — multiple asserts are fine if they describe the same thing
+- Describe blocks mirror the component/function name
+- It blocks start with "should"
+
+## Naming Convention
+- describe("ComponentName") or describe("functionName")
+- it("should [expected behavior] when [condition]")
+- Example: it("should render experience timeline in reverse chronological order")
+- Example: it("should never render family content under any condition")
+- Example: it("should display warm amber accent on Illumina crown jewel card")
+
+## React Testing Library Rules
+- NEVER use querySelector or getElementById — use RTL queries only
+- Query priority: getByRole > getByLabelText > getByText > getByTestId
+- getByTestId is last resort only
+- Never test className, style, or DOM structure
+- Always use userEvent over fireEvent
+
+## Mocking Rules
+- Mock next/router, next/image, next/link always
+- Mock external API calls — never let tests hit the network
+- Never mock your own components or utilities
+- Use jest.spyOn sparingly — prefer testing outcomes
+
+## TypeScript
+- Never use `any` in test files — if you need it, something is wrong upstream
+- Type all mock return values explicitly
+- Use `as ComponentProps<typeof X>` for partial prop mocks
+
+## Coverage
+- Aim for behavior coverage, not line coverage
+- Every component needs: renders without crashing, renders correct content, handles empty/null states
+- Interactive elements need: correct handler called, UI updates after interaction
+
+## What NOT to Test
+- Styling or CSS classes
+- Third party library internals
+- next/image optimization behavior
+- Static strings that will never change logically
+- Theme variants — the site is light (warm cream) by default. Dark mode is an optional
+  toggle, OFF by default and not currently built, so there is no second theme state to test.
+
+## File Structure
+- Test files live next to components: `Component.tsx` → `Component.test.tsx`
+- Shared test utilities in `__tests__/utils/`
+- Shared mocks in `__tests__/mocks/`
+
+## Example Pattern
+```typescript
+describe("ExperienceCard", () => {
+  const mockProps = {
+    company: "Mastercard",
+    role: "Lead AI Engineer",
+    period: "Jul 2026 – Present",
+    isCrownJewel: false,
+  }
+
+  it("should render company name", () => {
+    // Arrange
+    render(<ExperienceCard {...mockProps} />)
+
+    // Act
+    const heading = screen.getByRole("heading", { name: /mastercard/i })
+
+    // Assert
+    expect(heading).toBeInTheDocument()
+  })
+
+  it("should render crown jewel indicator when Illumina card", () => {
+    // Arrange
+    render(<ExperienceCard {...mockProps} company="Illumina" isCrownJewel={true} />)
+
+    // Act
+    const crownJewel = screen.getByTestId("crown-jewel-indicator")
+
+    // Assert
+    expect(crownJewel).toBeInTheDocument()
+  })
+
+  it("should never render family content", () => {
+    // Arrange
+    render(<ExperienceCard {...mockProps} />)
+
+    // Assert
+    expect(screen.queryByText(/wife|daughter|family|kids|children/i)).not.toBeInTheDocument()
+  })
+})
+```
+
+## Project-Specific Rules (tituslhy portfolio)
+- The Illumina card is the crown jewel — always test it gets distinct treatment
+- No family content must be enforced in tests — add a test for it explicitly
+- Resume PDF must never be linked — test that only mailto: links exist for resume
+- The site is light (warm cream) by default — never write tests for dark-mode variants
+- Deployed on Vercel: API routes (`app/api/chat/route.ts`) and server-side logic are
+  supported. The old static-export constraint no longer applies — test API routes too.

@@ -66,6 +66,7 @@ jest.mock("@/lib/copilot-tracing", () => ({
 // Import after all mocks are set up
 import { POST, isTracingEnabled } from "./route";
 import { PAGE_TARGET_IDS } from "@/lib/profile";
+import { MAX_PAGE_TARGETS } from "@/lib/copilot-tools";
 import { ARTICLES } from "@/lib/articles";
 import { formatPublished } from "@/lib/citation-ledger";
 import type { NextRequest } from "next/server";
@@ -606,7 +607,7 @@ describe("POST", () => {
       (t: { name?: string }) => t.name === "show_on_page"
     );
     expect(tool).toMatchObject({ type: "function", strict: true });
-    expect(tool.parameters.properties.target.enum).toEqual(PAGE_TARGET_IDS);
+    expect(tool.parameters.properties.targets.items.enum).toEqual(PAGE_TARGET_IDS);
     // No function call happened, so there is no second round.
     expect(mockCreate).toHaveBeenCalledTimes(1);
   });
@@ -621,11 +622,11 @@ describe("POST", () => {
           { type: "response.created", response: { id: "resp_1" } },
           {
             type: "response.output_item.done",
-            item: { type: "function_call", name: "show_on_page", arguments: '{"target":"role-illumina"}', call_id: "call_1" },
+            item: { type: "function_call", name: "show_on_page", arguments: '{"targets":["role-illumina"]}', call_id: "call_1" },
           },
           {
             type: "response.output_item.done",
-            item: { type: "function_call", name: "show_on_page", arguments: '{"target":"role-nasa"}', call_id: "call_2" },
+            item: { type: "function_call", name: "show_on_page", arguments: '{"targets":["role-nasa"]}', call_id: "call_2" },
           },
           { type: "response.done" },
         ])
@@ -648,7 +649,7 @@ describe("POST", () => {
     expect(followUp.tools.map((t: { name?: string }) => t.name)).toEqual(["show_on_page", "search_writing", "read_writing"]);
     // The per-reply budget is spent by the first call, so the second is refused as over-limit.
     expect(followUp.input).toEqual([
-      { type: "function_call_output", call_id: "call_1", output: JSON.stringify({ shown: "role-illumina" }) },
+      { type: "function_call_output", call_id: "call_1", output: JSON.stringify({ shown: ["role-illumina"] }) },
       { type: "function_call_output", call_id: "call_2", output: JSON.stringify({ error: "limit reached; answer with what you have" }) },
     ]);
   });
@@ -761,7 +762,7 @@ describe("POST - tool loop", () => {
     await queueRounds(
       [
         responseCreated("resp_1"),
-        functionCall("call_1", "show_on_page", '{"target":"role-illumina"}'),
+        functionCall("call_1", "show_on_page", '{"targets":["role-illumina"]}'),
         functionCall("call_2", "web_lookup", '{"query":"illumina"}'),
         responseDone,
       ],
@@ -775,7 +776,7 @@ describe("POST - tool loop", () => {
       { type: "delta", text: "Answer." },
     ]);
     expect(mockCreate.mock.calls[1][0].input).toEqual([
-      { type: "function_call_output", call_id: "call_1", output: JSON.stringify({ shown: "role-illumina" }) },
+      { type: "function_call_output", call_id: "call_1", output: JSON.stringify({ shown: ["role-illumina"] }) },
       { type: "function_call_output", call_id: "call_2", output: JSON.stringify({ error: "unknown tool" }) },
     ]);
   });
@@ -784,12 +785,12 @@ describe("POST - tool loop", () => {
     await queueRounds(
       [
         responseCreated("resp_1"),
-        functionCall("call_1", "show_on_page", '{"target":"role-illumina"}'),
+        functionCall("call_1", "show_on_page", '{"targets":["role-illumina"]}'),
         responseDone,
       ],
       [
         responseCreated("resp_2"),
-        functionCall("call_2", "show_on_page", '{"target":"role-mastercard"}'),
+        functionCall("call_2", "show_on_page", '{"targets":["role-mastercard"]}'),
         responseDone,
       ],
       [outputText("Answer without a second highlight."), responseDone]
@@ -816,6 +817,47 @@ describe("POST - tool loop", () => {
     ]);
   });
 
+  it("should relay each target of one show_on_page call as an action, in the order given", async () => {
+    const targets = ["tool-tigergraph", "tool-neo4j", "role-illumina"];
+    await queueRounds(
+      [responseCreated("resp_1"), functionCall("call_1", "show_on_page", JSON.stringify({ targets })), responseDone],
+      [outputText("Graphs at Illumina."), responseDone]
+    );
+
+    const lines = parseLines(await drainResponse(await postChat()));
+
+    expect(lines).toEqual([
+      { type: "action", target: "tool-tigergraph" },
+      { type: "action", target: "tool-neo4j" },
+      { type: "action", target: "role-illumina" },
+      { type: "delta", text: "Graphs at Illumina." },
+    ]);
+    expect(mockCreate.mock.calls[1][0].input).toEqual([
+      { type: "function_call_output", call_id: "call_1", output: JSON.stringify({ shown: targets }) },
+    ]);
+  });
+
+  it(`should relay at most MAX_PAGE_TARGETS (${MAX_PAGE_TARGETS}) actions from one call, the first ones in order`, async () => {
+    const targets = PAGE_TARGET_IDS.slice(0, MAX_PAGE_TARGETS + 2);
+    await queueRounds(
+      [responseCreated("resp_1"), functionCall("call_1", "show_on_page", JSON.stringify({ targets })), responseDone],
+      [outputText("Answer."), responseDone]
+    );
+
+    const lines = parseLines(await drainResponse(await postChat()));
+    const actions = lines.filter((l) => l.type === "action");
+
+    expect(MAX_PAGE_TARGETS).toBe(6);
+    expect(actions).toEqual(targets.slice(0, MAX_PAGE_TARGETS).map((target) => ({ type: "action", target })));
+    expect(mockCreate.mock.calls[1][0].input).toEqual([
+      {
+        type: "function_call_output",
+        call_id: "call_1",
+        output: JSON.stringify({ shown: targets.slice(0, MAX_PAGE_TARGETS) }),
+      },
+    ]);
+  });
+
   it("should return unknown tool for a call to a tool name that is not registered", async () => {
     await queueRounds(
       [responseCreated("resp_1"), functionCall("call_1", "delete_everything", "{}"), responseDone],
@@ -832,7 +874,7 @@ describe("POST - tool loop", () => {
 
   it.each([
     ["bad JSON", '{"target":'],
-    ["a target outside the page's anchor ids", '{"target":"role-nasa"}'],
+    ["a target outside the page's anchor ids", '{"targets":["role-nasa"]}'],
   ])("should return invalid arguments and relay no action for %s", async (_label, args) => {
     await queueRounds(
       [responseCreated("resp_1"), functionCall("call_1", "show_on_page", args), responseDone],
@@ -852,7 +894,7 @@ describe("POST - tool loop", () => {
       [responseCreated("resp_1"), functionCall("call_1", "show_on_page", '{"target":'), responseDone],
       [
         responseCreated("resp_2"),
-        functionCall("call_2", "show_on_page", '{"target":"role-illumina"}'),
+        functionCall("call_2", "show_on_page", '{"targets":["role-illumina"]}'),
         responseDone,
       ],
       [outputText("Answer."), responseDone]
@@ -872,7 +914,7 @@ describe("POST - tool loop", () => {
 
   it("should withhold function tools on the fourth and final round and chain each round by previous_response_id", async () => {
     await queueRounds(
-      [responseCreated("resp_1"), functionCall("call_1", "show_on_page", '{"target":"role-illumina"}'), responseDone],
+      [responseCreated("resp_1"), functionCall("call_1", "show_on_page", '{"targets":["role-illumina"]}'), responseDone],
       [responseCreated("resp_2"), functionCall("call_2", "web_lookup", "{}"), responseDone],
       [responseCreated("resp_3"), functionCall("call_3", "web_lookup", "{}"), responseDone],
       [responseCreated("resp_4"), outputText("Final answer."), responseDone]
@@ -907,7 +949,7 @@ describe("POST - tool loop", () => {
       [responseCreated("resp_3"), functionCall("call_3", "web_lookup", "{}"), responseDone],
       [
         responseCreated("resp_4"),
-        functionCall("call_4", "show_on_page", '{"target":"role-illumina"}'),
+        functionCall("call_4", "show_on_page", '{"targets":["role-illumina"]}'),
         outputText("Done."),
         responseDone,
       ]
@@ -1044,7 +1086,7 @@ describe("POST - tool loop", () => {
       [
         responseCreated("resp_1"),
         outputText("Checking. "),
-        functionCall("call_1", "show_on_page", '{"target":"role-illumina"}'),
+        functionCall("call_1", "show_on_page", '{"targets":["role-illumina"]}'),
         responseDone,
       ],
       [outputText("Found it."), responseDone]
@@ -1193,7 +1235,7 @@ describe("POST - tracing", () => {
             { type: "response.created", response: { id: "resp_1" } },
             {
               type: "response.output_item.done",
-              item: { type: "function_call", name: "show_on_page", arguments: '{"target":"role-illumina"}', call_id: "c1" },
+              item: { type: "function_call", name: "show_on_page", arguments: '{"targets":["role-illumina"]}', call_id: "c1" },
             },
             { type: "response.done" },
           ])

@@ -110,6 +110,8 @@ export async function* copilotStream(
         {
           model: MODEL,
           stream: true,
+          // Titus prefers fuller answers; the prompt still sets the shape (2–4 sentences, or the story).
+          text: { verbosity: "high" },
           input: next,
           ...(previousId && { previous_response_id: previousId }),
           ...(offered.length > 0 && { tools: offered }),

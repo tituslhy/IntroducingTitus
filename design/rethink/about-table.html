@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>About — periodic table mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" />
+<link rel="stylesheet" href="tiles.css" />
+<style>
+  .note { font: 12px/1.6 var(--mono); color: var(--ink-faint); max-width: 900px; margin: 0 0 20px; }
+  .note b { color: var(--amber); font-weight: 500; }
+  h1 { margin: 14px 0 10px; }
+  .lede { font-size: 19px; line-height: 1.5; max-width: 70ch; margin: 0 0 24px; color: var(--ink-soft); }
+  :root {
+    --c-lang: oklch(0.91 0.045 60); --c-cloud: oklch(0.93 0.03 95); --c-data: oklch(0.92 0.035 140);
+    --c-web: oklch(0.92 0.03 185); --c-devops: oklch(0.92 0.03 230); --c-obs: oklch(0.92 0.035 300); --c-ai: oklch(0.90 0.05 50);
+  }
+  /* 18 columns: six main rows with the classic notch, then two detached rows below */
+  .pt { display: grid; grid-template-columns: repeat(18, minmax(0, 1fr)); gap: 5px; }
+  .gap { grid-column: 1 / -1; height: 14px; }
+  .el { position: relative; aspect-ratio: 1; border-radius: 10px; border: 1px dashed var(--rule); background: transparent; padding: 0; cursor: pointer; transition: background .5s, border-color .5s, transform .25s; }
+  .el .n { position: absolute; top: 3px; left: 5px; font: 8.5px var(--mono); color: var(--ink-faint); }
+  .el img, .el .s { position: absolute; inset: 22%; width: 56%; height: 56%; object-fit: contain; filter: grayscale(1); opacity: .22; transition: filter .5s, opacity .5s; }
+  .el .s { display: grid; place-items: center; font: 500 clamp(13px, 1.4vw, 19px)/1 var(--serif); color: var(--ink); letter-spacing: -.02em; }
+  .el.lit { border: 1px solid transparent; background: var(--cat); }
+  .el.lit img, .el.lit .s { filter: none; opacity: 1; }
+  .el.lit:hover { transform: translateY(-3px); }
+  .el.new { animation: spark 1.6s ease; }
+  @keyframes spark { 0% { box-shadow: 0 0 0 0 var(--amber); transform: scale(1.15); } 40% { box-shadow: 0 0 0 4px var(--amber); } 100% { box-shadow: 0 0 0 4px transparent; transform: none; } }
+  .el.on { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .el.daily.lit { box-shadow: inset 0 0 0 2px var(--amber); transition: box-shadow .6s, background .5s, border-color .5s, transform .25s; }
+  .legend .ring::before { background: transparent; box-shadow: inset 0 0 0 2px var(--amber); }
+
+  .notch { grid-column: 3 / 13; grid-row: 1 / 4; margin: 0 8px 8px; border-radius: 22px; padding: 16px 20px; min-height: 0;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; justify-content: stretch; }
+  .notch .date { font: 500 clamp(30px, 3.4vw, 46px)/1 var(--serif); letter-spacing: -.03em; color: var(--amber-hi); }
+  .notch .count { font: 11.5px var(--mono); color: oklch(0.8 0.02 78); margin-top: 6px; }
+  .notch .tale { font-size: 16px; line-height: 1.42; color: var(--paper); margin: 8px 0 0; max-width: 46ch; min-height: 2.9em; }
+  .notch .detail { font: 11.5px/1.5 var(--mono); color: oklch(0.85 0.02 78); margin-top: 6px; min-height: 1.5em; }
+  .notch .detail b { color: var(--amber-hi); font-weight: 500; }
+  .ctl { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .ctl button { font: 12px var(--mono); color: var(--paper); background: transparent; border: 1px solid oklch(1 0 0 / .3); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  .ctl button:hover { background: var(--paper); color: var(--ink); }
+  .ctl input { flex: 1; accent-color: var(--amber); min-width: 0; }
+  .photo { width: clamp(140px, 15vw, 220px); display: flex; flex-direction: column; justify-content: flex-end; margin: 0; }
+  .photo img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border: 1px solid oklch(1 0 0 / .4); border-radius: 4px; filter: saturate(.85) contrast(1.03); opacity: 0; transition: opacity .6s; }
+  .photo img.in { opacity: 1; }
+  .photo figcaption { font: 10.5px/1.4 var(--mono); color: oklch(0.8 0.02 78); margin-top: 6px; min-height: 2.8em; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 14px 0 0; font: 11px var(--mono); color: var(--ink-soft); }
+  .legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--cat); margin-right: 6px; vertical-align: -1px; }
+
+  .drives { margin-top: 44px; }
+  .drives .tiles { grid-template-columns: repeat(4, 1fr); }
+  .drives .tile .k { font-style: italic; color: var(--amber); font-size: 18px; }
+  .drives .tile .r { margin-top: 4px; } .drives .tile p { font-size: 15px; line-height: 1.5; color: var(--ink-soft); margin: 8px 0 0; }
+  @media (max-width: 1100px) { .drives .tiles { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 820px) {
+    .pt { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .pt .el { grid-column: auto !important; grid-row: auto !important; }
+    .gap { display: none; }
+    .notch { grid-column: 1 / -1 !important; grid-row: auto !important; margin: 0 0 8px; grid-template-columns: 1fr; }
+    .photo { width: 100%; } .photo:not(:has(img.in)) { display: none; }
+    .drives .tiles { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { .el, .el img, .photo img { transition: none; } .el.new { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap" style="padding-top: 32px; padding-bottom: 100px;">
+  <p class="note"><b>Mock.</b> Every tool I’ve used (site + GitHub profile), as a periodic table with their logos. It plays from 2015 to now and each one lights up in the month I picked it up; the small number is the order I learned it. Dates are a draft (job dates, or the first article that mentions it, whichever is earlier). Hover or tap any tile.</p>
+
+  <div class="kicker"><b>05</b>About</div>
+  <h1>I swore I’d never write <em>code</em>.</h1>
+  <p class="lede">I graduated in chemical engineering in 2015, certain I’d never need it. Here’s everything I’ve picked up since, in the order I picked it up.</p>
+
+  <div class="pt" id="pt">
+    <div class="hero notch">
+      <div>
+        <div class="date" id="date">Jun 2015</div>
+        <div class="count" id="count"></div>
+        <p class="tale" id="story"></p>
+        <div class="detail" id="detail"></div>
+        <div class="ctl"><button id="play">Play</button><input id="scrub" type="range" min="0" step="1" aria-label="Timeline" /></div>
+      </div>
+      <figure class="photo"><img id="pimg" alt="" /><figcaption id="pcap"></figcaption></figure>
+    </div>
+  </div>
+  <div class="legend" id="legend"></div>
+
+  <section class="drives">
+    <div class="glabel">What drives me</div>
+    <div class="tiles">
+      <div class="tile"><span class="k">i.</span><div class="r">AI that meets felt needs</div><p>Demos answer whether you can build the concept. Production answers whether the app meets the need. I spend my time on both.</p></div>
+      <div class="tile"><span class="k">ii.</span><div class="r">Writing as external memory</div><p>Sixty-five articles because future-me will forget. That others find them useful is a side effect I’m glad about.</p></div>
+      <div class="tile"><span class="k">iii.</span><div class="r">Open source as paying rent</div><p>LlamaIndex, Unsloth, IBM ACP, Chainlit, Giskard. Use a framework long enough and you find the bug. File the issue. Send the PR.</p></div>
+      <div class="tile"><span class="k">iv.</span><div class="r">Making AI legible</div><p>Most AI projects die in the gap between what the system can do and what the organisation believes it can do. I spend as much time on that gap as on the code.</p></div>
+    </div>
+    <button class="ask">Ask about how I got here <b>→</b></button>
+  </section>
+</div>
+
+<script>
+const T = [["Excel", "lang", "u:https://api.iconify.design/thesvg-color/microsoft-excel.svg", "2015-06", "Toyota Tsusho", 0, "work", [["2015-06", "2017-03"]]], ["VBA", "lang", "u:https://api.iconify.design/vscode-icons/file-type-vba.svg", "2015-06", "Toyota Tsusho", 0, "work", [["2015-06", "2017-03"]]], ["Python", "lang", "l:python", "2016-03", "Self-taught, then every role since", 0, "daily", [["2016-03", null]]], ["R", "lang", "d:r", "2016-06", "Self-taught, then every role since", 0, "projects", null], ["SQL", "lang", "d:azuresqldatabase", "2016-09", "Self-taught, then every role since", 0, "work", [["2016-09", "2026-06"]]], ["HTML", "lang", "d:html5", "2023-03", "Illumina", 0, "work", null], ["CSS", "lang", "d:css3", "2023-03", "Illumina", 0, "work", null], ["JavaScript", "lang", "d:javascript", "2023-03", "Illumina", 0, "work", null], ["Pandas", "lang", "u:https://api.iconify.design/devicon/pandas.svg", "2017-04", "JobTech", 0, "work", null], ["NumPy", "lang", "u:https://api.iconify.design/devicon/numpy.svg", "2017-04", "JobTech", 0, "work", null], ["Java", "lang", "l:java", "2025-06", "UOB", 5, "work", null], ["Tableau", "auto", "u:https://api.iconify.design/logos/tableau-icon.svg", "2018-04", "EMA", 0, "work", null], ["KNIME", "auto", "s:knime", "2018-04", "EMA", 0, "work", null], ["UiPath", "auto", "s:uipath", "2018-04", "EMA", 0, "work", null], ["n8n", "auto", "l:n8n", "2025-08", "UOB", 0, "work", null], ["AWS", "cloud", "d:amazonwebservices", "2023-01", "Illumina", 6, "work", null], ["Azure", "cloud", "d:azure", "2026-07", "Mastercard", 3, "daily", [["2026-07", null]]], ["Google Cloud", "cloud", "l:google-cloud", "2021-08", "MITB at SMU", 0, "projects", null], ["Snowflake", "cloud", "l:snowflake", "2025-05", "Illumina", 2, "projects", null], ["Databricks", "cloud", "s:databricks", "2023-03", "Illumina", 2, "work", null], ["Cloudera", "cloud", "s:cloudera", "2023-03", "Illumina", 0, "work", null], ["MSSQL", "data", "d:microsoftsqlserver", "2023-03", "Illumina", 0, "work", null], ["MySQL", "data", "d:mysql", "2017-04", "JobTech", 0, "work", null], ["MongoDB", "data", "l:mongodb", "2023-03", "Illumina", 0, "projects", null], ["TigerGraph", "data", "u:https://api.iconify.design/logos/tigergraph-icon.svg", "2023-03", "Illumina", 0, "work", null], ["Qdrant", "data", "l:qdrant", "2023-03", "Illumina", 8, "work", null], ["Chroma", "data", "u:https://api.iconify.design/logos/chroma.svg", "2024-08", "Illumina", 4, "projects", null], ["PostgreSQL", "data", "l:postgresql", "2017-04", "JobTech", 7, "work", null], ["Redis", "data", "l:redis", "2024-11", "Illumina", 4, "work", null], ["Neo4j", "data", "l:neo4j", "2025-05", "Illumina", 2, "work", null], ["Oracle DB", "data", "d:oracle", "2025-06", "UOB", 0, "work", null], ["ClickHouse", "data", "l:clickhouse", "2025-09", "UOB era — fictional-bassoon", 0, "projects", null], ["Liquibase", "data", "l:liquibase", "2026-02", "UOB", 2, "work", null], ["Apache Kafka", "dataeng", "l:apache-kafka", "2023-03", "Illumina", 2, "work", null], ["PySpark", "dataeng", "d:apachespark", "2023-03", "Illumina", 4, "work", null], ["Apache Airflow", "dataeng", "l:apache-airflow", "2023-03", "Illumina", 1, "work", null], ["NetworkX", "dataeng", "l:networkx", "2021-08", "MITB at SMU", 0, "projects", null], ["Pyomo", "dataeng", "u:https://raw.githubusercontent.com/Pyomo/pyomo/main/doc/logos/pyomo/PYOMO_noTXT-150.png", "2023-03", "Illumina", 0, "work", null], ["Mosquitto", "dataeng", "s:eclipsemosquitto", "2021-08", "MITB at SMU", 0, "projects", null], ["Streamlit", "web", "l:streamlit", "2021-08", "MITB at SMU", 4, "projects", null], ["Flask", "web", "d:flask", "2023-03", "Illumina", 0, "projects", null], ["Jinja", "web", "s:jinja", "2023-03", "Illumina", 0, "projects", null], ["Bootstrap", "web", "d:bootstrap", "2023-03", "Illumina", 0, "projects", null], ["jQuery", "web", "d:jquery", "2023-03", "Illumina", 0, "projects", null], ["Chainlit", "web", "l:chainlit", "2024-06", "Illumina", 14, "work", null], ["React", "web", "l:react", "2025-06", "UOB", 0, "work", null], ["Next.js", "web", "l:next-js", "2025-09", "UOB era — fictional-bassoon", 0, "projects", null], ["FastAPI", "web", "l:fastapi", "2023-06", "Illumina", 14, "daily", [["2023-06", null]]], ["SQLAlchemy", "web", "d:sqlalchemy", "2023-06", "Illumina", 2, "work", null], ["Typer", "web", "l:typer", "2026-07", "Mastercard", 0, "daily", [["2026-07", null]]], ["Spring", "web", "l:spring", "2025-06", "UOB", 3, "work", null], ["Hibernate", "web", "l:hibernate", "2025-06", "UOB", 0, "work", null], ["gRPC", "web", "l:grpc", "2025-08", "UOB", 4, "work", null], ["Nacos", "web", "l:nacos", "2025-08", "UOB", 1, "work", null], ["Docker", "devops", "l:docker", "2023-02", "Illumina", 22, "daily", [["2023-02", null]]], ["RabbitMQ", "devops", "l:rabbitmq", "2023-04", "Illumina", 1, "work", null], ["GitHub Actions", "devops", "l:github-actions", "2023-05", "Illumina", 3, "daily", [["2023-05", null]]], ["SonarQube", "devops", "d:sonarqube", "2023-05", "Illumina", 0, "work", null], ["Nginx", "devops", "l:nginx", "2023-06", "Illumina", 3, "work", null], ["MLflow", "devops", "s:mlflow", "2023-03", "Illumina", 2, "work", null], ["Kubernetes", "devops", "l:kubernetes", "2024-10", "Illumina", 12, "work", null], ["Helm", "devops", "l:helm", "2025-05", "Illumina", 8, "work", null], ["Jenkins", "devops", "l:jenkins", "2025-05", "Illumina", 1, "daily", [["2025-05", null]]], ["OpenShift", "devops", "u:https://api.iconify.design/logos/openshift.svg", "2025-05", "Illumina", 0, "work", null], ["Postman", "devops", "d:postman", "2023-06", "Illumina", 0, "work", null], ["Grafana", "obs", "l:grafana", "2023-06", "Illumina", 0, "work", null], ["Prometheus", "obs", "l:prometheus", "2023-06", "Illumina", 0, "work", null], ["Loki", "obs", "u:https://api.iconify.design/devicon/grafanaloki.svg", "2023-06", "Illumina", 0, "work", null], ["Arize Phoenix", "obs", "u:https://raw.githubusercontent.com/Arize-ai/phoenix/main/plugins/claude/arize-phoenix/assets/logo.svg", "2024-11", "Illumina", 6, "daily", [["2024-11", null]]], ["Tempo", "obs", "u:https://api.iconify.design/selfhst/grafana-tempo.svg", "2023-06", "Illumina", 0, "work", null], ["Alloy", "obs", "u:https://api.iconify.design/selfhst/grafana-alloy.svg", "2023-06", "Illumina", 0, "work", null], ["Elastic (ELK)", "obs", "l:elastic", "2025-06", "UOB", 0, "work", null], ["Splunk", "obs", "s:splunk", "2025-06", "UOB", 0, "work", null], ["OpenTelemetry", "obs", "l:opentelemetry", "2025-05", "Illumina", 0, "work", null], ["Langfuse", "obs", "l:langfuse", "2025-09", "UOB era — fictional-bassoon", 0, "projects", null], ["Giskard", "obs", "l:giskard", "2024-06", "Illumina", 4, "work", null], ["scikit-learn", "ml", "d:scikitlearn", "2021-08", "MITB at SMU", 0, "work", null], ["XGBoost", "ml", "u:https://raw.githubusercontent.com/dmlc/dmlc.github.io/master/img/logo-m/xgboost.png", "2021-08", "MITB at SMU", 0, "work", null], ["DataRobot", "ml", "u:about/datarobot.svg", "2018-04", "EMA", 0, "work", null], ["TensorFlow", "ml", "l:tensorflow", "2021-08", "MITB at SMU", 0, "projects", null], ["PyTorch", "ml", "l:pytorch", "2021-08", "MITB at SMU", 0, "projects", null], ["Ultralytics", "ml", "l:ultralytics", "2021-08", "MITB at SMU", 0, "projects", null], ["Hugging Face", "ml", "l:hugging-face", "2021-08", "MITB at SMU", 10, "projects", null], ["Unsloth", "ml", "l:unsloth", "2025-05", "Illumina", 5, "projects", null], ["vLLM", "ml", "l:vllm", "2025-05", "Illumina", 5, "work", null], ["BentoML", "ml", "l:bentoml", "2025-05", "Illumina", 1, "projects", null], ["LlamaIndex", "genai", "l:llamaindex", "2023-03", "Illumina", 41, "work", null], ["LangChain", "genai", "l:langchain", "2024-08", "Illumina", 32, "daily", [["2024-08", null]]], ["LangGraph", "genai", "l:langgraph", "2024-08", "Illumina", 26, "work", null], ["CrewAI", "genai", "l:crewai", "2024-08", "Illumina", 20, "projects", null], ["Autogen", "genai", "l:autogen", "2024-08", "Illumina", 16, "projects", null], ["DSPy", "genai", "l:dspy", "2024-09", "Illumina", 6, "work", null], ["Haystack", "genai", "l:haystack", "2024-08", "Illumina", 4, "projects", null], ["LangServe", "genai", "l:langserve", "2024-10", "Illumina", 3, "projects", null], ["LiteLLM", "genai", "l:litellm", "2024-10", "Illumina", 8, "projects", null], ["LangFlow", "genai", "u:https://api.iconify.design/thesvg-color/langflow.svg", "2024-10", "Illumina", 2, "projects", null], ["Tavily", "genai", "l:tavily", "2024-08", "Illumina", 10, "projects", null], ["Vanna", "genai", "l:vanna", "2024-09", "Illumina", 3, "projects", null], ["mem0", "genai", "l:mem0", "2025-03", "Illumina", 1, "projects", null], ["MCP", "genai", "s:modelcontextprotocol", "2025-04", "Illumina", 17, "work", null], ["FastMCP", "genai", "l:fastmcp", "2025-04", "Illumina", 7, "projects", null], ["A2A", "genai", "u:https://raw.githubusercontent.com/a2aproject/A2A/main/docs/assets/a2a_logo/icon/color/SVG/a2a_icon_color.svg", "2025-04", "Illumina", 9, "projects", null], ["Google ADK", "genai", "l:adk", "2025-04", "Illumina", 6, "projects", null], ["LangChain4j", "genai", "l:langchain4j", "2025-10", "UOB", 1, "work", null], ["Claude Code", "model", "u:https://api.iconify.design/logos/claude-code.svg", "2025-03", "Illumina", 6, "daily", [["2025-03", null]]], ["GitHub Copilot", "model", "u:https://api.iconify.design/logos/github-copilot.svg", "2023-06", "Illumina", 13, "daily", [["2023-06", null]]], ["OpenAI", "model", "l:openai", "2023-01", "Illumina", 0, "daily", [["2023-01", null]]], ["Ollama", "model", "l:ollama", "2024-08", "Illumina", 23, "projects", null], ["Claude", "model", "l:claude", "2024-06", "Illumina", 0, "projects", null], ["Gemini", "model", "l:gemini", "2024-09", "Illumina", 0, "projects", null], ["DeepSeek", "model", "l:deepseek", "2025-01", "Illumina", 5, "projects", null]];
+
+const CATS = {
+  lang: ['Languages', 'var(--c-lang)'], auto: ['BI & automation', 'var(--c-lang)'], cloud: ['Cloud', 'var(--c-cloud)'],
+  data: ['Databases', 'var(--c-data)'], dataeng: ['Data engineering', 'var(--c-data)'], web: ['Web & backend', 'var(--c-web)'],
+  devops: ['DevOps', 'var(--c-devops)'], obs: ['Observability & testing', 'var(--c-obs)'],
+  ml: ['ML', 'var(--c-ai)'], genai: ['GenAI frameworks', 'var(--c-ai)'], model: ['Models', 'var(--c-ai)'],
+};
+const LEGEND = [['Languages, BI', 'var(--c-lang)'], ['Cloud', 'var(--c-cloud)'], ['Data', 'var(--c-data)'], ['Web & backend', 'var(--c-web)'], ['DevOps', 'var(--c-devops)'], ['Observability & testing', 'var(--c-obs)'], ['ML & GenAI', 'var(--c-ai)']];
+const STORY = [
+  ['2015-06', 'Graduated in chemical engineering into the oil downturn, sure I’d never write code. Then a trading job, reformatting the same files by hand for every partner.'],
+  ['2016-03', 'Doing it by hand drove me to code: VBA first, then Python, R and SQL.'],
+  ['2017-04', 'My first data science job, at JobTech: Python with Pandas and NumPy, on PostgreSQL and MySQL.'],
+  ['2018-04', 'Research and statistics at EMA: forecasting models, dashboards and automation.'],
+  ['2021-08', 'Back to school: an AI master’s at SMU. scikit-learn, XGBoost, TensorFlow and PyTorch.'],
+  ['2023-01', 'GenAI arrived while I was already doing machine learning. Lucky timing. As Illumina’s only data scientist, I built the whole stack, which is why most of this table lights up here.'],
+  ['2024-08', 'Agents: I learned each framework by building with it, then wrote about it.'],
+  ['2025-06', 'UOB: the Java side of production. Oracle, Spring Boot, ELK and Splunk.'],
+  ['2026-07', 'Mastercard: tech lead on Agent Suite’s core SDK.'],
+];
+const PHOTOS = [
+  ['2021-08', '2022-12', 'about/smu.jpg', '58% 35%', 'Presenting A Song for Singapore, MITB at SMU'],
+  ['2026-09', '2026-10', 'about/hackathon.jpg', '50% 50%', 'First place, Mastercard Developer Innovation Week 2026'],
+  ['2026-11', '2026-11', 'about/sff.jpg', '64% 40%', 'Demoing Agent Suite at Singapore FinTech Festival 2026'],
+];
+const DEV = 'https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/';
+function logoSrcs(logo) {
+  const [k, v] = logo ? logo.split(':') : [];
+  if (k === 'l') return [`../../public/logos/${v}.colour.svg`];
+  if (k === 'd') return [`${DEV}${v}/${v}-original.svg`, `${DEV}${v}/${v}-plain.svg`, `${DEV}${v}/${v}-original-wordmark.svg`];
+  if (k === 'u') return [logo.slice(2)];
+  if (k === 's') return [`https://cdn.simpleicons.org/${v}`];
+  return [];
+}
+const sym = name => name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).replace(/^./, c => c.toUpperCase());
+
+// six main rows with the notch (cols 3–12 empty in rows 1–3, cols 2–17 empty in row 1), then two detached rows
+const cells = [];
+for (let c = 1; c <= 18; c++) for (let r = 1; r <= 6; r++) {
+  if (r === 1 && c > 1 && c < 13) continue;
+  if (r <= 3 && c > 2 && c < 13) continue;
+  cells.push([c, r]);
+}
+// the rest go in two detached rows, right-aligned like a real table's bottom block
+const rest = T.length - cells.length, w = Math.ceil(rest / 2);
+for (let r = 8; r <= 9; r++) for (let c = 19 - w; c <= 18 && cells.length < T.length; c++) cells.push([c, r]);
+
+const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
+const fmt = ym => `${MONTHS[+ym.slice(5) - 1]} ${ym.slice(0, 4)}`;
+const order = T.map((t, i) => i).sort((a, b) => T[a][3].localeCompare(T[b][3]) || a - b);
+const num = []; order.forEach((ti, k) => num[ti] = k + 1);
+
+const pt = document.getElementById('pt');
+const gap = document.createElement('div'); gap.className = 'gap'; gap.style.gridRow = 7; pt.appendChild(gap);
+const els = T.map((t, i) => {
+  const [name, cat, logo, when] = t, [c, r] = cells[i];
+  const b = document.createElement('button');
+  b.className = 'el'; b.style.gridColumn = c; b.style.gridRow = r; b.style.setProperty('--cat', CATS[cat][1]);
+  b.title = name; b.setAttribute('aria-label', `${num[i]}, ${name}, first used ${fmt(when)}`);
+  b.innerHTML = `<span class="n">${num[i]}</span>`;
+  const srcs = logoSrcs(logo);
+  const fallback = () => { const s = document.createElement('span'); s.className = 's'; s.textContent = sym(name); b.appendChild(s); };
+  if (srcs.length) {
+    const img = new Image(); img.alt = ''; let k = 0;
+    img.onerror = () => { k++; if (k < srcs.length) img.src = srcs[k]; else { img.remove(); fallback(); } };
+    img.src = srcs[0]; b.appendChild(img);
+  } else fallback();
+  b.onclick = () => pick(i);
+  b.onmouseenter = () => matchMedia('(hover: hover)').matches && pick(i);
+  pt.appendChild(b); return b;
+});
+document.getElementById('legend').innerHTML = LEGEND.map(([n, c]) => `<span style="--cat:${c}">${n}</span>`).join('') + '<span class="ring">Amber ring: what I used every day at that point</span>';
+const dailyAt = (t, ym) => (t[7] || []).some(([a, b]) => a <= ym && (!b || ym <= b));
+
+const steps = []; for (let y = 2015, m = 6; y < 2026 || (y === 2026 && m <= 11); m++ > 11 && (m = 1, y++)) steps.push(`${y}-${String(m).padStart(2, '0')}`);
+const $ = id => document.getElementById(id);
+const scrub = $('scrub'); scrub.max = steps.length - 1;
+let at = -1;
+function setStep(k, animate) {
+  const ym = steps[k];
+  els.forEach((el, i) => {
+    const lit = T[i][3] <= ym, was = el.classList.contains('lit');
+    el.classList.toggle('lit', lit);
+    el.classList.toggle('daily', dailyAt(T[i], ym));
+    if (lit && !was && animate) { el.classList.remove('new'); void el.offsetWidth; el.classList.add('new'); }
+  });
+  $('date').textContent = fmt(ym);
+  $('count').textContent = `${T.filter(t => t[3] <= ym).length} of ${T.length} tools`;
+  $('story').textContent = STORY.filter(s => s[0] <= ym).pop()[1];
+  const ph = PHOTOS.find(p => p[0] <= ym && ym <= p[1]);
+  const img = $('pimg');
+  if (ph) { if (img.dataset.src !== ph[2]) { img.src = ph[2]; img.dataset.src = ph[2]; img.style.objectPosition = ph[3]; img.alt = ph[4]; } img.classList.add('in'); $('pcap').textContent = ph[4]; }
+  else { img.classList.remove('in'); $('pcap').textContent = ''; }
+  scrub.value = k; at = k;
+}
+function pick(i) {
+  els.forEach(e => e.classList.remove('on')); els[i].classList.add('on');
+  const [name, cat, , when, where, n, depth, spans] = T[i];
+  const DEPTH = { daily: 'Every day', work: 'Used at work', projects: 'Projects only' };
+  const span = spans && spans[spans.length - 1];
+  const level = span ? (span[1] ? `Every day, ${span[0].slice(0, 4)}–${span[1].slice(0, 4)}` : 'Every day') : DEPTH[depth];
+  $('detail').innerHTML = `<b>${num[i]} · ${name}</b> — <b>${level}</b> · since ${fmt(when)} · ${where}${n ? ` · in ${n} article${n > 1 ? 's' : ''}` : ''}`;
+}
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let timer = null;
+function tick() {
+  if (at >= steps.length - 1) return stop();
+  const before = T.filter(t => t[3] <= steps[at]).length;
+  setStep(at + 1, true);
+  const lit = T.filter(t => t[3] <= steps[at]).length > before;
+  timer = setTimeout(tick, STORY.some(s => s[0] === steps[at]) ? 1800 : lit ? 320 : 40);
+}
+function play() { if (at >= steps.length - 1) setStep(0); $('play').textContent = 'Pause'; tick(); }
+function stop() { clearTimeout(timer); timer = null; $('play').textContent = at >= steps.length - 1 ? 'Replay' : 'Play'; }
+$('play').onclick = () => timer ? stop() : play();
+scrub.oninput = () => { stop(); setStep(+scrub.value, false); };
+if (reduce) { setStep(steps.length - 1); stop(); }
+else {
+  setStep(0);
+  new IntersectionObserver((e, o) => { if (e[0].isIntersecting) { o.disconnect(); setTimeout(play, 500); } }, { threshold: 0.3 }).observe(pt);
+}
+</script>
+</body>
+</html>

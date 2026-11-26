@@ -1,45 +1,77 @@
 import {
+  MAX_PAGE_TARGETS,
   createCopilotTools,
   mergeByTopic,
   parseReadWritingArgs,
   parseSearchWritingArgs,
-  parseShowOnPageTarget,
+  parseShowOnPageTargets,
   type CopilotTool,
 } from "./copilot-tools";
 import type { Article } from "./articles";
-import { MAX_ARTICLES_PER_REPLY } from "./search-config";
+import { MAX_ARTICLES_PER_REPLY, MAX_READING_CALLS } from "./search-config";
 import { PAGE_TARGET_IDS } from "./profile";
 import type { SearchTrace } from "./writing-search";
 import type { TraceSpan } from "./copilot-loop";
 import type { PriorCitation } from "./citation-ledger";
 
-describe("parseShowOnPageTarget", () => {
-  it("returns the target when it is a valid page anchor id", () => {
-    expect(parseShowOnPageTarget('{"target":"role-illumina"}')).toBe("role-illumina");
+describe("parseShowOnPageTargets", () => {
+  it("returns the single target as a one-item list", () => {
+    expect(parseShowOnPageTargets('{"targets":["role-illumina"]}')).toEqual(["role-illumina"]);
   });
 
   it("accepts every anchor id the page exposes", () => {
     for (const id of PAGE_TARGET_IDS) {
-      expect(parseShowOnPageTarget(JSON.stringify({ target: id }))).toBe(id);
+      expect(parseShowOnPageTargets(JSON.stringify({ targets: [id] }))).toEqual([id]);
     }
   });
 
-  it("returns null for a well-formed target that is not a page anchor", () => {
-    expect(parseShowOnPageTarget('{"target":"role-nasa"}')).toBeNull();
+  it("keeps the targets in the order given, not sorted", () => {
+    expect(parseShowOnPageTargets('{"targets":["tool-tigergraph","tool-neo4j","role-illumina"]}')).toEqual([
+      "tool-tigergraph",
+      "tool-neo4j",
+      "role-illumina",
+    ]);
+  });
+
+  it("removes repeated targets, keeping the first position", () => {
+    expect(parseShowOnPageTargets('{"targets":["role-illumina","tool-neo4j","role-illumina"]}')).toEqual([
+      "role-illumina",
+      "tool-neo4j",
+    ]);
+  });
+
+  it("drops unknown ids and keeps the valid ones in order", () => {
+    expect(parseShowOnPageTargets('{"targets":["role-nasa","role-illumina","tool-neo4j","nope"]}')).toEqual([
+      "role-illumina",
+      "tool-neo4j",
+    ]);
   });
 
   it("is case-sensitive and does not trim whitespace", () => {
-    expect(parseShowOnPageTarget('{"target":"ROLE-ILLUMINA"}')).toBeNull();
-    expect(parseShowOnPageTarget('{"target":" role-illumina"}')).toBeNull();
+    expect(parseShowOnPageTargets('{"targets":["ROLE-ILLUMINA"]}')).toBeNull();
+    expect(parseShowOnPageTargets('{"targets":[" role-illumina"]}')).toBeNull();
+  });
+
+  it(`caps the list at MAX_PAGE_TARGETS (${MAX_PAGE_TARGETS}), keeping the first ones`, () => {
+    const ids = PAGE_TARGET_IDS.slice(0, MAX_PAGE_TARGETS + 3);
+    const out = parseShowOnPageTargets(JSON.stringify({ targets: ids }));
+    expect(MAX_PAGE_TARGETS).toBe(6);
+    expect(out).toEqual(ids.slice(0, MAX_PAGE_TARGETS));
+  });
+
+  it("counts the cap after dropping unknown and repeated ids", () => {
+    const valid = PAGE_TARGET_IDS.slice(0, MAX_PAGE_TARGETS);
+    const raw = JSON.stringify({ targets: ["bogus", valid[0], valid[0], ...valid.slice(1), "also-bogus"] });
+    expect(parseShowOnPageTargets(raw)).toEqual(valid);
   });
 
   it("returns null for an empty string", () => {
-    expect(parseShowOnPageTarget("")).toBeNull();
+    expect(parseShowOnPageTargets("")).toBeNull();
   });
 
   it("returns null for malformed JSON", () => {
-    expect(parseShowOnPageTarget('{"target":')).toBeNull();
-    expect(parseShowOnPageTarget("not json")).toBeNull();
+    expect(parseShowOnPageTargets('{"targets":')).toBeNull();
+    expect(parseShowOnPageTargets("not json")).toBeNull();
   });
 
   it.each([
@@ -48,66 +80,86 @@ describe("parseShowOnPageTarget", () => {
     ["a number", "42"],
     ["an array", '["role-illumina"]'],
   ])("returns null when the arguments parse to %s", (_label, raw) => {
-    expect(parseShowOnPageTarget(raw)).toBeNull();
+    expect(parseShowOnPageTargets(raw)).toBeNull();
   });
 
-  it("returns null when target is missing", () => {
-    expect(parseShowOnPageTarget("{}")).toBeNull();
+  it("returns null when targets is missing", () => {
+    expect(parseShowOnPageTargets("{}")).toBeNull();
   });
 
   it.each([
-    ["a number", '{"target":5}'],
-    ["null", '{"target":null}'],
-    ["an array", '{"target":["role-illumina"]}'],
-    ["an object", '{"target":{"id":"role-illumina"}}'],
-  ])("returns null when target is not a string (%s)", (_label, raw) => {
-    expect(parseShowOnPageTarget(raw)).toBeNull();
+    ["a string", '{"targets":"role-illumina"}'],
+    ["a number", '{"targets":5}'],
+    ["null", '{"targets":null}'],
+    ["an object", '{"targets":{"id":"role-illumina"}}'],
+  ])("returns null when targets is not an array (%s)", (_label, raw) => {
+    expect(parseShowOnPageTargets(raw)).toBeNull();
+  });
+
+  it.each([
+    ["a number", '{"targets":[5]}'],
+    ["null", '{"targets":[null]}'],
+    ["an array", '{"targets":[["role-illumina"]]}'],
+    ["an object", '{"targets":[{"id":"role-illumina"}]}'],
+  ])("ignores non-string entries (%s) and returns null when nothing valid is left", (_label, raw) => {
+    expect(parseShowOnPageTargets(raw)).toBeNull();
+  });
+
+  it("returns null when every target is unknown", () => {
+    expect(parseShowOnPageTargets('{"targets":["role-nasa","tool-nope"]}')).toBeNull();
+  });
+
+  it("returns null for an empty list", () => {
+    expect(parseShowOnPageTargets('{"targets":[]}')).toBeNull();
   });
 });
 
 describe("show_on_page tool run", () => {
-  function getShowOnPage(): CopilotTool {
+  function getShowOnPage(): CopilotTool<string[]> {
     const tool = createCopilotTools().find((t) => t.definition.name === "show_on_page");
     if (!tool) throw new Error("show_on_page is not registered");
-    return tool;
+    return tool as CopilotTool<string[]>;
   }
 
-  it("emits exactly one action event for the target and returns what was shown", async () => {
+  it("emits one action event per target, in order, and returns what was shown", async () => {
     const tool = getShowOnPage();
     const emit = jest.fn();
     const signal = new AbortController().signal;
 
-    const result = await tool.run("role-illumina", { emit, signal });
+    const result = await tool.run(["tool-tigergraph", "tool-neo4j", "role-illumina"], { emit, signal });
 
-    expect(emit).toHaveBeenCalledTimes(1);
-    expect(emit).toHaveBeenCalledWith({ type: "action", target: "role-illumina" });
-    expect(result).toEqual({ shown: "role-illumina" });
+    expect(emit.mock.calls).toEqual([
+      [{ type: "action", target: "tool-tigergraph" }],
+      [{ type: "action", target: "tool-neo4j" }],
+      [{ type: "action", target: "role-illumina" }],
+    ]);
+    expect(result).toEqual({ shown: ["tool-tigergraph", "tool-neo4j", "role-illumina"] });
   });
 });
 
 describe("createCopilotTools", () => {
-  it("registers show_on_page (one call per reply), search_writing and read_writing (two each), in that order", () => {
+  it(`registers show_on_page (one call per reply), search_writing and read_writing (${MAX_READING_CALLS} each), in that order`, () => {
     const tools = createCopilotTools();
 
     expect(tools.map((t) => t.definition.name)).toEqual(["show_on_page", "search_writing", "read_writing"]);
     expect(tools[0].maxCallsPerReply).toBe(1);
-    expect(tools[1].maxCallsPerReply).toBe(2);
-    expect(tools[2].maxCallsPerReply).toBe(2);
+    expect(tools[1].maxCallsPerReply).toBe(MAX_READING_CALLS);
+    expect(tools[2].maxCallsPerReply).toBe(MAX_READING_CALLS);
   });
 
-  it("defines show_on_page as a strict function tool with the page anchor ids as its enum", () => {
+  it("defines show_on_page as a strict function tool with a required array of the page anchor ids", () => {
     const { definition } = createCopilotTools()[0];
 
     expect(definition).toMatchObject({ type: "function", name: "show_on_page", strict: true });
     expect(definition.parameters).toMatchObject({
       type: "object",
-      required: ["target"],
+      required: ["targets"],
       additionalProperties: false,
-      properties: { target: { type: "string" } },
+      properties: { targets: { type: "array", items: { type: "string" } } },
     });
-    expect((definition.parameters as { properties: { target: { enum: string[] } } }).properties.target.enum).toEqual(
-      PAGE_TARGET_IDS
-    );
+    expect(
+      (definition.parameters as { properties: { targets: { items: { enum: string[] } } } }).properties.targets.items.enum
+    ).toEqual(PAGE_TARGET_IDS);
   });
 
   it("returns fresh tool instances on each call so per-reply state is not shared", () => {
@@ -118,11 +170,11 @@ describe("createCopilotTools", () => {
     expect(first[0]).not.toBe(second[0]);
   });
 
-  it("wires the tool's parse to the same validation as parseShowOnPageTarget", () => {
+  it("wires the tool's parse to the same validation as parseShowOnPageTargets", () => {
     const tool = createCopilotTools()[0];
 
-    expect(tool.parse('{"target":"role-illumina"}')).toBe("role-illumina");
-    expect(tool.parse('{"target":"role-nasa"}')).toBeNull();
+    expect(tool.parse('{"targets":["role-illumina","role-nasa"]}')).toEqual(["role-illumina"]);
+    expect(tool.parse('{"targets":["role-nasa"]}')).toBeNull();
     expect(tool.parse("{")).toBeNull();
   });
 });
@@ -1370,6 +1422,11 @@ const EPSILON = fixtureArticle("epsilon", "eeeeeeeeeeee");
 const ZETA = fixtureArticle("zeta", "ffffffffffff");
 const ETA = fixtureArticle("eta", "111111111111");
 const THETA = fixtureArticle("theta", "222222222222");
+const IOTA = fixtureArticle("iota", "333333333333");
+const KAPPA = fixtureArticle("kappa", "444444444444");
+const LAMBDA = fixtureArticle("lambda", "555555555555");
+const MU = fixtureArticle("mu", "666666666666");
+const NU = fixtureArticle("nu", "777777777777");
 const LIMIT_NOTE = "Reading limit for this reply reached; answer from what you have.";
 
 /** A search_writing result for an article, as the search returns it. */
@@ -1408,7 +1465,7 @@ function pickStub() {
 describe("read_writing", () => {
   const signal = new AbortController().signal;
 
-  it("defines read_writing as a strict function tool taking 1 to 3 article ids and a focus, at most 2 calls a reply", () => {
+  it(`defines read_writing as a strict function tool taking 1 to 3 article ids and a focus, at most ${MAX_READING_CALLS} calls a reply`, () => {
     const tool = instance().readWriting;
 
     expect(tool.definition).toMatchObject({ type: "function", name: "read_writing", strict: true });
@@ -1421,7 +1478,7 @@ describe("read_writing", () => {
         focus: { type: "string" },
       },
     });
-    expect(tool.maxCallsPerReply).toBe(2);
+    expect(tool.maxCallsPerReply).toBe(MAX_READING_CALLS);
   });
 
   it("read_writing serves known ids with picked sections", async () => {
@@ -1496,26 +1553,29 @@ describe("read_writing", () => {
     ]);
   });
 
-  it("stops at 6 articles per reply across both tools", async () => {
-    expect(MAX_ARTICLES_PER_REPLY).toBe(6);
+  it("stops at the reply cap across both tools", async () => {
+    // The scenario below fills the cap exactly (nine, then one from a search page), so it is written for ten.
+    expect(MAX_ARTICLES_PER_REPLY).toBe(10);
     const emit = jest.fn();
-    const search = jest.fn(async () => [foundOf(EPSILON), foundOf(ZETA), foundOf(ETA), foundOf(THETA)]);
+    const search = jest.fn(async () => [foundOf(KAPPA), foundOf(LAMBDA), foundOf(MU), foundOf(NU)]);
     const { searchWriting, readWriting } = instance({
       search,
-      catalog: [ALPHA, BETA, GAMMA, DELTA, EPSILON, ZETA, ETA, THETA],
+      catalog: [ALPHA, BETA, GAMMA, DELTA, EPSILON, ZETA, ETA, THETA, IOTA, LAMBDA],
       pick: pickStub(),
     });
 
-    // Four new articles from read_writing.
-    const first = await readWriting.run({ articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc", "dddddddddddd"], focus: "f" }, { emit, signal });
-    expect(first).toMatchObject({ articles: [{ n: 1 }, { n: 2 }, { n: 3 }, { n: 4 }] });
+    // Nine new articles from three read_writing calls of three ids each (the most one call takes).
+    await readWriting.run({ articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc"], focus: "f" }, { emit, signal });
+    await readWriting.run({ articles: ["dddddddddddd", "eeeeeeeeeeee", "ffffffffffff"], focus: "f" }, { emit, signal });
+    const third = await readWriting.run({ articles: ["111111111111", "222222222222", "333333333333"], focus: "f" }, { emit, signal });
+    expect(third).toMatchObject({ articles: [{ n: 7 }, { n: 8 }, { n: 9 }] });
 
-    // Two of the search's first page fit in the remaining capacity; the page is truncated.
+    // One slot left: the search page is cut to it; the rest of the page is not served.
     const second = await searchWriting.run({ topics: ["many"], more: false }, { emit, signal });
-    expect((second as { articles: { title: string }[] }).articles.map((a) => a.title)).toEqual(["Title epsilon", "Title zeta"]);
+    expect((second as { articles: { title: string }[] }).articles.map((a) => a.title)).toEqual(["Title kappa"]);
 
-    // Capacity is spent, so a new article gets the note.
-    expect(await readWriting.run({ articles: ["222222222222"], focus: "f" }, { emit, signal })).toEqual({
+    // Capacity is spent, so a new article from either tool gets the note.
+    expect(await readWriting.run({ articles: ["555555555555"], focus: "f" }, { emit, signal })).toEqual({
       articles: [],
       note: LIMIT_NOTE,
     });
@@ -1530,7 +1590,7 @@ describe("read_writing", () => {
     expect(again).not.toHaveProperty("note");
 
     const sourceNumbers = emit.mock.calls.map(([event]) => event.n);
-    expect(sourceNumbers).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(sourceNumbers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 });
 
@@ -1607,14 +1667,16 @@ describe("writing tools share one reply cap, under parallel calls and for unknow
 
   it("read_writing at the cap still reports unknown ids", async () => {
     const emit = jest.fn();
-    const search = jest.fn(async () => [foundOf(EPSILON), foundOf(ZETA), foundOf(ETA)]);
+    const search = jest.fn(async () => [foundOf(KAPPA), foundOf(LAMBDA)]);
     const { searchWriting, readWriting } = instance({
       search,
-      catalog: [ALPHA, BETA, GAMMA, DELTA],
+      catalog: [ALPHA, BETA, GAMMA, DELTA, EPSILON, ZETA, ETA, THETA, IOTA],
       pick: pickStub(),
     });
-    // Four read plus two from the search page (the page is cut to the two remaining) = the cap of six.
-    await readWriting.run({ articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc", "dddddddddddd"], focus: "f" }, { emit, signal });
+    // Nine from three read_writing calls, then a search page cut to the one remaining = the cap of ten.
+    await readWriting.run({ articles: ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc"], focus: "f" }, { emit, signal });
+    await readWriting.run({ articles: ["dddddddddddd", "eeeeeeeeeeee", "ffffffffffff"], focus: "f" }, { emit, signal });
+    await readWriting.run({ articles: ["111111111111", "222222222222", "333333333333"], focus: "f" }, { emit, signal });
     await searchWriting.run({ topics: ["many"], more: false }, { emit, signal });
 
     expect(await readWriting.run({ articles: ["unknownid0001"], focus: "f" }, { emit, signal })).toEqual({

@@ -10,7 +10,11 @@
     "test": "jest",
     "articles:build": "node --env-file-if-exists=.env.local --import tsx scripts/build-articles.ts",
     "eval:writing": "node --env-file-if-exists=.env.local --import tsx scripts/eval-writing.ts",
-    "eval:replay": "node --env-file-if-exists=.env.local --import tsx scripts/replay-citations.ts"
+    "colophon:record": "node --env-file-if-exists=.env.local --import tsx scripts/record-colophon.ts",
+    "tour:record": "node --env-file-if-exists=.env.local --import tsx scripts/record-tour.ts",
+    "eval:replay": "node --env-file-if-exists=.env.local --import tsx scripts/replay-citations.ts",
+    "github:meta": "node --import tsx scripts/github-meta.ts",
+    "links:check": "node --import tsx scripts/check-links.ts"
   },
   "dependencies": {
     "@typesafe-ai/sdk": "0.7.0",

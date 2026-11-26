@@ -1,0 +1,48 @@
+# Weekly check that every outside link the site shows still works (scripts/check-links.ts).
+# A dead link opens an issue labelled `dead-links` (or comments on the open one); sites that refuse
+# link checkers (Medium) are listed but never fail the run.
+name: Link check
+
+on:
+  schedule:
+    - cron: "0 1 * * 1" # Mondays, 09:00 Singapore
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: link-check
+  cancel-in-progress: true
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Check links
+        id: check
+        run: npm run links:check -- --report link-report.md
+
+      - name: Report dead links
+        if: failure() && steps.check.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create dead-links --color B76A23 --description "A link on the site has died" --force
+          existing=$(gh issue list --label dead-links --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file link-report.md
+          else
+            gh issue create --title "Dead links on the site" --label dead-links --body-file link-report.md
+          fi

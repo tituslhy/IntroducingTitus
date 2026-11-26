@@ -1,14 +1,17 @@
+import { Fragment } from 'react'
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import Footer from '@/components/Footer'
 import Reveal from '@/components/Reveal'
 import ReplyDiagram from '@/components/colophon/ReplyDiagram'
 import RecruiterModeButton from '@/components/colophon/RecruiterModeButton'
-import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH } from '@/lib/content'
+import TryIt from '@/components/colophon/TryIt'
+import { ARTICLES } from '@/lib/articles'
+import { loadColophonTraces, titlesFor } from '@/lib/colophon-traces-load'
+import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH, numberToWords } from '@/lib/content'
 import { loadScorecard, type Scorecard } from '@/lib/eval-results'
 import { FIT_LEVEL_LABELS, NOT_ON_FILE_NOTE, type FitBrief } from '@/lib/fit-brief'
-import { SOCIAL } from '@/lib/profile'
-import { SECTION_BUDGET_CHARS } from '@/lib/search-config'
+import { PAGE_TARGETS, SITE_PAGES, SOCIAL } from '@/lib/profile'
+import { MAX_ARTICLES_PER_REPLY, MAX_READING_CALLS, SECTION_BUDGET_CHARS } from '@/lib/search-config'
 
 const TITLE = 'How Ask Titus works | Titus Lim'
 const DESCRIPTION =
@@ -41,20 +44,24 @@ const WALKTHROUGH: [stage: string, what: string][] = [
 
 /** How the agent reaches my articles, by kind of question (the routes in the diagram). */
 const QUESTION_KINDS: [question: string, route: string][] = [
-  ['What have you written about guardrails?', 'One topic, searched: the steps above.'],
+  ['What have you written about guardrails?', 'One topic, searched: Jev filters all my articles, ranks the survivors, and picks their best sections.'],
   [
     'How do I use LiteLLM, Helm and Nginx?',
     'search_writing(["LiteLLM", "Helm", "Nginx"]): one call, three searches inside it (one per topic), merged so each topic’s best article comes first.',
   ],
   [
     'How would you build production-ready agents?',
-    'No search. GPT reads the library map in its prompt, picks up to three articles, and opens them with read_writing.',
+    'No search. GPT splits it into parts (architecture, reliability, deployment), picks the articles for each part from the library map in its prompt, and opens each part with its own read_writing call, all at once. It stops when I have nothing more to add.',
+  ],
+  [
+    'Have you used LangGraph?',
+    'My record first: when I picked it up, where, and how much I used it. Then search_writing for what I wrote about it, blended in and cited.',
   ],
 ]
 
 const GUARDRAILS: [guardrail: string, prevents: string][] = [
   ['Page anchors validated server-side', 'Pointing at things that don’t exist'],
-  ['Article retrieval: relevance filter, graded rerank, known slugs only, at most six articles a reply', 'Irrelevant or invented sources'],
+  ['Article retrieval: relevance filter, graded rerank, known slugs only, at most ten articles a reply', 'Irrelevant or invented sources'],
   ['Footnote numbers rebuilt server-side from my articles only', 'Forged or shifting sources'],
   ['“Not on file”', 'Overselling, especially in recruiter mode'],
   ['Job descriptions wrapped as data and not stored upstream', 'Prompt injection; keeping confidential postings'],
@@ -76,7 +83,7 @@ const WONT_DO = [
 const EXAMPLE_BRIEF: FitBrief = {
   roleTitle: 'Staff GenAI Engineer',
   company: 'An example company',
-  verdict: 'A strong match on production retrieval and multi-agent platforms; the Rust requirement isn’t on my site, so ask me.',
+  verdict: 'A strong match on production retrieval and agent platforms; the Rust requirement isn’t on my site, so ask me.',
   requirements: [
     {
       requirement: 'Shipped retrieval-augmented generation to production',
@@ -85,9 +92,9 @@ const EXAMPLE_BRIEF: FitBrief = {
       targets: [],
     },
     {
-      requirement: 'Designed a platform for multiple agents',
+      requirement: 'Built a platform for building and serving agents',
       fit: 'strong',
-      evidence: 'At UOB I architected BYOA, the enterprise multi-agent platform, for cross-framework interoperability and dynamic tool discovery.',
+      evidence: 'At Mastercard I am tech lead for the core SDK behind Agent Suite: teams declare agents in YAML, then chat with them in the terminal or serve them as an API.',
       targets: [],
     },
     { requirement: 'Production services in Rust', fit: 'not_on_file', evidence: '', targets: [] },
@@ -98,25 +105,52 @@ const EXAMPLE_BRIEF: FitBrief = {
 // Layout pieces
 // ---------------------------------------------------------------------------
 
-function Section({ folio, title, children }: { folio: string; title: string; children: React.ReactNode }) {
+/**
+ * One section in the site's item layout: folio and title pinned in a left column, the text on the right.
+ * `full` spans both columns (the Try it panel); `rows` follow it, each label in the left column.
+ */
+function Section({
+  folio,
+  title,
+  children,
+  full,
+  rows,
+}: {
+  folio: string
+  title: string
+  children: React.ReactNode
+  full?: React.ReactNode
+  /** Sub-parts after `full`: each label pinned in the left column, its text on the right. */
+  rows?: [label: string, body: React.ReactNode][]
+}) {
   return (
     <Reveal>
-      <section aria-labelledby={`colophon-${folio}`} className="pt-[clamp(36px,5vw,64px)]">
-        <h2
-          id={`colophon-${folio}`}
-          className="mb-[clamp(16px,2vw,22px)] flex items-baseline gap-3.5 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft"
-        >
-          <span className="font-semibold tracking-[0.08em] text-amber">{folio}</span>
-          <span className="font-medium text-ink">{title}</span>
-          <span className="h-px flex-1 self-center bg-rule" />
+      <section
+        aria-labelledby={`colophon-${folio}`}
+        className="mt-[clamp(32px,4.5vw,56px)] grid grid-cols-1 gap-y-5 border-t border-rule pt-[clamp(28px,4vw,44px)] min-[900px]:grid-cols-[minmax(0,300px)_minmax(0,1fr)] min-[900px]:gap-x-12"
+      >
+        <h2 id={`colophon-${folio}`} className="m-0 flex flex-col gap-2">
+          <span className="font-mono text-[11px] font-semibold tracking-[0.16em] text-amber">{folio}</span>
+          <span className="font-serif text-[clamp(26px,2.6vw,34px)] font-medium leading-[1.08] tracking-[-0.02em] text-ink [text-wrap:balance]">
+            {title}
+          </span>
         </h2>
-        {children}
+        <div className="min-w-0 [&>p]:max-w-[75ch]">{children}</div>
+        {full && <div className="min-w-0 min-[900px]:col-span-2">{full}</div>}
+        {rows?.map(([label, body]) => (
+          <Fragment key={label}>
+            <h3 className="m-0 mt-[clamp(14px,2vw,24px)] font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-soft min-[900px]:col-start-1 min-[900px]:pt-1.5">
+              {label}
+            </h3>
+            <div className="min-w-0 min-[900px]:mt-[clamp(14px,2vw,24px)] [&>p]:max-w-[75ch]">{body}</div>
+          </Fragment>
+        ))}
       </section>
     </Reveal>
   )
 }
 
-const prose = 'text-[17px] leading-[1.65] text-ink [text-wrap:pretty]'
+const prose = 'text-[18px] leading-[1.65] text-ink [text-wrap:pretty]'
 const percent = (x: number | null) => (x === null ? 'n/a' : `${Math.round(x * 100)}%`)
 
 function ScorecardTable({ card }: { card: Scorecard }) {
@@ -125,6 +159,9 @@ function ScorecardTable({ card }: { card: Scorecard }) {
     ['Recall', percent(card.stage1Recall), 'The right article made the shortlist'],
     // Runs recorded before pageSize existed read pages of 2.
     [`Precision@${card.pageSize ?? 2}`, percent(card.precisionAt2), 'The articles it read were the right ones'],
+    ...(card.recordAccuracy !== null
+      ? [['Used my record', percent(card.recordAccuracy), 'Experience questions answered with when and where I used it'] as [string, string, string]]
+      : []),
     ['Abstain accuracy', percent(card.abstainAccuracy), 'Said “I haven’t written about that” when I hadn’t'],
     ['No invention', percent(card.noInvention), 'Replies with no made-up titles, links or citations'],
   ]
@@ -184,120 +221,183 @@ function ExampleBrief({ brief }: { brief: FitBrief }) {
 
 export default function ColophonPage() {
   const scorecard = loadScorecard()
+  const traces = loadColophonTraces()
   let folio = 0
   const next = () => String(++folio).padStart(2, '0')
 
   return (
     <main className="text-ink">
       <div className="mx-auto max-w-[1280px] px-[clamp(18px,4vw,56px)]">
-        {/* Top bar: the way home (this page is a satellite, not in the main nav) */}
-        <nav aria-label="Site" className="flex items-center justify-between border-b border-rule py-4 font-mono text-[11px] uppercase tracking-[0.12em]">
-          <Link href="/" className="font-serif text-[20px] font-medium normal-case tracking-[-0.01em] text-ink transition-colors hover:text-amber">
-            T·L
-          </Link>
-          <Link href="/" className="text-ink-soft transition-colors hover:text-amber">
-            <span aria-hidden="true">← </span>Back to the site
-          </Link>
-        </nav>
-
-        <article className="mx-auto max-w-[68ch] pb-[clamp(32px,5vw,64px)]">
-          {/* Masthead */}
-          <header className="border-b border-ink pt-[clamp(40px,6vw,88px)] pb-[clamp(24px,3vw,36px)]">
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber">Colophon</p>
-            <h1 className="mt-4 font-serif text-[clamp(40px,6.5vw,72px)] font-medium leading-[1.02] tracking-[-0.025em] [text-wrap:balance]">
-              How <em className="italic text-amber">Ask Titus</em> works
-            </h1>
-            <p className="mt-5 font-serif text-[clamp(18px,2vw,21px)] italic leading-[1.5] text-ink-soft [text-wrap:pretty]">
-              A small agent, built the way I’d build one for production: grounded in one source of truth, retrieving
-              with a fast decision model, and fenced in by guardrails.
-            </p>
+        <article className="pb-[clamp(32px,5vw,64px)]">
+          {/* Masthead: the title on the left, the short version beside it as plain text */}
+          <header id="colophon-page" className="grid gap-x-14 gap-y-7 pt-[clamp(28px,4vw,56px)] min-[1024px]:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] min-[1024px]:items-end">
+            <div>
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber">Colophon</p>
+              <h1 className="mt-3 font-serif text-[clamp(44px,4.6vw,64px)] font-medium leading-[1.02] tracking-[-0.025em] [text-wrap:balance]">
+                How <em className="italic text-amber">Ask Titus</em> works
+              </h1>
+              <p className="mt-4 max-w-[52ch] font-serif text-[clamp(18px,1.7vw,20px)] italic leading-[1.5] text-ink-soft [text-wrap:pretty]">
+                A small agent, built the way I’d build one for production: grounded in one source of truth, retrieving
+                with a fast decision model, and fenced in by guardrails.
+              </p>
+            </div>
+            <Reveal>
+              <section aria-labelledby="colophon-01" className="min-[1024px]:border-l min-[1024px]:border-rule min-[1024px]:pl-7">
+                {(() => {
+                  const f = next()
+                  return (
+                    <h2 id={`colophon-${f}`} className="m-0 mb-2 flex items-baseline gap-3 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
+                      <span className="font-semibold tracking-[0.08em] text-amber">{f}</span>
+                      <span className="font-medium text-ink">The short version</span>
+                    </h2>
+                  )
+                })()}
+                <p className="text-[17.5px] leading-[1.6] text-ink [text-wrap:pretty]">
+                  It speaks as me, from the same data that renders this page. Ask about my writing and it reads my
+                  articles instead of guessing, then cites them. If the answer lives somewhere on this page, it shows you
+                  where. And when something isn’t on file, it says so rather than making it up.
+                </p>
+              </section>
+            </Reveal>
           </header>
 
-          <Section folio={next()} title="The short version">
-            <p className={prose}>
-              <span className="float-left pr-3 pt-1.5 font-serif text-[76px] font-medium italic leading-[0.8] text-amber">
-                I
-              </span>
-              t speaks as me, from the same data that renders this page. Ask about my writing and it reads my articles
-              instead of guessing, then cites them. If the answer lives somewhere on this page, it shows you where. And
-              when something isn’t on file, it says so rather than making it up.
-            </p>
-          </Section>
+          {traces && (
+            <div className="mt-[clamp(24px,3vw,36px)]">
+              <TryIt
+                recordings={traces}
+                articleCount={ARTICLE_COUNT_NUMBER}
+                titles={titlesFor(traces, ARTICLES)}
+                targets={PAGE_TARGETS.map(({ id, label, path, tool }) => ({
+                  id,
+                  label,
+                  path,
+                  page: SITE_PAGES.find((p) => p.path === path)?.label ?? (path === COLOPHON_PATH ? 'Ask Titus' : undefined),
+                  ...(tool && { tool }),
+                }))}
+              />
+            </div>
+          )}
 
-          <Section folio={next()} title="Anatomy of a reply">
-            <ReplyDiagram articleCount={ARTICLE_COUNT_NUMBER} />
-            <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
-              One question: “What have you written about guardrails?”
-            </p>
-            <ol className="border-t border-rule">
-              {WALKTHROUGH.map(([stage, what], i) => (
-                <li key={i} className="grid grid-cols-[2.2rem_1fr] border-b border-rule py-2.5 min-[560px]:grid-cols-[2.2rem_11rem_1fr]">
-                  <span className="font-mono text-[11px] text-amber">{String(i + 1).padStart(2, '0')}</span>
-                  <span className="font-mono text-[11.5px] font-medium uppercase tracking-[0.08em] text-ink">{stage}</span>
-                  <span className="col-start-2 mt-0.5 text-[15px] leading-snug text-ink-soft min-[560px]:col-start-3 min-[560px]:mt-0">
-                    {what}
-                  </span>
-                </li>
-              ))}
-            </ol>
-            <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
-              Three kinds of question
-            </p>
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-b border-ink font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-soft">
-                  <th scope="col" className="w-2/5 py-2 pr-4 font-medium">Question</th>
-                  <th scope="col" className="py-2 font-medium">Route</th>
-                </tr>
-              </thead>
-              <tbody>
-                {QUESTION_KINDS.map(([q, route]) => (
-                  <tr key={q} className="border-b border-rule align-top">
-                    <td className="py-2.5 pr-4 font-serif text-[15px] italic leading-snug text-ink">{q}</td>
-                    <td className="py-2.5 text-[14.5px] leading-snug text-ink-soft">{route}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
-              Reading in pages
-            </p>
-            <p className={prose}>
-              I don’t set how many articles it reads; GPT does. A search runs once per topic, merges the rankings so
-              each topic’s best article comes first, and hands them over three at a time, plus a count of how many
-              are still waiting. If three don’t cover the question, GPT asks for the next three with{' '}
-              <code className="font-mono text-[14px]">more: true</code>, served from the ranking it already holds,
-              so Jev isn’t asked again. It gets two searches per reply, so the second is either the next page or a
-              fresh search, which runs Jev again and replaces the ranking. When the ranking runs out, the tool says
-              so, and GPT answers from what it has read. A reply reads at most six articles, however it found them.
-            </p>
-            <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
-              Reading by theme
-            </p>
-            <p className={prose}>
-              Search answers concrete questions well and broad ones badly. Ask “how would you build production-ready
-              agents?” and every article is a little relevant, so none stands out. For those, GPT doesn’t search. Its
-              prompt carries a map of my library: a handful of themes, each article listed under its theme with a
-              one-line summary. GPT reasons over the themes, picks up to three articles that together answer the
-              question, and opens them with <code className="font-mono text-[14px]">read_writing</code>. Jev then picks
-              their sections, as it does for search. The map is only for choosing what to read: GPT cites what it read,
-              never a summary. The themes are drafted by a model when I publish, and I review them before they ship.
-            </p>
-            <p className="mt-[clamp(20px,3vw,28px)] mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
-              Long conversations
-            </p>
-            <p className={prose}>
-              It sees the last 20 messages, always starting on one of yours. When a long conversation outgrows its
-              budget, the oldest exchanges drop off first rather than the conversation being cut short. Articles cited
-              earlier keep their numbers: the drawer sends back what it has cited, and the server checks each link
-              against my articles before the model sees it.
-            </p>
+          <Section
+            folio={next()}
+            title="Anatomy of a reply"
+            full={
+              traces ? undefined : (
+                <div className="mx-auto max-w-[900px] [&_figure]:!mx-0">
+                  <ReplyDiagram articleCount={ARTICLE_COUNT_NUMBER} />
+                  <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-soft">
+                    One question: “What have you written about guardrails?”
+                  </p>
+                  <ol className="border-t border-rule">
+                    {WALKTHROUGH.map(([stage, what], i) => (
+                      <li key={i} className="grid grid-cols-[2.2rem_1fr] border-b border-rule py-2.5 min-[560px]:grid-cols-[2.2rem_11rem_1fr]">
+                        <span className="font-mono text-[11px] text-amber">{String(i + 1).padStart(2, '0')}</span>
+                        <span className="font-mono text-[11.5px] font-medium uppercase tracking-[0.08em] text-ink">{stage}</span>
+                        <span className="col-start-2 mt-0.5 text-[15px] leading-snug text-ink-soft min-[560px]:col-start-3 min-[560px]:mt-0">
+                          {what}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )
+            }
+            rows={[
+              [
+                'Four kinds of question',
+                <>
+                <table className="w-full border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-ink font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-soft">
+                      <th scope="col" className="w-2/5 py-2 pr-4 font-medium">Question</th>
+                      <th scope="col" className="py-2 font-medium">Route</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {QUESTION_KINDS.map(([q, route]) => (
+                      <tr key={q} className="border-b border-rule align-top">
+                        <td className="py-2.5 pr-4 font-serif text-[15px] italic leading-snug text-ink">{q}</td>
+                        <td className="py-2.5 text-[14.5px] leading-snug text-ink-soft">{route}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </>,
+              ],
+              [
+                'Reading in pages',
+                <>
+                <p className={prose}>
+                  I don’t set how many articles it reads; GPT does. A search runs once per topic, merges the rankings so
+                  each topic’s best article comes first, and hands them over three at a time, plus a count of how many
+                  are still waiting. If three don’t cover the question, GPT asks for the next three with{' '}
+                  <code className="font-mono text-[14px]">more: true</code>, served from the ranking it already holds,
+                  so Jev isn’t asked again. It gets {numberToWords(MAX_READING_CALLS)} searches per reply, so each one after the first is either the next
+                  page or a fresh search, which runs Jev again and replaces the ranking. When the ranking runs out, the tool
+                  says so, and GPT answers from what it has read. A reply reads at most{' '}
+                  {numberToWords(MAX_ARTICLES_PER_REPLY)} articles, however it found them.
+                </p>
+                </>,
+              ],
+              [
+                'Reading by theme',
+                <>
+                <p className={prose}>
+                  Search answers concrete questions well and broad ones badly. Ask “how would you build production-ready
+                  agents?” and every article is a little relevant, so none stands out. For those, GPT doesn’t search. Its
+                  prompt carries a map of my library: a handful of themes, each article listed under its theme with a
+                  one-line summary, and an article that does two jobs listed under both. GPT splits the question into its
+                  parts, picks the articles each part needs from the map, and opens every part with its own{' '}
+                  <code className="font-mono text-[14px]">read_writing</code> call, all in the same step. Jev then picks
+                  each article’s sections for its part, as it does for search. If a part is still thin, GPT reads more; it
+                  stops when I have nothing more to add. The map is only for choosing what to read: GPT cites what it
+                  read, never a summary. The themes are drafted by a model when I publish, and I review them before they
+                  ship.
+                </p>
+                </>,
+              ],
+              [
+                'Long conversations',
+                <>
+                <p className={prose}>
+                  It sees the last 20 messages, always starting on one of yours. When a long conversation outgrows its
+                  budget, the oldest exchanges drop off first rather than the conversation being cut short. Articles cited
+                  earlier keep their numbers: the drawer sends back what it has cited, and the server checks each link
+                  against my articles before the model sees it.
+                </p>
+                </>,
+              ],
+              [
+                'The guided tour',
+                <>
+                <p className={prose}>
+                  When an answer draws on something on this site (a role, a project, a tool in the periodic table), GPT
+                  names those places with <code className="font-mono text-[14px]">show_on_page</code>, in the order the
+                  answer mentions them, and the server drops any it doesn’t recognise. On a wide screen the drawer moves
+                  the page once, to the first of them, and never while you’re scrolling. The rest sit under the answer as
+                  See on page pills: ↓ for this page, → for another.
+                </p>
+                </>,
+              ],
+            ]}
+          >
+            {traces ? (
+              <p className={prose}>
+                The stage above replays a real reply, recorded from the live system. Each box lights up as its part
+                runs, then shows what it measured; the reply streams into the drawer at the end of the line; and every
+                box opens to show what went in and what came out. Nothing there calls a model. Here is the same path, in
+                words.
+              </p>
+            ) : (
+              <p className={prose}>The path one question takes, from the guards to the drawer.</p>
+            )}
           </Section>
 
           <Section folio={next()} title="One source of truth">
             <p className={prose}>
-              Every role, project, date and link lives once, in <code className="font-mono text-[14px]">lib/profile.ts</code>.
-              That file renders this site <em>and</em> fills the assistant’s instructions, so the two can’t drift apart
+              Every role, project, date and link lives once, in <code className="font-mono text-[14px]">lib/profile.ts</code>,
+              and every tool I’ve used, with when and where, in <code className="font-mono text-[14px]">lib/about.ts</code>.
+              Those files render this site <em>and</em> fill the assistant’s instructions, so the two can’t drift apart
               quietly. A drift test checks the two against each other, so a mismatch fails a test before it can mislead
               a visitor.
             </p>
@@ -373,6 +473,9 @@ export default function ColophonPage() {
                 Medium
               </a>
               .
+            </p>
+            <p className="mt-4 font-mono text-[11px] leading-relaxed tracking-[0.02em] text-ink-faint">
+              Tool logos are trademarks of their owners, shown to indicate tools I&apos;ve used.
             </p>
           </Section>
         </article>

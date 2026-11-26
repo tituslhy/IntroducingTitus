@@ -48,7 +48,7 @@ function IconMail() {
 }
 
 const socialLinkClass =
-  'inline-flex items-center gap-[7px] px-2.5 py-1.5 transition-colors hover:text-amber'
+  'tap inline-flex items-center gap-[7px] px-2.5 py-1.5 transition-colors hover:text-amber'
 
 export default function Footer() {
   return (
@@ -72,7 +72,7 @@ export default function Footer() {
         {/* Social row */}
         <nav
           aria-label="Footer"
-          className="flex flex-wrap justify-center gap-x-1.5 gap-y-1 font-mono text-[11.5px] tracking-[0.04em] text-ink-soft"
+          className="flex flex-wrap justify-center gap-x-1.5 gap-y-1 max-[640px]:gap-y-3 font-mono text-[11.5px] tracking-[0.04em] text-ink-soft"
         >
           <a href={SOCIAL.github} target="_blank" rel="noopener noreferrer" className={socialLinkClass}>
             <IconGithub />
@@ -102,7 +102,7 @@ export default function Footer() {
           —{' '}
           <a
             href={`mailto:${EMAIL}?subject=Resume Request`}
-            className="not-italic border-b border-rule-strong pb-px transition-colors hover:border-amber hover:text-amber"
+            className="tap inline-block not-italic border-b border-rule-strong pb-px transition-colors hover:border-amber hover:text-amber"
           >
             {EMAIL}
           </a>
@@ -115,7 +115,7 @@ export default function Footer() {
         <span className="mx-2 inline-block h-[3px] w-[3px] rounded-full bg-ink-faint align-middle" />
         <span>Singapore</span>
         <span className="mx-2 inline-block h-[3px] w-[3px] rounded-full bg-ink-faint align-middle" />
-        <a href={COLOPHON_PATH} className="transition-colors hover:text-amber">
+        <a href={COLOPHON_PATH} className="tap transition-colors hover:text-amber">
           How the assistant works <span aria-hidden="true">→</span>
         </a>
       </div>

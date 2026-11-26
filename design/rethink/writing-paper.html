@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Writing as a newspaper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tiles.css">
+<script src="writing-data.js"></script>
+<style>
+  body { transition: background .6s; }
+  body.late { --paper: oklch(0.935 0.016 75); --paper-deep: oklch(0.905 0.018 75); --paper-band: oklch(0.885 0.02 75); --rule: oklch(0.72 0.014 75); }
+
+  /* nameplate */
+  .plate { margin-top: 10px; border-top: 3px solid var(--ink); border-bottom: 1px solid var(--ink); padding: 18px 0 14px; display: grid; grid-template-columns: 230px 1fr 230px; gap: 24px; align-items: center; }
+  .plate h1 { margin: 0; max-width: none; text-align: center; font-size: clamp(44px, 7.4vw, 112px); white-space: nowrap; font-weight: 500; letter-spacing: -.035em; line-height: .92; }
+  .plate h1 em { font-style: italic; color: var(--amber); }
+  .ear { position: relative; overflow: hidden; background: var(--ink); color: var(--paper); border-radius: 20px; padding: 16px 18px; }
+  .ear::before { content: ''; position: absolute; inset: -40%; background: radial-gradient(closest-side, oklch(0.62 0.155 55 / .35), transparent 70%); animation: drift 14s ease-in-out infinite alternate; }
+  .ear > * { position: relative; }
+  .ear .fig { font-size: 40px; font-weight: 500; letter-spacing: -.03em; color: var(--amber-hi); line-height: 1; }
+  .ear .lab { font: 11.5px/1.45 var(--mono); color: oklch(0.85 0.02 78); margin-top: 6px; }
+  .ear-r { text-align: right; font: 12px/1.6 var(--mono); color: var(--ink-soft); }
+  .ear-r .ask { margin-top: 10px; }
+  .stamp { display: none; margin-top: 8px; font: 600 11px var(--mono); letter-spacing: .2em; color: var(--amber); border: 1.5px solid var(--amber); padding: 4px 8px; transform: rotate(-3deg); }
+  body.late .stamp { display: inline-block; }
+
+  .dateline { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-bottom: 3px double var(--ink); padding: 8px 0; font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+  .dateline b { color: var(--ink); font-weight: 600; }
+
+  /* editions and desks */
+  .bar { display: flex; align-items: center; gap: 6px 18px; flex-wrap: wrap; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .bar .t { font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint); }
+  .ed { font: 500 15px var(--serif); background: none; border: 0; padding: 4px 0; cursor: pointer; color: var(--ink-soft); border-bottom: 2px solid transparent; }
+  .ed[aria-pressed="true"] { color: var(--ink); border-color: var(--amber); }
+  .ed small { font: 11px var(--mono); color: var(--ink-faint); margin-left: 4px; }
+  .desks { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 0 0; }
+  .desk { font: 12.5px var(--mono); background: var(--latte); color: var(--latte-soft); border: 0; border-radius: 999px; padding: 7px 13px; cursor: pointer; transition: background .2s, color .2s; }
+  .desk b { color: var(--latte-accent); font-weight: 600; margin-left: 4px; }
+  .desk:hover, .desk[aria-pressed="true"] { background: var(--ink); color: var(--paper); } .desk:hover b, .desk[aria-pressed="true"] b { color: var(--amber-hi); }
+
+  /* the front page */
+  .front { display: grid; grid-template-columns: 2fr 1fr; margin-top: 28px; }
+  .lead { padding-right: 32px; border-right: 1px solid var(--rule); }
+  .rail { padding-left: 28px; }
+  .kick { font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--amber); }
+  .lead h2 { margin: 10px 0 0; font-size: clamp(36px, 4.6vw, 64px); font-weight: 500; letter-spacing: -.03em; line-height: 1.02; }
+  .lead h2 a, .np h3 a, .brief a { color: inherit; text-decoration: none; background-image: linear-gradient(var(--amber), var(--amber)); background-size: 0 2px; background-repeat: no-repeat; background-position: 0 100%; transition: background-size .35s; }
+  .lead h2 a:hover, .np h3 a:hover, .brief a:hover { background-size: 100% 2px; }
+  .dek { font-size: 22px; font-style: italic; line-height: 1.35; color: oklch(0.3 0.012 60); margin: 14px 0 0; }
+  .byline { font: 12px var(--mono); color: var(--ink-soft); margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--rule); }
+  .byline b { color: var(--ink); font-weight: 500; }
+  .body { font-size: 19px; line-height: 1.6; margin: 16px 0 0; }
+  .body::first-letter { float: left; font-size: 4.1em; line-height: .82; padding: 6px 10px 0 0; font-weight: 500; color: var(--amber); }
+  .cont { display: inline-block; margin-top: 14px; font: 13px var(--mono); color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--amber); padding-bottom: 2px; }
+  .rail .np + .np { border-top: 1px solid var(--rule); }
+  .np { padding: 0 0 18px; }
+  .rail .np + .np { padding-top: 18px; }
+  .np h3 { margin: 6px 0 0; font-size: 23px; font-weight: 500; letter-spacing: -.015em; line-height: 1.15; }
+  .np p { margin: 8px 0 0; font-size: 16px; line-height: 1.45; color: oklch(0.3 0.012 60); }
+  .np .meta { font: 11px var(--mono); color: var(--ink-soft); margin-top: 8px; }
+
+  .row3 { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 28px; border-top: 3px double var(--ink); padding-top: 22px; }
+  .row3 { column-gap: 48px; } .row3 .np { padding: 0; position: relative; }
+  .row3 .np + .np::before { content: ''; position: absolute; left: -24px; top: 0; bottom: 0; border-left: 1px solid var(--rule); }
+
+  .lower { display: grid; grid-template-columns: 1fr 300px; gap: 32px; margin-top: 30px; border-top: 1px solid var(--ink); padding-top: 18px; }
+  .sect { font: 600 12px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink); margin-bottom: 12px; }
+  .briefs { columns: 3 220px; column-gap: 28px; column-rule: 1px solid var(--rule); }
+  .brief { break-inside: avoid; padding: 0 0 12px; margin-bottom: 12px; border-bottom: 1px dotted var(--rule); }
+  .brief .d { font: 11px var(--mono); color: var(--ink-soft); }
+  .brief a { display: inline; font-size: 17px; line-height: 1.3; font-weight: 500; }
+
+  .corr { background: var(--paper-deep); border-radius: 20px; padding: 18px 20px; }
+  .corr h4 { margin: 0; font: 600 11px var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+  .corr p { margin: 10px 0 0; font-size: 15.5px; line-height: 1.5; }
+  .corr .src { font: 11px var(--mono); color: var(--ink-soft); margin-top: 8px; }
+  .seen { margin-top: 14px; background: var(--paper-deep); border-radius: 20px; padding: 18px 20px; }
+  .seen h4 { margin: 0 0 10px; font: 600 11px var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+  .seen span { display: inline-block; font: 12px var(--mono); background: var(--paper); border-radius: 999px; padding: 6px 11px; margin: 0 6px 6px 0; color: var(--ink-soft); }
+
+  .pic { margin: 0 0 14px; }
+  .pic .im { overflow: hidden; border-radius: 20px; background: var(--paper-deep); aspect-ratio: 16 / 9; }
+  .pic img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .6s ease; }
+  .pic:hover img { transform: scale(1.03); }
+  .pic figcaption { font: 11.5px/1.45 var(--mono); color: var(--ink-soft); margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--amber); }
+  .lead .pic { margin: 18px 0 4px; } .lead .pic .im { aspect-ratio: 16 / 8.5; }
+  .np .pic .im { aspect-ratio: 3 / 2; border-radius: 16px; }
+  @media (prefers-reduced-motion: reduce) { .pic:hover img { transform: none; } }
+  .lower.nobrief { grid-template-columns: 1fr; } .lower.nobrief aside { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } .lower.nobrief .seen { margin-top: 0; }
+  @media (max-width: 960px) { .lower.nobrief aside { grid-template-columns: 1fr; } }
+  .fade { animation: fade .45s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .fade { animation: none; } .ear::before { animation: none; } body { transition: none; } }
+
+  @media (max-width: 960px) {
+    .plate { grid-template-columns: 1fr; } .plate .ear-l { order: 2; } .ear-r { text-align: left; order: 3; }
+    .front, .lower { grid-template-columns: 1fr; } .lead { padding: 0 0 24px; border-right: 0; border-bottom: 1px solid var(--rule); } .rail { padding: 20px 0 0; }
+    .row3 { grid-template-columns: 1fr; } .row3 .np + .np::before { display: none; } .row3 .np { padding: 0 0 18px; } .row3 .np + .np { border-left: 0; border-top: 1px solid var(--rule); padding-top: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="switch"><div class="wrap">
+  <span>Mock</span>
+  <button id="day" aria-pressed="true">Day</button>
+  <button id="late" aria-pressed="false">Late edition (after 7pm in Singapore)</button>
+</div></div>
+
+<div class="wrap" style="padding-top:36px;padding-bottom:120px">
+  <div class="kicker"><b>04</b>Writing</div>
+
+  <header class="plate">
+    <div class="ear ear-l"><div class="fig count" id="total">65</div><div class="lab">technical articles since 2024</div></div>
+    <h1>The Titus <em>Times</em></h1>
+    <div class="ear-r">What I have learned,<br>written down.<br><span class="stamp">LATE EDITION</span><br><button class="ask" data-q="Which of your articles should I read first?">Ask what to read first <b>→</b></button></div>
+  </header>
+  <div class="dateline"><span>Singapore</span><span id="today"></span><span id="edlabel"></span></div>
+
+  <div class="bar">
+    <span class="t">Editions</span>
+    <span id="eds" style="display:flex;gap:22px"></span>
+  </div>
+  <div class="desks" id="desks"></div>
+
+  <main id="paper"></main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const A = window.ARTICLES, D = window.DESKS, $ = (s) => document.querySelector(s)
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+  const fmt = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    const deskName = (a) => (a.desks[0] ? D[a.desks[0]] : 'Writing')
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+
+  // dateline: today's date in Singapore, late edition after 7pm there
+  const sg = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Singapore' }))
+    const setLate = (on) => { document.body.classList.toggle('late', on); $('#late').setAttribute('aria-pressed', on); $('#day').setAttribute('aria-pressed', !on) }
+  setLate(sg.getHours() >= 19 || sg.getHours() < 5)
+  $('#day').onclick = () => setLate(false); $('#late').onclick = () => setLate(true)
+
+  // editions (years) and desks (themes), all counted from the data
+  const years = [...new Set(A.map((a) => a.date.slice(0, 4)))]
+  let state = { year: years[0], desk: null }
+  $('#eds').innerHTML = years.map((y) => `<button class="ed" data-y="${y}">${y}<small>${A.filter((a) => a.date.startsWith(y)).length}</small></button>`).join(' ')
+  const deskCounts = Object.keys(D).map((id) => [id, A.filter((a) => a.desks.includes(id)).length]).sort((a, b) => D[a[0]].localeCompare(D[b[0]]))
+  $('#desks').innerHTML = `<span class="t" style="font:500 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);padding:9px 6px 0 0">Desks</span>` + deskCounts.map(([id, n]) => `<button class="desk" data-d="${id}">${D[id]}<b>${n}</b></button>`).join('')
+
+  function render() {
+    document.querySelectorAll('.ed').forEach((b) => b.setAttribute('aria-pressed', !state.desk && b.dataset.y === state.year))
+    document.querySelectorAll('.desk').forEach((b) => b.setAttribute('aria-pressed', b.dataset.d === state.desk))
+    const list = state.desk ? A.filter((a) => a.desks.includes(state.desk)) : A.filter((a) => a.date.startsWith(state.year))
+    $('#today').textContent = list.length ? new Date(list[0].date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
+    $('#edlabel').innerHTML = state.desk ? `<b>${D[state.desk]} desk</b> · ${list.length} articles` : `<b>${state.year} edition</b> · ${list.length} articles`
+    const [lead, ...rest] = list, rail = rest.slice(0, 3), row = rest.slice(3, 6), briefs = rest.slice(6)
+    const pic = (a, cap) => a.img ? `<figure class="pic"><a class="im" style="display:block" href="${a.url}" target="_blank" rel="noopener"><img src="${a.img}" alt="" loading="lazy"></a>${cap && a.cap ? `<figcaption>${esc(a.cap)}</figcaption>` : ''}</figure>` : ''
+    const story = (a, withPic) => `<article class="np">${withPic ? pic(a) : ''}<div class="kick">${deskName(a)}</div><h3><a href="${a.url}" target="_blank" rel="noopener">${esc(a.title)}</a></h3><p>${esc(a.dek)}</p><div class="meta">${fmt(a.date)}</div></article>`
+    $('#paper').innerHTML = `
+      <section class="front fade">
+        <article class="lead">
+          <div class="kick">Latest story · ${deskName(lead)}</div>
+          <h2><a href="${lead.url}" target="_blank" rel="noopener">${esc(lead.title)}</a></h2>
+          <p class="dek">${esc(lead.dek)}</p>
+          ${pic(lead, true)}
+          <div class="byline">By <b>Titus Lim</b> · ${fmt(lead.date)}</div>
+          <p class="body">${esc(lead.open)}</p>
+          <a class="cont" href="${lead.url}" target="_blank" rel="noopener">Continue reading on Medium ↗</a>
+          <div><button class="ask" data-q="Summarise “${esc(lead.title)}” for me.">Ask about this article <b>→</b></button></div>
+        </article>
+        <aside class="rail">${rail.map((a, i) => story(a, i === 0)).join('')}</aside>
+      </section>
+      ${row.length ? `<section class="row3 fade">${row.map((a) => story(a, true)).join('')}</section>` : ''}
+      <section class="lower fade${briefs.length ? '' : ' nobrief'}">
+        ${briefs.length ? `<div>` : ''}${briefs.length ? `<div class="sect">In brief</div><div class="briefs">${briefs.map((a) => `<div class="brief"><div class="d">${fmt(a.date)} · ${deskName(a)}</div><a href="${a.url}" target="_blank" rel="noopener">${esc(a.title)}</a></div>`).join('')}</div>` : ''}${briefs.length ? `</div>` : ''}
+        <aside>
+          <div class="corr"><h4>Corrections</h4>
+            <p>An earlier edition of this site hid the navigation bar until readers had scrolled a long way back up. It now returns on any upward scroll.</p>
+            <div class="src">Fixed by this site’s issue agent · #14</div></div>
+          <div class="seen"><h4>Featured by</h4><span>Singapore Management University</span><span>Unsloth</span><span>LlamaIndex</span><span>IBM</span><span>FlowerAI</span></div>
+        </aside>
+      </section>`
+    document.querySelectorAll('#paper .ask').forEach(bindAsk)
+  }
+  document.querySelectorAll('.ed').forEach((b) => b.addEventListener('click', () => { state = { year: b.dataset.y, desk: null }; render() }))
+  document.querySelectorAll('.desk').forEach((b) => b.addEventListener('click', () => { state = { ...state, desk: state.desk === b.dataset.d ? null : b.dataset.d }; render() }))
+
+  let tt
+  function bindAsk(b) { b.addEventListener('click', () => { $('#toast').textContent = `Opens Ask Titus with: “${b.dataset.q}”`; $('#toast').classList.add('on'); clearTimeout(tt); tt = setTimeout(() => $('#toast').classList.remove('on'), 2600) }) }
+  document.querySelectorAll('.ear-r .ask').forEach(bindAsk)
+
+  // count-up on the ear
+  $('#total').textContent = A.length
+  if (!reduce) { const t0 = performance.now(), el = $('#total'); const step = (t) => { const k = Math.min(1, (t - t0) / 1400); el.textContent = Math.round(A.length * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step) }; el.textContent = 0; requestAnimationFrame(step) }
+
+  render()
+</script>
+</body>
+</html>

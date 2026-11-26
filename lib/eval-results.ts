@@ -16,6 +16,8 @@ export type Scorecard = {
   precisionAt2: number | null;
   abstainAccuracy: number | null;
   noInvention: number | null;
+  /** Experience-with questions whose reply named when and where from my record; null for runs that predate it. */
+  recordAccuracy: number | null;
   /** Articles per page the run used (precision is measured on the first page); null for runs that predate recording it. */
   pageSize: number | null;
 };
@@ -47,6 +49,8 @@ export function loadScorecard(path: string = EVAL_RESULTS_PATH): Scorecard | nul
     runAt,
     questionCount,
     jevModel: typeof model?.jev === "string" ? model.jev : null,
+    // Optional: older runs don't have it, and a bad value hides only this row.
+    recordAccuracy: ratioOrNull(metrics.recordAccuracy) ?? null,
     pageSize: typeof pageSize === "number" && Number.isInteger(pageSize) && pageSize >= 1 ? pageSize : null,
     ...(values as Record<(typeof keys)[number], number | null>),
   };

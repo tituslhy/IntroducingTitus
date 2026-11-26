@@ -1,12 +1,14 @@
 import type OpenAI from "openai";
-import { copilotStream, type LoopObserver, type TraceSpan } from "./copilot-loop";
-import type { CopilotTool } from "./copilot-tools";
+import { copilotStream, MAX_ROUNDS, type LoopObserver, type TraceSpan } from "./copilot-loop";
+import { createCopilotTools, type CopilotTool } from "./copilot-tools";
+import { MAX_READING_CALLS } from "./search-config";
+import type { Article } from "./articles";
 
 type FakeEvent = Record<string, unknown>;
 
 /** A fake Responses client: each create() call replays the next round's events (or throws). */
 function fakeOpenAI(rounds: Array<FakeEvent[] | Error>) {
-  const create = jest.fn(async () => {
+  const create = jest.fn(async (_params: Record<string, unknown>, _options?: unknown) => {
     const round = rounds.shift();
     if (round === undefined) throw new Error("unexpected extra create call");
     if (round instanceof Error) throw round;
@@ -224,5 +226,89 @@ describe("copilotStream tracing hooks", () => {
     const items = await collect(copilotStream(openai, input, [echoTool], new AbortController().signal, undefined, observer));
 
     expect(items).toContainEqual({ kind: "text", text: "Still here" });
+  });
+});
+
+describe("copilotStream verbosity", () => {
+  it("asks for high verbosity on every round, including the last round where function tools are withheld", async () => {
+    // Four rounds, each making a call, so the loop runs to MAX_ROUNDS and every create() is observed.
+    const { openai, create } = fakeOpenAI([
+      [created("resp_1"), call("c1", "echo", "{}"), done],
+      [created("resp_2"), call("c2", "echo", "{}"), done],
+      [created("resp_3"), call("c3", "echo", "{}"), done],
+      [created("resp_4"), text("Final"), done],
+    ]);
+
+    await collect(copilotStream(openai, input, [echoTool], new AbortController().signal));
+
+    expect(create).toHaveBeenCalledTimes(MAX_ROUNDS);
+    create.mock.calls.forEach(([params]) => {
+      expect(params).toHaveProperty("text", { verbosity: "high" });
+    });
+    // The last round offers no function tools, so the verbosity setting is the only shape it carries.
+    const lastParams = create.mock.calls[MAX_ROUNDS - 1][0];
+    expect(lastParams).not.toHaveProperty("tools");
+  });
+});
+
+describe("copilotStream per-reply limits on the writing tools", () => {
+  const LIMIT_ERROR = { error: "limit reached; answer with what you have" };
+
+  const fixture = (slug: string, id: string): Article => ({
+    slug,
+    title: `Title ${slug}`,
+    url: `https://medium.com/@tituslhy/${slug}-${id}`,
+    publishedAt: "2025-06-18T10:00:00.000Z",
+    summary: `Summary ${slug}`,
+    keywords: ["keyword"],
+    outline: ["Heading"],
+    intro: `Intro ${slug}`,
+    body: `Body of ${slug}`,
+    words: 500,
+  });
+  const ids = ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc", "dddddddddddd"];
+  const catalog = [fixture("alpha", ids[0]), fixture("beta", ids[1]), fixture("gamma", ids[2]), fixture("delta", ids[3])];
+
+  /** Real writing tools with search and section picking stubbed out. */
+  const writingTools = () =>
+    createCopilotTools({
+      catalog,
+      search: jest.fn(async () => []),
+      pick: jest.fn(async (article: { slug: string }, focus: string) => ({
+        outline: [`O ${article.slug}`],
+        sections: [{ heading: `H ${article.slug}`, text: `Picked ${article.slug} for ${focus}` }],
+        truncated: false,
+      })),
+    });
+
+  /** Runs one round that makes every given call at once, then a closing answer; returns each tool call's result in order. */
+  async function resultsOf(calls: FakeEvent[]) {
+    const { openai } = fakeOpenAI([[created("resp_1"), ...calls, done], [created("resp_2"), text("Answer"), done]]);
+    const { observer, spans } = recordingObserver();
+
+    await collect(copilotStream(openai, input, writingTools(), new AbortController().signal, undefined, observer));
+
+    return spans.filter((s) => s.kind === "tool").map((s) => s.ended?.result);
+  }
+
+  it("refuses the 4th read_writing call in one reply and allows the 3rd", async () => {
+    const reads = ids.map((id, i) => call(`r${i}`, "read_writing", JSON.stringify({ articles: [id], focus: "f" })));
+
+    const results = await resultsOf(reads);
+
+    expect(results).toHaveLength(MAX_READING_CALLS + 1);
+    expect(results[MAX_READING_CALLS - 1]).not.toEqual(LIMIT_ERROR);
+    expect(results[MAX_READING_CALLS - 1]).toMatchObject({ articles: [{ title: "Title gamma" }] });
+    expect(results[MAX_READING_CALLS]).toEqual(LIMIT_ERROR);
+  });
+
+  it("refuses the 4th search_writing call in one reply and allows the 3rd", async () => {
+    const searches = ids.map((_, i) => call(`s${i}`, "search_writing", JSON.stringify({ topics: [`topic ${i}`], more: false })));
+
+    const results = await resultsOf(searches);
+
+    expect(results).toHaveLength(MAX_READING_CALLS + 1);
+    expect(results[MAX_READING_CALLS - 1]).not.toEqual(LIMIT_ERROR);
+    expect(results[MAX_READING_CALLS]).toEqual(LIMIT_ERROR);
   });
 });

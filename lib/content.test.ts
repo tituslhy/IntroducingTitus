@@ -1,5 +1,5 @@
 import articlesMeta from "@/content/articles-meta.json";
-import { ARTICLE_COUNT_NUMBER, ARTICLE_COUNT_WORD, numberToWords } from "./content";
+import { ARTICLE_COUNT_NUMBER, ARTICLE_COUNT_WORD, YEARS_EXPERIENCE, YEARS_EXPERIENCE_NUMBER, numberToWords } from "./content";
 
 describe("numberToWords", () => {
   it.each([
@@ -45,5 +45,16 @@ describe("article count constants", () => {
 
   it("derives the word form from the numeric count", () => {
     expect(ARTICLE_COUNT_WORD).toBe(numberToWords(articlesMeta.count));
+  });
+});
+
+describe("years of experience", () => {
+  it("is eight, the number the front page spells out", () => {
+    expect(YEARS_EXPERIENCE_NUMBER).toBe(8);
+    expect(numberToWords(YEARS_EXPERIENCE_NUMBER)).toBe("eight");
+  });
+
+  it("derives the '8+ years' label from the numeric value", () => {
+    expect(YEARS_EXPERIENCE).toBe(`${YEARS_EXPERIENCE_NUMBER}+ years`);
   });
 });

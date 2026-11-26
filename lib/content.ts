@@ -10,8 +10,11 @@
 
 import articlesMeta from '@/content/articles-meta.json'
 
+/** Whole years of professional experience (the front page says "Eight years"). */
+export const YEARS_EXPERIENCE_NUMBER = 8
+
 /** Years of professional experience, as used in taglines and metadata. */
-export const YEARS_EXPERIENCE = '8+ years'
+export const YEARS_EXPERIENCE = `${YEARS_EXPERIENCE_NUMBER}+ years`
 
 /**
  * Canonical article count. Written by scripts/build-articles.ts from the
@@ -64,7 +67,7 @@ export const ILLUMINA_SAVINGS_PROSE = `USD ${ILLUMINA_SAVINGS_MILLIONS} million`
 /** Compact figure-panel form: "$9M". */
 export const ILLUMINA_SAVINGS_FIGURE = `$${ILLUMINA_SAVINGS_MILLIONS}M`
 
-/** The satellite page explaining how Ask Titus works (linked from the drawer and footer, not the nav). */
+/** The page explaining how Ask Titus works (linked from the drawer, the footer, and nav item 05). */
 export const COLOPHON_PATH = '/colophon'
 
 /** Canonical production domain, used across metadata, sitemap, robots, and OG/icon routes. */

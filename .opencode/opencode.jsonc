@@ -1,0 +1,80 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // tituslhy personal website — OpenCode project configuration
+  //
+  // Mirrors the repo's other agent setups (.claude, .codex, .cursor).
+  // One deliberate difference: the two subagents INHERIT the supervisor's LLM.
+  //
+  //   code-reviewer + unit-test-writer (in .opencode/agents/) set NO `model`
+  //   field. Per OpenCode's agent rules, "a subagent uses its configured model,
+  //   or inherits the parent session's model when none is configured." So
+  //   whatever LLM the main (supervisor) session runs — here
+  //   ollama/qwen3.8:27b-mlx — the subagents run on that same model. No pinned
+  //   provider, no per-agent model to drift out of sync.
+  //
+  // See .opencode/README.md for the full source → OpenCode mapping.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // No root `model` on purpose: the supervisor's model comes from your global
+  // OpenCode config / the session's selected model, and subagents inherit it.
+  // Set one here only if you want to pin the supervisor itself.
+
+  // .claude's `defaultMode: acceptEdits` needs no equivalent — OpenCode's base
+  // policy already allows edits, so no rule is required for that.
+
+  "permissions": [
+    // ── Secrets: DENY (mirrors the .claude deny list) ────────────────────────
+    { "action": "read", "resource": ".env", "effect": "deny" },
+    { "action": "read", "resource": ".env.*", "effect": "deny" },
+    { "action": "read", "resource": ".env.example", "effect": "allow" },
+    { "action": "external_directory", "resource": "~/.ssh/*", "effect": "deny" },
+    { "action": "external_directory", "resource": "~/.aws/*", "effect": "deny" },
+
+    // ── Dangerous shell: DENY (mirrors the .claude deny list) ────────────────
+    { "action": "shell", "resource": "sudo *", "effect": "deny" },
+    { "action": "shell", "resource": "docker *", "effect": "deny" },
+    { "action": "shell", "resource": "rm -rf *", "effect": "deny" },
+
+    // ── git push: ASK, never auto (mirrors the .claude ask list) ─────────────
+    { "action": "shell", "resource": "git push *", "effect": "ask" },
+
+    // ── Routine commands: ALLOW. These mirror the .claude allow list; OpenCode's
+    //    base policy already allows everything, so they are self-documenting
+    //    rather than load-bearing. A shell ` *` pattern also matches the bare
+    //    command (e.g. `npm run *` matches `npm run dev`). ─────────────────────
+    { "action": "webfetch", "resource": "*", "effect": "allow" },
+    { "action": "shell", "resource": "agent-browser *", "effect": "allow" },
+    { "action": "shell", "resource": "npm run *", "effect": "allow" },
+    { "action": "shell", "resource": "npm install *", "effect": "allow" },
+    { "action": "shell", "resource": "npm test *", "effect": "allow" },
+    { "action": "shell", "resource": "npx *", "effect": "allow" },
+    { "action": "shell", "resource": "pnpm *", "effect": "allow" },
+    { "action": "shell", "resource": "yarn *", "effect": "allow" },
+    { "action": "shell", "resource": "bun *", "effect": "allow" },
+    { "action": "shell", "resource": "python *", "effect": "allow" },
+    { "action": "shell", "resource": "python3 *", "effect": "allow" },
+    { "action": "shell", "resource": "git diff *", "effect": "allow" },
+    { "action": "shell", "resource": "git status *", "effect": "allow" },
+    { "action": "shell", "resource": "git log *", "effect": "allow" },
+    { "action": "shell", "resource": "git add *", "effect": "allow" },
+    { "action": "shell", "resource": "git commit *", "effect": "allow" },
+    { "action": "shell", "resource": "next *", "effect": "allow" },
+    { "action": "shell", "resource": "eslint *", "effect": "allow" },
+    { "action": "shell", "resource": "tsc *", "effect": "allow" },
+
+    // ── Subagents: the built-in `build` supervisor already may launch any
+    //    subagent (its base policy allows `subagent *`). Stated explicitly for
+    //    clarity; this does NOT restrict which subagents may run. ──────────────
+    { "action": "subagent", "resource": "code-reviewer", "effect": "allow" },
+    { "action": "subagent", "resource": "unit-test-writer", "effect": "allow" }
+  ],
+
+  "instructions": [
+    // Mirrors .cursor/rules/unit-tests.mdc. OpenCode has no glob-scoped "apply
+    // only when editing a test file", so this loads with every session; it is
+    // small and always relevant to this repo's tests.
+    ".opencode/rules/unit-tests.md"
+  ]
+}

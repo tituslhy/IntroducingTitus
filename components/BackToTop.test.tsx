@@ -5,7 +5,7 @@ describe("BackToTop", () => {
   it("should render a link to the masthead", () => {
     render(<BackToTop />);
     const link = screen.getByRole("link", { name: /back to top/i });
-    expect(link).toHaveAttribute("href", "#masthead");
+    expect(link).toHaveAttribute("href", "#top");
   });
 
   it("should show visible text with the arrow hidden from assistive tech", () => {

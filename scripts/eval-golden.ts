@@ -17,6 +17,8 @@ export type GoldenRow = {
   topics?: string[];
   /** false: an abstract question answered from the library tree, scored end to end only (not in recall or precision). */
   retrieval?: false;
+  /** Experience-with rows: words from my record (lib/about.ts, lib/profile.ts) the reply must contain, case-insensitive. */
+  record?: string[];
 };
 
 const PRODUCTION_AGENTS = ["Testing RAG Agents", "Agent Memory", "Needs a Bouncer", "introduction to LiteLLM"];
@@ -52,6 +54,22 @@ export const GOLDEN: GoldenRow[] = [
     expect: { kind: "articles", titles: PRODUCTION_AGENTS },
     retrieval: false,
   },
+  // Experience-with: the record first (when, where), then the article that backs it.
+  {
+    question: "Tell me about your experience with knowledge graphs.",
+    expect: { kind: "articles", titles: ["GraphRAG for the win"] },
+    topics: ["knowledge graphs"],
+    record: ["Illumina", "TigerGraph", "Neo4j"],
+  },
+  { question: "What's your experience with Java?", expect: { kind: "articles", titles: ["LangChain4j"] }, topics: ["Java"], record: ["UOB"] },
+  // Computer vision sits in Illumina's copilot notes, SMU's results and earlier projects, not in a role's headline.
+  {
+    question: "Have you worked on computer vision use cases?",
+    expect: { kind: "articles", titles: ["Multimodal RAG"] },
+    topics: ["computer vision"],
+    record: ["Illumina", "SMU"],
+  },
+  { question: "Have you used Helm?", expect: { kind: "articles", titles: ["Helm Charts"] }, topics: ["Helm"], record: ["Illumina"] },
   { question: "Have you written about Rust?", expect: { kind: "none" } },
   { question: "Have you written about building iOS apps in Swift?", expect: { kind: "none" } },
   { question: "What's your take on Kotlin coroutines?", expect: { kind: "none" } },
@@ -64,6 +82,10 @@ export const GOLDEN: GoldenRow[] = [
 
 /** What the retrieval pass searches: one query per topic, or the question itself. */
 export const retrievalQueries = (row: GoldenRow): string[] => row.topics ?? [row.question];
+
+/** Whether `reply` names every word of the row's record, or null when the row has none. */
+export const usedRecord = (row: GoldenRow, reply: string): boolean | null =>
+  row.record ? row.record.every((w) => reply.toLowerCase().includes(w.toLowerCase())) : null;
 
 /** Whether the row counts toward the retrieval-only metrics (recall, precision, abstain). */
 export const countsForRetrieval = (row: GoldenRow): boolean => row.retrieval !== false;

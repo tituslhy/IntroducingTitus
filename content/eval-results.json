@@ -1,5 +1,5 @@
 {
-  "runAt": "2026-11-15T14:38:31.385Z",
+  "runAt": "2026-11-25T13:41:48.740Z",
   "model": {
     "jev": "jev-1.14.0",
     "gpt": "gpt-6-luna"
@@ -28,7 +28,7 @@
         "recall": true,
         "precisionAt2": 1,
         "abstained": false,
-        "totalMs": 622,
+        "totalMs": 582,
         "fallback": "none",
         "errors": []
       },
@@ -40,7 +40,8 @@
         "sources": 1,
         "citations": 1,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -58,11 +59,10 @@
           "your-ai-agent-needs-a-bouncer-f115d5ddac55",
           "a-gentle-introduction-to-the-llm-multi-agents-multiverse-part-1-langgraph-2ac56f1b5b3c",
           "building-your-first-multi-agent-system-with-n8n-0c959d7139a1",
+          "a-gentle-introduction-to-the-llm-multiverse-part-3-llamaindex-798344050c49",
           "a-gentle-introduction-to-the-llm-multiverse-part-2-haystack-c6af2548df04",
           "a-field-guide-to-multi-agent-architectures-f6f8c689c406",
-          "a-gentle-introduction-to-the-llm-multiverse-part-3-llamaindex-798344050c49",
-          "langchain-a-second-look-6ed720e27fec",
-          "a-gentle-introduction-to-the-llm-multiverse-part-1-langchain-023a899d294e"
+          "langchain-a-second-look-6ed720e27fec"
         ],
         "chosen": [
           "your-ai-agent-needs-a-bouncer-f115d5ddac55"
@@ -70,7 +70,7 @@
         "recall": true,
         "precisionAt2": 1,
         "abstained": false,
-        "totalMs": 567,
+        "totalMs": 523,
         "fallback": "none",
         "errors": []
       },
@@ -82,7 +82,8 @@
         "sources": 1,
         "citations": 1,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -106,7 +107,7 @@
         "recall": true,
         "precisionAt2": 1,
         "abstained": false,
-        "totalMs": 329,
+        "totalMs": 343,
         "fallback": "single",
         "errors": []
       },
@@ -118,7 +119,8 @@
         "sources": 1,
         "citations": 1,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -141,7 +143,7 @@
         "recall": true,
         "precisionAt2": 1,
         "abstained": false,
-        "totalMs": 311,
+        "totalMs": 296,
         "fallback": "single",
         "errors": []
       },
@@ -153,7 +155,8 @@
         "sources": 1,
         "citations": 1,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -176,7 +179,7 @@
         "recall": true,
         "precisionAt2": 1,
         "abstained": false,
-        "totalMs": 357,
+        "totalMs": 312,
         "fallback": "single",
         "errors": []
       },
@@ -188,7 +191,8 @@
         "sources": 1,
         "citations": 1,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -212,32 +216,35 @@
           "introducing-mempools-the-one-time-gossip-pays-off-9fbc92701f70",
           "understanding-blockchains-from-scratch-f14c454af32f",
           "inside-opencerts-how-merkle-trees-verify-singapores-digital-diplomas-61f60d13700e",
-          "proof-of-stake-the-mining-free-blockchain-ddae684ffec5",
           "introducing-permissioned-chains-1d8a71f5b09a",
           "introducing-stablecoins-2b3e63e6c5f1",
+          "proof-of-stake-the-mining-free-blockchain-ddae684ffec5",
           "flash-loan-attacks-on-smart-contracts-cb08c72408bd"
         ],
         "chosen": [
           "understanding-blockchains-from-scratch-f14c454af32f",
-          "introducing-smart-contracts-340c20cbe672",
-          "introducing-permissioned-chains-1d8a71f5b09a"
+          "introducing-permissioned-chains-1d8a71f5b09a",
+          "introducing-smart-contracts-340c20cbe672"
         ],
         "recall": true,
         "precisionAt2": 1,
         "abstained": false,
-        "totalMs": 616,
+        "totalMs": 502,
         "fallback": "none",
         "errors": []
       },
       "agent": {
         "searched": true,
-        "searches": 2,
+        "searches": 1,
         "reads": 0,
         "readExpected": true,
-        "sources": 5,
-        "citations": 5,
-        "inventedUrls": [],
-        "danglingCitations": []
+        "sources": 3,
+        "citations": 3,
+        "inventedUrls": [
+          "https://github.com/tituslhy/Blockchain"
+        ],
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -256,10 +263,10 @@
           "building-your-first-no-code-agent-with-n8n-e9e9ea0c23d1",
           "so-you-want-a-personal-ai-assistant-4c6226e88017",
           "a-gentle-introduction-to-the-llm-multi-agents-multiverse-part-1-langgraph-2ac56f1b5b3c",
-          "would-you-like-context-with-that-a-rag-as-a-service-drive-thru-2e5a2867102a",
           "graphrag-for-the-win-c19d580debd7",
           "langchain-a-second-look-6ed720e27fec",
-          "a-gentle-introduction-to-the-llm-multiverse-part-1-langchain-023a899d294e"
+          "would-you-like-context-with-that-a-rag-as-a-service-drive-thru-2e5a2867102a",
+          "a-gentle-introduction-to-the-llm-multiverse-part-3-llamaindex-798344050c49"
         ],
         "chosen": [
           "agent-memory-the-underrated-superpower-of-agentic-apps-1c16fb47f435",
@@ -268,7 +275,7 @@
         "recall": true,
         "precisionAt2": 0.5,
         "abstained": false,
-        "totalMs": 662,
+        "totalMs": 761,
         "fallback": "none",
         "errors": []
       },
@@ -280,7 +287,8 @@
         "sources": 2,
         "citations": 1,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -296,8 +304,8 @@
       "retrieval": {
         "shortlist": [
           "a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8",
-          "a-field-guide-to-multi-agent-architectures-f6f8c689c406",
-          "a-gentle-introduction-to-the-llm-multi-agents-multiverse-part-1-langgraph-2ac56f1b5b3c"
+          "a-gentle-introduction-to-the-llm-multi-agents-multiverse-part-1-langgraph-2ac56f1b5b3c",
+          "a-field-guide-to-multi-agent-architectures-f6f8c689c406"
         ],
         "chosen": [
           "a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8"
@@ -305,7 +313,7 @@
         "recall": true,
         "precisionAt2": 1,
         "abstained": false,
-        "totalMs": 774,
+        "totalMs": 682,
         "fallback": "none",
         "errors": []
       },
@@ -317,7 +325,8 @@
         "sources": 1,
         "citations": 1,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -340,7 +349,7 @@
         "recall": true,
         "precisionAt2": 1,
         "abstained": false,
-        "totalMs": 649,
+        "totalMs": 397,
         "fallback": "single",
         "errors": []
       },
@@ -349,10 +358,11 @@
         "searches": 1,
         "reads": 0,
         "readExpected": true,
-        "sources": 1,
+        "sources": 2,
         "citations": 1,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -381,7 +391,7 @@
         "recall": true,
         "precisionAt2": 1,
         "abstained": false,
-        "totalMs": 556,
+        "totalMs": 510,
         "fallback": "none",
         "errors": []
       },
@@ -391,9 +401,10 @@
         "reads": 0,
         "readExpected": true,
         "sources": 3,
-        "citations": 1,
+        "citations": 0,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -420,7 +431,7 @@
         "recall": true,
         "precisionAt2": 1,
         "abstained": false,
-        "totalMs": 527,
+        "totalMs": 717,
         "fallback": "none",
         "errors": []
       },
@@ -432,7 +443,8 @@
         "sources": 3,
         "citations": 3,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -464,7 +476,7 @@
         "recall": true,
         "precisionAt2": 1,
         "abstained": false,
-        "totalMs": 579,
+        "totalMs": 563,
         "fallback": "none",
         "errors": []
       },
@@ -476,7 +488,8 @@
         "sources": 3,
         "citations": 3,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -495,35 +508,36 @@
       "retrieval": {
         "shortlist": [
           "a-field-guide-to-multi-agent-architectures-f6f8c689c406",
+          "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3b-deploying-llamaindex-workflows-df18381d36b9",
           "a-gentle-introduction-to-the-llm-multi-agents-multiverse-part-1-langgraph-2ac56f1b5b3c",
           "would-you-like-an-app-with-that-introducing-the-adk-framework-aead05a8b9cd",
-          "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3b-deploying-llamaindex-workflows-df18381d36b9",
           "your-ai-agent-needs-a-bouncer-f115d5ddac55",
           "langchain-a-second-look-6ed720e27fec",
           "would-you-like-an-agent-with-that-introducing-the-deep-agents-sdk-c4e0670440ea",
-          "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3a-llamaindex-workflows-c0f614c15b88"
+          "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-4-crewai-147ada6db54c"
         ],
         "chosen": [
           "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3b-deploying-llamaindex-workflows-df18381d36b9",
           "would-you-like-an-app-with-that-introducing-the-adk-framework-aead05a8b9cd",
-          "a-field-guide-to-multi-agent-architectures-f6f8c689c406"
+          "would-you-like-an-agent-with-that-introducing-the-deep-agents-sdk-c4e0670440ea"
         ],
         "recall": true,
         "precisionAt2": 0,
         "abstained": false,
-        "totalMs": 578,
+        "totalMs": 816,
         "fallback": "none",
         "errors": []
       },
       "agent": {
         "searched": true,
         "searches": 0,
-        "reads": 1,
+        "reads": 3,
         "readExpected": true,
-        "sources": 3,
-        "citations": 3,
+        "sources": 9,
+        "citations": 5,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -544,33 +558,179 @@
           "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3b-deploying-llamaindex-workflows-df18381d36b9",
           "would-you-like-an-app-with-that-introducing-the-adk-framework-aead05a8b9cd",
           "a-field-guide-to-multi-agent-architectures-f6f8c689c406",
-          "how-i-use-claude-code-3b1fd852305b",
           "a-gentle-introduction-to-the-llm-multi-agents-multiverse-part-1-langgraph-2ac56f1b5b3c",
-          "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-4-crewai-147ada6db54c",
+          "how-i-use-claude-code-3b1fd852305b",
           "langchain-a-second-look-6ed720e27fec",
+          "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-4-crewai-147ada6db54c",
           "would-you-like-an-agent-with-that-introducing-the-deep-agents-sdk-c4e0670440ea"
         ],
         "chosen": [
-          "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3b-deploying-llamaindex-workflows-df18381d36b9",
           "would-you-like-an-app-with-that-introducing-the-adk-framework-aead05a8b9cd",
-          "langchain-a-second-look-6ed720e27fec"
+          "a-gentle-introduction-to-the-llm-multi-agent-multiverse-part-3b-deploying-llamaindex-workflows-df18381d36b9",
+          "would-you-like-an-agent-with-that-introducing-the-deep-agents-sdk-c4e0670440ea"
         ],
         "recall": false,
         "precisionAt2": 0,
         "abstained": false,
-        "totalMs": 558,
+        "totalMs": 687,
         "fallback": "none",
         "errors": []
       },
       "agent": {
         "searched": true,
         "searches": 0,
-        "reads": 2,
+        "reads": 3,
         "readExpected": true,
-        "sources": 4,
-        "citations": 4,
+        "sources": 6,
+        "citations": 6,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
+      }
+    },
+    {
+      "question": "Tell me about your experience with knowledge graphs.",
+      "expect": "articles",
+      "expected": [
+        "graphrag-for-the-win-c19d580debd7"
+      ],
+      "topics": [
+        "knowledge graphs"
+      ],
+      "scoredForRetrieval": true,
+      "retrieval": {
+        "shortlist": [
+          "graphrag-for-the-win-c19d580debd7"
+        ],
+        "chosen": [
+          "graphrag-for-the-win-c19d580debd7"
+        ],
+        "recall": true,
+        "precisionAt2": 1,
+        "abstained": false,
+        "totalMs": 280,
+        "fallback": "single",
+        "errors": []
+      },
+      "agent": {
+        "searched": true,
+        "searches": 1,
+        "reads": 0,
+        "readExpected": true,
+        "sources": 1,
+        "citations": 1,
+        "inventedUrls": [],
+        "danglingCitations": [],
+        "usedRecord": true
+      }
+    },
+    {
+      "question": "What's your experience with Java?",
+      "expect": "articles",
+      "expected": [
+        "langchain4j-building-generative-ai-applications-in-java-670ec3d6167d"
+      ],
+      "topics": [
+        "Java"
+      ],
+      "scoredForRetrieval": true,
+      "retrieval": {
+        "shortlist": [
+          "langchain4j-building-generative-ai-applications-in-java-670ec3d6167d"
+        ],
+        "chosen": [
+          "langchain4j-building-generative-ai-applications-in-java-670ec3d6167d"
+        ],
+        "recall": true,
+        "precisionAt2": 1,
+        "abstained": false,
+        "totalMs": 282,
+        "fallback": "single",
+        "errors": []
+      },
+      "agent": {
+        "searched": true,
+        "searches": 1,
+        "reads": 0,
+        "readExpected": true,
+        "sources": 1,
+        "citations": 1,
+        "inventedUrls": [],
+        "danglingCitations": [],
+        "usedRecord": true
+      }
+    },
+    {
+      "question": "Have you worked on computer vision use cases?",
+      "expect": "articles",
+      "expected": [
+        "video-killed-the-radio-star-a-use-case-for-multimodal-rag-cdb7d5ff3062"
+      ],
+      "topics": [
+        "computer vision"
+      ],
+      "scoredForRetrieval": true,
+      "retrieval": {
+        "shortlist": [
+          "video-killed-the-radio-star-a-use-case-for-multimodal-rag-cdb7d5ff3062"
+        ],
+        "chosen": [
+          "video-killed-the-radio-star-a-use-case-for-multimodal-rag-cdb7d5ff3062"
+        ],
+        "recall": true,
+        "precisionAt2": 1,
+        "abstained": false,
+        "totalMs": 302,
+        "fallback": "single",
+        "errors": []
+      },
+      "agent": {
+        "searched": true,
+        "searches": 1,
+        "reads": 0,
+        "readExpected": true,
+        "sources": 1,
+        "citations": 1,
+        "inventedUrls": [],
+        "danglingCitations": [],
+        "usedRecord": true
+      }
+    },
+    {
+      "question": "Have you used Helm?",
+      "expect": "articles",
+      "expected": [
+        "helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1"
+      ],
+      "topics": [
+        "Helm"
+      ],
+      "scoredForRetrieval": true,
+      "retrieval": {
+        "shortlist": [
+          "helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1",
+          "a-gentle-introduction-to-litellm-649d48a0c2c7"
+        ],
+        "chosen": [
+          "helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1"
+        ],
+        "recall": true,
+        "precisionAt2": 1,
+        "abstained": false,
+        "totalMs": 526,
+        "fallback": "none",
+        "errors": []
+      },
+      "agent": {
+        "searched": true,
+        "searches": 1,
+        "reads": 0,
+        "readExpected": true,
+        "sources": 2,
+        "citations": 1,
+        "inventedUrls": [],
+        "danglingCitations": [],
+        "usedRecord": true
       }
     },
     {
@@ -587,7 +747,7 @@
         "recall": null,
         "precisionAt2": null,
         "abstained": true,
-        "totalMs": 331,
+        "totalMs": 329,
         "fallback": "none",
         "errors": []
       },
@@ -599,7 +759,8 @@
         "sources": 0,
         "citations": 0,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -616,7 +777,7 @@
         "recall": null,
         "precisionAt2": null,
         "abstained": true,
-        "totalMs": 283,
+        "totalMs": 275,
         "fallback": "none",
         "errors": []
       },
@@ -628,7 +789,8 @@
         "sources": 0,
         "citations": 0,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -657,7 +819,8 @@
         "sources": 0,
         "citations": 0,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -674,7 +837,7 @@
         "recall": null,
         "precisionAt2": null,
         "abstained": true,
-        "totalMs": 293,
+        "totalMs": 338,
         "fallback": "none",
         "errors": []
       },
@@ -686,7 +849,8 @@
         "sources": 0,
         "citations": 0,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -703,7 +867,7 @@
         "recall": null,
         "precisionAt2": null,
         "abstained": true,
-        "totalMs": 358,
+        "totalMs": 372,
         "fallback": "none",
         "errors": []
       },
@@ -715,7 +879,8 @@
         "sources": 0,
         "citations": 0,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -732,7 +897,7 @@
         "recall": null,
         "precisionAt2": null,
         "abstained": true,
-        "totalMs": 279,
+        "totalMs": 310,
         "fallback": "none",
         "errors": []
       },
@@ -744,7 +909,8 @@
         "sources": 0,
         "citations": 0,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     },
     {
@@ -761,7 +927,7 @@
         "recall": null,
         "precisionAt2": null,
         "abstained": true,
-        "totalMs": 357,
+        "totalMs": 346,
         "fallback": "none",
         "errors": []
       },
@@ -773,7 +939,8 @@
         "sources": 0,
         "citations": 0,
         "inventedUrls": [],
-        "danglingCitations": []
+        "danglingCitations": [],
+        "usedRecord": null
       }
     }
   ],
@@ -781,18 +948,19 @@
     "toolCallAccuracy": 1,
     "stage1Recall": 1,
     "agentRecall": 1,
-    "precisionAt2": 0.958,
+    "precisionAt2": 0.969,
     "abstainAccuracy": 1,
-    "noInvention": 1,
+    "noInvention": 0.96,
+    "recordAccuracy": 1,
     "latencyMs": {
-      "p50": 527,
-      "p95": 662
+      "p50": 372,
+      "p95": 761
     },
     "fallbacks": {
-      "none": 17,
-      "single": 4
+      "none": 18,
+      "single": 7
     },
-    "questionCount": 21,
+    "questionCount": 25,
     "pageSize": 3
   }
 }

@@ -97,6 +97,7 @@ describe("loadScorecard", () => {
       precisionAt2: null,
       abstainAccuracy: 1,
       noInvention: 0,
+      recordAccuracy: null,
       pageSize: null,
     });
   });
@@ -131,5 +132,49 @@ describe("loadScorecard pageSize", () => {
     expect(card).not.toBeNull();
     expect(card?.pageSize).toBeNull();
     expect(card?.questionCount).toBe(42);
+  });
+});
+
+describe("loadScorecard recordAccuracy", () => {
+  it("reads a ratio from metrics.recordAccuracy", () => {
+    const card = loadScorecard(write(withMetrics({ recordAccuracy: 0.75 })));
+
+    expect(card).not.toBeNull();
+    expect(card?.recordAccuracy).toBe(0.75);
+  });
+
+  it("accepts 0 and 1 as ratios", () => {
+    expect(loadScorecard(write(withMetrics({ recordAccuracy: 0 })))?.recordAccuracy).toBe(0);
+    expect(loadScorecard(write(withMetrics({ recordAccuracy: 1 })))?.recordAccuracy).toBe(1);
+  });
+
+  it("is null, and the scorecard still loads, for a file written before recordAccuracy existed", () => {
+    const card = loadScorecard(write(JSON.stringify(validFile)));
+
+    expect(card).not.toBeNull();
+    expect(card?.recordAccuracy).toBeNull();
+    expect(card?.questionCount).toBe(42);
+    expect(card?.toolCallAccuracy).toBe(0.9);
+  });
+
+  it("is null for an explicit null, and the scorecard still loads", () => {
+    const card = loadScorecard(write(withMetrics({ recordAccuracy: null })));
+
+    expect(card).not.toBeNull();
+    expect(card?.recordAccuracy).toBeNull();
+  });
+
+  it.each([
+    ["above 1", 2],
+    ["below 0", -0.5],
+    ["a string", "x"],
+    ["a numeric string", "0.5"],
+    ["a boolean", true],
+  ])("is null, and the scorecard still loads, when recordAccuracy is %s", (_label, value) => {
+    const card = loadScorecard(write(withMetrics({ recordAccuracy: value })));
+
+    expect(card).not.toBeNull();
+    expect(card?.recordAccuracy).toBeNull();
+    expect(card).toMatchObject({ questionCount: 42, toolCallAccuracy: 0.9, stage1Recall: 0.8, abstainAccuracy: 1 });
   });
 });
