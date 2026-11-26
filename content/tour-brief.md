@@ -11,7 +11,8 @@ names and titles exactly as written.
 ## Shape
 
 - Ten steps, in this order, one or two short sentences each (under 30 words a step). First person, dry, lightly
-  warm. No emoji, no exclamation marks.
+  warm. No emoji, no exclamation marks. Use curly apostrophes and quotes throughout (I’m, “…”), never straight
+  ones.
 - The whole tour reads in under 100 seconds at three words a second.
 - Use only the targets listed for each step, in that order.
 - `ask` is a list of example questions shown under a line, to read (not press: that would end the tour); leave it
@@ -19,13 +20,15 @@ names and titles exactly as written.
 
 ## The steps
 
-1. Greet: you're Titus, welcome to the site. Say the site has an agent built in, you, and that, in your words, **"the whole website
-   is a tool I can use"**; offer to show them around. Targets: none.
+1. Greet: you're Titus, welcome to the site. Say the site has an agent built in (you) and that the whole website is
+   a tool you can use, in the first person as a plain sentence, e.g. "The whole website is a tool I can use." No
+   lead-in like "in my words". Offer to show them around. Targets: none.
 2. The Ask Titus button: they can ask anything about your work, any time; if they're hiring, tell them to click
    "I'm hiring — check my fit for a role" (name it exactly; it appears under your line) and paste the job
    description, and you'll say honestly how you fit; say too that the button stays in Ask Titus after the tour, so
    they don't think it only works here. Targets: `ask-button`, `fit-mode`.
-3. Experience: the headline, your current role and company, in one line, as you pick up its pass.
+3. Experience: the headline, your current role and company, in one line, as you pick up its pass ("I’m a Lead
+   AI Engineer at Mastercard", with the "a").
    Targets: `role-mastercard`.
 4. Experience: each pass is one role; pick one up and it opens below (name the two you pick); or see every role at
    once. Targets: `role-uob`, `role-illumina`, `all-roles`.

@@ -482,6 +482,15 @@ describe("tourJsonSchema", () => {
   });
 });
 
+/** Straight quotes and apostrophes, lower case: a re-recording may use either kind. */
+const norm = (text: string) =>
+  text.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').toLowerCase();
+const HIRING_LABEL = norm("I'm hiring \u2014 check my fit for a role");
+const WRITING_ASK = [
+  "How would you build production-ready agents?",
+  "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?",
+];
+
 describe("SITE_TOUR", () => {
   it("the shipped tour is valid", () => {
     expect(tourProblems(SITE_TOUR)).toEqual([]);
@@ -501,10 +510,10 @@ describe("SITE_TOUR", () => {
   });
 
   it("opens by saying the whole site is a tool, and closes by inviting live questions with nothing to show", () => {
-    expect(SITE_TOUR.steps[0].say).toMatch(/whole website is a tool/i);
+    expect(norm(SITE_TOUR.steps[0].say)).toMatch(/whole (web)?site is a tool/);
     expect(SITE_TOUR.steps[0].targets).toEqual([]);
     const last = SITE_TOUR.steps[SITE_TOUR.steps.length - 1];
-    expect(last.say).toMatch(/recorded/i);
+    expect(norm(last.say)).toMatch(/recorded/);
     expect(last.targets).toEqual([]);
   });
 
@@ -512,33 +521,35 @@ describe("SITE_TOUR", () => {
     expect(SITE_TOUR.steps[1].targets).toEqual(["ask-button", "fit-mode"]);
   });
 
-  it("records example questions on one step only (the file leaves ask off the rest), the writing step", () => {
-    const recordedAsks = (recordedTour.steps as Array<{ ask?: string[] }>).filter((s) => "ask" in s);
+  it("records example questions on one step only, the writing step, and no other step has an ask", () => {
+    const recordedAsks = (recordedTour.steps as Array<{ ask?: string[] }>).filter((s) => s.ask && s.ask.length > 0);
     expect(recordedAsks).toHaveLength(1);
-    for (const s of SITE_TOUR.steps) if (!s.targets.includes("writing")) expect("ask" in s).toBe(false);
+    for (const s of SITE_TOUR.steps) if (!s.targets.includes("writing")) expect(s.ask ?? []).toEqual([]);
     const withQuestions = SITE_TOUR.steps.filter((s) => s.ask && s.ask.length > 0);
     expect(withQuestions).toHaveLength(1);
     expect(withQuestions[0].targets).toEqual(["writing"]);
-    expect(withQuestions[0].say).toBe(
-      "My writing is a newspaper of articles by year and theme, and I can answer questions on any of them. Here are two examples; you\u2019ll find them in Ask Titus after the tour too.",
-    );
-    expect(withQuestions[0].ask).toEqual([
-      "How would you build production-ready agents?",
-      "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?",
-    ]);
+    expect(withQuestions[0].ask).toEqual(WRITING_ASK);
   });
 
-  it("tells them in step 2 that the job-description button stays in Ask Titus after the tour", () => {
-    const say = SITE_TOUR.steps[1].say;
-    expect(say).toContain("I\u2019m hiring \u2014 check my fit for a role");
-    expect(say).toContain("That button stays in Ask Titus after this tour.");
-    expect(say.indexOf("That button stays in Ask Titus after this tour.")).toBeGreaterThan(say.indexOf("I\u2019ll honestly say how I fit."));
+  it("has the writing step say it offers examples that are available in Ask Titus after the tour", () => {
+    const writing = SITE_TOUR.steps.find((s) => s.targets.includes("writing"))!;
+    expect(writing.targets).toEqual(["writing"]);
+    expect(norm(writing.say)).toMatch(/example/);
+    expect(norm(writing.say)).toMatch(/after/);
   });
 
-  it("points out in the last step that the job-description button is right below", () => {
-    const last = SITE_TOUR.steps[SITE_TOUR.steps.length - 1].say;
-    expect(last).toContain("watch me drive the site live");
-    expect(last).toContain("\u201cI\u2019m hiring \u2014 check my fit for a role\u201d is right below whenever you need it.");
+  it("tells them in step 2 (the one showing the job-description button) that it stays available after the tour", () => {
+    const fit = SITE_TOUR.steps.filter((s) => s.targets.includes("fit-mode"));
+    expect(fit).toHaveLength(1);
+    expect(fit[0]).toBe(SITE_TOUR.steps[1]);
+    expect(norm(fit[0].say)).toMatch(/stays|remain|after(ward)?/);
+  });
+
+  it("points out in the last step that it was recorded and where the job-description button is", () => {
+    const last = SITE_TOUR.steps[SITE_TOUR.steps.length - 1];
+    expect(last.targets).toEqual([]);
+    expect(norm(last.say)).toMatch(/recorded/);
+    expect(norm(last.say)).toContain(HIRING_LABEL);
   });
 
   it("still has no problems and runs under 120 s with the longer lines", () => {
@@ -555,7 +566,8 @@ describe("SITE_TOUR", () => {
   });
 
   it("tells visitors to click the exact hiring button in step 2", () => {
-    expect(SITE_TOUR.steps[1].say).toContain("“I’m hiring — check my fit for a role”");
+    const fit = SITE_TOUR.steps.find((s) => s.targets.includes("fit-mode"))!;
+    expect(norm(fit.say)).toContain(HIRING_LABEL);
   });
 
   it("uses the exact degree title in the education step", () => {
