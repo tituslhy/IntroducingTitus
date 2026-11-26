@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, type MouseEvent, type ReactNode } from 'react'
+import { useRef, type ReactNode, type SyntheticEvent } from 'react'
 
 /**
  * Hovering (or tapping) a tech tag marks every tag with the same name inside this wrapper with
@@ -19,13 +19,14 @@ export default function TechHighlight({ children }: { children: ReactNode }) {
     })
   }
 
-  const onOver = (e: MouseEvent<HTMLDivElement>) => {
+  // Keyboard focus inside the wrapper marks tags the same way the mouse does.
+  const onOver = (e: SyntheticEvent<HTMLDivElement>) => {
     const tag = (e.target as HTMLElement).closest<HTMLElement>('[data-tech]')
     set(tag?.dataset.tech ?? null)
   }
 
   return (
-    <div ref={ref} onMouseOver={onOver} onMouseLeave={() => set(null)}>
+    <div ref={ref} onMouseOver={onOver} onFocus={onOver} onMouseLeave={() => set(null)} onBlur={() => set(null)}>
       {children}
     </div>
   )

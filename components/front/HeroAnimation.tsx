@@ -468,6 +468,9 @@ export default function HeroAnimation({ className = '' }: { className?: string }
       document.addEventListener('visibilitychange', onVisibility)
       reduced.addEventListener('change', onMotion)
       start()
+    }, () => {
+      // Nothing above can reject (loadImage resolves even for a missing logo); if the fonts promise ever did,
+      // the hero simply stays on its still frame.
     })
 
     return () => {

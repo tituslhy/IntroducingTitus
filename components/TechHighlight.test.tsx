@@ -1,4 +1,4 @@
-import { fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import TechHighlight from "./TechHighlight";
 
 function Fixture() {
@@ -123,5 +123,88 @@ describe("TechHighlight", () => {
 
     fireEvent.mouseOver(tagsFor(container, "python")[0]);
     expect(tagsFor(container, "python")[0]).toHaveAttribute("data-on");
+  });
+
+  describe("keyboard focus", () => {
+    function FocusFixture() {
+      return (
+        <TechHighlight>
+          <ul>
+            <li data-tech="python">
+              <button data-testid="py-1">Python</button>
+            </li>
+            <li data-tech="docker">
+              <a href="#docker" data-testid="docker-link">
+                Docker
+              </a>
+            </li>
+            <li data-tech="python">
+              <button data-testid="py-2">Python</button>
+            </li>
+            <li data-tech="redis">Redis</li>
+          </ul>
+        </TechHighlight>
+      );
+    }
+
+    it("marks every tag with the focused key and no others", () => {
+      const { container, getByTestId } = render(<FocusFixture />);
+
+      fireEvent.focus(getByTestId("py-1"));
+
+      expect(onTags(container)).toHaveLength(2);
+      for (const el of tagsFor(container, "python")) {
+        expect(el).toHaveAttribute("data-on");
+      }
+      expect(tagsFor(container, "docker")[0]).not.toHaveAttribute("data-on");
+      expect(tagsFor(container, "redis")[0]).not.toHaveAttribute("data-on");
+    });
+
+    it("marks tags when a link inside a tag takes focus", () => {
+      const { container, getByTestId } = render(<FocusFixture />);
+
+      fireEvent.focus(getByTestId("docker-link"));
+
+      expect(onTags(container)).toHaveLength(1);
+      expect(tagsFor(container, "docker")[0]).toHaveAttribute("data-on");
+    });
+
+    it("clears every mark when focus leaves", () => {
+      const { container, getByTestId } = render(<FocusFixture />);
+
+      fireEvent.focus(getByTestId("py-1"));
+      expect(onTags(container)).toHaveLength(2);
+
+      fireEvent.blur(getByTestId("py-1"));
+
+      expect(onTags(container)).toHaveLength(0);
+    });
+
+    it("switches the marks when focus moves to a tag with a different key", () => {
+      const { container, getByTestId } = render(<FocusFixture />);
+
+      fireEvent.focus(getByTestId("py-1"));
+      fireEvent.blur(getByTestId("py-1"));
+      fireEvent.focus(getByTestId("docker-link"));
+
+      expect(onTags(container)).toHaveLength(1);
+      expect(tagsFor(container, "docker")[0]).toHaveAttribute("data-on");
+      for (const el of tagsFor(container, "python")) {
+        expect(el).not.toHaveAttribute("data-on");
+      }
+    });
+
+    it("follows real focus changes between tags", () => {
+      const { container, getByTestId } = render(<FocusFixture />);
+
+      act(() => getByTestId("py-1").focus());
+      expect(onTags(container).map((el) => el.dataset.tech)).toEqual(["python", "python"]);
+
+      act(() => getByTestId("docker-link").focus());
+      expect(onTags(container).map((el) => el.dataset.tech)).toEqual(["docker"]);
+
+      act(() => getByTestId("docker-link").blur());
+      expect(onTags(container)).toHaveLength(0);
+    });
   });
 });

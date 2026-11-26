@@ -130,7 +130,7 @@ export default function PeriodicTable({ articleCounts }: { articleCounts: number
     const show = (ids: string[]) => {
       const found = toolIndexes(ids)
       if (found.length === 0) return
-      const latest = found.map((i) => TOOLS[i].since).reduce((a, b) => (b > a ? b : a))
+      const latest = found.map((i) => TOOLS[i].since).reduce((a, b) => (b > a ? b : a), TOOLS[found[0]].since)
       startedRef.current = true
       setPlaying(false)
       setSparkle(true)

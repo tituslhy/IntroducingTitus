@@ -120,7 +120,7 @@ async function main(): Promise<void> {
   const { ARTICLES } = await import("../lib/articles");
   ARTICLES.forEach((a) => collectUrls(a.url, urls));
   sourceUrls([join(root, "components"), join(root, "app")]).forEach((u) => urls.add(u));
-  const list = [...urls].filter(checkable).sort();
+  const list = [...urls].filter(checkable).sort((a, b) => a.localeCompare(b));
   if (process.argv.includes("--list")) {
     console.log(list.join("\n"));
     return;
