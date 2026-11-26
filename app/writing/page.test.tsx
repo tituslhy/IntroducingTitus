@@ -22,10 +22,10 @@ describe('Writing page (/writing)', () => {
     expect(screen.getByRole('heading', { level: 3, name: newest.title })).toBeInTheDocument()
   })
 
-  it('counts the real articles on the nameplate, with the oldest edition’s year', () => {
-    const { container } = render(<WritingPage />)
+  it('shows the real article count on the nameplate, with the oldest edition’s year', () => {
+    render(<WritingPage />)
     const all = stories()
-    expect(container.querySelector('.sr-only')).toHaveTextContent(String(all.length))
+    expect(screen.getByText(String(all.length), { selector: '[data-phase]' })).toBeInTheDocument()
     const oldest = editions(all).at(-1)?.year
     expect(screen.getByText(`technical articles since ${oldest}`)).toBeInTheDocument()
   })

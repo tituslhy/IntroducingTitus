@@ -177,13 +177,13 @@ describe('WritingPaper', () => {
       expect(heading.querySelector('em')).toHaveTextContent('Times')
     })
 
-    it('keeps the real article count for screen readers, and counts up on screen', () => {
-      const { container } = renderPaper()
-      expect(container.querySelector('.sr-only')).toHaveTextContent('10')
-      expect(screen.getByText('0', { selector: 'span[aria-hidden="true"]' })).toBeInTheDocument()
+    it('shows the real article count as plain text, before it scrolls into view', () => {
+      renderPaper()
+      expect(screen.getByText('10', { selector: '[data-phase]' })).toBeInTheDocument()
+      expect(screen.queryByText('0', { selector: '[data-phase]' })).toBeNull()
     })
 
-    it('reaches the full count once it scrolls into view', () => {
+    it('keeps the real count, with no intermediate values, once it scrolls into view', () => {
       let onScreen: IntersectionObserverCallback = () => {}
       global.IntersectionObserver = class {
         constructor(cb: IntersectionObserverCallback) {
@@ -200,7 +200,7 @@ describe('WritingPaper', () => {
       act(() => {
         jest.advanceTimersByTime(1500)
       })
-      expect(screen.getByText('10', { selector: 'span[aria-hidden="true"]' })).toBeInTheDocument()
+      expect(screen.getByText('10', { selector: '[data-phase]' })).toHaveAttribute('data-phase', 'rising')
     })
 
     it('says how long the paper has run, from the oldest edition', () => {

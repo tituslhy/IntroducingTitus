@@ -1,6 +1,7 @@
 import type OpenAI from "openai";
-import type { ResponseInput, Tool } from "openai/resources/responses/responses";
-import type { CopilotEvent, CopilotTool, Emit } from "@/lib/copilot-tools";
+import type { ResponseCreateParamsStreaming, ResponseInput, Tool } from "openai/resources/responses/responses";
+import type { CopilotEvent, CopilotTool, Emit, StepLabels } from "@/lib/copilot-tools";
+import { summaryHeadline } from "@/lib/copilot-steps";
 
 // ---------------------------------------------------------------------------
 // The copilot's agent loop: a bounded, general tool loop on the OpenAI
@@ -16,6 +17,37 @@ export const MAX_ROUNDS = 4;
  * my writing is answered by search_writing, from my own articles, not the web.
  */
 export const HOSTED_TOOLS: Tool[] = [];
+
+/**
+ * Reasoning summaries are asked for so the drawer can show what the model is thinking about before it picks a tool.
+ * If the model or account refuses them (a 400 that names reasoning or summaries), the round is retried without,
+ * and this instance stops asking. Any other error is thrown as before.
+ */
+let reasoningSummaries = true;
+
+/** Test hook: ask for reasoning summaries again. */
+export function resetReasoningSummaries(): void {
+  reasoningSummaries = true;
+}
+
+type CreateParams = ResponseCreateParamsStreaming;
+
+async function createRound(openai: OpenAI, params: CreateParams, signal: AbortSignal) {
+  if (reasoningSummaries) {
+    try {
+      return await openai.responses.create({ ...params, reasoning: { summary: "auto" } }, { signal });
+    } catch (err) {
+      // Only a refusal of the summaries themselves turns them off; any other bad request is a real error.
+      const message = err instanceof Error ? err.message : String(err);
+      if ((err as { status?: unknown } | null)?.status !== 400 || !/reasoning|summar/i.test(message)) throw err;
+      reasoningSummaries = false;
+      console.warn(
+        JSON.stringify({ event: "copilot_reasoning_summaries_off", message })
+      );
+    }
+  }
+  return openai.responses.create(params, { signal });
+}
 
 export type InputMessage = { role: "system" | "user" | "assistant"; content: string };
 
@@ -104,9 +136,11 @@ export async function* copilotStream(
     const span = guard(() => observer?.roundStart(round, next, offered.map(toolName)));
     const calls: FunctionCall[] = [];
     let text = "";
+    const thoughts: string[] = [];
     let settled = false;
     try {
-      const stream = await openai.responses.create(
+      const stream = await createRound(
+        openai,
         {
           model: MODEL,
           stream: true,
@@ -116,7 +150,7 @@ export async function* copilotStream(
           ...(previousId && { previous_response_id: previousId }),
           ...(offered.length > 0 && { tools: offered }),
         },
-        { signal }
+        signal
       );
 
       for await (const ev of stream) {
@@ -125,9 +159,18 @@ export async function* copilotStream(
           yield { kind: "text", text: ev.delta };
         } else if (ev.type === "response.created") previousId = ev.response.id;
         else if (ev.type === "response.output_item.done" && ev.item.type === "function_call") calls.push(ev.item);
+        else if (ev.type === "response.reasoning_summary_part.done") {
+          // Guarded: a malformed summary is skipped, never allowed to break the reply.
+          const raw: unknown = (ev as { part?: { text?: unknown } }).part?.text;
+          const headline = typeof raw === "string" ? summaryHeadline(raw) : null;
+          if (headline) {
+            thoughts.push(headline);
+            yield { kind: "event", event: { type: "thought", text: headline } };
+          }
+        }
       }
       settled = true;
-      span.end({ text, function_calls: calls, response_id: previousId });
+      span.end({ text, function_calls: calls, response_id: previousId, ...(thoughts.length > 0 && { thoughts }) });
     } catch (err) {
       settled = true;
       span.fail(err);
@@ -142,38 +185,58 @@ export async function* copilotStream(
     if (calls.length === 0 || !previousId || lastRound) return;
     stats.toolCalls += calls.length;
 
+    // Checked first (budget, arguments), so the drawer only hears about calls that will really run.
+    const admitted = calls.map((call) => admit(call, byName, used));
+    const steps = admitted.flatMap((a) => (a.ok && a.labels ? [{ id: a.call.call_id, tool: a.call.name, labels: a.labels }] : []));
+    for (const s of steps) yield { kind: "event", event: { type: "step", id: s.id, tool: s.tool, label: s.labels.doing, done: false } };
+
     // This step's calls run in parallel (e.g. search_writing + show_on_page).
     // Events flush once the step's tools finish.
     next = await Promise.all(
-      calls.map(async (call) => ({
+      admitted.map(async (a) => ({
         type: "function_call_output" as const,
-        call_id: call.call_id,
-        output: JSON.stringify(await runCall(call, byName, used, { emit, signal }, observer)),
+        call_id: a.call.call_id,
+        output: JSON.stringify(await runCall(a, { emit, signal }, observer)),
       }))
     );
     for (const event of events.splice(0)) yield { kind: "event", event };
+    for (const s of steps) yield { kind: "event", event: { type: "step", id: s.id, tool: s.tool, label: s.labels.done, done: true } };
   }
 }
 
+type Admitted =
+  | { ok: true; call: FunctionCall; tool: CopilotTool; args: unknown; labels: StepLabels | null }
+  | { ok: false; call: FunctionCall; error: string };
+
+/** Decides whether a call runs: a known tool, within its per-reply budget, with valid arguments. */
+function admit(call: FunctionCall, byName: Map<string, CopilotTool>, used: Map<string, number>): Admitted {
+  const tool = byName.get(call.name);
+  if (!tool) return { ok: false, call, error: "unknown tool" };
+  // Counted before validation: a malformed call still spends the tool's budget.
+  const n = used.get(call.name) ?? 0;
+  if (n >= tool.maxCallsPerReply) return { ok: false, call, error: "limit reached; answer with what you have" };
+  used.set(call.name, n + 1);
+  const args = tool.parse(call.arguments);
+  if (args === null) return { ok: false, call, error: "invalid arguments" };
+  let labels: StepLabels | null = null;
+  try {
+    labels = tool.describe?.(args) ?? null;
+  } catch {
+    // a progress line is never worth breaking the reply
+  }
+  return { ok: true, call, tool, args, labels };
+}
+
 async function runCall(
-  call: FunctionCall,
-  byName: Map<string, CopilotTool>,
-  used: Map<string, number>,
+  admitted: Admitted,
   ctx: { emit: Emit; signal: AbortSignal },
   observer?: LoopObserver
 ): Promise<unknown> {
-  const span = guard(() => observer?.toolStart(call));
+  const span = guard(() => observer?.toolStart(admitted.call));
   const result = await (async (): Promise<unknown> => {
-    const tool = byName.get(call.name);
-    if (!tool) return { error: "unknown tool" };
-    // Counted before validation: a malformed call still spends the tool's budget.
-    const n = used.get(call.name) ?? 0;
-    if (n >= tool.maxCallsPerReply) return { error: "limit reached; answer with what you have" };
-    used.set(call.name, n + 1);
-    const args = tool.parse(call.arguments);
-    if (args === null) return { error: "invalid arguments" };
+    if (!admitted.ok) return { error: admitted.error };
     try {
-      return await tool.run(args, { ...ctx, trace: span });
+      return await admitted.tool.run(admitted.args, { ...ctx, trace: span });
     } catch (err) {
       span.annotate({ thrown: err instanceof Error ? `${err.name}: ${err.message}` : String(err) });
       return { error: "tool failed" }; // a broken tool never breaks the reply

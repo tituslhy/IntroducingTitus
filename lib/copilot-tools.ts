@@ -22,7 +22,17 @@ import { pickSections, type PickInput, type PickOptions, type PickedArticle, typ
 export type CopilotEvent =
   | { type: "action"; target: string }
   /** relevance/score are Jev's for search_writing; null for read_writing, which reads by id without ranking. */
-  | { type: "source"; n: number; title: string; url: string; relevance: number | null; score: number | null };
+  | { type: "source"; n: number; title: string; url: string; relevance: number | null; score: number | null }
+  /**
+   * A tool step the drawer shows while the visitor waits: sent once when the call starts (done: false) and
+   * once when it finishes (done: true), with `label` worded for each. `id` is the call's id.
+   */
+  | { type: "step"; id: string; tool: string; label: string; done: boolean }
+  /** The headline of a reasoning summary the model streamed while thinking (lib/copilot-steps.ts summaryHeadline). */
+  | { type: "thought"; text: string };
+
+/** How a call reads in the drawer: while it runs, and once it has. Plain words, never a whimsical verb. */
+export type StepLabels = { doing: string; done: string };
 
 export type Emit = (event: CopilotEvent) => void;
 
@@ -45,6 +55,8 @@ export interface CopilotTool<A = unknown> {
    * it goes to the trace only, never to the model.
    */
   run(args: A, ctx: { emit: Emit; signal: AbortSignal; trace?: TraceSpan }): Promise<unknown>;
+  /** The drawer's progress line for this call, or null to show none (show_on_page has its own caption). */
+  describe?(args: A): StepLabels | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +115,12 @@ function createShowOnPageTool(): CopilotTool<string[]> {
       return { shown: targets };
     },
   };
+}
+
+/** ["LiteLLM", "Helm"] → “LiteLLM” and “Helm”; three → “a”, “b” and “c”. */
+export function quoteList(items: readonly string[]): string {
+  const q = items.map((t) => `“${t}”`);
+  return q.length <= 1 ? (q[0] ?? "") : `${q.slice(0, -1).join(", ")} and ${q[q.length - 1]}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -285,6 +303,11 @@ function createSearchWritingTool(search: SearchFn, reading: Reading, pick: PickF
     },
     maxCallsPerReply: MAX_READING_CALLS,
     parse: parseSearchWritingArgs,
+    describe: ({ topics, more }) => {
+      if (more) return { doing: "Looking for more of my articles", done: "Looked for more of my articles" };
+      const what = quoteList(topics);
+      return { doing: `Searching my writing for ${what}`, done: `Searched my writing for ${what}` };
+    },
     async run({ topics, more }, { emit, signal, trace }) {
       if (more && pending) {
         if (pending.length === 0) return { articles: [], note: "No more articles of mine on this." };
@@ -420,6 +443,12 @@ function createReadWritingTool(catalog: readonly Article[], reading: Reading, pi
     },
     maxCallsPerReply: MAX_READING_CALLS,
     parse: parseReadWritingArgs,
+    describe: ({ articles: ids }) => {
+      const titles = ids.map((id) => lookup(id)?.title).filter((t): t is string => Boolean(t));
+      if (titles.length === 0) return null;
+      const what = quoteList(titles);
+      return { doing: `Reading ${what}`, done: `Read ${what}` };
+    },
     async run({ articles: ids, focus }, { emit, signal, trace }) {
       const known: Article[] = [];
       const unknown: string[] = [];

@@ -7,14 +7,16 @@ describe('HeroTile', () => {
     expect(screen.getByText('GPA out of 4.0')).toBeInTheDocument()
   })
 
-  it('gives screen readers the whole figure', () => {
+  it('shows the whole figure as plain text, so screen readers get it once', () => {
     const { container } = render(<HeroTile figure="3.98" caption="GPA out of 4.0" />)
-    expect(within(container).getByText('3.98', { selector: '.sr-only' })).toBeInTheDocument()
+    expect(within(container).getByText('3.98')).toBeInTheDocument()
+    expect(container.querySelector('[aria-hidden]')).toBeNull()
+    expect(container.querySelector('.sr-only')).toBeNull()
   })
 
-  it('shows a word figure in full, as it has nothing to count up', () => {
+  it('shows a word figure in full', () => {
     render(<HeroTile figure="Top Student" caption="Award" />)
-    expect(screen.getByText('Top Student', { selector: 'span[aria-hidden="true"]' })).toBeInTheDocument()
+    expect(screen.getByText('Top Student')).toBeInTheDocument()
   })
 
   it('shows its corner note when one is given', () => {

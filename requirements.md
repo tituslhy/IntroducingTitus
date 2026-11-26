@@ -39,7 +39,7 @@ const nextConfig = {
 
 ### Visual Direction
 - **Mode:** Light (warm cream paper) by default. Optional dark toggle, OFF by default — skip for now.
-- **Aesthetic:** Editorial serif type on cream paper with soft rounded tiles (adopted 2026-11-21, mock `design/rethink/site-style.html`). Inner pages share one grammar: name pinned left; a dark results row; one dark headline tile per item (amber figure, slow glow, count-up); cream tiles for details; latte boxes for nested or earlier items; small-capital mono group labels; tools as rounded pills; an "Ask about X →" pill that opens Ask Titus. Single amber accent. No shadows on type.
+- **Aesthetic:** Editorial serif type on cream paper with soft rounded tiles (adopted 2026-11-21, mock `design/rethink/site-style.html`). Inner pages share one grammar: name pinned left; a dark results row; one dark headline tile per item (amber figure, slow glow, fades and rises into place); cream tiles for details; latte boxes for nested or earlier items; small-capital mono group labels; tools as rounded pills; an "Ask about X →" pill that opens Ask Titus. Single amber accent. No shadows on type.
 - **NOT:** Purple gradients. Generic SaaS look. Overused fonts (Inter, Roboto, Space Grotesk). Glowing dark-terminal look.
 - **Font pairing:** Newsreader (headings/name — variable serif) + IBM Plex Mono (body/code/tags). DM Serif Display dropped.
 - **Accent color:** Aged amber `oklch(0.62 0.155 55)` (≈ `#b76a23`). Replaces `#F59E0B` everywhere.
@@ -210,7 +210,7 @@ Tags: LlamaIndex, Qdrant, AWS Bedrock, Docker+CUDA, Grafana, SonarQube
 - Featured by: Singapore Management University, Unsloth, LlamaIndex, IBM, FlowerAI
 - Link: https://medium.com/@tituslhy
 - Display (/writing, redesigned 2026-11-21; mock `design/rethink/writing-paper.html`): the page is a newspaper, **The Titus Times**, same palette and tiles as the rest of the site with a newspaper's furniture:
-  - Nameplate between a heavy rule and a hairline; ears hold a dark count-up tile ("N technical articles since <first year>") and "Ask what to read first →".
+  - Nameplate between a heavy rule and a hairline; ears hold a dark tile ("N technical articles since <first year>") and "Ask what to read first →".
   - Dateline: Singapore · the newest article's date in view (never today's date) · "<year> edition · N articles".
   - **Editions:** one per year (back issues). **Desks:** one per theme in `content/article-themes.json`, alphabetical; every article sits under exactly one desk. Desks: Agent Applications, Agent Frameworks, Agent Patterns and Protocols, Blockchain, Copilots, Evaluating and Testing Agents, RAG Applications, Software Engineering, Training LLMs, Working Life.
   - Front page: the **latest story** (headline, one-line standfirst, cover picture, byline, drop-cap opening, "Continue reading on Medium", Ask pill), three stories down the side (the first with a picture), three across with pictures, the rest "In brief" as text.
@@ -230,7 +230,7 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 - Header: "Ask **Titus**" with label "Powered by GPT-4o mini"
 - Empty state: 4 starter prompts
 - Input placeholder: "Ask about my work…"
-- Typing indicator (3 amber dots) while awaiting response
+- Typing indicator (3 amber dots) while awaiting response, captioned with what is really happening: a plain waiting word (Thinking, Reasoning… changing every 3s) until the model's reasoning-summary headline arrives (bold title only, never the paragraph), then one line per tool step ("Searching my writing for …"). Steps fold into one line above the reply ("Searched my writing · read 3 articles"), opening to list them
 - Close button on drawer
 - Session-only memory via `useState` — no persistence, no DB
 - Markdown rendered via `react-markdown`, restyled editorial (serif, amber `<a>`)

@@ -963,7 +963,7 @@ describe("POST - tool loop", () => {
     expect(mockCreate).toHaveBeenCalledTimes(4);
   });
 
-  it("should forward search_writing source events as NDJSON lines before the next round's text", async () => {
+  it("should forward search_writing step and source events as NDJSON lines before the next round's text", async () => {
     const search = jest.requireMock("@/lib/writing-search").searchMyWriting as jest.Mock;
     search.mockResolvedValueOnce([
       {
@@ -995,6 +995,7 @@ describe("POST - tool loop", () => {
     const lines = parseLines(await drainResponse(await postChat()));
 
     expect(lines).toEqual([
+      { type: "step", id: "call_1", tool: "search_writing", label: "Searching my writing for “guardrails”", done: false },
       {
         type: "source",
         n: 1,
@@ -1011,12 +1012,34 @@ describe("POST - tool loop", () => {
         relevance: 0.8,
         score: null,
       },
+      { type: "step", id: "call_1", tool: "search_writing", label: "Searched my writing for “guardrails”", done: true },
       { type: "delta", text: "Yes, I wrote about it [1][2]." },
     ]);
     expect(search).toHaveBeenCalledWith("guardrails", expect.objectContaining({ onTrace: expect.any(Function) }));
     const output = JSON.parse(mockCreate.mock.calls[1][0].input[0].output);
     expect(output.articles.map((a: { n: number }) => a.n)).toEqual([1, 2]);
     expect(output.articles[0].sections[0].text).toBe("Guardrails body");
+  });
+
+  it("should forward a reasoning thought as a thought NDJSON line, and skip a summary with no headline", async () => {
+    const reasoningDone = (text: string): FakeEvent => ({
+      type: "response.reasoning_summary_part.done",
+      part: { type: "summary_text", text },
+    });
+    await queueRounds([
+      responseCreated("resp_1"),
+      reasoningDone("**Checking your writing**\n\nI will look for guardrails posts."),
+      reasoningDone("No headline in this one."),
+      outputText("Answer."),
+      responseDone,
+    ]);
+
+    const lines = parseLines(await drainResponse(await postChat()));
+
+    expect(lines).toEqual([
+      { type: "thought", text: "Checking your writing" },
+      { type: "delta", text: "Answer." },
+    ]);
   });
 
   it("reuses source numbers across a retry, so the drawer never sees two articles under one n", async () => {

@@ -3,7 +3,7 @@
 import { useState, useSyncExternalStore } from 'react'
 import BackToTop from '@/components/BackToTop'
 import AskPill from '@/components/tiles/AskPill'
-import CountUp from '@/components/tiles/CountUp'
+import RiseIn from '@/components/tiles/RiseIn'
 import type { Correction } from '@/lib/profile'
 import type { Desk, Story } from '@/lib/writing-paper'
 
@@ -124,7 +124,7 @@ export default function WritingPaper({ stories, desks, editions, folio, featured
         <header className="mt-2.5 grid grid-cols-[230px_1fr_250px] items-center gap-6 border-b border-t-[3px] border-ink pb-3.5 pt-[18px] max-[960px]:grid-cols-1">
           <div className="glow-tile rounded-[20px] bg-ink px-[18px] py-4 text-paper max-[960px]:order-2 max-[960px]:max-w-[300px]">
             <span className="block font-serif text-[40px] font-medium leading-none tracking-[-0.03em] text-amber-hi">
-              <CountUp figure={String(stories.length)} />
+              <RiseIn figure={String(stories.length)} />
             </span>
             <span className="mt-1.5 block font-mono text-[11.5px] leading-[1.45] text-[oklch(0.85_0.02_78)]">
               technical articles{since ? ` since ${since}` : ''}

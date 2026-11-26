@@ -220,12 +220,12 @@ describe('featured projects', () => {
     expect(within(articleFor(container, marginCall)).getByRole('button', { name: 'Play TheMarginCall demo', hidden: true })).toBeInTheDocument()
   })
 
-  it('shows the highlight: the figure (counted from zero) with its caption, and the figure’s key', () => {
+  it('shows the highlight: the figure as plain text with its caption, and the figure’s key', () => {
     const { container } = render(<Projects />)
     const tile = articleFor(container, bassoon).querySelector('[data-tech]') as HTMLElement
     expect(tile).toHaveAttribute('data-tech', 'fictional-bassoon figure')
     expect(within(tile).getByText(bassoon.caption)).toBeInTheDocument()
-    expect(tile.querySelector('.sr-only')).toHaveTextContent(bassoon.figure.value)
+    expect(within(tile).getByText(bassoon.figure.value)).toBeInTheDocument()
   })
 
   it('gives the corner note only when the secondary has a number, with its own key', () => {

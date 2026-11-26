@@ -155,7 +155,7 @@ describe('OpeningLine', () => {
 
     it('reads each figure from data, not a typed literal, so the page cannot drift from FRONT_STATS', () => {
       const { container } = render(<OpeningLine />)
-      const figures = Array.from(container.querySelectorAll('a .sr-only'), (el) => el.textContent)
+      const figures = Array.from(container.querySelectorAll('a [data-phase]'), (el) => el.textContent)
       expect(figures).toEqual([`${FRONT_STATS.years}+`, String(FRONT_STATS.articles), String(FRONT_STATS.repos), String(OPEN_SOURCE.length)])
     })
   })
