@@ -6,8 +6,9 @@ import { DRAWER_TARGET_IDS, stepDurationMs, type SiteTour, type TourStep } from 
 
 export type TourStatus = 'idle' | 'playing' | 'paused' | 'done'
 
-/** Most time between two things one step shows (two passes, then "show all"). */
-const MAX_ACTION_GAP_MS = 2000
+/** Most time between two things one step shows (two passes, then "show all"): long enough to see a pass picked
+ * up on the desk and then its role below. */
+const MAX_ACTION_GAP_MS = 4000
 
 type Action = { kind: 'ring'; id: string } | { kind: 'stop'; stop: Stop }
 
@@ -45,7 +46,7 @@ export function useTourPlayer({
 }: {
   tour: SiteTour
   /** Shows one stop (opens its page if needed, reveals, scrolls, spotlights); false when it never appeared. */
-  showStop: (stop: Stop) => Promise<boolean>
+  showStop: (stop: Stop, signal: AbortSignal) => Promise<boolean>
   /** Spotlights a drawer element by id, without scrolling the page. */
   ringDrawer: (id: string) => void
   pathname: string
@@ -81,9 +82,15 @@ export function useTourPlayer({
   // The next step, called from inside a step's own timer.
   const beginRef = useRef<(i: number) => void>(() => {})
 
+  // Cancels the current step's page moves still in flight (a pass being picked up, a page still loading) whenever
+  // its timers are cleared: pause, skip, the next step, end, stop.
+  const inFlight = useRef<AbortController | null>(null)
+
   const clearTimers = () => {
     timers.current.forEach(clearTimeout)
     timers.current = []
+    inFlight.current?.abort()
+    inFlight.current = null
   }
 
   const set = (s: TourStatus) => {
@@ -97,15 +104,21 @@ export function useTourPlayer({
     const actions = actionsOf(step, byIdRef.current)
     const gap = Math.min(MAX_ACTION_GAP_MS, stepDurationMs(step) / Math.max(1, actions.length))
     startedAt.current = Date.now()
+    const ctrl = new AbortController()
+    inFlight.current = ctrl
     actions.slice(actionsRun.current).forEach((action, k) => {
       timers.current.push(
         setTimeout(() => {
-          actionsRun.current += 1
-          if (action.kind === 'ring') ringRef.current(action.id)
-          else {
-            allowedPaths.current.add(action.stop.path)
-            void showStopRef.current(action.stop)
+          if (action.kind === 'ring') {
+            actionsRun.current += 1
+            ringRef.current(action.id)
+            return
           }
+          allowedPaths.current.add(action.stop.path)
+          // Counted once it has finished, so a move cut short by a pause runs again on Resume.
+          void showStopRef.current(action.stop, ctrl.signal).then(() => {
+            if (!ctrl.signal.aborted) actionsRun.current += 1
+          })
         }, k * gap)
       )
     })

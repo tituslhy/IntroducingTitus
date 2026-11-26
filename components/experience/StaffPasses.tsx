@@ -103,7 +103,7 @@ export default function StaffPasses({
   }
 
   return (
-    <div className="mb-2 rounded-[28px] bg-paper-deep px-[26px] pb-6 pt-[26px] max-[820px]:px-4">
+    <div data-desk className="mb-2 rounded-[28px] bg-paper-deep px-[26px] pb-6 pt-[26px] max-[820px]:px-4">
       <p className="m-0 flex flex-wrap justify-between gap-3 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-ink-soft">
         <span>
           <b className="font-semibold text-ink">{passes.length} staff passes</b> · oldest on the left

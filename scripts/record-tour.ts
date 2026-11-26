@@ -39,7 +39,10 @@ async function main() {
   const tour = { ...parsed, draft: false, recordedAt: new Date().toISOString(), model: MODEL };
 
   tour.steps.forEach((s, i) =>
-    console.log(`${String(i + 1).padStart(2)}. (${(stepDurationMs(s) / 1000).toFixed(1)}s) ${s.say}\n    → ${s.targets.join(", ") || "—"}`)
+    console.log(
+      `${String(i + 1).padStart(2)}. (${(stepDurationMs(s) / 1000).toFixed(1)}s) ${s.say}\n    → ${s.targets.join(", ") || "—"}` +
+        (s.ask?.length ? `\n    ? ${s.ask.join("\n    ? ")}` : "")
+    )
   );
   console.log(`Total: ${(tourDurationMs(tour) / 1000).toFixed(0)}s`);
 

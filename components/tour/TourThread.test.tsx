@@ -60,4 +60,38 @@ describe('TourThread', () => {
     const { container } = render(<TourThread steps={[]} label={null} instant />)
     expect(container.querySelectorAll('.border-l p')).toHaveLength(0)
   })
+
+  it('wraps each line in a step div, one per step', () => {
+    const { container } = render(<TourThread steps={steps} label={null} instant />)
+    const wrappers = Array.from(container.querySelectorAll('.border-l > div'))
+    expect(wrappers).toHaveLength(3)
+    wrappers.forEach((w) => expect(w.querySelector(':scope > p')).not.toBeNull())
+  })
+
+  describe('extras', () => {
+    it('renders what extras returns under each step\'s line, called with the step and its index', () => {
+      const extras = jest.fn((step: { say: string }, i: number) => <span data-testid={`extra-${i}`}>{step.say}!</span>)
+      const { container } = render(<TourThread steps={steps} label={null} instant extras={extras} />)
+      expect(extras).toHaveBeenCalledTimes(3)
+      expect(extras).toHaveBeenNthCalledWith(1, steps[0], 0)
+      expect(extras).toHaveBeenNthCalledWith(3, steps[2], 2)
+      const wrappers = Array.from(container.querySelectorAll('.border-l > div'))
+      wrappers.forEach((w, i) => {
+        expect(w.children).toHaveLength(2)
+        expect(w.children[0].tagName).toBe('P')
+        expect(w.children[1]).toBe(screen.getByTestId(`extra-${i}`))
+      })
+    })
+
+    it('renders nothing extra when none is given or it returns null for a step', () => {
+      const { container } = render(
+        <TourThread steps={steps} label={null} instant extras={(_s, i) => (i === 1 ? <button>Go</button> : null)} />
+      )
+      const wrappers = Array.from(container.querySelectorAll('.border-l > div'))
+      expect(wrappers[0].children).toHaveLength(1)
+      expect(wrappers[1].children).toHaveLength(2)
+      expect(wrappers[2].children).toHaveLength(1)
+      expect(screen.getAllByRole('button')).toHaveLength(1)
+    })
+  })
 })

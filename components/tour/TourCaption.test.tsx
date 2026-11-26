@@ -222,4 +222,47 @@ describe('TourCaption', () => {
       jest.useRealTimers()
     }
   })
+
+  describe('example questions', () => {
+    const QS = ['How would you build production-ready agents?', 'What did you build at Illumina?']
+
+    it('shows none by default', () => {
+      setup()
+      expect(screen.queryByRole('list', { name: 'Example questions' })).not.toBeInTheDocument()
+    })
+
+    it('shows each question as a button under the narration', () => {
+      setup({ ask: QS })
+      const list = screen.getByRole('list', { name: 'Example questions' })
+      expect(list).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: QS[0] })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: QS[1] })).toBeInTheDocument()
+      const region = screen.getByRole('region', { name: 'Site tour' })
+      expect(region).toContainElement(list)
+    })
+
+    it('calls onAsk with the question pressed', () => {
+      const onAsk = jest.fn()
+      setup({ ask: QS, onAsk })
+      fireEvent.click(screen.getByRole('button', { name: QS[1] }))
+      expect(onAsk).toHaveBeenCalledWith(QS[1])
+    })
+
+    it('enables the questions by default and disables them while askDisabled', () => {
+      const { unmount } = render(<TourCaption {...baseProps({ ask: QS })} />)
+      for (const b of screen.getAllByRole('button', { name: new RegExp(QS[0].slice(0, 15)) })) expect(b).toBeEnabled()
+      unmount()
+      const onAsk = jest.fn()
+      render(<TourCaption {...baseProps({ ask: QS, onAsk, askDisabled: true })} />)
+      const q = screen.getByRole('button', { name: QS[1] })
+      expect(q).toBeDisabled()
+      fireEvent.click(q)
+      expect(onAsk).not.toHaveBeenCalled()
+    })
+
+    it('does not throw when a question is pressed and no onAsk was given', () => {
+      setup({ ask: QS })
+      expect(() => fireEvent.click(screen.getByRole('button', { name: QS[0] }))).not.toThrow()
+    })
+  })
 })

@@ -4,9 +4,15 @@
  * Each step is a line of narration plus the places it shows, in the same vocabulary as show_on_page.
  */
 import { PAGE_TARGET_IDS } from '@/lib/profile'
+import { STARTER_PROMPTS } from '@/lib/starter-prompts'
 import recorded from '@/content/site-tour.json'
 
-export type TourStep = { say: string; targets: string[] }
+export type TourStep = {
+  say: string
+  targets: string[]
+  /** Example questions shown under the line as buttons that ask them (only Ask Titus's starter prompts). */
+  ask?: string[]
+}
 
 export type SiteTour = {
   /** True until Titus has recorded and reviewed a real run; the tour buttons stay off the live site till then. */
@@ -26,14 +32,17 @@ export const TOUR_TARGET_IDS: string[] = [...PAGE_TARGET_IDS, ...DRAWER_TARGET_I
 export const TOUR_BUDGET_MS = 120_000
 
 const WORDS_PER_SECOND = 3
-const MOVE_MS = 1500
+/** Time for the page to move to each thing a step shows. */
+const MOVE_MS = 2000
+/** Time to take in each example question a step offers. */
+const ASK_MS = 1000
 const MIN_STEP_MS = 4000
 const MAX_STEP_MS = 16000
 
-/** How long a step stays up: its reading time, plus a moment for the page to move when it shows something. */
+/** How long a step stays up: its reading time, plus a moment per thing it shows and per example question. */
 export function stepDurationMs(step: TourStep): number {
   const words = step.say.trim().split(/\s+/).filter(Boolean).length
-  const ms = (words / WORDS_PER_SECOND) * 1000 + (step.targets.length ? MOVE_MS : 0)
+  const ms = (words / WORDS_PER_SECOND) * 1000 + step.targets.length * MOVE_MS + (step.ask?.length ?? 0) * ASK_MS
   return Math.round(Math.min(MAX_STEP_MS, Math.max(MIN_STEP_MS, ms)))
 }
 
@@ -41,12 +50,14 @@ export function tourDurationMs(tour: SiteTour): number {
   return tour.steps.reduce((sum, s) => sum + stepDurationMs(s), 0)
 }
 
+const isStrings = (v: unknown): v is string[] => Array.isArray(v) && v.every((t) => typeof t === 'string')
+
 const isStep = (s: unknown): s is TourStep =>
   !!s &&
   typeof s === 'object' &&
   typeof (s as TourStep).say === 'string' &&
-  Array.isArray((s as TourStep).targets) &&
-  (s as TourStep).targets.every((t) => typeof t === 'string')
+  isStrings((s as TourStep).targets) &&
+  ((s as TourStep).ask === undefined || isStrings((s as TourStep).ask))
 
 /** The tour in `raw`, or null when it isn't shaped like one. Checks shape only; see tourProblems for content. */
 export function parseTour(raw: unknown): SiteTour | null {
@@ -58,7 +69,7 @@ export function parseTour(raw: unknown): SiteTour | null {
     draft: r.draft !== false,
     recordedAt: str(r.recordedAt),
     model: str(r.model),
-    steps: r.steps.map((s) => ({ say: s.say, targets: [...s.targets] })),
+    steps: r.steps.map((s) => ({ say: s.say, targets: [...s.targets], ...(s.ask?.length ? { ask: [...s.ask] } : {}) })),
   }
 }
 
@@ -70,7 +81,11 @@ export function tourProblems(tour: SiteTour): string[] {
   tour.steps.forEach((s, i) => {
     if (!s.say.trim()) problems.push(`step ${i + 1}: says nothing`)
     for (const t of s.targets) if (!known.has(t)) problems.push(`step ${i + 1}: unknown target ${t}`)
+    for (const q of s.ask ?? []) if (!STARTER_PROMPTS.includes(q)) problems.push(`step ${i + 1}: unknown example question ${q}`)
+    if (new Set(s.ask ?? []).size !== (s.ask?.length ?? 0)) problems.push(`step ${i + 1}: repeats an example question`)
   })
+  // The job-description button shows under the one line that tells them to press it.
+  if (tour.steps.filter((s) => s.targets.includes('fit-mode')).length > 1) problems.push('fit-mode is named in more than one step')
   const total = tourDurationMs(tour)
   if (total > TOUR_BUDGET_MS) problems.push(`runs ${Math.round(total / 1000)}s; the limit is ${TOUR_BUDGET_MS / 1000}s`)
   return problems
@@ -88,8 +103,9 @@ export function tourJsonSchema() {
           properties: {
             say: { type: 'string' },
             targets: { type: 'array', items: { type: 'string', enum: TOUR_TARGET_IDS } },
+            ask: { type: 'array', items: { type: 'string', enum: [...STARTER_PROMPTS] } },
           },
-          required: ['say', 'targets'],
+          required: ['say', 'targets', 'ask'],
           additionalProperties: false,
         },
       },

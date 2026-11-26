@@ -18,9 +18,9 @@ const TARGETS: StopTarget[] = [
 ]
 const targetsById = new Map(TARGETS.map((t) => [t.id, t]))
 
-// Every step has 12 words (4000 ms), or 5500 ms when it shows something.
+// Every step has 12 words (4000 ms), or 6000 ms with one target (2000 ms per target).
 const PLAIN = 4000
-const WITH_TARGETS = 5500
+const WITH_TARGETS = 6000
 
 const SIMPLE = tourOf([step(12), step(12, ['writing']), step(12)])
 
@@ -130,12 +130,12 @@ describe('useTourPlayer: what a step shows', () => {
     act(() => result.current.start())
     advance(PLAIN + 1) // step 2 starts (a zero-delay timer fires a millisecond into a tick)
     expect(stopIds(showStop)).toEqual([['role-uob']])
-    // 3 actions across 5500 ms: 1833 ms apart.
-    advance(1831)
+    // 3 actions across 10000 ms (4000 + 2000 per target): 3333 ms apart, under the 4000 ms cap.
+    advance(3331)
     expect(stopIds(showStop)).toEqual([['role-uob']])
     advance(1)
     expect(stopIds(showStop)).toEqual([['role-uob'], ['role-illumina']])
-    advance(1833)
+    advance(3333)
     expect(stopIds(showStop)).toEqual([['role-uob'], ['role-illumina'], ['all-roles']])
   })
 
@@ -143,13 +143,16 @@ describe('useTourPlayer: what a step shows', () => {
     const { result, showStop, advance } = setup({ tour: tourOf([step(12, ['edu-smu']), step(12), step(12)]) })
     act(() => result.current.start())
     advance(0)
-    expect(showStop).toHaveBeenCalledWith({
-      ids: ['edu-smu'],
-      path: '/education',
-      page: 'Education',
-      label: 'SMU, 2022',
-      scrollId: 'edu-smu',
-    })
+    expect(showStop).toHaveBeenCalledWith(
+      {
+        ids: ['edu-smu'],
+        path: '/education',
+        page: 'Education',
+        label: 'SMU, 2022',
+        scrollId: 'edu-smu',
+      },
+      expect.any(AbortSignal)
+    )
   })
 
   it('runs the first target as soon as the step starts', () => {
@@ -159,11 +162,21 @@ describe('useTourPlayer: what a step shows', () => {
     expect(showStop).toHaveBeenCalledTimes(1)
   })
 
-  it('caps the gap between two targets at 2 seconds, however long the step', () => {
+  it('caps the gap between two targets at 4 seconds, however long the step', () => {
     const long = tourOf([step(200, ['role-uob', 'role-illumina']), step(12), step(12)]) // 16000 ms
     const { result, showStop, advance } = setup({ tour: long })
     act(() => result.current.start())
-    advance(1999)
+    advance(3999)
+    expect(showStop).toHaveBeenCalledTimes(1)
+    advance(1)
+    expect(showStop).toHaveBeenCalledTimes(2)
+  })
+
+  it('spaces two targets by half the step when that is under the 4 second cap (a 2 role step of 7000 ms: 3500)', () => {
+    const t = tourOf([step(9, ['role-uob', 'role-illumina']), step(12), step(12)]) // 3000 + 4000 = 7000 ms
+    const { result, showStop, advance } = setup({ tour: t })
+    act(() => result.current.start())
+    advance(3499)
     expect(showStop).toHaveBeenCalledTimes(1)
     advance(1)
     expect(showStop).toHaveBeenCalledTimes(2)
@@ -173,7 +186,7 @@ describe('useTourPlayer: what a step shows', () => {
     const t = tourOf([step(12, ['ask-button', 'fit-mode']), step(12), step(12)])
     const { result, showStop, ringDrawer, advance } = setup({ tour: t })
     act(() => result.current.start())
-    advance(5500)
+    advance(4000)
     expect(ringDrawer.mock.calls.map((c) => c[0])).toEqual(['ask-button', 'fit-mode'])
     expect(showStop).not.toHaveBeenCalled()
   })
@@ -493,11 +506,12 @@ describe('useTourPlayer: pause, resume, skip, end', () => {
       expect(result.current.index).toBe(1)
     })
 
-    it('does not run a step\'s targets twice across a hide and a return', () => {
+    it('does not run a step\'s targets twice across a hide and a return', async () => {
       const t = tourOf([step(12, ['role-uob', 'role-illumina']), step(12), step(12)])
       const { result, showStop, advance } = setup({ tour: t })
       act(() => result.current.start())
       advance(10)
+      await act(async () => void (await Promise.resolve())) // the first stop has finished
       act(() => setVisibility('hidden'))
       act(() => setVisibility('visible'))
       advance(5500)
@@ -641,11 +655,12 @@ describe('useTourPlayer: pause, resume, skip, end', () => {
     expect(result.current.status).toBe('playing')
   })
 
-  it('does not run a step\'s targets twice when it is paused and resumed', () => {
+  it('does not run a step\'s targets twice when it is paused and resumed', async () => {
     const t = tourOf([step(12, ['role-uob', 'role-illumina']), step(12), step(12)])
     const { result, showStop, advance } = setup({ tour: t })
     act(() => result.current.start())
     advance(10) // first target has run
+    await act(async () => void (await Promise.resolve())) // and finished
     act(() => result.current.pause())
     act(() => result.current.resume())
     advance(5500)
@@ -887,5 +902,160 @@ describe('useTourPlayer: restarting and unmounting', () => {
     act(() => result.current.start())
     unmount()
     expect(() => fireEvent.wheel(document.body)).not.toThrow()
+  })
+})
+
+describe('useTourPlayer: a stop cut short', () => {
+  const ONE_ROLE = tourOf([step(12), step(12, ['role-uob']), step(12)])
+  const signalOf = (showStop: jest.Mock, call = 0) => showStop.mock.calls[call][1] as AbortSignal
+  /** Lets promise follow-ups (a stop finishing) run. */
+  const flush = () => act(async () => void (await Promise.resolve()))
+  /** A showStop whose promise the test settles by hand. */
+  function deferredShowStop() {
+    const settlers: Array<(ok: boolean) => void> = []
+    const showStop = jest.fn(() => new Promise<boolean>((done) => settlers.push(done)))
+    return { showStop, settle: (i: number, ok = true) => settlers[i](ok) }
+  }
+
+  it('hands showStop an AbortSignal that has not been aborted', () => {
+    const { result, showStop, advance } = setup({ tour: ONE_ROLE })
+    act(() => result.current.start())
+    advance(PLAIN + 1)
+    expect(showStop).toHaveBeenCalledTimes(1)
+    expect(signalOf(showStop)).toBeInstanceOf(AbortSignal)
+    expect(signalOf(showStop).aborted).toBe(false)
+  })
+
+  it('aborts the signal on pause, and runs the same stop again on resume with a fresh signal', async () => {
+    const { showStop } = deferredShowStop()
+    const { result, advance } = setup({ tour: ONE_ROLE, showStop })
+    act(() => result.current.start())
+    advance(PLAIN + 1)
+    expect(showStop).toHaveBeenCalledTimes(1)
+    act(() => result.current.pause())
+    expect(signalOf(showStop).aborted).toBe(true)
+    await flush()
+    act(() => result.current.resume())
+    advance(1)
+    await flush()
+    expect(showStop).toHaveBeenCalledTimes(2)
+    expect(stopIds(showStop)).toEqual([['role-uob'], ['role-uob']])
+    expect(signalOf(showStop, 1)).not.toBe(signalOf(showStop, 0))
+    expect(signalOf(showStop, 1).aborted).toBe(false)
+  })
+
+  it('runs it again on resume even if the cut-short stop resolved afterwards (its answer is too late to count)', async () => {
+    const { showStop, settle } = deferredShowStop()
+    const { result, advance } = setup({ tour: ONE_ROLE, showStop })
+    act(() => result.current.start())
+    advance(PLAIN + 1)
+    act(() => result.current.pause())
+    settle(0, true)
+    await flush()
+    act(() => result.current.resume())
+    advance(1)
+    expect(showStop).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not run a stop again on resume when it had finished before the pause', async () => {
+    const { result, showStop, advance } = setup({ tour: ONE_ROLE })
+    act(() => result.current.start())
+    advance(PLAIN + 1)
+    await flush()
+    act(() => result.current.pause())
+    act(() => result.current.resume())
+    advance(100)
+    await flush()
+    expect(showStop).toHaveBeenCalledTimes(1)
+  })
+
+  it('counts a stop that resolved false as run (the page never showed it, so there is nothing to retry)', async () => {
+    const showStop = jest.fn(async () => false)
+    const { result, advance } = setup({ tour: ONE_ROLE, showStop })
+    act(() => result.current.start())
+    advance(PLAIN + 1)
+    await flush()
+    act(() => result.current.pause())
+    act(() => result.current.resume())
+    advance(100)
+    expect(showStop).toHaveBeenCalledTimes(1)
+  })
+
+  it('counts a ring as run at once: a pause right after it does not ring again on resume, and the stop still runs', async () => {
+    const t = tourOf([step(12), step(12, ['fit-mode', 'role-uob']), step(12)])
+    const { result, showStop, ringDrawer, advance } = setup({ tour: t })
+    act(() => result.current.start())
+    advance(PLAIN + 1) // the ring fires, the stop is a gap later
+    expect(ringDrawer).toHaveBeenCalledTimes(1)
+    expect(showStop).not.toHaveBeenCalled()
+    act(() => result.current.pause())
+    act(() => result.current.resume())
+    advance(1)
+    await flush()
+    expect(ringDrawer).toHaveBeenCalledTimes(1)
+    expect(showStop).toHaveBeenCalledTimes(1)
+  })
+
+  it('aborts an in-flight stop when the visitor skips, and the next step starts with a fresh signal', () => {
+    const t = tourOf([step(12, ['role-uob']), step(12, ['writing']), step(12)])
+    const { showStop } = deferredShowStop()
+    const { result, advance } = setup({ tour: t, showStop })
+    act(() => result.current.start())
+    advance(1)
+    const first = signalOf(showStop, 0)
+    expect(first.aborted).toBe(false)
+    act(() => result.current.skip())
+    expect(first.aborted).toBe(true)
+    advance(1)
+    expect(showStop).toHaveBeenCalledTimes(2)
+    expect(signalOf(showStop, 1).aborted).toBe(false)
+  })
+
+  it('aborts the step\'s signal when the step runs out and the next begins', () => {
+    const t = tourOf([step(12, ['role-uob']), step(12), step(12)])
+    const { result, showStop, advance } = setup({ tour: t })
+    act(() => result.current.start())
+    advance(1)
+    const sig = signalOf(showStop)
+    expect(sig.aborted).toBe(false)
+    advance(stepDurationMs(t.steps[0]))
+    expect(result.current.index).toBe(1)
+    expect(sig.aborted).toBe(true)
+  })
+
+  it('aborts it on end', () => {
+    const { showStop } = deferredShowStop()
+    const { result, advance } = setup({ tour: ONE_ROLE, showStop })
+    act(() => result.current.start())
+    advance(PLAIN + 1)
+    act(() => result.current.end())
+    expect(signalOf(showStop).aborted).toBe(true)
+  })
+
+  it('aborts it on stop', () => {
+    const { showStop } = deferredShowStop()
+    const { result, advance } = setup({ tour: ONE_ROLE, showStop })
+    act(() => result.current.start())
+    advance(PLAIN + 1)
+    act(() => result.current.stop())
+    expect(signalOf(showStop).aborted).toBe(true)
+  })
+
+  it('aborts it on unmount', () => {
+    const { showStop } = deferredShowStop()
+    const { result, unmount, advance } = setup({ tour: ONE_ROLE, showStop })
+    act(() => result.current.start())
+    advance(PLAIN + 1)
+    unmount()
+    expect(signalOf(showStop).aborted).toBe(true)
+  })
+
+  it('leaves a stop that has not been cut short alone while the step plays on', () => {
+    const { showStop } = deferredShowStop()
+    const { result, advance } = setup({ tour: ONE_ROLE, showStop })
+    act(() => result.current.start())
+    advance(PLAIN + 1)
+    advance(2000)
+    expect(signalOf(showStop).aborted).toBe(false)
   })
 })

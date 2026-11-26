@@ -7,7 +7,7 @@ import { openCopilot, startTour } from "@/lib/copilot-events";
 import { PAGE_TARGETS } from "@/lib/profile";
 import { SITE_TOUR, TOUR_TARGET_IDS, stepDurationMs } from "@/lib/site-tour";
 import { STARTER_PROMPTS } from "@/lib/starter-prompts";
-import { SHOW_EVENT } from "@/lib/reveal";
+import { REVEAL_EVENT, SHOW_EVENT } from "@/lib/reveal";
 
 // The drawer routes show_on_page to another page with the App Router. Tests give it a
 // router they can inspect, and a pathname they can set.
@@ -2039,6 +2039,8 @@ describe("CopilotBubble: the Show me around tour", () => {
   }
 
   const advance = (ms: number) => act(() => void jest.advanceTimersByTime(ms));
+  // A role stop waits on timers and promises (the pass pick-up), so time has to move asynchronously for its follow-up to run.
+  const settle = (ms: number) => act(async () => void (await jest.advanceTimersByTimeAsync(ms)));
   const play = (steps_ = 0) => {
     act(() => startTour());
     if (steps_) advance(startOf(steps_) + 1);
@@ -2129,12 +2131,11 @@ describe("CopilotBubble: the Show me around tour", () => {
       expect(say(0)).toBeInTheDocument();
     });
 
-    it("hides the starter prompts' intro behind the tour thread, which comes first", () => {
+    it("hides the starter prompts' intro for the tour, leaving the tour thread alone in the drawer", () => {
       renderBubble();
       play();
-      const thread = document.getElementById("copilot-tour")!;
-      const intro = screen.getByText(INTRO);
-      expect(thread.compareDocumentPosition(intro) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(document.getElementById("copilot-tour")).toBeInTheDocument();
+      expect(screen.queryByText(INTRO)).not.toBeInTheDocument();
     });
 
     it("tells screen readers each step: the line and 'tour, step n of total'", () => {
@@ -2179,15 +2180,15 @@ describe("CopilotBubble: the Show me around tour", () => {
       play();
       advance(dur(0) + 1);
       expect(fab()).toHaveClass("tour-ring");
-      // The second ring comes 2 s later (the step's targets are spaced across it, at most 2 s apart).
-      advance(2000);
+      // The second ring comes 4 s later (the step's targets are spaced across it, at most 4 s apart).
+      advance(4000);
       expect(document.getElementById("fit-mode")).toHaveClass("tour-ring");
     });
 
     it("take the rings off again after a moment", () => {
       renderBubble();
       play();
-      advance(dur(0) + 2002);
+      advance(dur(0) + 4002);
       advance(3000);
       expect(fab()).not.toHaveClass("tour-ring");
       expect(document.getElementById("fit-mode")).not.toHaveClass("tour-ring");
@@ -2238,10 +2239,10 @@ describe("CopilotBubble: the Show me around tour", () => {
       expect(caption()).not.toBeInTheDocument();
     });
 
-    it("moves the page to the step's target", () => {
+    it("moves the page to the step's target", async () => {
       renderBubble();
       play();
-      advance(startOf(2) + 600);
+      await settle(startOf(2) + 600);
       expect(scrollToSpy).toHaveBeenCalled();
       expect(document.getElementById(steps[2].targets[0])).toHaveClass("copilot-spotlight");
     });
@@ -2437,29 +2438,44 @@ describe("CopilotBubble: the Show me around tour", () => {
       expect(starterButtons().length).toBeGreaterThan(0);
     });
 
-    it("stay up in steps 1 and 2, which introduce the drawer (step 2 rings #fit-mode, one of them)", () => {
+    it("are hidden from the first step, with no intro line and no list", () => {
       renderBubble();
       play();
-      expect(heading()).toBeInTheDocument();
-      expect(document.getElementById("fit-mode")).toBeInTheDocument();
-      advance(dur(0) + 1);
-      expect(say(1)).toBeInTheDocument();
-      expect(heading()).toBeInTheDocument();
-      expect(document.getElementById("fit-mode")).toBeInTheDocument();
-      expect(starterButtons().length).toBeGreaterThan(0);
+      expect(heading()).not.toBeInTheDocument();
+      expect(screen.queryByText(INTRO)).not.toBeInTheDocument();
+      expect(starterButtons()).toHaveLength(0);
+      expect(document.getElementById("fit-mode")).not.toBeInTheDocument();
     });
 
-    it("step aside from step 3 on, so the narration has the drawer to itself", () => {
+    it("stay hidden in step 2, where the tour's own #fit-mode button stands in for the starter", () => {
+      renderBubble();
+      play();
+      advance(dur(0) + 1);
+      expect(say(1)).toBeInTheDocument();
+      expect(heading()).not.toBeInTheDocument();
+      expect(starterButtons()).toHaveLength(0);
+      expect(document.querySelectorAll("#fit-mode")).toHaveLength(1);
+      expect(document.getElementById("fit-mode")).toHaveTextContent("I'm hiring — check my fit for a role");
+    });
+
+    it("stay hidden from step 3 on too, so the narration has the drawer to itself", () => {
       renderBubble();
       play();
       advance(startOf(2) + 1);
       expect(say(2)).toBeInTheDocument();
       expect(heading()).not.toBeInTheDocument();
       expect(starterButtons()).toHaveLength(0);
-      expect(document.getElementById("fit-mode")).not.toBeInTheDocument();
       advance(dur(2) + 1);
       expect(say(3)).toBeInTheDocument();
       expect(heading()).not.toBeInTheDocument();
+    });
+
+    it("stay hidden while the tour is paused at any step", () => {
+      renderBubble();
+      play();
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      expect(heading()).not.toBeInTheDocument();
+      expect(starterButtons()).toHaveLength(0);
     });
 
     it("stay hidden through a pause and a resume in step 4", () => {
@@ -2494,7 +2510,7 @@ describe("CopilotBubble: the Show me around tour", () => {
       renderBubble();
       play();
       advance(dur(0) + 1);
-      expect(heading()).toBeInTheDocument();
+      expect(heading()).not.toBeInTheDocument();
       fireEvent.click(nextButton(2));
       expect(say(2)).toBeInTheDocument();
       expect(heading()).not.toBeInTheDocument();
@@ -2788,6 +2804,7 @@ describe("CopilotBubble: the Show me around tour", () => {
       (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ brief: { roleTitle: "Staff Engineer", company: "Acme", verdict: "A fit.", requirements: [] } }) });
       renderBubble();
       play();
+      advance(startOf(1) + 1);
       fireEvent.click(document.getElementById("fit-mode")!);
       fireEvent.change(screen.getByRole("textbox", { name: "Job description" }), {
         target: { value: "Staff GenAI Engineer at Acme. Build production RAG and multi-agent platforms on Kubernetes. Lead a small team." },
@@ -2932,6 +2949,546 @@ describe("CopilotBubble: the Show me around tour", () => {
       appear();
       await settle(600);
       expect(scrollToSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("the job-description button under the tour's line", () => {
+    const HIRING = "I'm hiring — check my fit for a role";
+    const thread = () => document.getElementById("copilot-tour")!;
+    const fitButton = () => document.getElementById("fit-mode");
+
+    it("is not there in step 1, which does not mention it", () => {
+      renderBubble();
+      play();
+      expect(fitButton()).not.toBeInTheDocument();
+    });
+
+    it("appears under step 2's line, in the tour thread, with the starter's wording", () => {
+      renderBubble();
+      play();
+      advance(dur(0) + 1);
+      const button = fitButton()!;
+      expect(button.tagName).toBe("BUTTON");
+      expect(button).toHaveTextContent(HIRING);
+      expect(thread()).toContainElement(button);
+      const line = screen.getByText(steps[0].say);
+      expect(line.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(button.parentElement).toContainElement(say(1) as HTMLElement);
+    });
+
+    it("is the only #fit-mode, in step 2 and in every step after it", () => {
+      renderBubble();
+      play();
+      for (const i of [1, 2, 3]) {
+        advance(i === 1 ? dur(0) + 1 : dur(i - 1));
+        expect(document.querySelectorAll("#fit-mode")).toHaveLength(1);
+      }
+    });
+
+    it("stays under step 2's line while later steps play", () => {
+      renderBubble();
+      play();
+      advance(startOf(3) + 1);
+      expect(fitButton()).toBeInTheDocument();
+      expect(fitButton()!.parentElement).toHaveTextContent(steps[1].say);
+    });
+
+    it("stays while the tour is paused", () => {
+      renderBubble();
+      play();
+      advance(dur(0) + 1);
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      expect(document.querySelectorAll("#fit-mode")).toHaveLength(1);
+    });
+
+    it("goes when the tour ends, and the starters' own #fit-mode is the only one", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      const all = document.querySelectorAll("#fit-mode");
+      expect(all).toHaveLength(1);
+      expect(thread()).not.toContainElement(all[0] as HTMLElement);
+      expect(all[0]).toHaveTextContent(HIRING);
+    });
+
+    it("goes when the visitor ends the tour, leaving only the starters' one", () => {
+      renderBubble();
+      play();
+      advance(dur(0) + 1);
+      fireEvent.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "End tour" }));
+      expect(document.querySelectorAll("#fit-mode")).toHaveLength(1);
+      expect(document.getElementById("copilot-tour")?.contains(fitButton())).toBeFalsy();
+    });
+
+    it("enters fit mode when pressed: the job-description box opens and the tour stops", () => {
+      renderBubble();
+      play();
+      advance(dur(0) + 1);
+      fireEvent.click(fitButton()!);
+      expect(screen.getByRole("textbox", { name: "Job description" })).toBeInTheDocument();
+      expect(recorded()).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+      expect(say(total - 1)).not.toBeInTheDocument();
+      advance(ALL_DONE);
+      expect(recorded()).not.toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Job description" })).toBeInTheDocument();
+    });
+
+    it("can be pressed from a later step too (it stays under step 2's line)", () => {
+      renderBubble();
+      play();
+      advance(startOf(3) + 1);
+      fireEvent.click(fitButton()!);
+      expect(screen.getByRole("textbox", { name: "Job description" })).toBeInTheDocument();
+      expect(recorded()).not.toBeInTheDocument();
+    });
+  });
+
+  describe("example questions under a tour line", () => {
+    const askStep = steps.findIndex((st) => st.ask && st.ask.length > 0);
+    const questions = steps[askStep].ask!;
+    const list = () => screen.queryByRole("list", { name: "Example questions" });
+    const mockReply = () => (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse([deltaLine("A real answer.")]));
+    const sentBody = () => JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+
+    it("the shipped tour has a step with questions to test with", () => {
+      expect(askStep).toBeGreaterThan(-1);
+      expect(questions.length).toBeGreaterThan(0);
+    });
+
+    it("show nothing before that step", () => {
+      renderBubble();
+      play();
+      advance(startOf(askStep) - 1);
+      expect(list()).not.toBeInTheDocument();
+    });
+
+    it("show under the step's line in the drawer, one button each", () => {
+      renderBubble();
+      play();
+      advance(startOf(askStep) + 1);
+      const ul = list()!;
+      expect(ul).toBeInTheDocument();
+      expect(document.getElementById("copilot-tour")).toContainElement(ul);
+      for (const q of questions) expect(within(ul).getByRole("button", { name: q })).toBeInTheDocument();
+      expect(within(ul).getAllByRole("button")).toHaveLength(questions.length);
+      const line = say(askStep) as HTMLElement;
+      expect(line.compareDocumentPosition(ul) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("stay under that line as later steps play, and go when the tour ends", () => {
+      renderBubble();
+      play();
+      advance(startOf(askStep + 1) + 1);
+      expect(list()).toBeInTheDocument();
+      advance(ALL_DONE);
+      expect(list()).not.toBeInTheDocument();
+    });
+
+    it("send the question for real when pressed: it is posted to the chat and the tour stops", async () => {
+      mockReply();
+      renderBubble();
+      play();
+      advance(startOf(askStep) + 1);
+      await act(async () => {
+        fireEvent.click(within(list()!).getByRole("button", { name: questions[0] }));
+      });
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect((global.fetch as jest.Mock).mock.calls[0][0]).toBe("/api/chat");
+      expect(sentBody().messages).toEqual([{ role: "user", content: questions[0] }]);
+      expect(recorded()).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+      expect(await screen.findByText("A real answer.")).toBeInTheDocument();
+      expect(list()).not.toBeInTheDocument();
+      expect(isOpen()).toBe(true);
+    });
+
+    it("send the second question just the same", async () => {
+      mockReply();
+      renderBubble();
+      play();
+      advance(startOf(askStep) + 1);
+      await act(async () => {
+        fireEvent.click(within(list()!).getByRole("button", { name: questions[1] }));
+      });
+      expect(sentBody().messages[0].content).toBe(questions[1]);
+    });
+
+    it("send it from a paused tour, and stop it", async () => {
+      mockReply();
+      renderBubble();
+      play();
+      advance(startOf(askStep) + 1);
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      await act(async () => {
+        fireEvent.click(within(list()!).getByRole("button", { name: questions[0] }));
+      });
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(recorded()).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Resume" })).not.toBeInTheDocument();
+    });
+
+    describe("on a phone", () => {
+      beforeEach(() => {
+        mediaState[WIDE] = false;
+      });
+
+      it("show in the caption, under the narration, not in a drawer thread", () => {
+        renderBubble();
+        play();
+        advance(startOf(askStep) + 1);
+        const ul = within(caption()!).getByRole("list", { name: "Example questions" });
+        for (const q of questions) expect(within(ul).getByRole("button", { name: q })).toBeInTheDocument();
+        expect(document.getElementById("copilot-tour")).not.toBeInTheDocument();
+        expect(isOpen()).toBe(false);
+      });
+
+      it("are not in the caption on steps that have none", () => {
+        renderBubble();
+        play();
+        advance(startOf(2) + 1);
+        expect(within(caption()!).queryByRole("list", { name: "Example questions" })).not.toBeInTheDocument();
+      });
+
+      it("open the drawer and send the question when pressed, which ends the caption", async () => {
+        mockReply();
+        renderBubble();
+        play();
+        advance(startOf(askStep) + 1);
+        expect(isOpen()).toBe(false);
+        await act(async () => {
+          fireEvent.click(within(caption()!).getByRole("button", { name: questions[1] }));
+        });
+        expect(isOpen()).toBe(true);
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+        expect(sentBody().messages).toEqual([{ role: "user", content: questions[1] }]);
+        expect(caption()).not.toBeInTheDocument();
+        expect(recorded()).not.toBeInTheDocument();
+        expect(await screen.findByText("A real answer.")).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("picking up a pass on Experience", () => {
+    const REVEAL = REVEAL_EVENT;
+    const DESK_TOP = 1000;
+    const ROLE_TOP = 3000;
+    const roleStep = 2; // role-mastercard
+    const slug = "mastercard";
+    const S = () => startOf(roleStep);
+    let box: HTMLElement;
+    let desk: HTMLElement;
+    let revealed: jest.Mock;
+
+    /** The Experience page's desk, one pass on it, and the role it opens, hidden in its [data-reveal] box. */
+    function addDesk(id = slug, withDesk = true) {
+      document.getElementById(`role-${id}`)?.remove();
+      desk = document.createElement("div");
+      desk.setAttribute("data-test-tour-target", "");
+      if (withDesk) desk.setAttribute("data-desk", ""); // StaffPasses' root
+      const pass = document.createElement("button");
+      pass.id = `pass-${id}`;
+      desk.append(pass);
+      box = document.createElement("div");
+      box.setAttribute("data-test-tour-target", "");
+      box.setAttribute("data-reveal", id);
+      box.hidden = true;
+      const role = document.createElement("div");
+      role.id = `role-${id}`;
+      box.append(role);
+      revealed = jest.fn();
+      // What PassDesk does: un-hides the role's box when its pass is picked up.
+      box.addEventListener(REVEAL, (e) => {
+        revealed((e as CustomEvent<string>).detail);
+        box.hidden = false;
+      });
+      document.body.append(desk, box);
+      placeAt(desk, DESK_TOP);
+      placeAt(role, ROLE_TOP);
+      return { pass, role };
+    }
+    const pass = () => document.getElementById(`pass-${slug}`)!;
+    const scrolledTo = (top: number) => scrollToSpy.mock.calls.some((c) => c[0].top === top);
+    const DESK_SCROLL = DESK_TOP - 16;
+    const ROLE_SCROLL = ROLE_TOP - 16;
+
+    it("scrolls the desk (the pass's [data-desk] ancestor) into view at once, before the pass is picked up", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 2);
+      expect(scrollToSpy).toHaveBeenCalledWith({ top: DESK_SCROLL, behavior: "smooth" });
+      expect(pass()).not.toHaveClass("tour-ring");
+      expect(revealed).not.toHaveBeenCalled();
+      expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+    });
+
+    it("looks at the desk for 700 ms, then rings the pass and opens its role", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 2);
+      await settle(500);
+      expect(pass()).not.toHaveClass("tour-ring");
+      expect(revealed).not.toHaveBeenCalled();
+      await settle(300);
+      expect(pass()).toHaveClass("tour-ring");
+      expect(revealed).toHaveBeenCalledTimes(1);
+      expect(revealed).toHaveBeenCalledWith(slug);
+      expect(box.hidden).toBe(false);
+    });
+
+    it("holds 1100 ms more, then moves the page to the role", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 2);
+      await settle(800);
+      expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+      await settle(900);
+      expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+      await settle(300);
+      expect(scrollToSpy).toHaveBeenLastCalledWith({ top: ROLE_SCROLL, behavior: "smooth" });
+      expect(document.getElementById(`role-${slug}`)).toHaveClass("copilot-spotlight");
+    });
+
+    it("scrolls the desk first and the role second, in that order", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 2000);
+      expect(scrollToSpy.mock.calls.map((c) => c[0].top).filter((t) => t === DESK_SCROLL || t === ROLE_SCROLL)).toEqual([DESK_SCROLL, ROLE_SCROLL]);
+    });
+
+    it("takes the ring off the pass again after a moment", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 800);
+      expect(pass()).toHaveClass("tour-ring");
+      await settle(3000);
+      expect(pass()).not.toHaveClass("tour-ring");
+    });
+
+    it("with reduced motion, keeps both waits (700 and 1100 ms) but scrolls instantly", async () => {
+      mediaState[REDUCED] = true;
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 2);
+      expect(scrollToSpy).toHaveBeenCalledWith({ top: DESK_SCROLL, behavior: "instant" });
+      await settle(500);
+      expect(pass()).not.toHaveClass("tour-ring");
+      await settle(300);
+      expect(pass()).toHaveClass("tour-ring");
+      expect(revealed).toHaveBeenCalledTimes(1);
+      await settle(900);
+      expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+      await settle(300);
+      expect(scrollToSpy).toHaveBeenLastCalledWith({ top: ROLE_SCROLL, behavior: "instant" });
+    });
+
+    it("scrolls to the pass itself when it has no [data-desk] ancestor", async () => {
+      addDesk(slug, false);
+      placeAt(pass(), 1400);
+      renderBubble();
+      play();
+      await settle(S() + 2);
+      expect(scrollToSpy).toHaveBeenCalledWith({ top: 1384, behavior: "smooth" });
+    });
+
+    it("picks the pass up even when the role's box is not hidden (every role is already listed)", async () => {
+      addDesk();
+      box.hidden = false;
+      renderBubble();
+      play();
+      await settle(S() + 800);
+      expect(pass()).toHaveClass("tour-ring");
+      expect(revealed).toHaveBeenCalledTimes(1);
+      expect(revealed).toHaveBeenCalledWith(slug);
+    });
+
+    it("just scrolls to a role that is not in a [data-reveal] box, with no waits", async () => {
+      const lone = document.createElement("button");
+      lone.id = `pass-${slug}`;
+      lone.setAttribute("data-test-tour-target", "");
+      document.body.append(lone);
+      renderBubble(); // role-mastercard stays a plain anchor
+      play();
+      await settle(S() + 100);
+      expect(scrollToSpy).toHaveBeenCalledTimes(1);
+      expect(lone).not.toHaveClass("tour-ring");
+    });
+
+    it("does not pick the pass up twice for one stop", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 5000);
+      expect(revealed).toHaveBeenCalledTimes(1);
+    });
+
+    it("picks the pass up again when the tour is resumed after a pause mid-hold, and then scrolls to the role", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 800);
+      expect(revealed).toHaveBeenCalledTimes(1);
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      await settle(3000);
+      expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+      fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+      await settle(2000);
+      expect(revealed).toHaveBeenCalledTimes(2);
+      expect(scrolledTo(ROLE_SCROLL)).toBe(true);
+    });
+
+    it("does not scroll to the role if the visitor skips to the next step during the hold", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 800);
+      fireEvent.click(screen.getByRole("button", { name: /^Next/ }));
+      await settle(1500);
+      expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+    });
+
+    it("does not ring the pass or open the role if the tour is paused before the first wait ends", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 2);
+      await settle(300);
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      await settle(3000);
+      expect(pass()).not.toHaveClass("tour-ring");
+      expect(revealed).not.toHaveBeenCalled();
+      expect(box.hidden).toBe(true);
+      expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+    });
+
+    it("does not scroll to the role if the tour is paused during the hold, though the pass was already picked up", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 800);
+      expect(pass()).toHaveClass("tour-ring");
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      await settle(3000);
+      expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+      expect(document.getElementById(`role-${slug}`)).not.toHaveClass("copilot-spotlight");
+    });
+
+    it("does not ring the pass if the visitor ends the tour during the first wait", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 2);
+      await settle(300);
+      fireEvent.click(fab()); // mid-tour the button reads "End tour"
+      await settle(3000);
+      expect(pass()).not.toHaveClass("tour-ring");
+      expect(revealed).not.toHaveBeenCalled();
+      expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+    });
+
+    it("does not scroll to the role if the visitor stops the tour (Escape) during the hold", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 800);
+      fireEvent.keyDown(screen.getByPlaceholderText(/ask about my work/i), { key: "Escape" });
+      await settle(3000);
+      expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+    });
+
+    it("does not scroll to the role if the visitor asks a question during the hold", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse([deltaLine("An answer.")]));
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 800);
+      fireEvent.change(screen.getByPlaceholderText(/ask about my work/i), { target: { value: "Hi" } });
+      await settle(3000);
+      expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+    });
+
+    it("picks up the first role of a step with several (uob, in the pass-uob fixture)", async () => {
+      addDesk("uob");
+      renderBubble();
+      play();
+      await settle(startOf(3) + 2);
+      expect(scrollToSpy).toHaveBeenCalledWith({ top: DESK_SCROLL, behavior: "smooth" });
+      await settle(800);
+      expect(document.getElementById("pass-uob")).toHaveClass("tour-ring");
+      expect(revealed).toHaveBeenCalledWith("uob");
+    });
+
+    it("just scrolls to a role whose pass is not on the page, with no waits", async () => {
+      renderBubble(); // no desk: role-mastercard is a plain anchor
+      play();
+      await settle(S() + 100);
+      expect(scrollToSpy).toHaveBeenCalledTimes(1);
+      expect(document.querySelector(".tour-ring")).toBeNull();
+    });
+
+    it("leaves the other stops alone: no desk scroll, no waits, no ring (education)", async () => {
+      const eduStep = steps.findIndex((st) => st.targets.includes("edu-smu"));
+      placeAt(document.getElementById("edu-smu")!, 500);
+      addDesk(); // a desk is on the page, but this stop is not a role
+      renderBubble();
+      play();
+      await settle(startOf(eduStep) + 100);
+      expect(scrollToSpy).toHaveBeenCalledWith({ top: 484, behavior: "smooth" });
+      expect(document.getElementById(`pass-${slug}`)).not.toHaveClass("tour-ring");
+    });
+
+    describe("when the role is on another page", () => {
+      /** Plays to the role step with its page not open yet, so the router is asked for it. */
+      async function waitingForExperience() {
+        document.getElementById(`role-${slug}`)?.remove();
+        renderBubble();
+        play();
+        await settle(S() + 2);
+        expect(mockPush).toHaveBeenCalledWith("/experience", { scroll: false });
+      }
+
+      it("opens the page, then picks up the pass the same way once it has loaded", async () => {
+        await waitingForExperience();
+        expect(scrollToSpy).not.toHaveBeenCalled();
+        addDesk();
+        await settle(50);
+        expect(scrollToSpy).toHaveBeenCalledWith({ top: DESK_SCROLL, behavior: "smooth" });
+        expect(pass()).not.toHaveClass("tour-ring");
+        await settle(800);
+        expect(pass()).toHaveClass("tour-ring");
+        expect(revealed).toHaveBeenCalledWith(slug);
+        expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+        await settle(1300);
+        expect(scrollToSpy).toHaveBeenLastCalledWith({ top: ROLE_SCROLL, behavior: "smooth" });
+      });
+
+      it("does not scroll to the role if the tour is paused while the pass is on show", async () => {
+        await waitingForExperience();
+        addDesk();
+        await settle(800);
+        expect(pass()).toHaveClass("tour-ring");
+        fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+        await settle(3000);
+        expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+      });
+
+      it("with reduced motion, keeps the waits but scrolls instantly", async () => {
+        mediaState[REDUCED] = true;
+        await waitingForExperience();
+        addDesk();
+        await settle(50);
+        expect(scrollToSpy).toHaveBeenCalledWith({ top: DESK_SCROLL, behavior: "instant" });
+        await settle(800);
+        expect(pass()).toHaveClass("tour-ring");
+        await settle(1300);
+        expect(scrollToSpy).toHaveBeenLastCalledWith({ top: ROLE_SCROLL, behavior: "instant" });
+      });
     });
   });
 
@@ -3268,11 +3825,11 @@ describe("CopilotBubble: the Show me around tour", () => {
       expect(Array.from(document.querySelectorAll("#copilot-tour [aria-hidden=true]")).some((el) => el.textContent === steps[1].say)).toBe(true);
     });
 
-    it("scrolls the page without smooth behaviour", () => {
+    it("scrolls the page without smooth behaviour", async () => {
       mediaState[REDUCED] = true;
       renderBubble();
       play();
-      advance(startOf(2) + 600);
+      await settle(startOf(2) + 600);
       expect(scrollToSpy).toHaveBeenCalledWith(expect.objectContaining({ behavior: "instant" }));
     });
 

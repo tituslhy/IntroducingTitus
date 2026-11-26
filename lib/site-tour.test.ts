@@ -1,4 +1,6 @@
 import { PAGE_TARGET_IDS } from "./profile";
+import { STARTER_PROMPTS } from "./starter-prompts";
+import recordedTour from "@/content/site-tour.json";
 import {
   DRAWER_TARGET_IDS,
   SITE_TOUR,
@@ -15,7 +17,8 @@ import {
 } from "./site-tour";
 
 const words = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`).join(" ");
-const step = (say: string, targets: string[] = []): TourStep => ({ say, targets });
+const step = (say: string, targets: string[] = [], ask?: string[]): TourStep =>
+  ask === undefined ? { say, targets } : { say, targets, ask };
 const tour = (steps: TourStep[], extra: Partial<SiteTour> = {}): SiteTour => ({
   draft: false,
   recordedAt: null,
@@ -40,16 +43,42 @@ describe("target ids", () => {
 });
 
 describe("stepDurationMs", () => {
-  it("is words / 3 seconds, plus 1500 ms when the step shows something: 30 words and a target is 11500", () => {
-    expect(stepDurationMs(step(words(30), ["role-uob"]))).toBe(11500);
+  it("is words / 3 seconds, plus 2000 ms per target: 30 words and a target is 12000", () => {
+    expect(stepDurationMs(step(words(30), ["role-uob"]))).toBe(12000);
   });
 
   it("adds no move time to a step that shows nothing: 30 words is 10000", () => {
     expect(stepDurationMs(step(words(30)))).toBe(10000);
   });
 
-  it("counts one move however many things the step shows", () => {
-    expect(stepDurationMs(step(words(30), ["role-uob", "role-illumina", "all-roles"]))).toBe(11500);
+  it("counts a move for every target the step shows: 15 words and 1, 2, 3 targets is 7000, 9000, 11000", () => {
+    expect(stepDurationMs(step(words(15), ["role-uob"]))).toBe(7000);
+    expect(stepDurationMs(step(words(15), ["role-uob", "role-illumina"]))).toBe(9000);
+    expect(stepDurationMs(step(words(15), ["role-uob", "role-illumina", "all-roles"]))).toBe(11000);
+  });
+
+  it("adds 1000 ms per example question: 15 words and 2 questions is 7000", () => {
+    expect(stepDurationMs(step(words(15), [], ["a", "b"]))).toBe(7000);
+  });
+
+  it("adds targets and questions together: 15 words, 1 target and 2 questions is 9000", () => {
+    expect(stepDurationMs(step(words(15), ["writing"], ["a", "b"]))).toBe(9000);
+  });
+
+  it("treats an empty or missing ask as no extra time", () => {
+    expect(stepDurationMs(step(words(15), [], []))).toBe(5000);
+    expect(stepDurationMs(step(words(15)))).toBe(5000);
+  });
+
+  it("clamps at the 4000 ms floor and the 16000 ms ceiling with questions too", () => {
+    expect(stepDurationMs(step(words(3), [], []))).toBe(4000);
+    expect(stepDurationMs(step(words(3), [], ["a", "b"]))).toBe(4000);
+    expect(stepDurationMs(step(words(60), ["writing", "role-uob"], ["a", "b"]))).toBe(16000);
+  });
+
+  it("clamps many targets to the ceiling: 30 words and 3 targets would be 16000 exactly, 4 is still 16000", () => {
+    expect(stepDurationMs(step(words(30), ["role-uob", "role-illumina", "all-roles"]))).toBe(16000);
+    expect(stepDurationMs(step(words(30), ["role-uob", "role-illumina", "all-roles", "writing"]))).toBe(16000);
   });
 
   it("never goes under the 4000 ms floor: 3 words and no targets is 4000", () => {
@@ -83,7 +112,7 @@ describe("stepDurationMs", () => {
 describe("tourDurationMs", () => {
   it("sums its steps", () => {
     const t = tour([step(words(30), ["role-uob"]), step(words(3)), step(words(30))]);
-    expect(tourDurationMs(t)).toBe(11500 + 4000 + 10000);
+    expect(tourDurationMs(t)).toBe(12000 + 4000 + 10000);
   });
 
   it("is 0 for a tour with no steps", () => {
@@ -105,6 +134,9 @@ describe("parseTour", () => {
     ["a step missing targets", { steps: [{ say: "hi" }] }],
     ["targets that are not an array", { steps: [{ say: "hi", targets: "role-uob" }] }],
     ["targets holding a non-string", { steps: [{ say: "hi", targets: [1] }] }],
+    ["an ask that is not an array", { steps: [{ say: "hi", targets: [], ask: "How?" }] }],
+    ["an ask holding a non-string", { steps: [{ say: "hi", targets: [], ask: [1] }] }],
+    ["a null ask", { steps: [{ say: "hi", targets: [], ask: null }] }],
     ["a null step", { steps: [null] }],
     ["one good step and one bad", { steps: [{ say: "hi", targets: [] }, { say: "x" }] }],
   ])("returns null for %s", (_name, raw) => {
@@ -147,6 +179,21 @@ describe("parseTour", () => {
     expect(raw.steps[0]).toEqual({ say: "Hi.", targets: ["role-uob"] });
   });
 
+  it("keeps a non-empty ask, copied", () => {
+    const raw = { steps: [{ say: "Hi.", targets: [], ask: ["What did you build at Illumina?"] }] };
+    const parsed = parseTour(raw)!;
+    expect(parsed.steps[0]).toEqual({ say: "Hi.", targets: [], ask: ["What did you build at Illumina?"] });
+    parsed.steps[0].ask!.push("more");
+    expect(raw.steps[0].ask).toEqual(["What did you build at Illumina?"]);
+  });
+
+  it("omits ask when it is empty or absent", () => {
+    const parsed = parseTour({ steps: [{ say: "a", targets: [], ask: [] }, { say: "b", targets: [] }] })!;
+    expect(parsed.steps[0]).toEqual({ say: "a", targets: [] });
+    expect("ask" in parsed.steps[0]).toBe(false);
+    expect("ask" in parsed.steps[1]).toBe(false);
+  });
+
   it("drops fields a step does not declare", () => {
     const parsed = parseTour({ steps: [{ say: "Hi.", targets: [], extra: true }] });
     expect(parsed?.steps[0]).toEqual({ say: "Hi.", targets: [] });
@@ -179,6 +226,44 @@ describe("tourProblems", () => {
     const steps = validSteps();
     steps[2] = step("Bye.", ["colophon"]);
     expect(tourProblems(tour(steps))).toEqual(["step 3: unknown target colophon"]);
+  });
+
+  it("accepts example questions that are starter prompts", () => {
+    const steps = validSteps();
+    steps[1] = step("Try one.", ["writing"], [STARTER_PROMPTS[2], STARTER_PROMPTS[3]]);
+    expect(tourProblems(tour(steps))).toEqual([]);
+  });
+
+  it("flags an example question that is not a starter prompt, by its step number", () => {
+    const steps = validSteps();
+    steps[1] = step("Try one.", ["writing"], [STARTER_PROMPTS[2], "What is your salary?"]);
+    expect(tourProblems(tour(steps))).toEqual(["step 2: unknown example question What is your salary?"]);
+  });
+
+  it("flags every unknown example question, one line each, and matches exactly (no near misses)", () => {
+    const steps = validSteps();
+    steps[0] = step("Hi.", [], ["nope", `${STARTER_PROMPTS[0]} `, STARTER_PROMPTS[0].toLowerCase()]);
+    expect(tourProblems(tour(steps))).toEqual([
+      "step 1: unknown example question nope",
+      `step 1: unknown example question ${STARTER_PROMPTS[0]} `,
+      `step 1: unknown example question ${STARTER_PROMPTS[0].toLowerCase()}`,
+    ]);
+  });
+
+  it("flags a repeated example question, by its step number", () => {
+    const steps = validSteps();
+    steps[1] = step("Try one.", ["writing"], [STARTER_PROMPTS[2], STARTER_PROMPTS[2]]);
+    expect(tourProblems(tour(steps))).toEqual(["step 2: repeats an example question"]);
+  });
+
+  it("flags fit-mode named in more than one step, once", () => {
+    const steps = [step("a", ["fit-mode"]), step("b", ["fit-mode"]), step("c", ["fit-mode"])];
+    expect(tourProblems(tour(steps))).toEqual(["fit-mode is named in more than one step"]);
+  });
+
+  it("accepts fit-mode in exactly one step, or none", () => {
+    expect(tourProblems(tour([step("a", ["ask-button", "fit-mode"]), step("b"), step("c")]))).toEqual([]);
+    expect(tourProblems(tour(validSteps()))).toEqual([]);
   });
 
   it("flags an empty say", () => {
@@ -250,10 +335,15 @@ describe("tourJsonSchema", () => {
     expect(stepSchema.additionalProperties).toBe(false);
   });
 
+  it("limits every example question to the starter prompts", () => {
+    expect(stepSchema.properties.ask.type).toBe("array");
+    expect(stepSchema.properties.ask.items).toEqual({ type: "string", enum: STARTER_PROMPTS });
+  });
+
   it("requires every property at every level", () => {
     expect(schema.required).toEqual(Object.keys(schema.properties));
     expect(stepSchema.required).toEqual(Object.keys(stepSchema.properties));
-    expect([...stepSchema.required].sort()).toEqual(["say", "targets"]);
+    expect([...stepSchema.required].sort()).toEqual(["ask", "say", "targets"]);
   });
 
   it("is plain JSON, so the API accepts it", () => {
@@ -289,6 +379,32 @@ describe("SITE_TOUR", () => {
 
   it("introduces the drawer's own features in its first two steps (they always play in the open drawer)", () => {
     expect(SITE_TOUR.steps[1].targets).toEqual(["ask-button", "fit-mode"]);
+  });
+
+  it("records example questions on one step only (the file leaves ask off the rest), the writing step", () => {
+    const recordedAsks = (recordedTour.steps as Array<{ ask?: string[] }>).filter((s) => "ask" in s);
+    expect(recordedAsks).toHaveLength(1);
+    for (const s of SITE_TOUR.steps) if (!s.targets.includes("writing")) expect("ask" in s).toBe(false);
+    const withQuestions = SITE_TOUR.steps.filter((s) => s.ask && s.ask.length > 0);
+    expect(withQuestions).toHaveLength(1);
+    expect(withQuestions[0].targets).toEqual(["writing"]);
+    expect(withQuestions[0].say).toContain("I can answer questions on any of them; try one of these.");
+    expect(withQuestions[0].ask).toEqual([
+      "How would you build production-ready agents?",
+      "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?",
+    ]);
+  });
+
+  it("names fit-mode in exactly one step, so the job-description button shows once", () => {
+    expect(SITE_TOUR.steps.filter((s) => s.targets.includes("fit-mode"))).toHaveLength(1);
+  });
+
+  it("every example question is one of the starter prompts", () => {
+    for (const q of SITE_TOUR.steps.flatMap((s) => s.ask ?? [])) expect(STARTER_PROMPTS).toContain(q);
+  });
+
+  it("tells visitors to click the exact hiring button in step 2", () => {
+    expect(SITE_TOUR.steps[1].say).toContain("“I’m hiring — check my fit for a role”");
   });
 
   it("uses the exact degree title in the education step", () => {

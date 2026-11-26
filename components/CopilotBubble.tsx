@@ -22,15 +22,16 @@ import {
   type Source,
 } from "@/lib/citations";
 import { COPILOT_OPEN_EVENT, COPILOT_TOUR_EVENT, type CopilotOpenDetail } from "@/lib/copilot-events";
-import { DRAWER_TARGET_IDS, SITE_TOUR, stepDurationMs } from "@/lib/site-tour";
+import { DRAWER_TARGET_IDS, SITE_TOUR, stepDurationMs, type TourStep } from "@/lib/site-tour";
 import { useTourPlayer } from "./tour/useTourPlayer";
+import TourAsk from "./tour/TourAsk";
 import TourCaption from "./tour/TourCaption";
 import TourProgress from "./tour/TourProgress";
 import TourThread from "./tour/TourThread";
 import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH } from "@/lib/content";
 import { STARTER_PROMPTS } from "@/lib/starter-prompts";
 import { firstStop, groupStops, type Stop } from "@/lib/page-stops";
-import { reveal, requestShow } from "@/lib/reveal";
+import { REVEAL_EVENT, reveal, requestShow } from "@/lib/reveal";
 import { waitForElement } from "@/lib/wait-for-element";
 
 interface Message {
@@ -87,15 +88,21 @@ const SIDE_BY_SIDE_QUERY = "(min-width: 1024px)";
 const EXPANDED_SIDE_BY_SIDE_QUERY = "(min-width: 1440px)";
 const SPOTLIGHT_CLASS = "copilot-spotlight";
 const SPOTLIGHT_MS = 2800;
-/** The ring the tour puts on something in the drawer (app/globals.css). */
+/** Picking up a pass on the tour: how long the desk shows before the pass is picked, then before the page moves to
+ * its role. Kept with reduced motion too (waiting isn't motion; only the scrolls become instant). */
+const PASS_LOOK_MS = 700;
+const PASS_HOLD_MS = 1100;
+/** The ring the tour puts on something it points at: in the drawer, or a pass on the desk (app/globals.css). */
 const TOUR_RING_CLASS = "tour-ring";
 /** Tour steps that play in the open drawer on every screen: the greeting and the drawer's own features. */
-// The tour's first steps point at things in the drawer (its button, the job-description starter): the drawer stays
-// open, with its starters, until the last of them; after that, phones narrate over the page instead.
+// The tour's first steps point at things in the drawer (its button, the job-description mode): the drawer stays
+// open until the last of them; after that, phones narrate over the page instead.
 const TOUR_DRAWER_STEPS = SITE_TOUR.steps.reduce(
   (n, s, i) => (s.targets.some((t) => (DRAWER_TARGET_IDS as readonly string[]).includes(t)) ? i + 1 : n),
   0
 );
+/** The step that tells the visitor to press "I'm hiring": its job-description button shows under that line. */
+const TOUR_FIT_STEP = SITE_TOUR.steps.findIndex((s) => s.targets.includes("fit-mode"));
 
 
 const AssistantAvatar = () => (
@@ -212,8 +219,6 @@ export default function CopilotBubble({
   const wasOpenRef = useRef(false);
   // Set when the tour itself opened or closed the drawer, so focus isn't pulled to the button mid-tour.
   const tourMovedDrawerRef = useRef(false);
-  // Whether the tour is playing right now, for its async page moves (see showTourStop).
-  const tourPlayingRef = useRef(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const spotlightRef = useRef<{ els: HTMLElement[]; timer: ReturnType<typeof setTimeout> } | null>(null);
@@ -371,23 +376,6 @@ export default function CopilotBubble({
 
   // ---- The recorded "Show me around" tour (lib/site-tour.ts) ----
 
-  /** A tour stop: like showStop, but always moves the page (the visitor asked for the tour) and says when it's there. */
-  const showTourStop = useCallback(
-    async (stop: Stop): Promise<boolean> => {
-      if (document.getElementById(stop.ids[0])) {
-        revealStop(stop);
-        return true;
-      }
-      if (stop.path === window.location.pathname) return false;
-      router.push(stop.path, { scroll: false });
-      const found = await waitForElement(stop.ids[0]);
-      // Paused, ended or stopped while the page was loading: don't move it under the visitor.
-      if (found && tourPlayingRef.current) revealStop(stop);
-      return found !== null;
-    },
-    [revealStop, router]
-  );
-
   /** Rings something in the drawer (the Ask Titus button, the job-description mode) without moving the page. */
   const ringDrawer = useCallback((id: string) => {
     const el = document.getElementById(id);
@@ -398,11 +386,50 @@ export default function CopilotBubble({
     setTimeout(() => el.classList.remove(TOUR_RING_CLASS), SPOTLIGHT_MS);
   }, []);
 
+  /**
+   * A role on Experience, the way a visitor would get to it: the desk comes into view and its pass is rung and
+   * picked up, then (PASS_HOLD_MS later) the page may move down to the role it opened. Resolves false if the step
+   * was cut short on the way (`signal`: paused, skipped, the next step, ended), so the page isn't moved under the
+   * visitor or into the next step.
+   */
+  const pickUpPass = useCallback(
+    async (roleId: string, signal: AbortSignal): Promise<boolean> => {
+      const pass = document.getElementById(`pass-${roleId.slice("role-".length)}`);
+      const box = document.getElementById(roleId)?.closest<HTMLElement>("[data-reveal]");
+      if (!pass || !box) return !signal.aborted;
+      const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
+      scrollUnderNav(pass.closest<HTMLElement>("[data-desk]") ?? pass, prefersReducedMotion ? "instant" : "smooth");
+      await wait(PASS_LOOK_MS);
+      if (signal.aborted) return false;
+      ringDrawer(pass.id);
+      // Pick the pass up (PassDesk), even when every role is already listed and none is hidden.
+      box.dispatchEvent(new CustomEvent(REVEAL_EVENT, { bubbles: true, detail: box.dataset.reveal }));
+      await wait(PASS_HOLD_MS);
+      return !signal.aborted;
+    },
+    [prefersReducedMotion, ringDrawer]
+  );
+
+  /** A tour stop: like showStop, but always moves the page (the visitor asked for the tour) and says when it's there. */
+  const showTourStop = useCallback(
+    async (stop: Stop, signal: AbortSignal): Promise<boolean> => {
+      const isRole = stop.ids[0].startsWith("role-");
+      if (document.getElementById(stop.ids[0])) {
+        if (!isRole || (await pickUpPass(stop.ids[0], signal))) revealStop(stop);
+        return true;
+      }
+      if (stop.path === window.location.pathname) return false;
+      router.push(stop.path, { scroll: false });
+      const found = await waitForElement(stop.ids[0]);
+      // Paused, skipped, ended or stopped while the page was loading: don't move it under the visitor.
+      if (found && !signal.aborted && (!isRole || (await pickUpPass(stop.ids[0], signal)))) revealStop(stop);
+      return found !== null;
+    },
+    [revealStop, router, pickUpPass]
+  );
+
   const tour = useTourPlayer({ tour: SITE_TOUR, showStop: showTourStop, ringDrawer, pathname, targetsById });
   const touring = tour.status === "playing" || tour.status === "paused";
-  useEffect(() => {
-    tourPlayingRef.current = tour.status === "playing";
-  }, [tour.status]);
   // Whether the drawer sits beside the page (so the page shows while it narrates), kept live across resizes.
   const [sideBySide, setSideBySide] = useState(false);
   useEffect(() => {
@@ -872,12 +899,38 @@ export default function CopilotBubble({
   const tourControl =
     "tap rounded-full px-3 py-1.5 font-mono text-[11px] transition-colors hover:bg-paper-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber";
   const tourPaused = tour.status === "paused";
+  // An example question from the tour: asked for real, which ends the tour (sendMessage stops it).
+  const askExample = (q: string) => {
+    tour.stop();
+    setIsOpen(true);
+    void sendMessage(q);
+  };
+  // Under a tour line: the job-description button when the line tells them to press it (the starters, where it
+  // usually lives, are hidden during the tour), and any example questions.
+  const tourExtras = (step: TourStep, i: number) => (
+    <>
+      {i === TOUR_FIT_STEP && (
+        <button
+          type="button"
+          id="fit-mode"
+          onClick={enterFitMode}
+          disabled={busy}
+          className="group mt-2 flex w-full items-baseline gap-2 rounded-[12px] bg-paper-deep px-3 py-2 text-left transition-colors hover:bg-paper-band disabled:opacity-50 max-[640px]:min-h-[44px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
+        >
+          <span aria-hidden="true" className="font-mono text-[12px] text-amber">◆</span>
+          <span className="font-serif text-[14.5px] italic leading-snug text-ink">{HIRING_PROMPT}</span>
+        </button>
+      )}
+      {step.ask?.length ? <TourAsk questions={step.ask} onAsk={askExample} disabled={busy} /> : null}
+    </>
+  );
   const tourBlock =
     tourSteps.length > 0 && !captionMode ? (
       <TourThread
         steps={tourSteps}
         label={<AssistantLabel />}
         instant={prefersReducedMotion}
+        extras={touring ? tourExtras : undefined}
         controls={
           touring ? (
             <div className="flex flex-wrap items-center gap-1 pt-1">
@@ -1006,9 +1059,9 @@ export default function CopilotBubble({
         {/* Messages */}
         <div ref={messagesScrollRef} className="flex-1 space-y-5 overflow-y-auto px-5 py-5" style={{ minHeight: 0 }}>
           {messages.length === 0 && tourBlock}
-          {/* The starters stay up through the tour's drawer steps (step 2 points at the job-description one),
-              then step aside so the narration has the drawer to itself; they're back when it ends. */}
-          {messages.length === 0 && !busy && !(touring && tour.index >= TOUR_DRAWER_STEPS) && (
+          {/* The starters step aside while the tour plays, so the narration has the drawer to itself (what it points
+              at shows under its own line); they're back when it ends. */}
+          {messages.length === 0 && !busy && !touring && (
             <div>
               <p className="mb-4 font-serif text-[15px] leading-snug text-ink-soft">
                 Ask about my roles, projects or any of my {ARTICLE_COUNT_NUMBER} articles, or paste a job description to
@@ -1261,6 +1314,9 @@ export default function CopilotBubble({
           total={tour.total}
           paused={tourPaused}
           stepMs={stepDurationMs(tour.step)}
+          ask={tour.step.ask ?? []}
+          onAsk={askExample}
+          askDisabled={busy}
           instant={prefersReducedMotion}
           onPause={tour.pause}
           onResume={tour.resume}
