@@ -30,7 +30,7 @@ import TourProgress from "./tour/TourProgress";
 import TourThread from "./tour/TourThread";
 import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH } from "@/lib/content";
 import { STARTER_PROMPTS } from "@/lib/starter-prompts";
-import { firstStop, groupStops, type Stop } from "@/lib/page-stops";
+import { firstStop, groupStops, orderStops, type Stop } from "@/lib/page-stops";
 import { REVEAL_EVENT, reveal, requestShow } from "@/lib/reveal";
 import { waitForElement } from "@/lib/wait-for-element";
 
@@ -73,6 +73,8 @@ export interface CopilotTarget {
   page?: string;
   /** A tile in the About page's periodic table. */
   tool?: boolean;
+  /** What an answer calls it, so the stops under a reply follow the reply's order. */
+  names?: string[];
 }
 
 /** How long the page waits after the copilot names a place before moving, so every place in the call has arrived. */
@@ -996,9 +998,10 @@ export default function CopilotBubble({
       />
     ) : null;
 
-  // 44px up (plus the safe area), so the button clears the page footer and the browser's bottom bar.
+  // Phones: 16px up, matching its 16px from the right, so it sits in the corner (mobile browsers already keep
+  // fixed elements above their own bottom bar; the footer leaves room for it). From sm up: 44px, clearing the footer.
   return (
-    <div className="fixed bottom-[calc(44px+env(safe-area-inset-bottom))] right-4 z-50 flex flex-col items-end gap-3 sm:right-6">
+    <div className="fixed bottom-[calc(16px+env(safe-area-inset-bottom))] right-4 z-50 sm:bottom-[calc(44px+env(safe-area-inset-bottom))] flex flex-col items-end gap-3 sm:right-6">
       {/* Drawer */}
       <div
         ref={drawerRef}
@@ -1230,7 +1233,12 @@ export default function CopilotBubble({
                 )}
                 {msg.targets && msg.targets.length > 0 && (
                   <StopPills
-                    stops={groupStops(msg.targets, targetsById)}
+                    stops={
+                      // Reordered once the reply is complete, so the pills don't shuffle while it streams in.
+                      isStreaming && i === messages.length - 1
+                        ? groupStops(msg.targets, targetsById)
+                        : orderStops(groupStops(msg.targets, targetsById), msg.content, targetsById)
+                    }
                     pathname={pathname}
                     onPick={(stop) => onStopClick(stop, msg.id)}
                   />

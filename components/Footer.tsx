@@ -54,7 +54,7 @@ export default function Footer() {
   return (
     <footer
       id="colophon"
-      className="mx-auto max-w-[1280px] px-[clamp(18px,4vw,56px)] pt-[clamp(48px,6vw,80px)] pb-[clamp(28px,3vw,40px)] text-ink"
+      className="mx-auto max-w-[1280px] px-[clamp(18px,4vw,56px)] pt-[clamp(48px,6vw,80px)] pb-20 sm:pb-[clamp(28px,3vw,40px)] text-ink"
     >
       <div className="mb-[clamp(28px,3vw,40px)] h-px bg-ink" />
 

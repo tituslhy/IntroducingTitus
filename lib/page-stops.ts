@@ -14,6 +14,8 @@ export type StopTarget = {
   page?: string
   /** A tile in the About page's periodic table. */
   tool?: boolean
+  /** What an answer calls it, e.g. ["United Overseas Bank", "UOB"]; see orderStops. */
+  names?: string[]
 }
 
 export type Stop = {
@@ -68,4 +70,38 @@ export function firstStop(stops: Stop[], pathname: string): number {
   if (stops.length === 0) return -1
   const here = stops.findIndex((s) => s.path === pathname)
   return here === -1 ? 0 : here
+}
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * Where `text` first names any of `names`, as a whole word with the name's own capitals; -1 when it names none.
+ * Case counts because some tools are named after ordinary words ("Tempo", "Alloy", "R").
+ */
+export function firstMention(text: string, names: string[]): number {
+  let first = -1
+  for (const name of names) {
+    if (!name.trim()) continue
+    const i = text.search(new RegExp(`(?<![A-Za-z0-9])${escapeRegExp(name)}(?![A-Za-z0-9])`))
+    if (i !== -1 && (first === -1 || i < first)) first = i
+  }
+  return first
+}
+
+/**
+ * Puts the stops in the order the answer names them. The model is asked to list them that way but doesn't
+ * always, so the order is checked against the text itself. A stop the text never names by any of its names
+ * (a whole page, like About) keeps the slot the model gave it; the named ones fill the other slots in order.
+ */
+export function orderStops(stops: Stop[], text: string, byId: Map<string, StopTarget>): Stop[] {
+  const at = stops.map((s) => {
+    const spots = s.ids.map((id) => firstMention(text, byId.get(id)?.names ?? [])).filter((i) => i !== -1)
+    return spots.length ? Math.min(...spots) : -1
+  })
+  const named = stops
+    .map((stop, i) => ({ stop, at: at[i], i }))
+    .filter((x) => x.at !== -1)
+    .sort((a, b) => a.at - b.at || a.i - b.i)
+  let k = 0
+  return stops.map((stop, i) => (at[i] === -1 ? stop : named[k++].stop))
 }
