@@ -367,13 +367,13 @@ describe("photoAt", () => {
     expect(photoAt("2021-08")!.src).toBe("/about/smu.jpg");
   });
 
-  it("shows the SMU pillar photo, with its link, across the SMU chapter", () => {
-    expect(photoAt("2025-10")).toBe(photoOf("SMU"));
-    expect(photoAt("2026-06")).toBe(photoOf("SMU"));
+  it("shows the SMU pillar photo, with its link, across the SMU pillar chapter (Jun 2026)", () => {
+    expect(photoAt("2025-10")).toBe(photoOf("Jun 2026"));
+    expect(photoAt("2026-06")).toBe(photoOf("Jun 2026"));
     expect(photoAt("2026-06")!.link).toEqual({ label: "Watch the interview", href: "https://youtu.be/SvFH6uKAyfE" });
   });
 
-  it("shows the 2026 and Now photos for their chapters", () => {
+  it("shows the Sep 2026 and Now photos for their chapters", () => {
     expect(photoAt("2026-07")!.src).toBe("/about/hackathon.jpg");
     expect(photoAt("2026-09")!.src).toBe("/about/hackathon.jpg");
     expect(photoAt("2026-11")!.src).toBe("/about/sff.jpg");
@@ -516,7 +516,7 @@ describe("data integrity", () => {
     expect(new Set(ats).size).toBe(ats.length);
     const labels = CHAPTERS.map((c) => c.label);
     expect(new Set(labels).size).toBe(labels.length);
-    expect(labels).toEqual(["2015–2016", "2017", "2018", "2021", "2023", "2024", "2025", "SMU", "2026", "Now"]);
+    expect(labels).toEqual(["2015–2016", "2017", "2018", "2021", "2023", "2024", "2025", "Jun 2026", "Sep 2026", "Now"]);
     expect(CHAPTERS).toHaveLength(10);
   });
 
@@ -535,8 +535,8 @@ describe("data integrity", () => {
       "2023",
       "2024",
       "2025",
-      "SMU",
-      "2026",
+      "Jun 2026",
+      "Sep 2026",
       "Now",
     ]);
     for (const c of CHAPTERS.filter((c) => c.photo)) {
@@ -548,9 +548,9 @@ describe("data integrity", () => {
     }
   });
 
-  it("links a photo only on the SMU chapter, and only to an https URL", () => {
+  it("links a photo only on the Jun 2026 SMU chapter, and only to an https URL", () => {
     const linked = CHAPTERS.filter((c) => c.photo?.link);
-    expect(linked.map((c) => c.label)).toEqual(["SMU"]);
+    expect(linked.map((c) => c.label)).toEqual(["Jun 2026"]);
     expect(linked[0].photo!.link!.href).toMatch(/^https:\/\//);
   });
 });
@@ -616,12 +616,27 @@ describe("journeyLine", () => {
 });
 
 describe("pillar photo", () => {
-  it("is the SMU chapter's photo, shown from the start of that chapter", () => {
-    const smu = CHAPTERS.find((c) => c.label === "SMU")!;
+  it("is the SMU pillar chapter's (Jun 2026) photo, shown from the start of that chapter", () => {
+    const smu = CHAPTERS.find((c) => c.label === "Jun 2026")!;
     expect(smu.photo!.src).toBe("/about/pillar.jpg");
     expect(smu.photo!.link).toEqual({ label: "Watch the interview", href: "https://youtu.be/SvFH6uKAyfE" });
     expect(photoAt("2025-09")).not.toBe(smu.photo);
     expect(photoAt("2025-10")).toBe(smu.photo);
+  });
+});
+
+describe("chapter labels", () => {
+  const DATE_LABEL_RE = /^(\d{4}(–\d{4})?|[A-Z][a-z]{2} \d{4}|Now)$/;
+
+  it("labels every chapter with a date: a year, a year range, a month and year, or Now", () => {
+    for (const c of CHAPTERS) {
+      expect(c.label).toMatch(DATE_LABEL_RE);
+    }
+  });
+
+  it("names the two 2026 chapters by month, so they are not both just '2026'", () => {
+    expect(CHAPTERS.find((c) => c.at === "2026-06")!.label).toBe("Jun 2026");
+    expect(CHAPTERS.find((c) => c.at === "2026-09")!.label).toBe("Sep 2026");
   });
 });
 

@@ -54,13 +54,22 @@ describe("parseShowOnPageTargets", () => {
 
   it(`caps the list at MAX_PAGE_TARGETS (${MAX_PAGE_TARGETS}), keeping the first ones`, () => {
     const ids = PAGE_TARGET_IDS.slice(0, MAX_PAGE_TARGETS + 3);
+    expect(ids).toHaveLength(MAX_PAGE_TARGETS + 3); // really more targets than the cap
     const out = parseShowOnPageTargets(JSON.stringify({ targets: ids }));
-    expect(MAX_PAGE_TARGETS).toBe(6);
+    expect(MAX_PAGE_TARGETS).toBe(8);
     expect(out).toEqual(ids.slice(0, MAX_PAGE_TARGETS));
+    expect(out).toHaveLength(8);
+  });
+
+  it("keeps all eight targets of a career walkthrough, one per role or school, in the order given", () => {
+    const ids = PAGE_TARGET_IDS.slice(0, MAX_PAGE_TARGETS);
+    expect(ids).toHaveLength(8);
+    expect(parseShowOnPageTargets(JSON.stringify({ targets: ids }))).toEqual(ids);
   });
 
   it("counts the cap after dropping unknown and repeated ids", () => {
     const valid = PAGE_TARGET_IDS.slice(0, MAX_PAGE_TARGETS);
+    expect(valid).toHaveLength(MAX_PAGE_TARGETS);
     const raw = JSON.stringify({ targets: ["bogus", valid[0], valid[0], ...valid.slice(1), "also-bogus"] });
     expect(parseShowOnPageTargets(raw)).toEqual(valid);
   });

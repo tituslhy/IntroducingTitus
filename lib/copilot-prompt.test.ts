@@ -152,6 +152,16 @@ describe('copilot-system-prompt.md (drift guard, rendered from the real template
     expect(rendered).toContain('`error`')
   })
 
+  it('tells the assistant to give every role, school or project it names its own show_on_page target', () => {
+    expect(rendered).toContain('## Showing Things on the Page')
+    expect(rendered).toContain('Every role, school or project your answer names gets its own target')
+  })
+
+  it('tells the assistant that a career walkthrough targets each role and school in order, with no whole-section target', () => {
+    expect(rendered).toContain('When an answer walks through my career, that means each role and school it names, in the order it names them')
+    expect(rendered).toContain('no whole-section target (like `lede` or `dossier`)')
+  })
+
   it('tells the assistant to credit co-authors on joint articles', () => {
     expect(rendered).toContain('An article with `coAuthors` is a joint piece')
     expect(rendered).toContain('co-wrote it with them')

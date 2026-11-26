@@ -181,7 +181,7 @@ describe('Doors ("On this site")', () => {
       expect(lead).toMatchObject({ figure: '3.98', label: 'GPA at SMU' })
     })
 
-    it('gives each degree its first result as the right-hand note, from the data', () => {
+    it('gives each degree its own standing as the right-hand note, from the data', () => {
       const { container } = render(<Doors />)
       const rows = within(door(container, '/education')).getAllByRole('listitem')
       expect(rows.map((li) => li.querySelector('span:last-child')?.textContent)).toEqual(
@@ -189,9 +189,26 @@ describe('Doors ("On this site")', () => {
       )
       expect(rows.map((li) => li.querySelector('span:last-child')?.textContent)).toEqual([
         'GPA 3.98/4.0',
-        'First Class ×2',
+        '2nd Upper',
         'Top Student',
       ])
+    })
+
+    it('puts the level before the institution in each row, e.g. "Master’s, Singapore Management University"', () => {
+      const { container } = render(<Doors />)
+      const rows = within(door(container, '/education')).getAllByRole('listitem')
+      expect(rows.map((li) => li.querySelector('span:nth-child(2)')?.textContent)).toEqual(
+        educationDoor().map((r) => r.text)
+      )
+      expect(rows[0]).toHaveTextContent('Master’s, Singapore Management University')
+      expect(rows[1]).toHaveTextContent('Bachelor’s, National University of Singapore')
+    })
+
+    it('never notes NUS with a First Class from one of its programmes', () => {
+      const { container } = render(<Doors />)
+      const nus = within(door(container, '/education')).getByText('Bachelor’s, National University of Singapore').closest('li')
+      expect(nus).toHaveTextContent('2nd Upper')
+      expect(nus).not.toHaveTextContent('First Class')
     })
 
     it('reads the education rows from educationDoor, rather than typing them', () => {

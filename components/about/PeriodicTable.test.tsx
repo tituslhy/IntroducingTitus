@@ -185,9 +185,9 @@ describe("PeriodicTable: chapter row", () => {
     expect(playButton()).toHaveTextContent("Play");
   });
 
-  it("jumping to SMU shows the pillar photo, its caption and its interview link", () => {
+  it("jumping to the SMU pillar chapter (Jun 2026) shows the pillar photo, its caption and its interview link", () => {
     const { container } = render(<PeriodicTable articleCounts={ZERO_COUNTS} />);
-    fireEvent.click(chapterChip("SMU"));
+    fireEvent.click(chapterChip("Jun 2026"));
     expect(dateHeading()).toHaveTextContent("Jun 2026");
     expect(screen.getByText(/Featured on SMU’s campus for its Master of IT in Business/)).toBeInTheDocument();
     const link = screen.getByRole("link", { name: "Watch the interview" });

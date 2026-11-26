@@ -839,6 +839,7 @@ describe("POST - tool loop", () => {
 
   it(`should relay at most MAX_PAGE_TARGETS (${MAX_PAGE_TARGETS}) actions from one call, the first ones in order`, async () => {
     const targets = PAGE_TARGET_IDS.slice(0, MAX_PAGE_TARGETS + 2);
+    expect(targets).toHaveLength(MAX_PAGE_TARGETS + 2); // really more targets than the cap
     await queueRounds(
       [responseCreated("resp_1"), functionCall("call_1", "show_on_page", JSON.stringify({ targets })), responseDone],
       [outputText("Answer."), responseDone]
@@ -847,7 +848,7 @@ describe("POST - tool loop", () => {
     const lines = parseLines(await drainResponse(await postChat()));
     const actions = lines.filter((l) => l.type === "action");
 
-    expect(MAX_PAGE_TARGETS).toBe(6);
+    expect(MAX_PAGE_TARGETS).toBe(8);
     expect(actions).toEqual(targets.slice(0, MAX_PAGE_TARGETS).map((target) => ({ type: "action", target })));
     expect(mockCreate.mock.calls[1][0].input).toEqual([
       {

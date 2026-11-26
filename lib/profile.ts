@@ -251,6 +251,8 @@ export type Education = HonorGroups & {
   institution: string
   /** Short name for labels, e.g. "SMU". */
   short: string
+  /** The level of qualification, read before the school on the front page, e.g. "Master's". */
+  level: string
   degree: string
   dates: string
   location: string
@@ -270,6 +272,7 @@ export const EDUCATION: Education[] = [
     years: '2021',
     institution: 'Singapore Management University',
     short: 'SMU',
+    level: 'Master’s',
     degree: 'Master of IT in Business, AI track',
     dates: '2021 — 2022',
     location: 'Singapore',
@@ -286,6 +289,7 @@ export const EDUCATION: Education[] = [
     years: '2011',
     institution: 'National University of Singapore',
     short: 'NUS',
+    level: 'Bachelor’s',
     degree: 'BEng Chemical Engineering',
     dates: '2011 — 2015',
     location: 'Singapore',
@@ -345,6 +349,7 @@ export const EDUCATION: Education[] = [
     years: '2007',
     institution: 'Anderson Junior College',
     short: 'AJC',
+    level: 'A Levels',
     degree: "GCE 'A' Levels, Physical Sciences",
     dates: '2007 — 2008',
     location: 'Singapore',
