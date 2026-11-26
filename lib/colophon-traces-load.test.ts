@@ -2,7 +2,10 @@ import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import type { Recording, ReplaySpan } from "./colophon-trace";
-import { COLOPHON_TRACES_PATH, loadColophonTraces, titlesFor } from "./colophon-traces-load";
+import { COLOPHON_TRACES_PATH, loadColophonTraces, stepsFor, titlesFor } from "./colophon-traces-load";
+import { ARTICLES } from "./articles";
+import { mediumPostId } from "./citation-ledger";
+import { quoteList, type CopilotTool } from "./copilot-tools";
 
 let dir: string;
 let counter = 0;
@@ -203,5 +206,183 @@ describe("titlesFor", () => {
     const b = recording({ id: "broad", spans: [root, { ...filter, outputs: { ranked: [{ slug: "helm-charts", score: 1 }] } }] });
 
     expect(titlesFor([a, b], articles)).toEqual({ "rag-basics": "RAG basics", "helm-charts": "Helm charts" });
+  });
+});
+
+describe("stepsFor", () => {
+  const toolSpan = (over: Partial<ReplaySpan>): ReplaySpan => ({
+    id: 10,
+    parent: 0,
+    name: "echo",
+    kind: "tool",
+    start: 100,
+    end: 400,
+    inputs: { topic: "alpha" },
+    outputs: {},
+    ...over,
+  });
+
+  /** A fake tool that reads one `topic` argument, labels itself with it, and records what it was parsed from. */
+  const topicTool = (name: string, over: Partial<CopilotTool<string>> = {}): CopilotTool<string> => ({
+    definition: { type: "function", name, description: name, strict: true, parameters: {} },
+    maxCallsPerReply: 3,
+    parse: jest.fn((raw: string) => {
+      try {
+        const o = JSON.parse(raw) as { topic?: unknown };
+        return typeof o.topic === "string" ? o.topic : null;
+      } catch {
+        return null;
+      }
+    }),
+    describe: (topic) => ({ doing: `Doing ${topic}`, done: `Did ${topic}` }),
+    async run() {
+      return {};
+    },
+    ...over,
+  });
+
+  it("gives one step per tool span with both labels, its id as a string, and its start and end", () => {
+    const echo = topicTool("echo");
+    const steps = stepsFor([recording({ spans: [root, toolSpan({ id: 10, start: 100, end: 400 })] })], [echo]);
+
+    expect(steps.search).toEqual([{ id: "10", tool: "echo", doing: "Doing alpha", done: "Did alpha", start: 100, end: 400 }]);
+  });
+
+  it("sorts the steps by when they started, whatever order the spans are in", () => {
+    const echo = topicTool("echo");
+    const steps = stepsFor(
+      [
+        recording({
+          spans: [
+            root,
+            toolSpan({ id: 3, start: 900, end: 950, inputs: { topic: "late" } }),
+            toolSpan({ id: 2, start: 100, end: 200, inputs: { topic: "early" } }),
+          ],
+        }),
+      ],
+      [echo]
+    );
+
+    expect(steps.search.map((s) => s.doing)).toEqual(["Doing early", "Doing late"]);
+  });
+
+  it("parses each span's inputs with that tool's own parse, after JSON.stringify", () => {
+    const echo = topicTool("echo");
+    stepsFor([recording({ spans: [root, toolSpan({ inputs: { topic: "alpha", extra: 1 } })] })], [echo]);
+
+    expect(echo.parse).toHaveBeenCalledWith('{"topic":"alpha","extra":1}');
+  });
+
+  it("gives a step for each recording, keyed by the recording's id, and an empty list when it made no tool calls", () => {
+    const echo = topicTool("echo");
+    const steps = stepsFor(
+      [
+        recording({ id: "search", spans: [root, toolSpan({ id: 5 })] }),
+        recording({ id: "broad", spans: [root] }),
+      ],
+      [echo]
+    );
+
+    expect(Object.keys(steps).sort()).toEqual(["broad", "search"]);
+    expect(steps.search).toHaveLength(1);
+    expect(steps.broad).toEqual([]);
+  });
+
+  it("only takes spans of kind tool, even when another kind has a tool's name", () => {
+    const echo = topicTool("echo");
+    const steps = stepsFor(
+      [recording({ spans: [root, toolSpan({ id: 7, kind: "llm", name: "echo" }), toolSpan({ id: 8 })] })],
+      [echo]
+    );
+
+    expect(steps.search.map((s) => s.id)).toEqual(["8"]);
+  });
+
+  it("skips a span whose tool is not registered", () => {
+    const echo = topicTool("echo");
+    const steps = stepsFor([recording({ spans: [root, toolSpan({ id: 6, name: "retired_tool" }), toolSpan({ id: 8 })] })], [echo]);
+
+    expect(steps.search.map((s) => s.tool)).toEqual(["echo"]);
+  });
+
+  it("skips a tool with no describe, as show_on_page has its own caption", () => {
+    const quiet = topicTool("show", { describe: undefined });
+    const steps = stepsFor([recording({ spans: [root, toolSpan({ id: 9, name: "show" })] })], [quiet]);
+
+    expect(steps.search).toEqual([]);
+  });
+
+  it("skips a span whose inputs the tool cannot parse", () => {
+    const echo = topicTool("echo");
+    const steps = stepsFor([recording({ spans: [root, toolSpan({ id: 4, inputs: { topic: 42 } }), toolSpan({ id: 8 })] })], [echo]);
+
+    expect(steps.search.map((s) => s.id)).toEqual(["8"]);
+  });
+
+  it("skips a span whose describe returns null, and keeps the others", () => {
+    const echo = topicTool("echo", {
+      describe: (topic) => (topic === "silent" ? null : { doing: `Doing ${topic}`, done: `Did ${topic}` }),
+    });
+    const steps = stepsFor(
+      [recording({ spans: [root, toolSpan({ id: 4, inputs: { topic: "silent" } }), toolSpan({ id: 8, inputs: { topic: "loud" } })] })],
+      [echo]
+    );
+
+    expect(steps.search.map((s) => s.doing)).toEqual(["Doing loud"]);
+  });
+
+  it("skips a span whose describe throws, and keeps the others", () => {
+    const echo = topicTool("echo", {
+      describe: (topic) => {
+        if (topic === "broken") throw new Error("label broke");
+        return { doing: `Doing ${topic}`, done: `Did ${topic}` };
+      },
+    });
+    const steps = stepsFor(
+      [recording({ spans: [root, toolSpan({ id: 4, inputs: { topic: "broken" } }), toolSpan({ id: 8, inputs: { topic: "fine" } })] })],
+      [echo]
+    );
+
+    expect(steps.search.map((s) => s.doing)).toEqual(["Doing fine"]);
+  });
+
+  describe("against the recorded replies in content/colophon-traces.json", () => {
+    const traces = loadColophonTraces(COLOPHON_TRACES_PATH);
+    const byId = (id: string) => stepsFor(traces ?? [])[id];
+
+    it("loads the two recordings", () => {
+      expect(traces?.map((r) => r.id)).toEqual(["search", "broad"]);
+    });
+
+    it("gives the search reply one search_writing step for LangChain and LangGraph, from 6146 to 6989 ms", () => {
+      const steps = byId("search");
+
+      expect(steps).toEqual([
+        {
+          id: "2",
+          tool: "search_writing",
+          doing: "Searching my writing for “LangChain” and “LangGraph”",
+          done: "Searched my writing for “LangChain” and “LangGraph”",
+          start: 6146,
+          end: 6989,
+        },
+      ]);
+    });
+
+    it("gives the broad reply three read_writing steps, each naming the real titles of the articles it read", () => {
+      const steps = byId("broad");
+      const titleOf = (id: string) => ARTICLES.find((a) => mediumPostId(a.url) === id)?.title;
+      const broad = traces!.find((r) => r.id === "broad")!;
+      const reads = broad.spans.filter((s) => s.name === "read_writing").sort((a, b) => a.start - b.start);
+
+      expect(steps.map((s) => s.tool)).toEqual(["read_writing", "read_writing", "read_writing"]);
+      expect(steps.map((s) => s.start)).toEqual(reads.map((s) => s.start));
+      reads.forEach((span, i) => {
+        const titles = (span.inputs.articles as string[]).map(titleOf).filter((t): t is string => Boolean(t));
+        expect(titles.length).toBeGreaterThan(0);
+        expect(steps[i].doing).toBe(`Reading ${quoteList(titles)}`);
+        expect(steps[i].done).toBe(`Read ${quoteList(titles)}`);
+      });
+    });
   });
 });

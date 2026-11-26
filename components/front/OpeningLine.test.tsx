@@ -20,11 +20,14 @@ afterEach(() => {
 /** The four stat tiles, found by their link targets. Each one is a link, so it has a role. */
 const tileFor = (href: string) => document.querySelector<HTMLAnchorElement>(`a[href="${href}"]`) as HTMLAnchorElement
 
+const YEARS_WORD = numberToWords(YEARS_EXPERIENCE_NUMBER)
+const YEARS_WORD_CAP = `${YEARS_WORD[0].toUpperCase()}${YEARS_WORD.slice(1)}`
+
 describe('OpeningLine', () => {
   it('says the years in words, then the article count', () => {
     const { container } = render(<OpeningLine />)
     const sentence = container.querySelector('p')!
-    expect(sentence).toHaveTextContent(`Eight years putting AI into production. ${ARTICLE_COUNT_NUMBER} articles explaining how it works.`)
+    expect(sentence).toHaveTextContent(`${YEARS_WORD_CAP} years putting AI into production. ${ARTICLE_COUNT_NUMBER} articles explaining how it works.`)
   })
 
   it('keeps the sentence plain ink, with no bold or amber numbers in it', () => {
@@ -45,9 +48,9 @@ describe('OpeningLine', () => {
   })
 
   it('spells out the years from the years constant, not a typed word', () => {
-    expect(numberToWords(8)).toBe('eight')
+    expect(numberToWords(YEARS_EXPERIENCE_NUMBER)).toBe(YEARS_WORD)
     render(<OpeningLine />)
-    expect(screen.getByText(/^Eight years putting AI into production\./)).toBeInTheDocument()
+    expect(screen.getByText(new RegExp(`^${YEARS_WORD_CAP} years putting AI into production\\.`))).toBeInTheDocument()
   })
 
   it('no longer has a "Short on time? Let me show you around" line: the tour lives in the hero', () => {

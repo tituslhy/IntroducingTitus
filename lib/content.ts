@@ -10,8 +10,23 @@
 
 import articlesMeta from '@/content/articles-meta.json'
 
-/** Whole years of professional experience (the front page says "Eight years"). */
-export const YEARS_EXPERIENCE_NUMBER = 8
+/** When I started building production AI: April 2018, at the Energy Market Authority (ROLES in lib/profile.ts). */
+export const CAREER_START = { year: 2018, month: 4 } as const
+
+/** Whole years from `start` to `now`, in Singapore time: a year is added on the 1st of the start month. */
+export function yearsSince(start: { year: number; month: number }, now: Date = new Date()): number {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', year: 'numeric', month: 'numeric' }).formatToParts(now)
+  const year = Number(parts.find((p) => p.type === 'year')?.value)
+  const month = Number(parts.find((p) => p.type === 'month')?.value)
+  return year - start.year - (month < start.month ? 1 : 0)
+}
+
+/**
+ * Whole years of professional experience (the front page says "Eight years"), counted from CAREER_START so it
+ * never needs editing: 8 until March 2027, then 9. Worked out when the server loads this module; pages are
+ * re-rendered at most daily (`revalidate` in app/layout.tsx), so the site picks up the new year without a deploy.
+ */
+export const YEARS_EXPERIENCE_NUMBER = yearsSince(CAREER_START)
 
 /** Years of professional experience, as used in taglines and metadata. */
 export const YEARS_EXPERIENCE = `${YEARS_EXPERIENCE_NUMBER}+ years`

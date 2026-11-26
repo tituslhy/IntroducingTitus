@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import type { Recording, ReplaySpan } from "@/lib/colophon-trace";
+import type { Recording, ReplaySpan, ReplayStep } from "@/lib/colophon-trace";
 import type { StopTarget } from "@/lib/page-stops";
 import { MIN_SCORE, RELEVANT } from "@/lib/search-config";
 import TryIt, {
@@ -278,8 +278,8 @@ function giveWidth(el: Element, width: number) {
     ({ x: 0, y: 0, left: 0, top: 0, right: width, bottom: 44, width, height: 44, toJSON: () => ({}) }) as DOMRect;
 }
 
-function renderTryIt(recordings: Recording[] = [search, broad]) {
-  return render(<TryIt recordings={recordings} articleCount={65} titles={titles} targets={targets} />);
+function renderTryIt(recordings: Recording[] = [search, broad], toolSteps?: Record<string, ReplayStep[]>) {
+  return render(<TryIt recordings={recordings} articleCount={65} titles={titles} targets={targets} toolSteps={toolSteps} />);
 }
 
 function mediaQuery(matches: boolean) {
@@ -1369,3 +1369,128 @@ describe("storySteps answer line", () => {
     expect(answerLine([])).toBe("GPT writes the answer from my record.");
   });
 });
+
+// ---------------------------------------------------------------------------
+// The drawer's tool steps and waiting word, on the replay clock
+// ---------------------------------------------------------------------------
+
+describe("TryIt drawer steps", () => {
+  const SEARCH_DOING = "Searching my writing for “LangChain” and “LangGraph”";
+  const SEARCH_DONE = "Searched my writing for “LangChain” and “LangGraph”";
+  /** The search_writing span of the search fixture: it runs from 900 ms to 3000 ms, and the answer starts at 3000 ms. */
+  const SEARCH_STEP: ReplayStep = { id: "2", tool: "search_writing", doing: SEARCH_DOING, done: SEARCH_DONE, start: 900, end: 3000 };
+  const withSteps = () => renderTryIt([search, broad], { search: [SEARCH_STEP] });
+
+  const waitingWord = () => within(drawer()).queryByText(/^(Thinking|Reasoning|Considering|Weighing)…$/);
+  const stepList = () => within(drawer()).queryByRole("list", { name: "What I'm doing" });
+  const stepItems = () => within(stepList()!).getAllByRole("listitem");
+
+  /** A replay whose answer starts late (at 15 s), so the waiting words have time to rotate before it. */
+  const slow: Recording = {
+    ...search,
+    totalMs: 16000,
+    spans: [
+      { ...ROOT, end: 16000 },
+      search.spans[1],
+      { id: 6, parent: 0, name: "gpt round 2", kind: "llm", start: 15000, end: 16000, inputs: {}, outputs: { calls: [], text: "Late answer." } },
+    ],
+    answer: "Late answer.",
+    sources: [],
+  };
+
+  it("shows the waiting word beside the dots while no step has started", () => {
+    withSteps();
+    playTo(600);
+
+    expect(waitingWord()).toHaveTextContent("Thinking…");
+    expect(stepList()).toBeNull();
+  });
+
+  it("shows a step pending once the replay passes its start, and takes the waiting word's place", () => {
+    withSteps();
+    playTo(1000);
+
+    expect(stepList()).not.toBeNull();
+    expect(stepItems()).toHaveLength(1);
+    expect(within(stepList()!).getByText(SEARCH_DOING)).toBeInTheDocument();
+    expect(stepItems()[0].querySelector('[class*="animate-pulse"]')).not.toBeNull();
+    expect(stepItems()[0].querySelector("svg")).toBeNull();
+    expect(waitingWord()).toBeNull();
+    expect(screen.queryByText("Writing the reply")).toBeNull();
+  });
+
+  it("keeps the step pending right up to its end", () => {
+    withSteps();
+    playTo(2900);
+
+    expect(within(stepList()!).getByText(SEARCH_DOING)).toBeInTheDocument();
+    expect(within(stepList()!).queryByText(SEARCH_DONE)).toBeNull();
+  });
+
+  it("switches to the done label with a check once the replay passes its end, then says Writing the reply", () => {
+    withSteps();
+    playTo(3000);
+
+    expect(within(stepList()!).getByText(SEARCH_DONE)).toBeInTheDocument();
+    expect(within(stepList()!).queryByText(SEARCH_DOING)).toBeNull();
+    expect(stepItems()[0].querySelector("svg")).not.toBeNull();
+    expect(within(stepList()!).getByText("Writing the reply")).toBeInTheDocument();
+  });
+
+  it("hides the step list once the answer text shows", () => {
+    withSteps();
+    playTo(4500);
+
+    expect(within(drawer()).getByText(/Yes\. I used both/)).toBeInTheDocument();
+    expect(stepList()).toBeNull();
+  });
+
+  it("shows the waiting word alone when the replay has no tool steps", () => {
+    renderTryIt();
+    playTo(1000);
+
+    expect(waitingWord()).toHaveTextContent("Thinking…");
+    expect(stepList()).toBeNull();
+  });
+
+  it("rotates the waiting word every 3 seconds of replay time, and wraps round", () => {
+    renderTryIt([slow]);
+    playTo(300);
+    expect(waitingWord()).toHaveTextContent("Thinking…");
+
+    seekFrame(3300, slow);
+    expect(waitingWord()).toHaveTextContent("Reasoning…");
+
+    seekFrame(6300, slow);
+    expect(waitingWord()).toHaveTextContent("Considering…");
+
+    seekFrame(9300, slow);
+    expect(waitingWord()).toHaveTextContent("Weighing…");
+
+    seekFrame(12300, slow);
+    expect(waitingWord()).toHaveTextContent("Thinking…");
+  });
+
+  it("folds the finished steps above the answer once it shows, with the articles it sent", () => {
+    withSteps();
+    playTo(6000);
+
+    const fold = screen.getByText(/Searched my writing · read 1 article/, { selector: "summary" });
+    const details = fold.closest("details") as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    const answer = within(drawer()).getByText(/Yes\. I used both/);
+    expect(details.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(fold);
+    expect(details.open).toBe(true);
+    expect(within(details).getByText(SEARCH_DONE)).toBeInTheDocument();
+  });
+
+  it("shows no fold when the replay has no tool steps", () => {
+    renderTryIt();
+    playTo(6000);
+
+    expect(drawer().querySelector("details")).toBeNull();
+  });
+});
+

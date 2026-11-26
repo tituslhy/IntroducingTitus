@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react'
-import { ARTICLE_COUNT_NUMBER, numberToWords } from '@/lib/content'
+import { ARTICLE_COUNT_NUMBER, YEARS_EXPERIENCE_NUMBER, numberToWords } from '@/lib/content'
 import { educationDoor } from '@/lib/education'
 import { ASK_FOLIO, EDUCATION, FEATURED_BY, PROJECTS, ROLES } from '@/lib/profile'
 import { capitalise, themeCounts } from '@/lib/front-page'
@@ -134,7 +134,7 @@ describe('Doors ("On this site")', () => {
       const tile = door(container, '/experience')
       expect(within(tile).getByText(years.figure)).toBeInTheDocument()
       expect(within(tile).getByText(years.label)).toBeInTheDocument()
-      expect(years).toMatchObject({ figure: '8+', label: 'years building production AI' })
+      expect(years).toMatchObject({ figure: `${YEARS_EXPERIENCE_NUMBER}+`, label: 'years building production AI' })
     })
   })
 

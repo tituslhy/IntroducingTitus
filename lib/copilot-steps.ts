@@ -4,6 +4,10 @@
  */
 export type Step = { id: string; tool: string; label: string; done: boolean };
 
+/** Plain words for the wait before anything real arrives (a reasoning headline or a tool step). */
+export const WAITING_WORDS = ["Thinking", "Reasoning", "Considering", "Weighing"];
+export const WAITING_WORD_MS = 3_000;
+
 /** Longest headline shown; a longer one is skipped, never cut off. */
 export const MAX_HEADLINE_CHARS = 90;
 

@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react'
-import { ARTICLE_COUNT_NUMBER } from '@/lib/content'
+import { ARTICLE_COUNT_NUMBER, YEARS_EXPERIENCE_NUMBER, numberToWords } from '@/lib/content'
 import { CURRENT_ROLE, EMAIL } from '@/lib/profile'
 import Home from './page'
 
@@ -19,7 +19,8 @@ describe('Home (front page)', () => {
   it('renders the opening sentence with the article count from data', () => {
     render(<Home />)
     const opening = screen.getByText(/putting AI into production/).closest('p')
-    expect(opening).toHaveTextContent('Eight years putting AI into production.')
+    const years = numberToWords(YEARS_EXPERIENCE_NUMBER)
+    expect(opening).toHaveTextContent(`${years[0].toUpperCase()}${years.slice(1)} years putting AI into production.`)
     expect(opening).toHaveTextContent(`${ARTICLE_COUNT_NUMBER} articles explaining how it works.`)
   })
 

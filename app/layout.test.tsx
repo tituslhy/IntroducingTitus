@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
-import { ARTICLE_COUNT_SHORT, COLOPHON_PATH } from '@/lib/content'
+import { ARTICLE_COUNT_SHORT, COLOPHON_PATH, YEARS_EXPERIENCE_NUMBER } from '@/lib/content'
 import { PAGE_TARGETS, SIGN_OFF_TITLE, SITE_DESCRIPTION, SITE_PAGES, SITE_TITLE } from '@/lib/profile'
-import RootLayout, { metadata } from './layout'
+import RootLayout, { metadata, revalidate } from './layout'
 
 // The layout mounts Navigation (usePathname) and CopilotBubble (useRouter, usePathname).
 // Outside the App Router neither hook has a context, so give them plain stand-ins.
@@ -34,7 +34,7 @@ describe('RootLayout metadata', () => {
   it('should export correct page description', () => {
     expect(metadata.description).toBe(SITE_DESCRIPTION)
     expect(metadata.description).toContain(SIGN_OFF_TITLE)
-    expect(metadata.description).toContain('8+ years building production AI systems')
+    expect(metadata.description).toContain(`${YEARS_EXPERIENCE_NUMBER}+ years building production AI systems`)
     expect(metadata.description).toContain(ARTICLE_COUNT_SHORT)
   })
 
@@ -45,7 +45,11 @@ describe('RootLayout metadata', () => {
   it('should export OpenGraph metadata with correct description', () => {
     expect(metadata.openGraph?.description).toBe(SITE_DESCRIPTION)
     expect(metadata.openGraph?.description).toContain(SIGN_OFF_TITLE)
-    expect(metadata.openGraph?.description).toContain('8+ years building production AI systems')
+    expect(metadata.openGraph?.description).toContain(`${YEARS_EXPERIENCE_NUMBER}+ years building production AI systems`)
+  })
+
+  it('re-renders the pages at most once a day, so the years figure moves on without a deploy', () => {
+    expect(revalidate).toBe(86400)
   })
 
   it('should export OpenGraph metadata with correct URL', () => {

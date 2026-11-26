@@ -46,6 +46,9 @@ export type Recording = {
 
 export type ColophonTraces = { recordings: Recording[] };
 
+/** A recorded tool call as the drawer showed it: its two labels and when it ran (ms into the recording). */
+export type ReplayStep = { id: string; tool: string; doing: string; done: string; start: number; end: number };
+
 /** The two questions, in the order the panel offers them. */
 export const REPLAY_QUESTIONS: { id: Recording["id"]; question: string }[] = [
   { id: "search", question: "Have you used LangChain and LangGraph?" },
