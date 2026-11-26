@@ -49,7 +49,7 @@ export default function NextPill({ stops }: { stops: Stop[] }) {
       onClick={go}
       aria-hidden={hidden}
       tabIndex={hidden ? -1 : 0}
-      className={`fixed bottom-6 left-1/2 z-[15] inline-flex max-w-[calc(100vw-180px)] -translate-x-1/2 items-center gap-2.5 overflow-hidden text-ellipsis whitespace-nowrap rounded-full border-0 bg-ink px-[18px] py-[11px] font-mono text-[13px] text-paper transition-[opacity,transform] duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber max-[520px]:bottom-5 max-[520px]:max-w-[calc(100vw-120px)] max-[520px]:text-[12px] ${
+      className={`fixed bottom-6 left-1/2 z-[15] inline-flex max-w-[calc(100vw-180px)] -translate-x-1/2 items-center gap-2.5 overflow-hidden text-ellipsis whitespace-nowrap rounded-full border-0 bg-ink px-[18px] py-[11px] font-mono text-[13px] text-paper transition-[opacity,transform] duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber max-[520px]:bottom-5 max-[520px]:max-w-[calc(100vw-144px)] max-[520px]:text-[12px] ${
         hidden ? 'pointer-events-none translate-y-5 opacity-0' : 'opacity-100'
       }`}
     >

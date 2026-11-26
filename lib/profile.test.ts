@@ -2,6 +2,7 @@ import { existsSync } from "fs";
 import path from "path";
 import { ARTICLE_COUNT_SHORT, COLOPHON_PATH } from "./content";
 import { TOOLS, toolTargetId } from "./about";
+import { firstMention } from "./page-stops";
 import {
   ASK_FOLIO,
   CERTIFICATIONS,
@@ -392,5 +393,97 @@ describe("EDUCATION copilot notes", () => {
     const thirdPerson = /\b(he|his|Titus built)\b/;
     const offenders = allNotes.filter(({ note }) => note !== undefined && thirdPerson.test(note)).map(({ label }) => label);
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("page target names", () => {
+  const SECTION_IDS = [
+    "lede",
+    "stack",
+    "dossier",
+    "all-roles",
+    "education",
+    "projects",
+    "earlier-work",
+    "open-source",
+    "writing",
+    "colophon-page",
+  ];
+  const targetFor = (id: string) => PAGE_TARGETS.find((t) => t.id === id);
+
+  it("gives every section target no names, so the stops under a reply keep the model's slot for them", () => {
+    for (const id of SECTION_IDS) {
+      expect({ id, names: targetFor(id)?.names }).toEqual({ id, names: undefined });
+    }
+  });
+
+  it("gives every role the company name and its short name, once each", () => {
+    for (const r of ROLES) {
+      const names = targetFor(`role-${r.slug}`)?.names ?? [];
+      expect(names).toContain(r.company);
+      expect(names).toContain(r.short);
+      expect(new Set(names).size).toBe(names.length);
+    }
+  });
+
+  it("names Mastercard only once, because its short name is its company name", () => {
+    expect(targetFor("role-mastercard")?.names).toEqual(["Mastercard"]);
+  });
+
+  it("names UOB by its short name as well as the bank's full name", () => {
+    expect(targetFor("role-uob")?.names).toEqual(["United Overseas Bank", "UOB"]);
+  });
+
+  it("gives every degree its institution and short name, once each", () => {
+    for (const e of EDUCATION) {
+      const names = targetFor(`edu-${e.slug}`)?.names ?? [];
+      expect(names).toContain(e.institution);
+      expect(names).toContain(e.short);
+      expect(new Set(names).size).toBe(names.length);
+    }
+  });
+
+  it("gives every project its title as its only name", () => {
+    for (const p of PROJECTS) {
+      expect(targetFor(`project-${p.slug}`)?.names).toEqual([p.title]);
+    }
+  });
+
+  it("gives every tool on the About table its name as its only name", () => {
+    for (const t of TOOLS) {
+      expect(targetFor(toolTargetId(t))?.names).toEqual([t.name]);
+    }
+  });
+
+  it("gives every name real text: no blanks, no stray spaces", () => {
+    for (const target of PAGE_TARGETS) {
+      for (const name of target.names ?? []) {
+        expect({ id: target.id, name, trimmed: name.trim() === name && name.length > 0 }).toEqual({
+          id: target.id,
+          name,
+          trimmed: true,
+        });
+      }
+    }
+  });
+
+  it("finds every name in the text it is written as, as a whole word at the start", () => {
+    for (const target of PAGE_TARGETS) {
+      for (const name of target.names ?? []) {
+        expect({ id: target.id, name, at: firstMention(name, [name]) }).toEqual({ id: target.id, name, at: 0 });
+      }
+    }
+  });
+
+  it("does not give one name to two different targets, ignoring case, so a mention points at one stop", () => {
+    const owners = new Map<string, string[]>();
+    for (const target of PAGE_TARGETS) {
+      for (const name of target.names ?? []) {
+        const key = name.toLowerCase();
+        owners.set(key, [...(owners.get(key) ?? []), target.id]);
+      }
+    }
+    const shared = [...owners.entries()].filter(([, ids]) => ids.length > 1);
+    expect(shared).toEqual([]);
   });
 });

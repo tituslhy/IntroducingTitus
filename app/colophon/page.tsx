@@ -267,12 +267,13 @@ export default function ColophonPage() {
                 recordings={traces}
                 articleCount={ARTICLE_COUNT_NUMBER}
                 titles={titlesFor(traces, ARTICLES)}
-                targets={PAGE_TARGETS.map(({ id, label, path, tool }) => ({
+                targets={PAGE_TARGETS.map(({ id, label, path, tool, names }) => ({
                   id,
                   label,
                   path,
                   page: SITE_PAGES.find((p) => p.path === path)?.label ?? (path === COLOPHON_PATH ? 'Ask Titus' : undefined),
                   ...(tool && { tool }),
+                  ...(names && { names }),
                 }))}
               />
             </div>

@@ -1553,6 +1553,117 @@ describe("CopilotBubble", () => {
     });
   });
 
+  describe("the stops under a reply follow the order the reply names them", () => {
+    const SIDE_BY_SIDE = "(min-width: 1024px)";
+    let originalMatchMedia: typeof window.matchMedia;
+    const TARGETS = [
+      { id: "role-illumina", label: "Illumina, 2023", path: "/experience", page: "Experience", names: ["Illumina"] },
+      { id: "edu-smu", label: "SMU, 2021", path: "/education", page: "Education", names: ["Singapore Management University", "SMU"] },
+      { id: "role-uob", label: "United Overseas Bank, 2025", path: "/experience", page: "Experience", names: ["United Overseas Bank", "UOB"] },
+    ];
+    // The model sent the actions as Illumina, SMU, UOB; the reply itself names UOB, then SMU, then Illumina.
+    const ARRIVAL = ["Experience · Illumina, 2023", "Education · SMU, 2021", "Experience · United Overseas Bank, 2025"];
+    const TEXT_ORDER = ["Experience · United Overseas Bank, 2025", "Education · SMU, 2021", "Experience · Illumina, 2023"];
+    const REPLY_PART_1 = "I did the bank work at UOB first, then my master's at SMU, ";
+    const REPLY_PART_2 = "and the Illumina work last.";
+
+    beforeEach(() => {
+      originalMatchMedia = window.matchMedia;
+      mockPathname = "/";
+      // Narrow screen: the actions only mark the pills, and the page stays where it is.
+      window.matchMedia = jest.fn((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(() => true),
+      }));
+    });
+
+    afterEach(async () => {
+      await letPageSettle();
+      window.matchMedia = originalMatchMedia;
+    });
+
+    /** The labels on the pills under the first reply, in the order they are shown. */
+    function pillLabels(): string[] {
+      const heading = screen.getAllByText("See on page")[0];
+      return within(heading.parentElement!)
+        .getAllByRole("button")
+        .map((button) => (button.textContent ?? "").replace(/^[→↓]\s*/, ""));
+    }
+
+    async function openDrawer() {
+      const user = userEvent.setup();
+      render(<CopilotBubble targets={TARGETS} />);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      await user.type(screen.getByPlaceholderText(/ask about my work/i), "Where have you worked{Enter}");
+      return user;
+    }
+
+    it("lists the pills in the order the finished reply names them, not the order the actions arrived", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue(
+        createStreamingResponse([
+          actionLine("role-illumina"),
+          actionLine("edu-smu"),
+          actionLine("role-uob"),
+          deltaLine(REPLY_PART_1),
+          deltaLine(REPLY_PART_2),
+        ])
+      );
+      await openDrawer();
+
+      await waitFor(() => expect(pillLabels()).toEqual(TEXT_ORDER));
+      expect(screen.getByText(/the Illumina work last/)).toBeInTheDocument();
+    });
+
+    it("keeps the arrival order while the reply is still streaming, then reorders once it finishes", async () => {
+      const { response, release } = scriptedResponse([
+        actionLine("role-illumina"),
+        actionLine("edu-smu"),
+        actionLine("role-uob"),
+        deltaLine(REPLY_PART_1),
+        deltaLine(REPLY_PART_2),
+        WAIT,
+      ]);
+      (global.fetch as jest.Mock).mockResolvedValue(response);
+      await openDrawer();
+
+      await waitFor(() => expect(screen.getByText(/the Illumina work last/)).toBeInTheDocument());
+      await waitFor(() => expect(pillLabels()).toEqual(ARRIVAL));
+
+      await act(async () => release());
+
+      await waitFor(() => expect(pillLabels()).toEqual(TEXT_ORDER));
+    });
+
+    it("keeps an earlier reply's pills in text order while a later reply is still streaming", async () => {
+      const later = scriptedResponse([deltaLine("Let me think about that."), WAIT]);
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce(
+          createStreamingResponse([
+            actionLine("role-illumina"),
+            actionLine("edu-smu"),
+            actionLine("role-uob"),
+            deltaLine(REPLY_PART_1),
+            deltaLine(REPLY_PART_2),
+          ])
+        )
+        .mockResolvedValueOnce(later.response);
+      const user = await openDrawer();
+      await waitFor(() => expect(pillLabels()).toEqual(TEXT_ORDER));
+
+      await user.type(screen.getByPlaceholderText(/ask about my work/i), "And what about your studies{Enter}");
+      await waitFor(() => expect(screen.getByText("Let me think about that.")).toBeInTheDocument());
+
+      expect(pillLabels()).toEqual(TEXT_ORDER);
+      await act(async () => later.release());
+    });
+  });
+
   describe("scrolling under the nav", () => {
     const SIDE_BY_SIDE = "(min-width: 1024px)";
     const REDUCE = "(prefers-reduced-motion: reduce)";

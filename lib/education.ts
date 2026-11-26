@@ -97,12 +97,15 @@ export function educationResults(education: Education[] = EDUCATION): EducationR
   return results
 }
 
-/** The front page's Education door: one row per degree, with its first result as the right-hand note. */
+/**
+ * The front page's Education door: one row per degree, its level before the school ("Master’s, Singapore
+ * Management University"), and that degree's own standing as the right-hand note. Never a result from a
+ * programme inside it: NUS reads "2nd Upper", not its exchanges' First Classes.
+ */
 export function educationDoor(education: Education[] = EDUCATION) {
-  const results = educationResults(education)
   return education.map((e) => ({
     lead: e.years,
-    text: e.institution,
-    end: results.find((r) => r.slug === e.slug)?.brief ?? '',
+    text: `${e.level}, ${e.institution}`,
+    end: /^GPA\b/.test(e.standing.caption) ? `GPA ${gpaWithScale(e.standing)}` : e.standing.figure,
   }))
 }

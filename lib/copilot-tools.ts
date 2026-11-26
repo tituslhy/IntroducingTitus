@@ -57,7 +57,7 @@ export interface CopilotTool<A = unknown> {
 const PAGE_TARGET_SET = new Set<string>(PAGE_TARGET_IDS);
 
 /** Most targets one reply may point at (several tools in one table count separately). */
-export const MAX_PAGE_TARGETS = 6;
+export const MAX_PAGE_TARGETS = 8;
 
 /**
  * Returns the validated targets from show_on_page's raw arguments, in the order given: unknown ids

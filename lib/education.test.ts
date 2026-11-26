@@ -7,6 +7,7 @@ const degree = (overrides: Partial<Education> = {}): Education => ({
   years: '2000',
   institution: 'Test Institute',
   short: 'TI',
+  level: 'Bachelor’s',
   degree: 'Test degree',
   dates: '2000 — 2001',
   location: 'Nowhere',
@@ -382,34 +383,55 @@ describe('educationResults', () => {
 })
 
 describe('educationDoor', () => {
-  it('gives one row per degree, in data order, with its year and institution', () => {
+  it('gives one row per degree, in data order, with its year and level before its institution', () => {
     const rows = educationDoor()
     expect(rows.map((r) => r.lead)).toEqual(EDUCATION.map((e) => e.years))
-    expect(rows.map((r) => r.text)).toEqual(EDUCATION.map((e) => e.institution))
+    expect(rows.map((r) => r.text)).toEqual(EDUCATION.map((e) => `${e.level}, ${e.institution}`))
   })
 
-  it('gives each degree its first result as the note: GPA, First Class ×2, Top Student', () => {
+  it('reads the level before the school, e.g. "Master’s, Singapore Management University"', () => {
+    expect(educationDoor()[0].text).toBe('Master’s, Singapore Management University')
+    expect(educationDoor([degree({ level: 'A Levels', institution: 'Anderson Junior College' })])[0].text).toBe(
+      'A Levels, Anderson Junior College',
+    )
+  })
+
+  it('gives each degree its own standing as the note: GPA with its scale, a class, or an award', () => {
     expect(educationDoor()).toEqual([
-      { lead: '2021', text: 'Singapore Management University', end: 'GPA 3.98/4.0' },
-      { lead: '2011', text: 'National University of Singapore', end: 'First Class ×2' },
-      { lead: '2007', text: 'Anderson Junior College', end: 'Top Student' },
+      { lead: '2021', text: 'Master’s, Singapore Management University', end: 'GPA 3.98/4.0' },
+      { lead: '2011', text: 'Bachelor’s, National University of Singapore', end: '2nd Upper' },
+      { lead: '2007', text: 'A Levels, Anderson Junior College', end: 'Top Student' },
     ])
   })
 
-  it('leaves the note empty for a degree with no result', () => {
-    expect(educationDoor([degree()])).toEqual([{ lead: '2000', text: 'Test Institute', end: '' }])
+  it('never notes the NUS degree with a result from its programmes: it reads "2nd Upper", not "First Class ×2"', () => {
+    const nus = EDUCATION.find((e) => e.slug === 'nus')
+    expect(nus?.parts?.some((p) => p.standing === 'First Class with Distinction')).toBe(true)
+    const row = educationDoor().find((r) => r.text.endsWith('National University of Singapore'))
+    expect(row?.end).toBe('2nd Upper')
+    expect(row?.end).not.toMatch(/First Class/)
   })
 
-  it('uses the first result a degree earns when it earns several, not the last', () => {
+  it('never notes a degree with a result from its programmes, even when it is the only result', () => {
+    const rows = educationDoor([degree({ parts: [part()], standing: { figure: '2nd Upper', caption: 'Class Honours' } })])
+    expect(rows[0].end).toBe('2nd Upper')
+  })
+
+  it('uses the degree’s standing even when it earns an award-like achievement too', () => {
     const rows = educationDoor([
       degree({
         slug: 'x',
-        standing: { figure: 'Top Student', caption: 'Award' },
-        achievements: ['1st place, Something'],
+        standing: { figure: '2nd Upper', caption: 'Class Honours' },
+        achievements: ['1st place, Something', 'Top Student, Award'],
       }),
     ])
-    // Top Student comes before 1st place in the results row, so it is the note.
-    expect(rows[0].end).toBe('Top Student')
+    expect(rows[0].end).toBe('2nd Upper')
+  })
+
+  it('shows GPA with its scale when the caption starts with GPA, and the bare figure otherwise', () => {
+    expect(educationDoor([degree({ standing: { figure: '4.5', caption: 'GPA out of 5.0' } })])[0].end).toBe('GPA 4.5/5.0')
+    expect(educationDoor([degree({ standing: { figure: '3.7', caption: 'GPA' } })])[0].end).toBe('GPA 3.7')
+    expect(educationDoor([degree({ standing: { figure: '3.5', caption: 'Average GPA' } })])[0].end).toBe('3.5')
   })
 
   it('returns no rows for no degrees', () => {

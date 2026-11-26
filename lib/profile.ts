@@ -251,6 +251,8 @@ export type Education = HonorGroups & {
   institution: string
   /** Short name for labels, e.g. "SMU". */
   short: string
+  /** The level of qualification, read before the school on the front page, e.g. "Master's". */
+  level: string
   degree: string
   dates: string
   location: string
@@ -270,6 +272,7 @@ export const EDUCATION: Education[] = [
     years: '2021',
     institution: 'Singapore Management University',
     short: 'SMU',
+    level: 'Master’s',
     degree: 'Master of IT in Business, AI track',
     dates: '2021 — 2022',
     location: 'Singapore',
@@ -286,6 +289,7 @@ export const EDUCATION: Education[] = [
     years: '2011',
     institution: 'National University of Singapore',
     short: 'NUS',
+    level: 'Bachelor’s',
     degree: 'BEng Chemical Engineering',
     dates: '2011 — 2015',
     location: 'Singapore',
@@ -345,6 +349,7 @@ export const EDUCATION: Education[] = [
     years: '2007',
     institution: 'Anderson Junior College',
     short: 'AJC',
+    level: 'A Levels',
     degree: "GCE 'A' Levels, Physical Sciences",
     dates: '2007 — 2008',
     location: 'Singapore',
@@ -644,6 +649,8 @@ export type PageTarget = {
   about: string
   /** A tile in the About page's periodic table. Several in one reply share one stop under the answer. */
   tool?: true
+  /** What an answer calls it ("United Overseas Bank", "UOB"), so the stops under it follow the answer's order. */
+  names?: string[]
 }
 
 /**
@@ -660,21 +667,23 @@ export const PAGE_TARGETS: PageTarget[] = [
     path: '/experience' as const,
     label: `${r.company}, ${r.years}`,
     about: `my ${r.role} role at ${r.company} (${r.dates})`,
+    names: [...new Set([r.company, r.short])],
   })),
   { id: 'education', path: '/education', label: 'Education', about: 'my degrees, honours and certifications' },
   ...EDUCATION.map((e) => ({
     id: `edu-${e.slug}`,
     path: '/education' as const,
     label: `${e.short}, ${e.years}`,
+    names: [e.institution, e.short],
     about: `${e.degree} at ${e.institution} (${e.dates})${e.parts?.length ? `, including ${new Intl.ListFormat('en').format(e.parts.map((p) => p.institution))}` : ''}`,
   })),
   { id: 'projects', path: '/projects', label: 'Projects', about: 'the things I have built, at work and on my own' },
-  ...PROJECTS.map((p) => ({ id: `project-${p.slug}`, path: '/projects' as const, label: p.title, about: `${p.title}: ${p.sub}` })),
+  ...PROJECTS.map((p) => ({ id: `project-${p.slug}`, path: '/projects' as const, label: p.title, about: `${p.title}: ${p.sub}`, names: [p.title] })),
   { id: 'earlier-work', path: '/projects', label: 'Earlier work', about: 'my projects from before GenAI' },
   { id: 'open-source', path: '/projects', label: 'Open source', about: 'my open-source contributions' },
   { id: 'writing', path: '/writing', label: 'Writing', about: 'my featured Medium articles' },
   { id: 'colophon-page', path: COLOPHON_PATH, label: 'How Ask Titus works', about: 'how I, the assistant, am built and tested' },
-  ...TOOLS.map((t) => ({ id: toolTargetId(t), path: '/about' as const, label: t.name, about: `${t.name} in the periodic table`, tool: true as const })),
+  ...TOOLS.map((t) => ({ id: toolTargetId(t), path: '/about' as const, label: t.name, about: `${t.name} in the periodic table`, tool: true as const, names: [t.name] })),
 ]
 
 export const PAGE_TARGET_IDS = PAGE_TARGETS.map((t) => t.id)

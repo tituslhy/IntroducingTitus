@@ -82,14 +82,15 @@ export default function RootLayout({
         <Navigation />
         {children}
         {/* The drawer lives here, so it keeps the conversation while the visitor moves between pages.
-            Only id, label and path cross to the client; copilot-only narrative stays server-side. */}
+            Only id, label, path and names cross to the client; copilot-only narrative stays server-side. */}
         <CopilotBubble
-          targets={PAGE_TARGETS.map(({ id, label, path, tool }) => ({
+          targets={PAGE_TARGETS.map(({ id, label, path, tool, names }) => ({
             id,
             label,
             path,
             page: SITE_PAGES.find((p) => p.path === path)?.label ?? (path === COLOPHON_PATH ? 'Ask Titus' : undefined),
             ...(tool && { tool }),
+            ...(names && { names }),
           }))}
           email={EMAIL}
         />

@@ -219,7 +219,7 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     at: '2026-06',
-    label: 'SMU',
+    label: 'Jun 2026',
     text: 'SMU put me on its campus pillars for the master’s I’d taken the leap into, and filmed an interview with me.',
     photo: {
       src: '/about/pillar.jpg',
@@ -231,7 +231,7 @@ export const CHAPTERS: Chapter[] = [
   },
   {
     at: '2026-09',
-    label: '2026',
+    label: 'Sep 2026',
     text: 'Mastercard: tech lead on Agent Suite’s core SDK, and first place at Developer Innovation Week.',
     photo: { src: '/about/hackathon.jpg', position: '50% 50%', caption: 'First place, Mastercard Developer Innovation Week 2026', alt: 'Titus and his four teammates holding the first-prize certificate' },
   },
