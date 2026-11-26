@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { TextEncoder, TextDecoder } from "util";
 import CopilotBubble from "./CopilotBubble";
 import { ARTICLE_COUNT_NUMBER } from "@/lib/content";
-import { openCopilot, startTour } from "@/lib/copilot-events";
+import { COPILOT_TOUR_PAGE_EVENT, openCopilot, startTour } from "@/lib/copilot-events";
 import { PAGE_TARGETS } from "@/lib/profile";
 import { SITE_TOUR, TOUR_TARGET_IDS, stepDurationMs } from "@/lib/site-tour";
 import { STARTER_PROMPTS } from "@/lib/starter-prompts";
@@ -3001,23 +3001,25 @@ describe("CopilotBubble: the Show me around tour", () => {
       expect(document.querySelectorAll("#fit-mode")).toHaveLength(1);
     });
 
-    it("goes when the tour ends, and the starters' own #fit-mode is the only one", () => {
+    it("moves to the closing line when the tour ends, and is still the only #fit-mode (the starters hide theirs)", () => {
       renderBubble();
       play();
       advance(ALL_DONE);
       const all = document.querySelectorAll("#fit-mode");
       expect(all).toHaveLength(1);
-      expect(thread()).not.toContainElement(all[0] as HTMLElement);
+      expect(thread()).toContainElement(all[0] as HTMLElement);
+      expect(all[0].closest("li")).toBeNull();
       expect(all[0]).toHaveTextContent(HIRING);
     });
 
-    it("goes when the visitor ends the tour, leaving only the starters' one", () => {
+    it("stays under the closing line when the visitor ends the tour, still the only one", () => {
       renderBubble();
       play();
       advance(dur(0) + 1);
       fireEvent.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "End tour" }));
       expect(document.querySelectorAll("#fit-mode")).toHaveLength(1);
-      expect(document.getElementById("copilot-tour")?.contains(fitButton())).toBeFalsy();
+      expect(thread()).toContainElement(fitButton());
+      expect(fitButton()!.parentElement).toContainElement(say(total - 1) as HTMLElement);
     });
 
     it("enters fit mode when pressed: the job-description box opens and the tour stops", () => {
@@ -3260,6 +3262,46 @@ describe("CopilotBubble: the Show me around tour", () => {
       expect(scrollToSpy.mock.calls.map((c) => c[0].top).filter((t) => t === DESK_SCROLL || t === ROLE_SCROLL)).toEqual([DESK_SCROLL, ROLE_SCROLL]);
     });
 
+    it("boxes the role only after the pass is picked up and held (700 + 1100 ms), together with the scroll to it", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 800);
+      const role = document.getElementById(`role-${slug}`)!;
+      expect(pass()).toHaveClass("tour-ring");
+      expect(role).not.toHaveClass("tour-ring");
+      await settle(900);
+      expect(role).not.toHaveClass("tour-ring");
+      expect(scrolledTo(ROLE_SCROLL)).toBe(false);
+      await settle(300);
+      expect(role).toHaveClass("tour-ring");
+      expect(role).toHaveClass("copilot-spotlight");
+      expect(scrolledTo(ROLE_SCROLL)).toBe(true);
+    });
+
+    it("takes the role's box off again after 2800 ms", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 2000);
+      const role = document.getElementById(`role-${slug}`)!;
+      expect(role).toHaveClass("tour-ring");
+      await settle(2500);
+      expect(role).toHaveClass("tour-ring");
+      await settle(400);
+      expect(role).not.toHaveClass("tour-ring");
+    });
+
+    it("does not box the role if the tour is paused during the hold", async () => {
+      addDesk();
+      renderBubble();
+      play();
+      await settle(S() + 800);
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      await settle(3000);
+      expect(document.getElementById(`role-${slug}`)).not.toHaveClass("tour-ring");
+    });
+
     it("takes the ring off the pass again after a moment", async () => {
       addDesk();
       renderBubble();
@@ -3429,7 +3471,9 @@ describe("CopilotBubble: the Show me around tour", () => {
       play();
       await settle(S() + 100);
       expect(scrollToSpy).toHaveBeenCalledTimes(1);
-      expect(document.querySelector(".tour-ring")).toBeNull();
+      // The role itself is boxed at once (nothing to pick up first); no pass is ringed because there is none.
+      const ringed = Array.from(document.querySelectorAll(".tour-ring"));
+      expect(ringed).toEqual([document.getElementById(`role-${slug}`)]);
     });
 
     it("leaves the other stops alone: no desk scroll, no waits, no ring (education)", async () => {
@@ -3468,6 +3512,16 @@ describe("CopilotBubble: the Show me around tour", () => {
         expect(scrollToSpy).toHaveBeenLastCalledWith({ top: ROLE_SCROLL, behavior: "smooth" });
       });
 
+      it("boxes the role once the pass has been held, as on the page that was already open", async () => {
+        await waitingForExperience();
+        addDesk();
+        await settle(800);
+        const role = document.getElementById(`role-${slug}`)!;
+        expect(role).not.toHaveClass("tour-ring");
+        await settle(1300);
+        expect(role).toHaveClass("tour-ring");
+      });
+
       it("does not scroll to the role if the tour is paused while the pass is on show", async () => {
         await waitingForExperience();
         addDesk();
@@ -3489,6 +3543,652 @@ describe("CopilotBubble: the Show me around tour", () => {
         await settle(1300);
         expect(scrollToSpy).toHaveBeenLastCalledWith({ top: ROLE_SCROLL, behavior: "instant" });
       });
+    });
+  });
+
+  describe("telling the nav which page the tour is on", () => {
+    let heard: Array<string | null>;
+    const onPage = (e: Event) => heard.push((e as CustomEvent<string | null>).detail);
+    const last = () => heard[heard.length - 1];
+
+    beforeEach(() => {
+      heard = [];
+      window.addEventListener(COPILOT_TOUR_PAGE_EVENT, onPage);
+    });
+    afterEach(() => {
+      window.removeEventListener(COPILOT_TOUR_PAGE_EVENT, onPage);
+    });
+
+    it("says null while no tour plays, never a path", () => {
+      renderBubble();
+      expect(heard.length).toBeGreaterThan(0);
+      expect(heard.every((d) => d === null)).toBe(true);
+    });
+
+    it("announces the current page when the tour starts", () => {
+      renderBubble();
+      play();
+      expect(last()).toBe("/");
+    });
+
+    it("announces whatever page the tour started on", () => {
+      mockPathname = "/about";
+      renderBubble();
+      play();
+      expect(last()).toBe("/about");
+    });
+
+    it("announces it on a narrow screen too, where the drawer steps aside", () => {
+      mediaState[WIDE] = false;
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      expect(caption()).toBeInTheDocument();
+      expect(last()).toBe("/");
+    });
+
+    it("follows the tour onto the page it opens itself", () => {
+      document.getElementById(steps[2].targets[0])?.remove();
+      const { rerender } = renderBubble();
+      play();
+      advance(startOf(2) + 1); // the router is asked for /experience
+      expect(last()).toBe("/");
+      mockPathname = "/experience";
+      rerender(<CopilotBubble targets={TARGETS} />);
+      expect(last()).toBe("/experience");
+      expect(recorded()).toBeInTheDocument();
+    });
+
+    it("announces null while the tour is paused (the visitor has the page), and the path again when it resumes", () => {
+      renderBubble();
+      play();
+      expect(last()).toBe("/");
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      expect(last()).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+      expect(last()).toBe("/");
+    });
+
+    it("announces null when the visitor scrolling pauses the tour", () => {
+      renderBubble();
+      play();
+      expect(last()).toBe("/");
+      fireEvent.wheel(document.body);
+      expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
+      expect(last()).toBeNull();
+    });
+
+    it("announces null when the tour finishes", () => {
+      renderBubble();
+      play();
+      expect(last()).toBe("/");
+      advance(ALL_DONE);
+      expect(recorded()).toBeInTheDocument();
+      expect(last()).toBeNull();
+    });
+
+    it("announces null when the visitor ends the tour", () => {
+      renderBubble();
+      play();
+      advance(dur(0) + 1);
+      fireEvent.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "End tour" }));
+      expect(last()).toBeNull();
+    });
+
+    it("announces null when the drawer's x stops the tour", () => {
+      renderBubble();
+      play();
+      fireEvent.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "Close chat" }));
+      expect(last()).toBeNull();
+    });
+
+    it("announces null when the visitor navigates away mid-tour and the tour stops quietly", () => {
+      const { rerender } = renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      expect(last()).toBe("/");
+      mockPathname = "/writing";
+      rerender(<CopilotBubble targets={TARGETS} />);
+      expect(last()).toBeNull();
+    });
+
+    it("announces null when a question ends the tour", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse([deltaLine("Sure.")]));
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      await ask("What do you do?");
+      expect(last()).toBeNull();
+    });
+
+    it("announces the page again when the tour is started again", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(last()).toBeNull();
+      play();
+      expect(last()).toBe("/");
+    });
+
+    it("announces null when the component unmounts mid-tour", () => {
+      const { unmount } = renderBubble();
+      play();
+      expect(last()).toBe("/");
+      unmount();
+      expect(last()).toBeNull();
+    });
+
+    it("announces null on unmount even when no tour was playing", () => {
+      const { unmount } = renderBubble();
+      const before = heard.length;
+      unmount();
+      expect(heard.length).toBe(before + 1);
+      expect(last()).toBeNull();
+    });
+  });
+
+  describe("boxing what a stop points at", () => {
+    const stepOf = (id: string) => steps.findIndex((st) => st.targets.includes(id));
+    const el = (id: string) => document.getElementById(id) as HTMLElement;
+    /** Swaps the fixture's div for a <section>, as a whole page section is on the real pages. */
+    function makeSection(id: string) {
+      el(id).remove();
+      const section = document.createElement("section");
+      section.id = id;
+      section.setAttribute("data-test-tour-target", "");
+      document.body.append(section);
+      return section;
+    }
+
+    it("boxes a stop's element (an education tile) and still scrolls to it", async () => {
+      renderBubble();
+      play();
+      await settle(startOf(stepOf("edu-smu")) + 100);
+      expect(scrollToSpy).toHaveBeenCalled();
+      expect(el("edu-smu")).toHaveClass("tour-ring");
+      expect(el("edu-smu")).toHaveClass("copilot-spotlight");
+    });
+
+    it("boxes a project tile, a tool tile and a role the same way", async () => {
+      for (const id of ["project-fictional-bassoon", "tool-langgraph", "role-uob"]) {
+        document.querySelectorAll("[data-test-tour-target]").forEach((n) => n.remove());
+        for (const pid of pageTargetIds) {
+          const d = document.createElement("div");
+          d.id = pid;
+          d.setAttribute("data-test-tour-target", "");
+          document.body.append(d);
+        }
+        const { unmount } = renderBubble();
+        play();
+        await settle(startOf(stepOf(id)) + 100);
+        expect(el(id)).toHaveClass("tour-ring");
+        unmount();
+      }
+    });
+
+    it("takes the box off after 2800 ms", async () => {
+      renderBubble();
+      play();
+      await settle(startOf(stepOf("edu-smu")) + 100);
+      await settle(2600);
+      expect(el("edu-smu")).toHaveClass("tour-ring");
+      await settle(200);
+      expect(el("edu-smu")).not.toHaveClass("tour-ring");
+    });
+
+    it("leaves a periodic-table tile (class pt-el) unboxed, where an amber ring already means something", async () => {
+      el("tool-langgraph").classList.add("pt-el");
+      renderBubble();
+      play();
+      await settle(startOf(stepOf("tool-langgraph")) + 100);
+      expect(scrollToSpy).toHaveBeenCalled();
+      expect(el("tool-langgraph")).toHaveClass("copilot-spotlight");
+      expect(el("tool-langgraph")).not.toHaveClass("tour-ring");
+    });
+
+    it("leaves a pt-el tile that arrives from another page unboxed too", async () => {
+      const i = stepOf("tool-langgraph");
+      el("tool-langgraph").remove();
+      renderBubble();
+      play();
+      await settle(startOf(i) + 2);
+      expect(mockPush).toHaveBeenCalledWith("/about", { scroll: false });
+      const tile = document.createElement("div");
+      tile.id = "tool-langgraph";
+      tile.className = "pt-el";
+      tile.setAttribute("data-test-tour-target", "");
+      document.body.append(tile);
+      await settle(100);
+      expect(scrollToSpy).toHaveBeenCalled();
+      expect(tile).not.toHaveClass("tour-ring");
+    });
+
+    it("leaves a whole <section> unboxed: the page just scrolls to it", async () => {
+      const section = makeSection("writing");
+      renderBubble();
+      play();
+      await settle(startOf(stepOf("writing")) + 100);
+      expect(scrollToSpy).toHaveBeenCalled();
+      expect(section).not.toHaveClass("tour-ring");
+    });
+
+    it("boxes only the stop it is at, not the ones before or after", async () => {
+      renderBubble();
+      play();
+      await settle(startOf(stepOf("edu-smu")) + 100);
+      const ringed = Array.from(document.querySelectorAll(".tour-ring")).map((n) => n.id);
+      expect(ringed).toEqual(["edu-smu"]);
+    });
+
+    describe("scrolling under the nav while the tour pins it", () => {
+      const NAV = 56;
+      const pinnedNav = () => {
+        const nav = addNav(NAV);
+        nav.setAttribute("data-test-tour-target", "");
+        nav.setAttribute("data-pinned", "");
+        return nav;
+      };
+
+      it("leaves room for the nav when scrolling down, with the usual 16px gap", async () => {
+        pinnedNav();
+        placeAt(el("edu-smu"), 500);
+        renderBubble();
+        play();
+        await settle(startOf(stepOf("edu-smu")) + 100);
+        expect(scrollToSpy).toHaveBeenCalledWith({ top: 500 - NAV - 16, behavior: "smooth" });
+      });
+
+      it("leaves the same room when scrolling up", async () => {
+        pinnedNav();
+        setScrollY(2000);
+        placeAt(el("edu-smu"), 500);
+        renderBubble();
+        play();
+        await settle(startOf(stepOf("edu-smu")) + 100);
+        expect(scrollToSpy).toHaveBeenCalledWith({ top: 500 - NAV - 16, behavior: "smooth" });
+        setScrollY(0);
+      });
+
+      it("keeps the small gap alone going down when the nav is not pinned (it hides itself)", async () => {
+        const nav = addNav(NAV);
+        nav.setAttribute("data-test-tour-target", "");
+        placeAt(el("edu-smu"), 500);
+        renderBubble();
+        play();
+        await settle(startOf(stepOf("edu-smu")) + 100);
+        expect(scrollToSpy).toHaveBeenCalledWith({ top: 500 - 16, behavior: "smooth" });
+      });
+
+      it("never scrolls above the top of the page", async () => {
+        pinnedNav();
+        placeAt(el("edu-smu"), 40);
+        renderBubble();
+        play();
+        await settle(startOf(stepOf("edu-smu")) + 100);
+        expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
+      });
+
+      it("clears the pinned nav when picking up a pass's desk too", async () => {
+        pinnedNav();
+        const desk = document.createElement("div");
+        desk.setAttribute("data-desk", "");
+        desk.setAttribute("data-test-tour-target", "");
+        const pass = document.createElement("button");
+        pass.id = "pass-mastercard";
+        desk.append(pass);
+        const box = document.createElement("div");
+        box.setAttribute("data-reveal", "mastercard");
+        box.setAttribute("data-test-tour-target", "");
+        box.append(el("role-mastercard"));
+        document.body.append(desk, box);
+        placeAt(desk, 1000);
+        renderBubble();
+        play();
+        await settle(startOf(2) + 2);
+        expect(scrollToSpy).toHaveBeenCalledWith({ top: 1000 - NAV - 16, behavior: "smooth" });
+      });
+    });
+
+    describe("when its page is not open yet", () => {
+      it("boxes the element once the page has loaded", async () => {
+        const i = stepOf("edu-smu");
+        el("edu-smu").remove();
+        renderBubble();
+        play();
+        await settle(startOf(i) + 2);
+        expect(mockPush).toHaveBeenCalledWith("/education", { scroll: false });
+        const arrived = document.createElement("div");
+        arrived.id = "edu-smu";
+        arrived.setAttribute("data-test-tour-target", "");
+        document.body.append(arrived);
+        await settle(100);
+        expect(arrived).toHaveClass("tour-ring");
+        expect(arrived).toHaveClass("copilot-spotlight");
+        await settle(2800);
+        expect(arrived).not.toHaveClass("tour-ring");
+      });
+
+      it("leaves a <section> that arrives unboxed", async () => {
+        const i = stepOf("writing");
+        el("writing").remove();
+        renderBubble();
+        play();
+        await settle(startOf(i) + 2);
+        expect(mockPush).toHaveBeenCalledWith("/writing", { scroll: false });
+        const section = document.createElement("section");
+        section.id = "writing";
+        section.setAttribute("data-test-tour-target", "");
+        document.body.append(section);
+        await settle(100);
+        expect(scrollToSpy).toHaveBeenCalled();
+        expect(section).not.toHaveClass("tour-ring");
+      });
+
+      it("does not box it if the tour was paused while the page was loading", async () => {
+        const i = stepOf("edu-smu");
+        el("edu-smu").remove();
+        renderBubble();
+        play();
+        await settle(startOf(i) + 2);
+        fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+        const arrived = document.createElement("div");
+        arrived.id = "edu-smu";
+        arrived.setAttribute("data-test-tour-target", "");
+        document.body.append(arrived);
+        await settle(600);
+        expect(arrived).not.toHaveClass("tour-ring");
+      });
+
+      it("does not box it if the tour ended while the page was loading", async () => {
+        const i = stepOf("edu-smu");
+        el("edu-smu").remove();
+        renderBubble();
+        play();
+        await settle(startOf(i) + 2);
+        fireEvent.click(fab()); // mid-tour the button reads "End tour"
+        const arrived = document.createElement("div");
+        arrived.id = "edu-smu";
+        arrived.setAttribute("data-test-tour-target", "");
+        document.body.append(arrived);
+        await settle(600);
+        expect(arrived).not.toHaveClass("tour-ring");
+      });
+    });
+  });
+
+  describe("the closing line and the job-description button under it", () => {
+    const HIRING = "I'm hiring — check my fit for a role";
+    const thread = () => document.getElementById("copilot-tour")!;
+    const fits = () => document.querySelectorAll("#fit-mode");
+    const endTour = () => fireEvent.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "End tour" }));
+
+    it("shows the last line and the button right under it, in the tour thread", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(fits()).toHaveLength(1);
+      const button = fits()[0] as HTMLElement;
+      expect(button.tagName).toBe("BUTTON");
+      expect(button).toHaveTextContent(HIRING);
+      expect(thread()).toContainElement(button);
+      expect(button.parentElement).toContainElement(say(total - 1) as HTMLElement);
+      expect(say(total - 1)!.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("keeps the button under the last line only, with no earlier lines above it", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(screen.queryByText(steps[1].say)).not.toBeInTheDocument();
+      expect(thread()).toHaveTextContent(steps[total - 1].say);
+    });
+
+    it("does not render the starter list's own fit item: exactly one #fit-mode", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(fits()).toHaveLength(1);
+      expect(document.querySelectorAll("li #fit-mode")).toHaveLength(0);
+    });
+
+    it("still lists the other starter prompts under the closing line", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(screen.getByText(INTRO)).toBeInTheDocument();
+      for (const prompt of STARTER_PROMPTS) expect(screen.getByRole("button", { name: new RegExp(prompt.slice(0, 20)) })).toBeInTheDocument();
+    });
+
+    it("is the same when the tour is ended by the visitor", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      endTour();
+      expect(fits()).toHaveLength(1);
+      expect(thread()).toContainElement(fits()[0] as HTMLElement);
+      expect(document.querySelectorAll("li #fit-mode")).toHaveLength(0);
+    });
+
+    it("is the same on a narrow screen, where the drawer reopens for the ending", () => {
+      mediaState[WIDE] = false;
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(isOpen()).toBe(true);
+      expect(fits()).toHaveLength(1);
+      expect(thread()).toContainElement(fits()[0] as HTMLElement);
+    });
+
+    it("opens the job-description box when pressed, and the tour's copy of the button goes", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      fireEvent.click(fits()[0]);
+      expect(screen.getByRole("textbox", { name: "Job description" })).toBeInTheDocument();
+      expect(recorded()).not.toBeInTheDocument();
+      // The tour's copy is gone; the empty chat's starters (which show again in fit mode) carry their own.
+      expect(fits()).toHaveLength(1);
+      expect(document.getElementById("copilot-tour")).toBeNull();
+      expect(fits()[0].closest("li")).not.toBeNull();
+    });
+
+    it("brings the starter list's own fit item back once the visitor is back in the empty chat after fit mode", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      fireEvent.click(fits()[0]);
+      fireEvent.click(screen.getByRole("button", { name: /back to chat/i }));
+      expect(document.getElementById("copilot-tour")).not.toBeInTheDocument();
+      expect(fits()).toHaveLength(1);
+      expect(fits()[0].closest("li")).not.toBeNull();
+      expect(fits()[0]).toHaveTextContent(HIRING);
+    });
+
+    it("has the starters' fit item back after the closing line is cleared another way (the drawer's x, then reopened)", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      fireEvent.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "Close chat" }));
+      fireEvent.click(fab());
+      expect(isOpen()).toBe(true);
+      expect(document.getElementById("copilot-tour")).not.toBeInTheDocument();
+      expect(fits()).toHaveLength(1);
+      expect(fits()[0].closest("li")).not.toBeNull();
+    });
+
+    it("clears the button along with the closing line when the visitor sends a message", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse([deltaLine("An answer.")]));
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      await ask("Hello?");
+      expect(recorded()).not.toBeInTheDocument();
+      expect(document.getElementById("copilot-tour")).toBeNull();
+      expect(fits()).toHaveLength(0);
+    });
+
+    it("has no #fit-mode in step 1 when the tour is started again from the closing line", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(fits()).toHaveLength(1);
+      play();
+      expect(say(0)).toBeInTheDocument();
+      expect(fits()).toHaveLength(0);
+    });
+  });
+
+  describe("when the tour finishes", () => {
+    const FIT_PAUSE = 400;
+    const block = () => document.getElementById("copilot-tour") as HTMLElement;
+    const scrollerOf = () => block().closest<HTMLElement>(".overflow-y-auto") as HTMLElement;
+    const fit = () => document.getElementById("fit-mode") as HTMLElement;
+    const rect = (top: number) => () => ({ top, bottom: top, left: 0, right: 0, width: 0, height: 0, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+    /** Gives the drawer's scroll box and the closing line the geometry jsdom lacks. */
+    function layOut({ blockTop, scrollerTop, scrollTop = 0 }: { blockTop: number; scrollerTop: number; scrollTop?: number }) {
+      block().getBoundingClientRect = rect(blockTop);
+      scrollerOf().getBoundingClientRect = rect(scrollerTop);
+      scrollerOf().scrollTop = scrollTop;
+      return scrollerOf();
+    }
+    /** A stand-in #fit-mode outside the drawer, to see whether anything still rings by id after the drawer is gone. */
+    const decoy = () => {
+      const d = document.createElement("button");
+      d.id = "fit-mode";
+      d.setAttribute("data-test-tour-target", "");
+      document.body.append(d);
+      return d;
+    };
+
+    it("brings the closing line to 16px under the top of the drawer's scroll box after 400 ms", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      const scroller = layOut({ blockTop: 700, scrollerTop: 100 });
+      advance(FIT_PAUSE - 1);
+      expect(scroller.scrollTop).toBe(0);
+      advance(1);
+      // the line sits 600px below the scroll box's top; leave 16px above it.
+      expect(scroller.scrollTop).toBe(700 - 100 - 16);
+    });
+
+    it("counts the scroll the box already has", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      const scroller = layOut({ blockTop: 300, scrollerTop: 100, scrollTop: 50 });
+      advance(FIT_PAUSE);
+      expect(scroller.scrollTop).toBe(50 + 300 - 100 - 16);
+    });
+
+    it("scrolls back up when the line is already below its place", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      const scroller = layOut({ blockTop: 120, scrollerTop: 100, scrollTop: 400 });
+      advance(FIT_PAUSE);
+      expect(scroller.scrollTop).toBe(400 + 20 - 16);
+    });
+
+    it("never scrolls above the top", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      const scroller = layOut({ blockTop: 100, scrollerTop: 100, scrollTop: 5 });
+      advance(FIT_PAUSE);
+      expect(scroller.scrollTop).toBe(0);
+    });
+
+    it("does the same when the visitor ends the tour", () => {
+      renderBubble();
+      play();
+      advance(dur(0) + 1);
+      fireEvent.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "End tour" }));
+      const scroller = layOut({ blockTop: 500, scrollerTop: 100 });
+      advance(FIT_PAUSE);
+      expect(scroller.scrollTop).toBe(500 - 100 - 16);
+      expect(fit()).toHaveClass("tour-ring");
+    });
+
+    it("rings the job-description button after 400 ms, not before", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(fit()).not.toHaveClass("tour-ring");
+      advance(FIT_PAUSE - 1);
+      expect(fit()).not.toHaveClass("tour-ring");
+      advance(1);
+      expect(fit()).toHaveClass("tour-ring");
+    });
+
+    it("takes the ring off the button again after 2800 ms", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      advance(FIT_PAUSE);
+      advance(2799);
+      expect(fit()).toHaveClass("tour-ring");
+      advance(1);
+      expect(fit()).not.toHaveClass("tour-ring");
+    });
+
+    it("rings the button (and does not throw) when the drawer has no layout to measure", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      expect(() => advance(FIT_PAUSE)).not.toThrow();
+      expect(fit()).toHaveClass("tour-ring");
+    });
+
+    it("also does it on a narrow screen", () => {
+      mediaState[WIDE] = false;
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      const scroller = layOut({ blockTop: 400, scrollerTop: 100 });
+      advance(FIT_PAUSE);
+      expect(scroller.scrollTop).toBe(400 - 100 - 16);
+      expect(fit()).toHaveClass("tour-ring");
+    });
+
+    it("does nothing at the end of a tour the visitor only stopped quietly (the drawer's x)", () => {
+      renderBubble();
+      play();
+      advance(startOf(2) + 1);
+      fireEvent.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "Close chat" }));
+      advance(ALL_DONE);
+      expect(document.querySelector(".tour-ring")).toBeNull();
+    });
+
+    it("does not ring or scroll when the tour is only paused or running", () => {
+      renderBubble();
+      play();
+      advance(dur(0) + 1);
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      advance(FIT_PAUSE + 100);
+      expect(fit()).not.toHaveClass("tour-ring");
+    });
+
+    it("cancels the pending ring when the component unmounts before the 400 ms", () => {
+      const { unmount } = renderBubble();
+      play();
+      advance(ALL_DONE);
+      unmount();
+      const stray = decoy();
+      advance(FIT_PAUSE + 100);
+      expect(stray).not.toHaveClass("tour-ring");
+    });
+
+    it("cancels the pending ring when the tour is started again before the 400 ms", () => {
+      renderBubble();
+      play();
+      advance(ALL_DONE);
+      advance(FIT_PAUSE - 100);
+      play(); // restart: the closing state is gone, and so is its pending ring
+      const stray = decoy();
+      advance(FIT_PAUSE);
+      expect(stray).not.toHaveClass("tour-ring");
+      expect(say(0)).toBeInTheDocument();
     });
   });
 
@@ -3745,6 +4445,127 @@ describe("CopilotBubble: the Show me around tour", () => {
       expect(fab()).toHaveClass("tour-ring"); // the button that is there is still rung
       advance(dur(1) + 1);
       expect(say(2)).toBeInTheDocument();
+    });
+
+    describe("the job-description button in the input area", () => {
+      const HIRING_NAME = "I'm hiring — check my fit for a role";
+      const hiringButtons = () => screen.queryAllByRole("button", { name: new RegExp(HIRING_NAME) }); // the starters' copy has a ◆ in its name
+      /** The one this feature adds: in the input area, with no id (the starters' and the tour's own have #fit-mode). */
+      const inputAreaButton = () => hiringButtons().filter((b) => !b.id);
+
+      it("is not there before there is a conversation: only the starters' own button shows", () => {
+        renderBubble();
+        act(() => openCopilot());
+        expect(hiringButtons()).toHaveLength(1);
+        expect(inputAreaButton()).toHaveLength(0);
+        expect(hiringButtons()[0]).toHaveAttribute("id", "fit-mode");
+      });
+
+      it("appears once there is a conversation, and is the only such button then", async () => {
+        renderBubble();
+        await converse();
+        expect(hiringButtons()).toHaveLength(1);
+        expect(inputAreaButton()).toHaveLength(1);
+        expect(document.getElementById("fit-mode")).toBeNull();
+      });
+
+      it("has the ◆ hidden from screen readers and no id", async () => {
+        renderBubble();
+        await converse();
+        const button = inputAreaButton()[0];
+        expect(button).not.toHaveAttribute("id");
+        expect(button).toHaveAttribute("type", "button");
+        const mark = button.querySelector("span[aria-hidden='true']");
+        expect(mark).toHaveTextContent("◆");
+        expect(button).toHaveAccessibleName(HIRING_NAME);
+      });
+
+      it("sits in the input area, under the messages and not inside their scroll box", async () => {
+        renderBubble();
+        await converse();
+        const button = inputAreaButton()[0];
+        expect(button.closest(".overflow-y-auto")).toBeNull();
+        const textbox = screen.getByPlaceholderText(/ask about my work/i);
+        expect(button.compareDocumentPosition(textbox) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(screen.getByText("Hello, I am Titus.").compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      });
+
+      it("enters fit mode when pressed: the job-description box opens, and the button goes", async () => {
+        renderBubble();
+        await converse();
+        fireEvent.click(inputAreaButton()[0]);
+        expect(screen.getByRole("textbox", { name: "Job description" })).toBeInTheDocument();
+        expect(hiringButtons()).toHaveLength(0);
+      });
+
+      it("comes back when the visitor leaves fit mode for the chat", async () => {
+        renderBubble();
+        await converse();
+        fireEvent.click(inputAreaButton()[0]);
+        fireEvent.click(screen.getByRole("button", { name: /back to chat/i }));
+        expect(inputAreaButton()).toHaveLength(1);
+      });
+
+      it("is disabled while a reply is streaming", async () => {
+        renderBubble();
+        await converse();
+        const gated = scriptedResponse([deltaLine("Working "), WAIT, deltaLine("on it.")]);
+        (global.fetch as jest.Mock).mockResolvedValue(gated.response);
+        await ask("And what else?");
+        expect(inputAreaButton()[0]).toBeDisabled();
+        await act(async () => {
+          gated.release();
+        });
+        expect(await screen.findByText(/on it\./)).toBeInTheDocument();
+        expect(inputAreaButton()[0]).toBeEnabled();
+      });
+
+      it("is not there while the tour plays: only the tour's own copy shows, once it reaches step 2", async () => {
+        renderBubble();
+        await converse();
+        play();
+        expect(inputAreaButton()).toHaveLength(0);
+        advance(dur(0) + 1);
+        expect(inputAreaButton()).toHaveLength(0);
+        expect(hiringButtons()).toHaveLength(1);
+        expect(hiringButtons()[0]).toHaveAttribute("id", "fit-mode");
+        advance(startOf(4));
+        expect(inputAreaButton()).toHaveLength(0);
+      });
+
+      it("is not there during the tour's closing line, where the tour's copy shows under it", async () => {
+        renderBubble();
+        await converse();
+        play();
+        advance(ALL_DONE);
+        expect(say(total - 1)).toBeInTheDocument();
+        expect(inputAreaButton()).toHaveLength(0);
+        expect(hiringButtons()).toHaveLength(1);
+        expect(document.getElementById("copilot-tour")).toContainElement(hiringButtons()[0]);
+      });
+
+      it("is back once the closing line is cleared by a new question", async () => {
+        renderBubble();
+        await converse();
+        play();
+        advance(ALL_DONE);
+        (global.fetch as jest.Mock).mockResolvedValue(createStreamingResponse([deltaLine("Another answer.")]));
+        await ask("One more?");
+        expect(await screen.findByText("Another answer.")).toBeInTheDocument();
+        expect(recorded()).not.toBeInTheDocument();
+        expect(inputAreaButton()).toHaveLength(1);
+      });
+
+      it("is back after the tour is stopped quietly, and the tour's own copy is gone", async () => {
+        renderBubble();
+        await converse();
+        play();
+        advance(dur(0) + 1);
+        fireEvent.keyDown(screen.getByPlaceholderText(/ask about my work/i), { key: "Escape" });
+        expect(recorded()).not.toBeInTheDocument();
+        expect(inputAreaButton()).toHaveLength(1);
+        expect(document.getElementById("fit-mode")).toBeNull();
+      });
     });
 
     it("keeps the conversation after the tour", async () => {

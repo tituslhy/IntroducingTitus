@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { COLOPHON_PATH } from '@/lib/content'
+import { COPILOT_TOUR_PAGE_EVENT } from '@/lib/copilot-events'
 import { ASK_FOLIO, EMAIL, SITE_PAGES } from '@/lib/profile'
 
 /** The pages, in order, then Ask Titus: the production note for the copilot. */
@@ -12,6 +13,18 @@ const NAV_ITEMS = [...SITE_PAGES, { path: COLOPHON_PATH, label: 'Ask Titus', fol
 export default function Navigation() {
   const pathname = usePathname()
   const [hidden, setHidden] = useState(false)
+  // The page Ask Titus's tour is on, if one is playing: the nav stays in view and boxes that page's link.
+  const [tourPath, setTourPath] = useState<string | null>(null)
+  useEffect(() => {
+    const onTourPage = (e: Event) => {
+      const path = (e as CustomEvent<string | null>).detail ?? null
+      setTourPath(path)
+      // The tour's own scrolling may have hidden the nav: show it again when the tour lets go, not on the next scroll.
+      if (path === null) setHidden(false)
+    }
+    window.addEventListener(COPILOT_TOUR_PAGE_EVENT, onTourPage)
+    return () => window.removeEventListener(COPILOT_TOUR_PAGE_EVENT, onTourPage)
+  }, [])
   const listRef = useRef<HTMLUListElement>(null)
   const active = NAV_ITEMS.find((n) => pathname === n.path || pathname?.startsWith(`${n.path}/`))?.path ?? null
 
@@ -42,7 +55,8 @@ export default function Navigation() {
   return (
     <nav
       aria-label="Site navigation"
-      style={{ transform: hidden ? 'translateY(-110%)' : 'translateY(0)' }}
+      data-pinned={tourPath ? '' : undefined}
+      style={{ transform: hidden && !tourPath ? 'translateY(-110%)' : 'translateY(0)' }}
       className="sticky top-0 z-50 border-b border-rule bg-paper transition-transform duration-[240ms] ease-[cubic-bezier(.4,0,.2,1)] max-[880px]:border-b-0"
     >
       {/* Below 720px: two rows. Brand and email on top, all five links on their own row,
@@ -74,12 +88,14 @@ export default function Navigation() {
           >
             {NAV_ITEMS.map((n) => {
               const isActive = active === n.path
+              const toured = !!tourPath && (tourPath === n.path || tourPath.startsWith(`${n.path}/`))
               return (
                 <li key={n.path}>
                   <Link
                     href={n.path}
                     aria-current={isActive ? 'page' : undefined}
-                    className={`relative inline-flex items-baseline gap-1.5 px-3 max-[1000px]:px-2 py-2 font-mono text-[12px] tracking-[0.04em] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 max-[720px]:px-1.5 max-[360px]:px-1 max-[360px]:text-[11px] ${
+                    data-tour-here={toured ? '' : undefined}
+                    className={`${toured ? 'rounded-[4px] ring-2 ring-inset ring-amber ' : ''}relative inline-flex items-baseline gap-1.5 px-3 max-[1000px]:px-2 py-2 font-mono text-[12px] tracking-[0.04em] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 max-[720px]:px-1.5 max-[360px]:px-1 max-[360px]:text-[11px] ${
                       isActive ? 'text-ink' : 'text-ink-soft hover:text-ink'
                     }`}
                   >

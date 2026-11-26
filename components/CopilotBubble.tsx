@@ -21,7 +21,7 @@ import {
   toSource,
   type Source,
 } from "@/lib/citations";
-import { COPILOT_OPEN_EVENT, COPILOT_TOUR_EVENT, type CopilotOpenDetail } from "@/lib/copilot-events";
+import { COPILOT_OPEN_EVENT, COPILOT_TOUR_EVENT, announceTourPage, type CopilotOpenDetail } from "@/lib/copilot-events";
 import { DRAWER_TARGET_IDS, SITE_TOUR, stepDurationMs, type TourStep } from "@/lib/site-tour";
 import { useTourPlayer } from "./tour/useTourPlayer";
 import TourAsk from "./tour/TourAsk";
@@ -414,18 +414,27 @@ export default function CopilotBubble({
   const showTourStop = useCallback(
     async (stop: Stop, signal: AbortSignal): Promise<boolean> => {
       const isRole = stop.ids[0].startsWith("role-");
+      // Shown, and boxed so the visitor sees what's being pointed at (whole page sections just scroll).
+      const show = () => {
+        revealStop(stop);
+        // Not whole sections, and not periodic-table tiles, where an amber ring means "used every day".
+        for (const id of stop.ids) {
+          const el = document.getElementById(id);
+          if (el && el.tagName !== "SECTION" && !el.classList.contains("pt-el")) ringDrawer(id);
+        }
+      };
       if (document.getElementById(stop.ids[0])) {
-        if (!isRole || (await pickUpPass(stop.ids[0], signal))) revealStop(stop);
+        if (!isRole || (await pickUpPass(stop.ids[0], signal))) show();
         return true;
       }
       if (stop.path === window.location.pathname) return false;
       router.push(stop.path, { scroll: false });
       const found = await waitForElement(stop.ids[0]);
       // Paused, skipped, ended or stopped while the page was loading: don't move it under the visitor.
-      if (found && !signal.aborted && (!isRole || (await pickUpPass(stop.ids[0], signal)))) revealStop(stop);
+      if (found && !signal.aborted && (!isRole || (await pickUpPass(stop.ids[0], signal)))) show();
       return found !== null;
     },
-    [revealStop, router, pickUpPass]
+    [revealStop, router, pickUpPass, ringDrawer]
   );
 
   const tour = useTourPlayer({ tour: SITE_TOUR, showStop: showTourStop, ringDrawer, pathname, targetsById });
@@ -457,7 +466,29 @@ export default function CopilotBubble({
     setTourOutro(true);
     setIsOpen(true);
     setTimeout(() => inputRef.current?.focus(), 150);
-  }, [tour.status]);
+    // The closing line points at the job-description button under it: bring the line to the top of the drawer
+    // (the thread above it is gone now) and ring the button.
+    const ring = setTimeout(() => {
+      const scroller = messagesScrollRef.current;
+      const block = document.getElementById("copilot-tour");
+      if (scroller && block) {
+        scroller.scrollTop = Math.max(
+          0,
+          scroller.scrollTop + block.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 16
+        );
+      }
+      ringDrawer("fit-mode");
+    }, 400);
+    return () => clearTimeout(ring);
+  }, [tour.status, ringDrawer]);
+
+  // While the tour plays, the nav stays in view with the page it's on boxed, so the visitor sees where to click.
+  // Paused (the visitor took over the page), the nav goes back to normal.
+  const tourPlaying = tour.status === "playing";
+  useEffect(() => {
+    announceTourPage(tourPlaying ? pathname : null);
+  }, [tourPlaying, pathname]);
+  useEffect(() => () => announceTourPage(null), []);
 
   // Keep the newest line of the tour and its controls in view inside the drawer. Re-pinned whenever the drawer or
   // the tour block changes size: the drawer is still opening (a few px tall) when the tour starts, and the
@@ -905,11 +936,9 @@ export default function CopilotBubble({
     setIsOpen(true);
     void sendMessage(q);
   };
-  // Under a tour line: the job-description button when the line tells them to press it (the starters, where it
-  // usually lives, are hidden during the tour), and any example questions.
-  const tourExtras = (step: TourStep, i: number) => (
-    <>
-      {i === TOUR_FIT_STEP && (
+  // The job-description button under a tour line: the one that tells them to press it, and the closing line (which
+  // says it's "right below"). Only one #fit-mode at a time: the starters hide theirs while either shows.
+  const tourFitButton = (
         <button
           type="button"
           id="fit-mode"
@@ -920,7 +949,11 @@ export default function CopilotBubble({
           <span aria-hidden="true" className="font-mono text-[12px] text-amber">◆</span>
           <span className="font-serif text-[14.5px] italic leading-snug text-ink">{HIRING_PROMPT}</span>
         </button>
-      )}
+  );
+  // Under a tour line: that button when the line tells them to press it, and any example questions.
+  const tourExtras = (step: TourStep, i: number) => (
+    <>
+      {i === TOUR_FIT_STEP && tourFitButton}
       {step.ask?.length ? <TourAsk questions={step.ask} onAsk={askExample} disabled={busy} /> : null}
     </>
   );
@@ -930,7 +963,7 @@ export default function CopilotBubble({
         steps={tourSteps}
         label={<AssistantLabel />}
         instant={prefersReducedMotion}
-        extras={touring ? tourExtras : undefined}
+        extras={touring ? tourExtras : () => tourFitButton}
         controls={
           touring ? (
             <div className="flex flex-wrap items-center gap-1 pt-1">
@@ -1086,6 +1119,8 @@ export default function CopilotBubble({
                     </button>
                   </li>
                 ))}
+{/* While the tour's closing line shows, this button sits under it instead. */}
+                {!tourOutro && (
                 <li>
                   <button
                     type="button"
@@ -1100,6 +1135,7 @@ export default function CopilotBubble({
                     <span className="font-serif text-[15px] italic leading-snug text-ink">{HIRING_PROMPT}</span>
                   </button>
                 </li>
+                )}
               </ul>
             </div>
           )}
@@ -1260,6 +1296,20 @@ export default function CopilotBubble({
               </button>
             </div>
           )}
+          {/* Once there's a conversation the starters are gone: the job-description mode stays one tap away (the tour
+              promises it does). Not while the tour or its closing line shows its own copy. */}
+          {mode !== "fit" && messages.length > 0 && !touring && !tourOutro && (
+            <div className="mb-2 flex justify-end">
+              <button
+                type="button"
+                onClick={enterFitMode}
+                disabled={busy}
+                className="tap font-mono text-[10.5px] text-ink-soft underline decoration-dotted underline-offset-[3px] transition-colors hover:text-amber disabled:opacity-50"
+              >
+                <span aria-hidden="true" className="text-amber">◆</span> {HIRING_PROMPT}
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-2">
             <textarea
               ref={inputRef}
@@ -1363,7 +1413,9 @@ const STOP_GAP_PX = 16;
 function scrollUnderNav(el: HTMLElement, behavior: ScrollBehavior) {
   const top = el.getBoundingClientRect().top + window.scrollY;
   const nav = document.querySelector<HTMLElement>('nav[aria-label="Site navigation"]');
-  const offset = top > window.scrollY ? STOP_GAP_PX : (nav?.offsetHeight ?? 0) + STOP_GAP_PX;
+  // The nav hides on the way down, except while the tour keeps it pinned (data-pinned): then clear it too.
+  const clearNav = top <= window.scrollY || nav?.hasAttribute("data-pinned");
+  const offset = clearNav ? (nav?.offsetHeight ?? 0) + STOP_GAP_PX : STOP_GAP_PX;
   window.scrollTo({ top: Math.max(0, top - offset), behavior });
 }
 

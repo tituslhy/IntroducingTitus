@@ -18,3 +18,13 @@ export const COPILOT_TOUR_EVENT = "copilot:tour";
 export function startTour(): void {
   window.dispatchEvent(new CustomEvent(COPILOT_TOUR_EVENT));
 }
+
+/**
+ * The page the tour is on (its path), or null when no tour is playing: the nav stays in view and boxes that
+ * page's link, so the visitor sees where to click to come back.
+ */
+export const COPILOT_TOUR_PAGE_EVENT = "copilot:tour-page";
+
+export function announceTourPage(path: string | null): void {
+  window.dispatchEvent(new CustomEvent<string | null>(COPILOT_TOUR_PAGE_EVENT, { detail: path }));
+}

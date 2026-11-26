@@ -1,6 +1,7 @@
 import { act, render, screen, within } from "@testing-library/react";
 import Navigation from "./Navigation";
 import { EMAIL } from "@/lib/profile";
+import { COPILOT_TOUR_PAGE_EVENT, announceTourPage } from "@/lib/copilot-events";
 
 // The nav reads the current route. Each test sets the pathname it wants before rendering.
 let mockPathname = "/";
@@ -216,6 +217,186 @@ describe("Navigation", () => {
       unmount();
       expect(removeSpy.mock.calls.some(([type]) => type === "scroll")).toBe(true);
       removeSpy.mockRestore();
+    });
+  });
+
+  describe("While Ask Titus's tour is on a page", () => {
+    const getNav = () => screen.getByRole("navigation", { name: "Site navigation" });
+    const getLinks = () => within(getNav().querySelector("ul") as HTMLElement).getAllByRole("link");
+    const announce = (path: string | null) => act(() => announceTourPage(path));
+    const BOX_CLASSES = ["ring-2", "ring-inset", "ring-amber", "rounded-[4px]"];
+
+    it("boxes only the link whose path is announced", () => {
+      render(<Navigation />);
+      announce("/projects");
+
+      const links = getLinks();
+      links.forEach((link) => {
+        if (link.getAttribute("href") === "/projects") {
+          expect(link).toHaveAttribute("data-tour-here");
+          BOX_CLASSES.forEach((cls) => expect(link).toHaveClass(cls));
+        } else {
+          expect(link).not.toHaveAttribute("data-tour-here");
+          BOX_CLASSES.forEach((cls) => expect(link).not.toHaveClass(cls));
+        }
+      });
+      expect(getNav().querySelectorAll("[data-tour-here]")).toHaveLength(1);
+    });
+
+    it("boxes Ask Titus when the tour is on the colophon", () => {
+      render(<Navigation />);
+      announce("/colophon");
+      expect(screen.getByRole("link", { name: /ask titus/i })).toHaveAttribute("data-tour-here");
+    });
+
+    it("moves the box as the tour moves to another page", () => {
+      render(<Navigation />);
+      announce("/experience");
+      announce("/education");
+
+      const links = getLinks();
+      expect(links[0]).not.toHaveAttribute("data-tour-here");
+      expect(links[1]).toHaveAttribute("data-tour-here");
+    });
+
+    it("boxes nothing for a path that matches no item, such as the front page", () => {
+      render(<Navigation />);
+      announce("/");
+      expect(getNav().querySelectorAll("[data-tour-here]")).toHaveLength(0);
+      getLinks().forEach((link) => expect(link).not.toHaveClass("ring-2"));
+    });
+
+    it("boxes the item a nested path belongs to, the way the active page is matched", () => {
+      render(<Navigation />);
+      announce("/experience/x");
+      const links = getLinks();
+      expect(links[0]).toHaveAttribute("data-tour-here");
+      BOX_CLASSES.forEach((cls) => expect(links[0]).toHaveClass(cls));
+      expect(getNav().querySelectorAll("[data-tour-here]")).toHaveLength(1);
+    });
+
+    it("does not box an item whose path is only a prefix of the announced one", () => {
+      render(<Navigation />);
+      announce("/experiences-archive");
+      expect(getNav().querySelectorAll("[data-tour-here]")).toHaveLength(0);
+    });
+
+    it("marks the nav data-pinned while a tour page is announced, and not otherwise", () => {
+      render(<Navigation />);
+      expect(getNav()).not.toHaveAttribute("data-pinned");
+      announce("/experience");
+      expect(getNav()).toHaveAttribute("data-pinned");
+      announce(null);
+      expect(getNav()).not.toHaveAttribute("data-pinned");
+    });
+
+    it("is pinned for a path that matches no item too, such as the front page", () => {
+      render(<Navigation />);
+      announce("/");
+      expect(getNav()).toHaveAttribute("data-pinned");
+    });
+
+    it("slides a nav the tour's own scrolling hid back in as soon as the tour lets go", () => {
+      render(<Navigation />);
+      announce("/experience");
+      scrollTo(300); // hidden underneath, though still shown
+      expect(getNav().style.transform).toBe("translateY(0)");
+      announce(null);
+      expect(getNav().style.transform).toBe("translateY(0)");
+      // no further scroll needed: it has not slipped away again
+      expect(getNav()).not.toHaveAttribute("data-pinned");
+    });
+
+    it("hides again on the next scroll down once the tour has let go", () => {
+      render(<Navigation />);
+      announce("/experience");
+      scrollTo(300);
+      announce(null);
+      scrollTo(400);
+      expect(getNav().style.transform).toBe("translateY(-110%)");
+    });
+
+    it("boxes nothing before any announcement", () => {
+      render(<Navigation />);
+      expect(getNav().querySelectorAll("[data-tour-here]")).toHaveLength(0);
+    });
+
+    it("clears the box when the tour announces null", () => {
+      render(<Navigation />);
+      announce("/about");
+      expect(getNav().querySelectorAll("[data-tour-here]")).toHaveLength(1);
+      announce(null);
+      expect(getNav().querySelectorAll("[data-tour-here]")).toHaveLength(0);
+      getLinks().forEach((link) => BOX_CLASSES.forEach((cls) => expect(link).not.toHaveClass(cls)));
+    });
+
+    it("boxes the tour's page independently of the page the visitor is on", () => {
+      mockPathname = "/experience";
+      render(<Navigation />);
+      announce("/writing");
+
+      const links = getLinks();
+      expect(links[0]).toHaveAttribute("aria-current", "page");
+      expect(links[0]).not.toHaveAttribute("data-tour-here");
+      expect(links[3]).toHaveAttribute("data-tour-here");
+      expect(links[3]).not.toHaveAttribute("aria-current");
+    });
+
+    it("keeps the nav in view after a scroll-down that would normally hide it", () => {
+      render(<Navigation />);
+      announce("/experience");
+      scrollTo(300);
+      expect(getNav().style.transform).toBe("translateY(0)");
+    });
+
+    it("keeps the nav in view when the tour starts while it is already hidden", () => {
+      render(<Navigation />);
+      scrollTo(300);
+      expect(getNav().style.transform).toBe("translateY(-110%)");
+      announce("/experience");
+      expect(getNav().style.transform).toBe("translateY(0)");
+    });
+
+    it("resumes hiding on scroll-down once the tour announces null", () => {
+      render(<Navigation />);
+      announce("/experience");
+      scrollTo(300);
+      expect(getNav().style.transform).toBe("translateY(0)");
+
+      announce(null);
+      scrollTo(500);
+      expect(getNav().style.transform).toBe("translateY(-110%)");
+    });
+
+    it("keeps the nav in view even when the tour is on a page with no nav item", () => {
+      render(<Navigation />);
+      announce("/");
+      scrollTo(300);
+      expect(getNav().style.transform).toBe("translateY(0)");
+    });
+
+    it("listens on window for the tour-page event and removes the listener on unmount", () => {
+      const addSpy = jest.spyOn(window, "addEventListener");
+      const removeSpy = jest.spyOn(window, "removeEventListener");
+      try {
+        const { unmount } = render(<Navigation />);
+        const added = addSpy.mock.calls.find(([type]) => type === COPILOT_TOUR_PAGE_EVENT);
+        expect(added).toBeDefined();
+
+        unmount();
+        const removed = removeSpy.mock.calls.find(([type]) => type === COPILOT_TOUR_PAGE_EVENT);
+        expect(removed).toBeDefined();
+        expect(removed?.[1]).toBe(added?.[1]);
+      } finally {
+        addSpy.mockRestore();
+        removeSpy.mockRestore();
+      }
+    });
+
+    it("ignores announcements after it has unmounted", () => {
+      const { unmount } = render(<Navigation />);
+      unmount();
+      expect(() => announce("/experience")).not.toThrow();
     });
   });
 

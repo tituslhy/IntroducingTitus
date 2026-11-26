@@ -23,7 +23,8 @@ names and titles exactly as written.
    is a tool I can use"**; offer to show them around. Targets: none.
 2. The Ask Titus button: they can ask anything about your work, any time; if they're hiring, tell them to click
    "I'm hiring — check my fit for a role" (name it exactly; it appears under your line) and paste the job
-   description, and you'll say honestly how you fit. Targets: `ask-button`, `fit-mode`.
+   description, and you'll say honestly how you fit; say too that the button stays in Ask Titus after the tour, so
+   they don't think it only works here. Targets: `ask-button`, `fit-mode`.
 3. Experience: the headline, your current role and company, in one line, as you pick up its pass.
    Targets: `role-mastercard`.
 4. Experience: each pass is one role; pick one up and it opens below (name the two you pick); or see every role at
@@ -40,4 +41,5 @@ names and titles exactly as written.
 9. The colophon: "Want to learn more about me, the copilot? Click here." Say what the page shows (how you're built
    and tested). Targets: `colophon-page`.
 10. Hand over: say plainly this was a recorded run, then invite them to ask you anything and watch you drive the
-    site live. Targets: none.
+    site live, and point out that "I'm hiring — check my fit for a role" is right below whenever they need it.
+    Targets: none.

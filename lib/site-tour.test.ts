@@ -395,6 +395,24 @@ describe("SITE_TOUR", () => {
     ]);
   });
 
+  it("tells them in step 2 that the job-description button stays in Ask Titus after the tour", () => {
+    const say = SITE_TOUR.steps[1].say;
+    expect(say).toContain("I\u2019m hiring \u2014 check my fit for a role");
+    expect(say).toContain("That button stays in Ask Titus after this tour.");
+    expect(say.indexOf("That button stays in Ask Titus after this tour.")).toBeGreaterThan(say.indexOf("I\u2019ll honestly say how I fit."));
+  });
+
+  it("points out in the last step that the job-description button is right below", () => {
+    const last = SITE_TOUR.steps[SITE_TOUR.steps.length - 1].say;
+    expect(last).toContain("watch me drive the site live");
+    expect(last).toContain("\u201cI\u2019m hiring \u2014 check my fit for a role\u201d is right below whenever you need it.");
+  });
+
+  it("still has no problems and runs under 120 s with the longer lines", () => {
+    expect(tourProblems(SITE_TOUR)).toEqual([]);
+    expect(tourDurationMs(SITE_TOUR)).toBeLessThan(120_000);
+  });
+
   it("names fit-mode in exactly one step, so the job-description button shows once", () => {
     expect(SITE_TOUR.steps.filter((s) => s.targets.includes("fit-mode"))).toHaveLength(1);
   });

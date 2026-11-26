@@ -8,7 +8,7 @@
       "targets": []
     },
     {
-      "say": "Use Ask Titus to ask anything about my work, any time. If you’re hiring, click “I’m hiring — check my fit for a role” and paste the job description; I’ll honestly say how I fit.",
+      "say": "Ask me anything about my work, any time. If you’re hiring, click “I’m hiring — check my fit for a role” and paste the job description; I’ll honestly say how I fit. That button stays in Ask Titus after this tour.",
       "targets": [
         "ask-button",
         "fit-mode"
@@ -63,7 +63,7 @@
       ]
     },
     {
-      "say": "That was a recorded run. Ask me anything now and watch me drive the site live.",
+      "say": "That was a recorded run. Ask me anything now and watch me drive the site live; “I’m hiring — check my fit for a role” is right below whenever you need it.",
       "targets": []
     }
   ]
