@@ -6,7 +6,7 @@ import ReplyDiagram from '@/components/colophon/ReplyDiagram'
 import RecruiterModeButton from '@/components/colophon/RecruiterModeButton'
 import TryIt from '@/components/colophon/TryIt'
 import { ARTICLES } from '@/lib/articles'
-import { loadColophonTraces, titlesFor } from '@/lib/colophon-traces-load'
+import { loadColophonTraces, stepsFor, titlesFor } from '@/lib/colophon-traces-load'
 import { ARTICLE_COUNT_NUMBER, COLOPHON_PATH, numberToWords } from '@/lib/content'
 import { loadScorecard, type Scorecard } from '@/lib/eval-results'
 import { FIT_LEVEL_LABELS, NOT_ON_FILE_NOTE, type FitBrief } from '@/lib/fit-brief'
@@ -267,6 +267,7 @@ export default function ColophonPage() {
                 recordings={traces}
                 articleCount={ARTICLE_COUNT_NUMBER}
                 titles={titlesFor(traces, ARTICLES)}
+                toolSteps={stepsFor(traces)}
                 targets={PAGE_TARGETS.map(({ id, label, path, tool, names }) => ({
                   id,
                   label,

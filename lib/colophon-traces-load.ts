@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import type { Recording, ReplaySpan } from "@/lib/colophon-trace";
+import type { Recording, ReplaySpan, ReplayStep } from "@/lib/colophon-trace";
 import { REPLAY_QUESTIONS } from "@/lib/colophon-trace";
+import { createCopilotTools, type CopilotTool } from "@/lib/copilot-tools";
 
 export const COLOPHON_TRACES_PATH = join(process.cwd(), "content", "colophon-traces.json");
 
@@ -80,4 +81,32 @@ export function titlesFor(recordings: Recording[], articles: readonly { slug: st
         if (Array.isArray(list)) for (const x of list) add(obj(x) ? x.slug : x);
     }
   return Object.fromEntries(articles.filter((a) => wanted.has(a.slug)).map((a) => [a.slug, a.title]));
+}
+
+
+/**
+ * The progress steps of each recording, worded by the same `describe` the live drawer uses (lib/copilot-tools.ts),
+ * from the arguments the model really sent. Calls that show no step live (show_on_page) are left out.
+ */
+export function stepsFor(recordings: Recording[], tools: CopilotTool[] = createCopilotTools()): Record<string, ReplayStep[]> {
+  const byName = new Map(tools.map((t) => [t.definition.name, t]));
+  const out: Record<string, ReplayStep[]> = {};
+  for (const r of recordings) {
+    out[r.id] = r.spans
+      .filter((s) => s.kind === "tool")
+      .sort((a, b) => a.start - b.start)
+      .flatMap((s) => {
+        const tool = byName.get(s.name);
+        const args = tool?.parse(JSON.stringify(s.inputs)) ?? null;
+        if (!tool?.describe || args === null) return [];
+        let labels: ReturnType<NonNullable<CopilotTool["describe"]>> = null;
+        try {
+          labels = tool.describe(args);
+        } catch {
+          return [];
+        }
+        return labels ? [{ id: String(s.id), tool: s.name, doing: labels.doing, done: labels.done, start: s.start, end: s.end }] : [];
+      });
+  }
+  return out;
 }

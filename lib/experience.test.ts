@@ -45,7 +45,7 @@ describe('experienceResults', () => {
 
     it('gives the years result its label and points it at the current role', () => {
       expect(results[0]).toEqual({
-        figure: '8+',
+        figure: `${YEARS_EXPERIENCE_NUMBER}+`,
         label: 'years building production AI',
         key: highlightKey(ROLES[0]),
       })
@@ -81,7 +81,7 @@ describe('experienceResults', () => {
 
   it('returns only the years result when no role has a highlight brief', () => {
     const results = experienceResults([role({ highlight: { figure: 'Tech lead', caption: 'and more' } })])
-    expect(results).toEqual([{ figure: '8+', label: 'years building production AI', key: 'test-co highlight' }])
+    expect(results).toEqual([{ figure: `${YEARS_EXPERIENCE_NUMBER}+`, label: 'years building production AI', key: 'test-co highlight' }])
   })
 
   it('leaves out a role whose highlight has no brief, and keeps the others in order', () => {
@@ -91,7 +91,7 @@ describe('experienceResults', () => {
       role({ slug: 'c', highlight: { figure: '40%', caption: 'cheaper', brief: 'cheaper, C' } }),
     ])
     expect(results.map((r) => r.key)).toEqual(['a highlight', 'a highlight', 'c highlight'])
-    expect(results.map((r) => r.figure)).toEqual(['8+', '2×', '40%'])
+    expect(results.map((r) => r.figure)).toEqual([`${YEARS_EXPERIENCE_NUMBER}+`, '2×', '40%'])
   })
 
   it('does not change the roles it is given', () => {

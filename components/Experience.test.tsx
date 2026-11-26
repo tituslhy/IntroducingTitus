@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { AGENT_SUITE_URL } from "@/lib/content";
+import { AGENT_SUITE_URL, YEARS_EXPERIENCE_NUMBER } from "@/lib/content";
 import { experienceResults, highlightKey, passDates } from "@/lib/experience";
 import { NAME, ROLES, pageFolio, type Role } from "@/lib/profile";
 import { techKey } from "@/lib/tech-key";
@@ -91,7 +91,7 @@ describe("Experience (the /experience page)", () => {
 
     it("leads with the years of experience, labelled as building production AI", () => {
       render(<Experience />);
-      expect(resultButtons()[0]).toHaveTextContent("8+");
+      expect(resultButtons()[0]).toHaveTextContent(`${YEARS_EXPERIENCE_NUMBER}+`);
       expect(resultButtons()[0]).toHaveTextContent("years building production AI");
     });
 

@@ -13,7 +13,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import ReplyDiagram, { type BoxState, type DiagramKey } from '@/components/colophon/ReplyDiagram'
-import type { Recording, ReplaySpan, SpanKind } from '@/lib/colophon-trace'
+import type { Recording, ReplaySpan, ReplayStep, SpanKind } from '@/lib/colophon-trace'
+import { StepFold, StepList, waitingWordAt } from '@/components/CopilotSteps'
+import type { Step } from '@/lib/copilot-steps'
 import { citationUrlTransform, citeFollows, linkCitations, sourceForHref } from '@/lib/citations'
 import { groupStops, type StopTarget } from '@/lib/page-stops'
 import { MIN_SCORE, RELEVANT } from '@/lib/search-config'
@@ -584,12 +586,15 @@ function Drawer({
   t,
   reduced,
   stops,
+  steps = [],
   onPlay,
 }: {
   rec: Recording
   t: number
   reduced: boolean
   stops: ReturnType<typeof groupStops>
+  /** The recording's tool steps (lib/colophon-traces-load.ts stepsFor), shown as the live drawer shows them. */
+  steps?: ReplayStep[]
   /** Starts the replay from the drawer's empty state. */
   onPlay?: () => void
 }) {
@@ -601,6 +606,11 @@ function Drawer({
     : Math.max(0, Math.min(1, (t - lastRound.start) / Math.max(1, total - lastRound.start)))
   const shown = rec.answer.slice(0, Math.floor(rec.answer.length * fraction))
   const shownStops = rec.spans.some((s) => s.name === 'show_on_page' && t >= s.end && t > 0)
+  // The steps started by now, each finished once the replay passes its end; all of them, finished, for the folded line.
+  const liveSteps: Step[] = steps
+    .filter((s) => t > 0 && t >= s.start)
+    .map((s) => ({ id: s.id, tool: s.tool, label: t >= s.end ? s.done : s.doing, done: t >= s.end }))
+  const doneSteps: Step[] = steps.filter((s) => t >= s.end).map((s) => ({ id: s.id, tool: s.tool, label: s.done, done: true }))
   return (
     <aside aria-label="The drawer" className="flex min-h-[300px] flex-col overflow-hidden rounded-[20px] bg-paper text-ink shadow-[0_0_0_1px_oklch(0.94_0.02_78/0.15),0_30px_60px_-30px_oklch(0.62_0.155_55/0.6)] min-[1100px]:min-h-[480px]">
       <div className="flex items-baseline justify-between border-b border-rule px-[18px] py-3.5">
@@ -641,6 +651,7 @@ function Drawer({
             )}
             {shown ? (
               <div className="font-serif text-[15.5px] leading-[1.58] text-ink">
+                {doneSteps.length > 0 && <StepFold steps={doneSteps} articles={rec.sources.length} />}
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   urlTransform={citationUrlTransform}
@@ -668,11 +679,19 @@ function Drawer({
               </div>
             ) : (
               !done && (
-                <span aria-label="Writing" className="stage-dots flex gap-1">
-                  {[0, 1, 2].map((i) => (
-                    <i key={i} className="h-1.5 w-1.5 rounded-full bg-amber" />
-                  ))}
-                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span aria-label="Writing" className="stage-dots flex gap-1">
+                      {[0, 1, 2].map((i) => (
+                        <i key={i} className="h-1.5 w-1.5 rounded-full bg-amber" />
+                      ))}
+                    </span>
+                    {liveSteps.length === 0 && (
+                      <span className="font-mono text-[10.5px] italic tracking-[0.02em] text-ink-faint">{waitingWordAt(t)}</span>
+                    )}
+                  </div>
+                  {liveSteps.length > 0 && <StepList steps={liveSteps} />}
+                </div>
               )
             )}
             {done && rec.sources.length > 0 && (
@@ -757,8 +776,11 @@ export default function TryIt({
   articleCount,
   titles,
   targets,
+  toolSteps = {},
 }: {
   recordings: Recording[]
+  /** Each recording's tool steps, by recording id (lib/colophon-traces-load.ts stepsFor). */
+  toolSteps?: Record<string, ReplayStep[]>
   articleCount: number
   /** Article slug → title, for the slugs the recordings mention. */
   titles: Record<string, string>
@@ -990,7 +1012,7 @@ export default function TryIt({
             />
           )}
         </div>
-        <Drawer rec={rec} t={t} reduced={reduced} stops={stops} onPlay={playing ? undefined : onPlayButton} />
+        <Drawer rec={rec} t={t} reduced={reduced} stops={stops} steps={toolSteps[rec.id]} onPlay={playing ? undefined : onPlayButton} />
 
       </div>
 

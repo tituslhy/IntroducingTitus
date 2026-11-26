@@ -1,6 +1,6 @@
 import articleThemes from "@/content/article-themes.json";
 import githubMeta from "@/content/github-meta.json";
-import { ARTICLE_COUNT_NUMBER, numberToWords } from "./content";
+import { ARTICLE_COUNT_NUMBER, YEARS_EXPERIENCE_NUMBER, numberToWords } from "./content";
 import { FEATURED_ROLE_COUNT, OPEN_SOURCE, PROJECTS, ROLES, type Role } from "./profile";
 import {
   FRONT_STATS,
@@ -79,8 +79,8 @@ describe("roleDuration", () => {
 });
 
 describe("FRONT_STATS", () => {
-  it("spells the years out in words, capitalised: Eight", () => {
-    expect(FRONT_STATS.yearsWord).toBe("Eight");
+  it("spells the years out in words, capitalised, from the years constant", () => {
+    expect(FRONT_STATS.yearsWord).toBe(capitalise(numberToWords(YEARS_EXPERIENCE_NUMBER)));
   });
 
   it("takes the article count from the canonical number", () => {

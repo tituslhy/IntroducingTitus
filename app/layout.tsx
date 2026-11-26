@@ -6,6 +6,10 @@ import Navigation from '@/components/Navigation'
 import { EMAIL, PAGE_TARGETS, SITE_DESCRIPTION, SITE_PAGES, SITE_TITLE } from '@/lib/profile'
 import { COLOPHON_PATH, SITE_URL } from '@/lib/content'
 
+// Every page is re-rendered at most once a day, so figures worked out from the date (the years of experience,
+// lib/content.ts) move on without a deploy. The lowest revalidate in a route wins, so this covers every page.
+export const revalidate = 86400
+
 // Self-hosted (not next/font/google): a font-fetch failure would otherwise be
 // a build-time or first-paint dependency on Google's servers, and typography
 // carries this site's entire design. Files in public/fonts are the Google
