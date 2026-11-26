@@ -49,7 +49,7 @@ async function record(openai: OpenAI, systemPrompt: string, id: Recording["id"],
       else if (chunk.event.type === "action") {
         if (!actions.includes(chunk.event.target)) actions.push(chunk.event.target);
       }
-      else sources.push({ n: chunk.event.n, title: chunk.event.title, url: chunk.event.url });
+      else if (chunk.event.type === "source") sources.push({ n: chunk.event.n, title: chunk.event.title, url: chunk.event.url });
     }
   } finally {
     clearTimeout(timer);

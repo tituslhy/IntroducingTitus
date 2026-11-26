@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import AskDoor from './AskDoor'
 import { DOOR_BOX } from './door-box'
-import CountUp from '@/components/tiles/CountUp'
+import RiseIn from '@/components/tiles/RiseIn'
 import { ARTICLE_COUNT_NUMBER } from '@/lib/content'
 import { educationDoor, educationResults } from '@/lib/education'
 import { experienceResults } from '@/lib/experience'
@@ -34,7 +34,7 @@ function MiniTile({ figure, label }: { figure: string; label: string }) {
   return (
     <div className="glow-tile mb-4 flex items-baseline gap-4 rounded-[20px] bg-ink px-5 py-4 text-paper">
       <span className="whitespace-nowrap font-serif text-[clamp(34px,3.4vw,44px)] font-medium leading-none tracking-[-0.03em] text-amber-hi">
-        <CountUp figure={figure} />
+        <RiseIn figure={figure} />
       </span>
       <span className={`${mono} text-[11.5px] leading-[1.45] text-[oklch(0.85_0.02_78)]`}>{label}</span>
     </div>

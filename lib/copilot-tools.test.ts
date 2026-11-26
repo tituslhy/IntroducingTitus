@@ -5,6 +5,7 @@ import {
   parseReadWritingArgs,
   parseSearchWritingArgs,
   parseShowOnPageTargets,
+  quoteList,
   type CopilotTool,
 } from "./copilot-tools";
 import type { Article } from "./articles";
@@ -1700,5 +1701,99 @@ describe("writing tools share one reply cap, under parallel calls and for unknow
 
     expect(parsed).not.toBeNull();
     expect(parsed!.articles[0].length).toBeLessThanOrEqual(64);
+  });
+});
+
+describe("quoteList", () => {
+  it("quotes one item on its own", () => {
+    expect(quoteList(["LiteLLM"])).toBe("“LiteLLM”");
+  });
+
+  it("joins two items with and", () => {
+    expect(quoteList(["LiteLLM", "Helm"])).toBe("“LiteLLM” and “Helm”");
+  });
+
+  it("separates three or more with commas, and ends with and", () => {
+    expect(quoteList(["a", "b", "c"])).toBe("“a”, “b” and “c”");
+  });
+
+  it("gives an empty string for no items", () => {
+    expect(quoteList([])).toBe("");
+  });
+});
+
+describe("step labels (describe)", () => {
+  const fixture = (slug: string, id: string, title: string): Article => ({
+    slug,
+    title,
+    url: `https://medium.com/@tituslhy/${slug}-${id}`,
+    publishedAt: "2025-06-18T10:00:00.000Z",
+    summary: `Summary ${slug}`,
+    keywords: ["keyword"],
+    outline: ["Heading"],
+    intro: `Intro ${slug}`,
+    body: `Body of ${slug}`,
+    words: 500,
+  });
+  const catalog = [
+    fixture("guardrails", "aaaaaaaaaaaa", "Your agent needs a bouncer"),
+    fixture("lora", "bbbbbbbbbbbb", "Teaching Toothless to Bite"),
+  ];
+
+  /** The labels a tool gives for its raw arguments, through the same parse the loop uses. */
+  function labelsOf(name: string, raw: string) {
+    const tool = createCopilotTools({ catalog }).find((t) => t.definition.name === name);
+    if (!tool) throw new Error(`${name} is not registered`);
+    const args = tool.parse(raw);
+    if (args === null) throw new Error("fixture arguments did not parse");
+    return tool.describe?.(args) ?? null;
+  }
+
+  describe("search_writing", () => {
+    it("labels one topic while it runs, and once it has run", () => {
+      expect(labelsOf("search_writing", '{"topics":["guardrails"],"more":false}')).toEqual({
+        doing: "Searching my writing for “guardrails”",
+        done: "Searched my writing for “guardrails”",
+      });
+    });
+
+    it("quotes every topic, joined with and", () => {
+      expect(labelsOf("search_writing", '{"topics":["guardrails","lora"],"more":false}')).toEqual({
+        doing: "Searching my writing for “guardrails” and “lora”",
+        done: "Searched my writing for “guardrails” and “lora”",
+      });
+    });
+
+    it("says it is looking for more when more is true, whatever the topics", () => {
+      expect(labelsOf("search_writing", '{"topics":["guardrails"],"more":true}')).toEqual({
+        doing: "Looking for more of my articles",
+        done: "Looked for more of my articles",
+      });
+    });
+  });
+
+  describe("read_writing", () => {
+    it("labels a read by the article's title, looked up from the catalog", () => {
+      expect(labelsOf("read_writing", '{"articles":["aaaaaaaaaaaa"],"focus":"f"}')).toEqual({
+        doing: "Reading “Your agent needs a bouncer”",
+        done: "Read “Your agent needs a bouncer”",
+      });
+    });
+
+    it("lists every known title, and drops ids the catalog does not know", () => {
+      expect(labelsOf("read_writing", '{"articles":["aaaaaaaaaaaa","cccccccccccc","bbbbbbbbbbbb"],"focus":"f"}')).toEqual({
+        doing: "Reading “Your agent needs a bouncer” and “Teaching Toothless to Bite”",
+        done: "Read “Your agent needs a bouncer” and “Teaching Toothless to Bite”",
+      });
+    });
+
+    it("gives null when no id is known, so no step is shown", () => {
+      expect(labelsOf("read_writing", '{"articles":["cccccccccccc"],"focus":"f"}')).toBeNull();
+    });
+  });
+
+  it("gives show_on_page no describe, as it has its own caption", () => {
+    const tool = createCopilotTools({ catalog }).find((t) => t.definition.name === "show_on_page");
+    expect(tool?.describe).toBeUndefined();
   });
 });

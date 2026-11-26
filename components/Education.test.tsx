@@ -171,8 +171,8 @@ describe('Education (the /education page)', () => {
         const tile = entry(container, e.slug).querySelector<HTMLElement>(`[data-tech="${standingKey(e)}"]`)
         expect(tile).toBeInTheDocument()
         expect(within(tile as HTMLElement).getByText(e.standing.caption)).toBeInTheDocument()
-        // The full figure is always available to screen readers, even while it counts up.
-        expect(within(tile as HTMLElement).getByText(e.standing.figure, { selector: '.sr-only' })).toBeInTheDocument()
+        // The figure is the real text, never a partial count.
+        expect(within(tile as HTMLElement).getByText(e.standing.figure)).toBeInTheDocument()
       }
     })
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
-import CountUp from '@/components/tiles/CountUp'
+import RiseIn from '@/components/tiles/RiseIn'
 import { reveal } from '@/lib/reveal'
 
 const FLASH_MS = 2400
@@ -48,7 +48,7 @@ export default function ResultsRow({ results }: { results: RowResult[] }) {
             className="group flex h-full w-full flex-col rounded-[20px] bg-ink px-5 pb-[18px] pt-5 text-left text-paper transition-transform motion-safe:hover:-translate-y-[3px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
           >
             <span className="block whitespace-nowrap font-serif text-[clamp(28px,3.2vw,42px)] font-medium leading-none tracking-[-0.03em] text-amber-hi">
-              <CountUp figure={r.figure} />
+              <RiseIn figure={r.figure} />
             </span>
             <span className="mt-3 flex flex-1 items-end justify-between gap-2 font-mono text-[11.5px] leading-[1.45] text-[oklch(0.85_0.02_78)]">
               {r.label}

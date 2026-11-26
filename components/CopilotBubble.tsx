@@ -33,6 +33,7 @@ import { STARTER_PROMPTS } from "@/lib/starter-prompts";
 import { firstStop, groupStops, orderStops, type Stop } from "@/lib/page-stops";
 import { REVEAL_EVENT, reveal, requestShow } from "@/lib/reveal";
 import { waitForElement } from "@/lib/wait-for-element";
+import { foldSteps, toStep, upsertStep, type Step } from "@/lib/copilot-steps";
 
 interface Message {
   id: string;
@@ -42,6 +43,8 @@ interface Message {
   targets?: string[];
   /** My articles the reply cites as [n] (from search_writing). */
   sources?: Source[];
+  /** The tool steps taken on the way to this reply, folded into one line above it. */
+  steps?: Step[];
   /** Recruiter mode result; `content` then holds its plain-text form. */
   brief?: FitBrief;
 }
@@ -166,17 +169,89 @@ const CheckIcon = () => (
   </svg>
 );
 
-const TypingIndicator = ({ caption }: { caption?: string | null }) => (
+/** A step still running: a small amber dot, pulsing unless motion is reduced. */
+const PendingDot = () => (
+  <span aria-hidden="true" className="inline-flex w-[11px] justify-center">
+    <span className="h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-pulse" />
+  </span>
+);
+
+/** What I'm doing while the visitor waits: one line per tool step, then "Writing the reply" once they're done. */
+const StepList = ({ steps }: { steps: Step[] }) => (
+  <ul className="mt-1.5 flex flex-col gap-1 border-l border-rule pl-3.5" aria-label="What I'm doing">
+    {steps.map((s) => (
+      <li key={s.id} className="flex items-baseline gap-2 font-mono text-[10.5px] leading-[1.45] text-ink-faint">
+        {s.done ? (
+          <span aria-hidden="true" className="inline-flex w-[11px] justify-center text-amber"><CheckIcon /></span>
+        ) : (
+          <PendingDot />
+        )}
+        <span className={s.done ? "" : "text-ink-soft"}>{s.label}</span>
+      </li>
+    ))}
+    {steps.every((s) => s.done) && (
+      <li className="flex items-baseline gap-2 font-mono text-[10.5px] leading-[1.45] text-ink-soft">
+        <PendingDot />
+        <span>Writing the reply</span>
+      </li>
+    )}
+  </ul>
+);
+
+/**
+ * The steps of a finished reply as one quiet line ("Searched my writing · read 3 articles");
+ * opening it lists each step as it ran, so a visitor can see what I looked up.
+ */
+const StepFold = ({ steps, articles }: { steps: Step[]; articles: number }) => {
+  const line = foldSteps(steps, articles);
+  if (!line) return null;
+  return (
+    <details className="group mb-2 font-mono text-[10.5px] leading-[1.45] text-ink-faint">
+      <summary className="inline-flex cursor-pointer list-none items-baseline gap-1.5 transition-colors hover:text-amber [&::-webkit-details-marker]:hidden">
+        <span aria-hidden="true" className="inline-block transition-transform group-open:rotate-90">›</span>
+        {line}
+      </summary>
+      <ul className="mt-1 flex flex-col gap-0.5 pl-3">
+        {steps.map((s) => (
+          <li key={s.id}>{s.label}</li>
+        ))}
+      </ul>
+    </details>
+  );
+};
+
+/** Plain words for the wait before anything real arrives (a reasoning headline or a tool step). */
+export const WAITING_WORDS = ["Thinking", "Reasoning", "Considering", "Weighing"];
+export const WAITING_WORD_MS = 3_000;
+
+/** One waiting word at a time, changing every few seconds. */
+function WaitingWord() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setI((n) => (n + 1) % WAITING_WORDS.length), WAITING_WORD_MS);
+    return () => clearInterval(timer);
+  }, []);
+  return <>{WAITING_WORDS[i]}…</>;
+}
+
+const TypingIndicator = ({ caption, steps = [] }: { caption?: string | null; steps?: Step[] }) => (
   <article className="flex flex-col gap-1.5">
     <AssistantLabel />
     <div className="flex h-4 items-center gap-1.5 border-l border-rule pl-3.5">
       <span className="h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-bounce" style={{ animationDelay: "0ms", animationDuration: "900ms" }} />
       <span className="h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-bounce" style={{ animationDelay: "180ms", animationDuration: "900ms" }} />
       <span className="h-1.5 w-1.5 rounded-full bg-amber motion-safe:animate-bounce" style={{ animationDelay: "360ms", animationDuration: "900ms" }} />
-      {caption && (
+      {caption ? (
         <span className="ml-1.5 font-mono text-[10.5px] italic tracking-[0.02em] text-ink-faint">{caption}</span>
+      ) : (
+        steps.length === 0 && (
+          <span data-testid="waiting-word" className="ml-1.5 font-mono text-[10.5px] italic tracking-[0.02em] text-ink-faint">
+            <WaitingWord />
+          </span>
+        )
       )}
     </div>
+    {steps.length > 0 && <StepList steps={steps} />}
   </article>
 );
 
@@ -232,6 +307,10 @@ export default function CopilotBubble({
   const [turningTo, setTurningTo] = useState<string | null>(null);
   const [mode, setMode] = useState<"chat" | "fit">("chat");
   const [loadingCaption, setLoadingCaption] = useState<string | null>(null);
+  // The tool steps of the reply on its way, shown under the typing dots until its first words arrive.
+  const [liveSteps, setLiveSteps] = useState<Step[]>([]);
+  // The latest reasoning headline of that reply ("Looking up the Illumina role"), shown beside the dots.
+  const [liveThought, setLiveThought] = useState<string | null>(null);
   const [fitNotice, setFitNotice] = useState<string | null>(null);
   const captionTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const busy = isLoading || isStreaming;
@@ -581,6 +660,8 @@ export default function CopilotBubble({
     setInput("");
     setIsLoading(true);
     setTurningTo(null);
+    setLiveSteps([]);
+    setLiveThought(null);
     interactedRef.current = false;
     setLiveMessage("Titus is thinking…");
 
@@ -633,6 +714,8 @@ export default function CopilotBubble({
       const replyTargets: string[] = [];
       // Same for article sources: search_writing runs before the answer is written.
       const replySources: Source[] = [];
+      // And the tool steps, shown live under the dots, then folded into one line above the reply.
+      let replySteps: Step[] = [];
       // The page moves once per reply, after every place in the call has arrived.
       let moveScheduled = false;
       if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
@@ -650,6 +733,7 @@ export default function CopilotBubble({
               content: text,
               ...(replyTargets.length > 0 && { targets: [...replyTargets] }),
               ...(replySources.length > 0 && { sources: [...replySources] }),
+              ...(replySteps.length > 0 && { steps: replySteps }),
             },
           ]);
         } else {
@@ -696,6 +780,20 @@ export default function CopilotBubble({
         }
       };
 
+      const handleStep = (raw: { id?: unknown; tool?: unknown; label?: unknown; done?: unknown }) => {
+        const step = toStep(raw);
+        if (!step) return;
+        replySteps = upsertStep(replySteps, step);
+        if (!step.done) setLiveMessage(step.label);
+        if (firstChunk) {
+          setLiveSteps(replySteps);
+        } else {
+          // A step after the first words (a later round): it joins the folded line.
+          const steps = replySteps;
+          setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, steps } : m)));
+        }
+      };
+
       const handleErrorCode = (code: string) => {
         if (code === "ERR_RATE_LIMIT") {
           throw new Error("I'm getting a lot of questions right now — please try again in a moment.");
@@ -731,6 +829,8 @@ export default function CopilotBubble({
             | { type: "delta"; text: string }
             | { type: "action"; target: string }
             | { type: "source"; n?: unknown; title?: unknown; url?: unknown }
+            | { type: "step"; id?: unknown; tool?: unknown; label?: unknown; done?: unknown }
+            | { type: "thought"; text?: unknown }
             | { type: "error"; code: string };
           if (event.type === "error") {
             handleErrorCode(event.code);
@@ -738,6 +838,11 @@ export default function CopilotBubble({
             handleAction(event.target);
           } else if (event.type === "source") {
             handleSource(event);
+          } else if (event.type === "step") {
+            handleStep(event);
+          } else if (event.type === "thought") {
+            // Only while waiting: once the reply is being written, it speaks for itself.
+            if (firstChunk && typeof event.text === "string" && event.text) setLiveThought(event.text);
           } else if (event.type === "delta") {
             appendDelta(event.text);
           }
@@ -765,6 +870,8 @@ export default function CopilotBubble({
       setIsLoading(false);
       setIsStreaming(false);
       setTurningTo(null);
+      setLiveSteps([]);
+      setLiveThought(null);
     }
   }, [input, busy, messages, targetsById, showStop, email]);
   // The open event (e.g. a prompt clicked on the front page) always sends with the latest sendMessage.
@@ -1170,6 +1277,7 @@ export default function CopilotBubble({
                   </p>
                 ) : (
                   <div className="font-serif text-[14.5px] leading-[1.62] text-ink">
+                    {msg.steps && <StepFold steps={msg.steps} articles={msg.sources?.length ?? 0} />}
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       urlTransform={citationUrlTransform}
@@ -1277,7 +1385,10 @@ export default function CopilotBubble({
           {messages.length > 0 && tourBlock}
 
           {isLoading && (
-            <TypingIndicator caption={loadingCaption ?? (turningTo && `Turning to ${turningTo}…`)} />
+            <TypingIndicator
+              caption={loadingCaption ?? (turningTo ? `Turning to ${turningTo}…` : null) ?? liveThought}
+              steps={liveSteps}
+            />
           )}
         </div>
 

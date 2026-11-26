@@ -70,7 +70,7 @@ Do not deviate from this stack unless explicitly instructed.
   - **Item layout:** name pinned on the left (300px column), content on the right.
   - **Results row:** dark tiles at the top of a page; clicking one scrolls to and rings its source.
   - **Dark tile** (`HeroTile`, `.glow-tile`): the one headline per item, figure huge in
-    amber-hi over a slow amber glow; numbers count up on first view (`CountUp`).
+    amber-hi over a slow amber glow; figures fade and rise into place on first view (`RiseIn`; never a count-up, which shows false numbers mid-count).
   - **Cream tiles** (`bg-paper-deep`, radius 20): the details. **Latte boxes** (`bg-latte`,
     radius 28): anything nested under something bigger, or earlier.
   - **Small capital mono labels** (`GroupLabel`) head each group; tools are rounded pills.
@@ -172,7 +172,7 @@ drawer that opens upward). Visual shell follows the README; backend is unchanged
 - Click FAB → drawer opens upward (translateY/scale, ~220ms)
 - Drawer has a close button; header reads "Ask **Titus**"
 - Empty state shows 3 starter prompts
-- Typing indicator (3 amber dots) while awaiting response
+- Typing indicator (3 amber dots) while awaiting response, captioned with what is really happening: a plain waiting word (Thinking, Reasoning… changing every 3s) until the model's reasoning-summary headline arrives (bold title only, never the paragraph), then one line per tool step ("Searching my writing for …"). Steps fold into one line above the reply ("Searched my writing · read 3 articles"), opening to list them
 - Session-only memory (useState, no persistence)
 - Markdown rendered via `react-markdown`, restyled editorial (serif, amber `<a>`)
 - Mobile responsive

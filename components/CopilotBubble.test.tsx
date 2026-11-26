@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TextEncoder, TextDecoder } from "util";
-import CopilotBubble from "./CopilotBubble";
+import CopilotBubble, { WAITING_WORDS, WAITING_WORD_MS } from "./CopilotBubble";
 import { ARTICLE_COUNT_NUMBER } from "@/lib/content";
 import { COPILOT_TOUR_PAGE_EVENT, openCopilot, startTour } from "@/lib/copilot-events";
 import { PAGE_TARGETS } from "@/lib/profile";
@@ -106,6 +106,36 @@ function scriptedResponse(script: Array<string | typeof WAIT>) {
 }
 const actionLine = (target: string) => `{"type":"action","target":"${target}"}\n`;
 const deltaLine = (text: string) => `{"type":"delta","text":"${text}"}\n`;
+
+/**
+ * A reply stream that pauses at every WAIT until the test calls the next release(), so a test can look at
+ * the drawer between two steps. (scriptedResponse only has one gate.)
+ */
+function pausingResponse(script: Array<string | typeof WAIT>) {
+  const encoder = new TextEncoder();
+  const queue = [...script];
+  const gates: Array<() => void> = [];
+  const reader = {
+    read: jest.fn(async (): Promise<{ done: boolean; value?: Uint8Array }> => {
+      const next = queue.shift();
+      if (next === undefined) return { done: true, value: undefined };
+      if (next === WAIT) {
+        await new Promise<void>((resolve) => gates.push(resolve));
+        return reader.read();
+      }
+      return { done: false, value: encoder.encode(next) };
+    }),
+  };
+  const response = { ok: true, status: 200, body: { getReader: () => reader } } as unknown as Response;
+  /** Lets the stream past its next WAIT, then lets React settle. */
+  const release = async () => {
+    await act(async () => {
+      gates.shift()?.();
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+    });
+  };
+  return { response, release };
+}
 
 /** The scroll box that holds the messages (nearest scrolling ancestor of the starter-state intro). */
 function messagesScroller(): HTMLElement {
@@ -1257,6 +1287,314 @@ describe("CopilotBubble", () => {
 
       await waitFor(() => expect(screen.getByText("Visible answer.")).toBeInTheDocument());
       expect(screen.queryByText(/SHOULD-NOT-APPEAR/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("tool steps", () => {
+    const GUARDRAILS = "https://medium.com/@tituslhy/guardrails";
+    const SEARCH_DOING = "Searching my writing for “guardrails”";
+    const SEARCH_DONE = "Searched my writing for “guardrails”";
+    const READ_DOING = "Reading “Your agent needs a bouncer”";
+    const READ_DONE = "Read “Your agent needs a bouncer”";
+
+    const stepLine = (id: string, tool: string, label: string, done: boolean) =>
+      `${JSON.stringify({ type: "step", id, tool, label, done })}\n`;
+    const source = (n: number, title: string, url = GUARDRAILS) =>
+      `${JSON.stringify({ type: "source", n, title, url, relevance: 0.9, score: 2.6 })}\n`;
+    const delta = (text: string) => `${JSON.stringify({ type: "delta", text })}\n`;
+
+    async function askWith(script: Array<string | typeof WAIT>) {
+      const user = userEvent.setup();
+      const stream = pausingResponse(script);
+      (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+      render(<CopilotBubble />);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      await user.type(screen.getByPlaceholderText(/ask about my work/i), "What have you written about guardrails?{Enter}");
+      return stream;
+    }
+
+    const liveList = () => screen.queryByRole("list", { name: "What I'm doing" });
+
+    it("shows each step live under the typing dots while the reply has not started", async () => {
+      const { release } = await askWith([stepLine("c1", "search_writing", SEARCH_DOING, false), WAIT, delta("Answer.")]);
+
+      const list = await screen.findByRole("list", { name: "What I'm doing" });
+      expect(within(list).getByText(SEARCH_DOING)).toBeInTheDocument();
+      expect(screen.queryByText("Writing the reply")).not.toBeInTheDocument();
+
+      await release();
+      await waitFor(() => expect(screen.getByText("Answer.")).toBeInTheDocument());
+      expect(liveList()).not.toBeInTheDocument();
+    });
+
+    it("replaces a step's running line with its finished one, rather than adding a second line", async () => {
+      const { release } = await askWith([
+        stepLine("c1", "search_writing", SEARCH_DOING, false),
+        WAIT,
+        stepLine("c1", "search_writing", SEARCH_DONE, true),
+        WAIT,
+        delta("Answer."),
+      ]);
+
+      await waitFor(() => expect(within(liveList()!).getByText(SEARCH_DOING)).toBeInTheDocument());
+      await release();
+      await waitFor(() => expect(within(liveList()!).getByText(SEARCH_DONE)).toBeInTheDocument());
+      expect(within(liveList()!).queryByText(SEARCH_DOING)).not.toBeInTheDocument();
+      expect(within(liveList()!).getAllByRole("listitem").map((li) => li.textContent)).toEqual([SEARCH_DONE, "Writing the reply"]);
+
+      await release();
+      await waitFor(() => expect(screen.getByText("Answer.")).toBeInTheDocument());
+    });
+
+    it("says Writing the reply only once every step is done", async () => {
+      const { release } = await askWith([
+        stepLine("c1", "search_writing", SEARCH_DOING, false),
+        stepLine("c2", "read_writing", READ_DOING, false),
+        WAIT,
+        stepLine("c1", "search_writing", SEARCH_DONE, true),
+        WAIT,
+        stepLine("c2", "read_writing", READ_DONE, true),
+        WAIT,
+        delta("Answer."),
+      ]);
+
+      await waitFor(() => expect(within(liveList()!).getByText(SEARCH_DOING)).toBeInTheDocument());
+      expect(screen.queryByText("Writing the reply")).not.toBeInTheDocument();
+
+      await release();
+      await waitFor(() => expect(within(liveList()!).getByText(SEARCH_DONE)).toBeInTheDocument());
+      expect(screen.queryByText("Writing the reply")).not.toBeInTheDocument();
+
+      await release();
+      await waitFor(() => expect(screen.getByText("Writing the reply")).toBeInTheDocument());
+      expect(within(liveList()!).getByText(READ_DONE)).toBeInTheDocument();
+
+      await release();
+      await waitFor(() => expect(screen.getByText("Answer.")).toBeInTheDocument());
+      expect(screen.queryByText("Writing the reply")).not.toBeInTheDocument();
+    });
+
+    it("folds the finished steps into one line above the reply, with the number of articles sent", async () => {
+      const user = userEvent.setup();
+      await askWith([
+        stepLine("c1", "search_writing", SEARCH_DOING, false),
+        stepLine("c1", "search_writing", SEARCH_DONE, true),
+        source(1, "Your agent needs a bouncer"),
+        source(2, "Teaching Toothless to Bite", "https://medium.com/@tituslhy/lora"),
+        delta("Two pieces cover it [1][2]."),
+      ]);
+
+      const fold = await screen.findByText(/Searched my writing · read 2 articles/, { selector: "summary" });
+      const details = fold.closest("details") as HTMLDetailsElement;
+      expect(details.open).toBe(false);
+      expect(liveList()).not.toBeInTheDocument();
+
+      await user.click(fold);
+      expect(details.open).toBe(true);
+      expect(within(details).getByText(SEARCH_DONE)).toBeInTheDocument();
+    });
+
+    it("folds a read by id to Read 1 article, with no search in the line", async () => {
+      await askWith([
+        stepLine("c1", "read_writing", READ_DOING, false),
+        stepLine("c1", "read_writing", READ_DONE, true),
+        source(1, "Your agent needs a bouncer"),
+        delta("From one piece [1]."),
+      ]);
+
+      const fold = await screen.findByText(/^›?\s*Read 1 article$/, { selector: "summary" });
+      expect(fold.textContent).not.toMatch(/Searched/);
+    });
+
+    it("adds a step that arrives after the first words to the folded line", async () => {
+      await askWith([
+        stepLine("c1", "search_writing", SEARCH_DOING, false),
+        stepLine("c1", "search_writing", SEARCH_DONE, true),
+        source(1, "Your agent needs a bouncer"),
+        delta("First part [1]. "),
+        stepLine("c2", "read_writing", READ_DOING, false),
+        stepLine("c2", "read_writing", READ_DONE, true),
+        delta("Second part."),
+      ]);
+
+      await screen.findByText(/Second part\./);
+      const fold = screen.getByText(/Searched my writing · read 1 article/, { selector: "summary" });
+      const details = fold.closest("details") as HTMLDetailsElement;
+      expect(within(details).getByText(SEARCH_DONE)).toBeInTheDocument();
+      expect(within(details).getByText(READ_DONE)).toBeInTheDocument();
+    });
+
+    it("shows no fold line when the reply had no steps", async () => {
+      await askWith([source(1, "Your agent needs a bouncer"), delta("Answer [1].")]);
+
+      await waitFor(() => expect(screen.getByText(/Answer/)).toBeInTheDocument());
+      expect(document.querySelector("details")).toBeNull();
+      expect(screen.queryByText(/read \d+ articles?/)).not.toBeInTheDocument();
+    });
+
+    it("ignores step events that fail validation, and shows only the valid step", async () => {
+      const { release } = await askWith([
+        `${JSON.stringify({ type: "step", tool: "search_writing", label: "NO-ID", done: false })}\n`,
+        `${JSON.stringify({ type: "step", id: "m1", tool: "search_writing", label: "NO-DONE" })}\n`,
+        `${JSON.stringify({ type: "step", id: "m2", tool: "search_writing", label: "", done: false })}\n`,
+        `${JSON.stringify({ type: "step", id: "m3", tool: "search_writing", label: "BAD-DONE", done: "yes" })}\n`,
+        stepLine("c1", "search_writing", SEARCH_DOING, false),
+        WAIT,
+        delta("Answer."),
+      ]);
+
+      // The valid step is the only line: the malformed ones before it were dropped, not queued.
+      const list = await waitFor(() => {
+        const found = liveList();
+        expect(found).toBeInTheDocument();
+        return found as HTMLElement;
+      });
+      expect(within(list).getAllByRole("listitem")).toHaveLength(1);
+      expect(within(list).getByText(SEARCH_DOING)).toBeInTheDocument();
+
+      await release();
+      await waitFor(() => expect(screen.getByText("Answer.")).toBeInTheDocument());
+      expect(screen.queryByText(/NO-ID|NO-DONE|BAD-DONE/)).not.toBeInTheDocument();
+      expect(document.querySelector("details")?.querySelectorAll("li")).toHaveLength(1);
+    });
+  });
+
+  describe("the waiting word, thoughts and the caption", () => {
+    const HEADLINE = "Looking up the Illumina role";
+    const QUESTION = "What have you written about guardrails?";
+
+    const thoughtLine = (text: string) => `${JSON.stringify({ type: "thought", text })}\n`;
+    const stepLine = (id: string, tool: string, label: string, done: boolean) =>
+      `${JSON.stringify({ type: "step", id, tool, label, done })}\n`;
+    const waitingWord = () => screen.queryByTestId("waiting-word");
+    /** Lets the fetch mock, the reader and React run, without moving the fake clock. */
+    const settle = () => act(async () => void (await jest.advanceTimersByTimeAsync(0)));
+
+    const originalMatchMedia = window.matchMedia;
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+      window.matchMedia = originalMatchMedia;
+    });
+
+    function openDrawer(targets?: Array<{ id: string; label: string; path: string; page: string }>) {
+      render(targets ? <CopilotBubble targets={targets} /> : <CopilotBubble />);
+      fireEvent.click(screen.getByRole("button", { name: /open ask titus/i }));
+    }
+
+    function send(question: string) {
+      const input = screen.getByPlaceholderText(/ask about my work/i);
+      fireEvent.change(input, { target: { value: question } });
+      fireEvent.keyDown(input, { key: "Enter" });
+    }
+
+    /** Opens the drawer, sends one question, and lets the reply stream as far as its first WAIT. */
+    async function sendWith(script: Array<string | typeof WAIT>, targets?: Array<{ id: string; label: string; path: string; page: string }>) {
+      const stream = pausingResponse(script);
+      (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+      openDrawer(targets);
+      send(QUESTION);
+      await settle();
+      return stream;
+    }
+
+    it("shows a waiting word while the reply has nothing else to show", async () => {
+      await sendWith([WAIT]);
+
+      expect(waitingWord()?.textContent).toBe(`${WAITING_WORDS[0]}…`);
+    });
+
+    it("moves to the next waiting word every 3 seconds, and wraps round to the first", async () => {
+      await sendWith([WAIT]);
+
+      act(() => void jest.advanceTimersByTime(WAITING_WORD_MS - 1));
+      expect(waitingWord()?.textContent).toBe(`${WAITING_WORDS[0]}…`);
+
+      act(() => void jest.advanceTimersByTime(1));
+      expect(waitingWord()?.textContent).toBe(`${WAITING_WORDS[1]}…`);
+
+      for (let k = 2; k <= WAITING_WORDS.length + 1; k++) {
+        act(() => void jest.advanceTimersByTime(WAITING_WORD_MS));
+        expect(waitingWord()?.textContent).toBe(`${WAITING_WORDS[k % WAITING_WORDS.length]}…`);
+      }
+    });
+
+    it("shows a thought, in place of the waiting word, beside the dots", async () => {
+      const stream = await sendWith([thoughtLine(HEADLINE), WAIT, deltaLine("Answer.")]);
+
+      expect(screen.getByText(HEADLINE)).toBeInTheDocument();
+      expect(waitingWord()).toBeNull();
+
+      await stream.release();
+      await settle();
+      expect(screen.getByText("Answer.")).toBeInTheDocument();
+    });
+
+    it("replaces an earlier thought with a later one", async () => {
+      await sendWith([thoughtLine("First idea"), thoughtLine("Second idea"), WAIT, deltaLine("Answer.")]);
+
+      expect(screen.queryByText("First idea")).toBeNull();
+      expect(screen.getByText("Second idea")).toBeInTheDocument();
+    });
+
+    it("ignores a thought that arrives after the first words", async () => {
+      await sendWith([deltaLine("Start."), thoughtLine("Late idea"), WAIT, deltaLine(" More.")]);
+
+      expect(screen.getByText(/Start\./)).toBeInTheDocument();
+      expect(screen.queryByText("Late idea")).toBeNull();
+      expect(waitingWord()).toBeNull();
+    });
+
+    it("gives Turning to … the caption over a thought", async () => {
+      // The page moves on its own only when the drawer sits side by side with it.
+      window.matchMedia = jest.fn((query: string) => ({
+        matches: query === "(min-width: 1024px)",
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(() => true),
+      })) as unknown as typeof window.matchMedia;
+      await sendWith([thoughtLine(HEADLINE), actionLine("role-illumina"), WAIT, deltaLine("Answer.")], [
+        { id: "role-illumina", label: "Illumina, 2023", path: "/experience", page: "Experience" },
+      ]);
+
+      await act(async () => void (await jest.advanceTimersByTimeAsync(STOP_SETTLE_MS + 50)));
+
+      expect(screen.getByText(/Turning to/)).toBeInTheDocument();
+      expect(screen.queryByText(HEADLINE)).toBeNull();
+    });
+
+    it("hides the waiting word once steps appear, and shows the steps instead", async () => {
+      await sendWith([stepLine("c1", "search_writing", "Searching my writing for “guardrails”", false), WAIT, deltaLine("Answer.")]);
+
+      expect(screen.getByRole("list", { name: "What I'm doing" })).toBeInTheDocument();
+      expect(waitingWord()).toBeNull();
+    });
+
+    it("is gone once the reply has arrived, and a thought does not outlive it", async () => {
+      await sendWith([thoughtLine(HEADLINE), deltaLine("Done.")]);
+
+      expect(screen.getByText("Done.")).toBeInTheDocument();
+      expect(waitingWord()).toBeNull();
+      expect(screen.queryByText(HEADLINE)).toBeNull();
+    });
+
+    it("starts each new question on the waiting word again, not on the last reply's thought", async () => {
+      await sendWith([thoughtLine(HEADLINE), deltaLine("First answer.")]);
+      expect(screen.getByText("First answer.")).toBeInTheDocument();
+
+      const second = pausingResponse([WAIT, deltaLine("Second answer.")]);
+      (global.fetch as jest.Mock).mockResolvedValueOnce(second.response);
+      send("A second question?");
+      await settle();
+
+      expect(waitingWord()?.textContent).toBe(`${WAITING_WORDS[0]}…`);
+      expect(screen.queryByText(HEADLINE)).toBeNull();
     });
   });
 

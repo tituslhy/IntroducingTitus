@@ -359,13 +359,13 @@ describe("Experience (the /experience page)", () => {
     it("labels the Mastercard highlight tile, whose figure is a word rather than a number", () => {
       const { container } = render(<Experience />);
       const tile = article(container, "mastercard").querySelector(`[data-tech="${highlightKey(roleOf("mastercard"))}"]`) as HTMLElement;
-      expect(within(tile).getByText("Tech lead", { selector: ".sr-only" })).toBeInTheDocument();
+      expect(within(tile).getByText("Tech lead")).toBeInTheDocument();
     });
 
     it("shows the Illumina highlight as its savings figure, and no longer renders its pull quote", () => {
       const { container } = render(<Experience />);
       const tile = article(container, "illumina").querySelector(`[data-tech="${highlightKey(roleOf("illumina"))}"]`) as HTMLElement;
-      expect(within(tile).getByText("$9M", { selector: ".sr-only" })).toBeInTheDocument();
+      expect(within(tile).getByText("$9M")).toBeInTheDocument();
       expect(screen.queryByText(/anticipated to save usd 9 million/i)).toBeNull();
     });
 

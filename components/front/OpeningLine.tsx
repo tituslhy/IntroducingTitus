@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import CountUp from '@/components/tiles/CountUp'
+import RiseIn from '@/components/tiles/RiseIn'
 import DownButton from './DownButton'
 import { FRONT_STATS } from '@/lib/front-page'
 import { SOCIAL } from '@/lib/profile'
@@ -11,7 +11,7 @@ function StatTile({ figure, label, href, external }: { figure: string; label: st
   const body = (
     <>
       <span className="block font-serif text-[clamp(34px,3.4vw,46px)] font-medium leading-none tracking-[-0.03em] text-amber-hi">
-        <CountUp figure={figure} />
+        <RiseIn figure={figure} />
       </span>
       <span className="mt-3 flex items-end justify-between gap-2 font-mono text-[11.5px] leading-[1.4] text-[oklch(0.85_0.02_78)]">
         {label}

@@ -1,4 +1,4 @@
-import CountUp from '@/components/tiles/CountUp'
+import RiseIn from '@/components/tiles/RiseIn'
 
 type HeroTileProps = {
   figure: string
@@ -28,7 +28,7 @@ export default function HeroTile({ figure, caption, note, dataTech, noteTech, to
         </span>
       )}
       <span className={`font-serif font-medium leading-[0.95] tracking-[-0.04em] ${tone === 'indigo' ? 'text-[oklch(0.82_0.08_254)]' : 'text-amber-hi'} ${size}`}>
-        <CountUp figure={figure} />
+        <RiseIn figure={figure} />
       </span>
       <span className="mt-3 font-serif text-[22px] italic leading-[1.3] text-[oklch(0.88_0.02_78)]">{caption}</span>
     </div>
