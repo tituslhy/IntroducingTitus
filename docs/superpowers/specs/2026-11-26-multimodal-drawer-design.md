@@ -47,7 +47,7 @@ anyway, and it can't take my vocabulary hint. Worth it only as a fallback if the
 
 ### Not in phase 1
 - Live, talk-over-each-other voice chat (OpenAI Realtime). Impressive, but a different architecture (WebSocket,
-  server-side session, turn detection) and 5–10x the cost per minute. Revisit after phase 3.
+  server-side session, turn detection) and far pricier: see "Considered, not now" below.
 
 ### Done when
 - Works on desktop Chrome, Safari, Firefox and iPhone Safari. Mic button and recording state wrap and never overflow
@@ -75,6 +75,16 @@ anyway, and it can't take my vocabulary hint. Worth it only as a fallback if the
 3. No new tool. The model already has `search_writing` (up to 3 topics per call) and `read_writing`. The prompt
    gets a short section: *when shown an architecture, name its components, then search my writing for the ones I've
    written about; say plainly which parts I haven't.*
+   **Jev stays as is.** It searches text and never sees the image: the model does the looking, turns the diagram
+   into topics ("LangGraph supervisor", "Qdrant", "guardrails") and calls `search_writing` exactly as it does for a
+   typed question. To Jev, a question that started as a picture looks the same as one that was typed.
+   **The budget is the real limit:** 3 topics per search × 3 searches per reply (`MAX_TOPICS`,
+   `MAX_READING_CALLS` in `lib/search-config.ts`) = at most 9 topics, and 10 articles per reply
+   (`MAX_ARTICLES_PER_REPLY`). A busy diagram has more boxes than that, so the prompt tells the model to pick the
+   parts that matter (agent pattern, memory/retrieval, guardrails, deployment) rather than search every box; the
+   image evals show whether it picks well.
+   (Jev would only need images for a different feature, "find my article with a diagram like this one", which
+   means indexing the figures in my articles. Not planned.)
 4. **History:** the image is sent only on the turn it was attached. Later turns carry a text placeholder
    ("[the visitor shared an architecture diagram]") plus my earlier reply, which already describes it. This keeps
    every follow-up cheap.
@@ -112,6 +122,19 @@ phases 1–2 are live.
 
 ---
 
+## Considered, not now
+
+- **Gemini, one model for everything.** Gemini takes text, images, audio and even video in one call, which is
+  genuinely appealing: a visitor could send a screen recording of their agent misbehaving. But it means moving the
+  whole copilot (loop, tool definitions, reasoning summaries, evals, tracing) off the OpenAI Responses API, and phases
+  1–2 don't need it. Revisit if video becomes a goal; it would be its own migration plan, measured with the evals.
+- **Realtime voice (talk to it like a phone call).** OpenAI's realtime models (now `gpt-realtime-2.1` and
+  `-mini`, successors to `gpt-4o-realtime`) bill audio by the token, reported at about $32 in / $64 out per 1M
+  audio tokens ($10 / $20 for mini), against about $0.0045 a minute to transcribe a clip. For a personal site where
+  anyone can open the drawer, push-to-talk plus transcription gets 90% of the feel for a tiny fraction of the cost.
+
+---
+
 ## Order and size
 
 1. **Phase 1, mic:** one route, one recorder component, privacy copy. Small, about a day with tests.
@@ -134,3 +157,4 @@ The colophon ("How Ask Titus works") gets a paragraph and a box on its diagram f
 - OpenAI speech-to-text guide: https://developers.openai.com/api/docs/guides/speech-to-text
 - OpenAI gpt-6-luna model page (text + image input, Responses API): https://developers.openai.com/api/docs/models/gpt-6-luna
 - TTS retirement claim (third party, unconfirmed): https://rakazo.com/voice-providers/openai/
+- Realtime pricing (third party): https://www.assemblyai.com/blog/tts-api-pricing
