@@ -67,6 +67,7 @@ const GUARDRAILS: [guardrail: string, prevents: string][] = [
   ['Job descriptions wrapped as data and not stored upstream', 'Prompt injection; keeping confidential postings'],
   ['Fit briefs re-validated after the model writes them', '“Strong” claims without evidence'],
   ['Cards built by the server from my data, checked as A2UI before they’re sent', 'A card showing a role, article, link or date that doesn’t exist'],
+  ['Voice clips transcribed into the box, never sent by themselves; I don’t keep them', 'A misheard question sent unchecked; recordings kept'],
   ['Origin check, rate limits, output caps, timeouts, tool-call limits', 'Abuse and runaway cost'],
   ['Scope rules', 'Salary, family or weakness talk'],
 ]
@@ -396,6 +397,21 @@ export default function ColophonPage() {
                   v1.0, read by Google&rsquo;s engine and drawn in this site&rsquo;s own style. A question only about my
                   articles gets no card: the Writing page is filtered to the articles in the answer instead. Later turns
                   see one line in place of the card.
+                </p>
+                </>,
+              ],
+              [
+                'Voice',
+                <>
+                <p className={prose}>
+                  You can ask out loud: the mic beside Send records up to a minute, and OpenAI&rsquo;s gpt-transcribe
+                  turns it into words, with a list of the names that come up here (my employers, projects, schools and
+                  every tool on the About page) so LangGraph comes back as LangGraph. The words go in the box, not
+                  straight into the chat, so you can fix a misheard one before you send. The clip goes to OpenAI to be
+                  transcribed, and I don&rsquo;t store, log or trace it or its words: the server&rsquo;s log line keeps
+                  its size, format and timing, how many characters came back, and the IP the rate limit counts by, as
+                  chat&rsquo;s does. Where the browser can hear your voice level, it stops when you pause and sends
+                  nothing if it never heard you.
                 </p>
                 </>,
               ],

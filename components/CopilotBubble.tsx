@@ -36,6 +36,8 @@ import { REVEAL_EVENT, reveal, requestShow } from "@/lib/reveal";
 import { waitForElement } from "@/lib/wait-for-element";
 import { pageMoveStep, toStep, upsertStep, type Step } from "@/lib/copilot-steps";
 import { StepFold, StepList, WaitingWord } from "@/components/CopilotSteps";
+import { MicButton, StopRecordingButton, VoiceStatus, useVoiceInput } from "@/components/VoiceInput";
+import { appendTranscript } from "@/lib/voice-input";
 import { cardLabel, historyContent, toCard, type CardData } from "@/lib/card-event";
 import { pickHref, rememberPickQuestion, toPick } from "@/lib/writing-pick";
 
@@ -248,6 +250,49 @@ export default function CopilotBubble({
   // never drags them back to the bottom; on again when they scroll back down or send a message.
   const followRef = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Voice in: the words land in the box, after anything already typed, to check before sending.
+  const voice = useVoiceInput((text) => setInput((prev) => appendTranscript(prev, text)));
+  const voiceBusy = voice.state !== "idle";
+  const { cancel: cancelVoice, clearProblem: clearVoiceProblem } = voice;
+  // Keyboard focus follows the mic, so it never falls out of the drawer: to Stop while recording, to the
+  // "Transcribing…" line while it works, then back to the box (cursor after the words) once it's done.
+  const stopVoiceRef = useRef<HTMLButtonElement>(null);
+  const micRef = useRef<HTMLButtonElement>(null);
+  const voiceStatusRef = useRef<HTMLDivElement>(null);
+  const lastVoiceStateRef = useRef(voice.state);
+  useEffect(() => {
+    const was = lastVoiceStateRef.current;
+    lastVoiceStateRef.current = voice.state;
+    if (was === voice.state) return;
+    if (voice.state === "recording") stopVoiceRef.current?.focus();
+    else if (voice.state === "transcribing") voiceStatusRef.current?.focus();
+    else {
+      // Only when the drawer is still open (closing it cancels the clip, and focus goes back to the button), and
+      // only if focus was left with the voice controls, which are gone now: never pulled from where the visitor put it.
+      if (!isOpen) return;
+      const active = document.activeElement;
+      if (active && active !== document.body) return;
+      // After a problem, back to the mic to try again (no phone keyboard popping up); after words, into the box.
+      // (The mic is disabled while a reply streams: then the box, like after words.)
+      const mic = micRef.current;
+      if (voice.problem && mic && !mic.disabled) {
+        mic.focus();
+        return;
+      }
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }
+  }, [voice.state, voice.problem, isOpen]);
+  // Closing the drawer drops a clip in progress (nothing is sent) and its notice.
+  useEffect(() => {
+    if (!isOpen) {
+      cancelVoice();
+      clearVoiceProblem();
+    }
+  }, [isOpen, cancelVoice, clearVoiceProblem]);
   const drawerRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLButtonElement>(null);
   const wasOpenRef = useRef(false);
@@ -913,11 +958,14 @@ export default function CopilotBubble({
     // The visitor took up the tour's invitation: the tour gets out of the way.
     tourStopRef.current();
     setTourOutro(false);
+    // A clip being recorded was for the chat box: drop it rather than land it in the job description.
+    cancelVoice();
+    clearVoiceProblem();
     setMode("fit");
     setFitNotice(null);
     setIsExpanded(true);
     setTimeout(() => inputRef.current?.focus(), 50);
-  }, []);
+  }, [cancelVoice, clearVoiceProblem]);
 
   // Other pages (e.g. /colophon) open the drawer via openCopilot().
   useEffect(() => {
@@ -1488,12 +1536,22 @@ export default function CopilotBubble({
             </div>
           )}
           <div className="flex items-end gap-2">
+            {voice.state !== "idle" ? (
+              <VoiceStatus
+                state={voice.state}
+                seconds={voice.seconds}
+                meterRef={voice.meterRef}
+                autoStop={voice.autoStop}
+                focusRef={voiceStatusRef}
+              />
+            ) : (
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => {
                 // Typing into the drawer means the visitor is talking to me: stop the tour quietly.
                 if (touring) tour.stop();
+                if (voice.problem) voice.clearProblem();
                 setInput(e.target.value);
               }}
               onKeyDown={handleKeyDown}
@@ -1504,16 +1562,42 @@ export default function CopilotBubble({
               className="flex-1 resize-none overflow-y-auto border border-rule bg-paper px-3 py-2 font-mono text-[12.5px] text-ink placeholder:text-ink-faint transition-colors focus:border-amber focus:outline-none disabled:opacity-50"
               style={{ minHeight: mode === "fit" ? "96px" : "36px", maxHeight: mode === "fit" ? "220px" : "120px" }}
             />
+            )}
+            {voice.state === "recording" ? (
+              <StopRecordingButton onClick={voice.stop} buttonRef={stopVoiceRef} />
+            ) : (
+            <>
+            {mode !== "fit" && voice.supported && (
+              <MicButton
+                onClick={() => {
+                  // Speaking to the drawer, like typing into it, stops the tour quietly.
+                  if (touring) tour.stop();
+                  void voice.start();
+                }}
+                disabled={busy || voiceBusy}
+                buttonRef={micRef}
+              />
+            )}
             <button
               onClick={() => (mode === "fit" ? sendFit() : sendMessage())}
-              disabled={busy || !input.trim()}
+              disabled={busy || voiceBusy || !input.trim()}
               className="flex flex-shrink-0 items-center gap-1.5 border border-ink bg-ink px-3.5 py-2.5 font-mono text-[11px] uppercase tracking-[0.1em] text-paper transition-colors hover:border-amber hover:bg-amber disabled:cursor-not-allowed disabled:opacity-40"
               aria-label={mode === "fit" ? "Check fit" : "Send message"}
             >
-              <span>{mode === "fit" ? "Check fit" : "Send"}</span>
+              {/* On a narrow phone with the mic there, Send is just its arrow, so the box keeps room for its hint. */}
+              <span className={mode !== "fit" && voice.supported ? "hidden min-[400px]:inline" : undefined}>
+                {mode === "fit" ? "Check fit" : "Send"}
+              </span>
               <span aria-hidden="true">→</span>
             </button>
+            </>
+            )}
           </div>
+          {mode !== "fit" && voice.problem && (
+            <p role="alert" className="mt-2 font-serif text-[13px] italic leading-snug text-amber">
+              {voice.problem}
+            </p>
+          )}
           {fitNotice && (
             <p role="alert" className="mt-2 font-serif text-[13px] italic leading-snug text-amber">
               {fitNotice}
@@ -1529,6 +1613,7 @@ export default function CopilotBubble({
           ) : (
             <p className="mt-2 font-mono text-[10px] leading-snug text-ink-faint">
               Messages go to OpenAI to generate a reply and are logged so I can improve answers. Nothing is stored in your browser.
+              {voice.supported && " Voice clips go to OpenAI to be transcribed; I don’t keep them."}
             </p>
           )}
         </div>

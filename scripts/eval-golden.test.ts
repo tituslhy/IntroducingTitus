@@ -5,7 +5,16 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { buildSystemPrompt } from "../lib/copilot-prompt";
-import { GOLDEN, countsForRetrieval, expectedCard, expectedPick, retrievalQueries, usedRecord, type GoldenRow } from "./eval-golden";
+import {
+  GOLDEN,
+  countsForRetrieval,
+  expectedCard,
+  expectedPick,
+  missingRecord,
+  retrievalQueries,
+  usedRecord,
+  type GoldenRow,
+} from "./eval-golden";
 
 const TEMPLATE_PATH = join(__dirname, "..", "copilot-system-prompt.md");
 const RENDERED = buildSystemPrompt(readFileSync(TEMPLATE_PATH, "utf-8"));
@@ -85,6 +94,52 @@ describe("usedRecord", () => {
   });
 });
 
+describe("missingRecord and usedRecord with alternatives", () => {
+  // "SMU|MITB|Singapore Management University" is one record word: any one of its names counts.
+  const withAlternative = row({ record: ["Illumina", "SMU|MITB|Singapore Management University"] });
+
+  it("is null for a row with no record", () => {
+    expect(missingRecord(row({}), "anything at all")).toBeNull();
+  });
+
+  it("is an empty list when every entry is named, using any one name of an alternative", () => {
+    expect(missingRecord(withAlternative, "At Illumina I studied at SMU.")).toEqual([]);
+    expect(missingRecord(withAlternative, "At Illumina I studied at MITB.")).toEqual([]);
+    expect(missingRecord(withAlternative, "At Illumina, at Singapore Management University.")).toEqual([]);
+  });
+
+  it("lists the one entry none of whose names appear", () => {
+    expect(missingRecord(withAlternative, "At Illumina I shipped it.")).toEqual(["SMU|MITB|Singapore Management University"]);
+  });
+
+  it("lists a plain entry that is missing, alongside an alternative that is named", () => {
+    expect(missingRecord(withAlternative, "I studied at SMU.")).toEqual(["Illumina"]);
+  });
+
+  it("lists every entry when none of the names appear", () => {
+    expect(missingRecord(withAlternative, "I haven't written about that.")).toEqual([
+      "Illumina",
+      "SMU|MITB|Singapore Management University",
+    ]);
+  });
+
+  it("matches the alternatives case-insensitively", () => {
+    expect(missingRecord(withAlternative, "ILLUMINA, singapore management university")).toEqual([]);
+    expect(missingRecord(row({ record: ["mitb|smu"] }), "I did it at Smu.")).toEqual([]);
+  });
+
+  it("usedRecord is true only when no entry is missing", () => {
+    expect(usedRecord(withAlternative, "At Illumina I studied at MITB.")).toBe(true);
+    expect(usedRecord(withAlternative, "At Illumina I shipped it.")).toBe(false);
+    expect(usedRecord(withAlternative, "I studied at SMU.")).toBe(false);
+  });
+
+  it("usedRecord is null for a row with no record, and true for an empty one", () => {
+    expect(usedRecord(row({}), "x")).toBeNull();
+    expect(usedRecord(row({ record: [] }), "")).toBe(true);
+  });
+});
+
 describe("GOLDEN experience-with rows", () => {
   const withRecord = GOLDEN.filter((r) => r.record);
 
@@ -102,9 +157,10 @@ describe("GOLDEN experience-with rows", () => {
     expect(cv).toBeDefined();
     expect(cv!.expect).toEqual({ kind: "articles", titles: ["Multimodal RAG"] });
     expect(cv!.topics).toEqual(["computer vision"]);
-    expect(cv!.record).toEqual(["Illumina", "SMU"]);
-    expect(RENDERED).toContain("SMU");
+    expect(cv!.record).toEqual(["Illumina", "SMU|MITB|Singapore Management University"]);
     expect(RENDERED).toContain("Illumina");
+    expect(cv!.record!.some((w) => /(^|\|)SMU($|\|)/.test(w))).toBe(true);
+    expect(RENDERED).toContain("SMU");
   });
 
   it("gives every row with a record the articles kind and topics", () => {
@@ -118,7 +174,8 @@ describe("GOLDEN experience-with rows", () => {
     // Drift guard: a record word must be something the copilot is told about, or it can't be expected in a reply.
     for (const r of withRecord) {
       for (const word of r.record!) {
-        expect(RENDERED).toContain(word);
+        // "a|b" is one word: it is in the prompt when any one of its names is.
+        expect(word.split("|").some((name) => RENDERED.includes(name))).toBe(true);
       }
     }
   });
