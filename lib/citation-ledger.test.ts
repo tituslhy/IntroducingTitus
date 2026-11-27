@@ -6,6 +6,7 @@ import { ARTICLES, type Article } from "./articles";
 import {
   articleByUrl,
   formatPublished,
+  articleIdOf,
   formatToday,
   mediumPostId,
   parseCitations,
@@ -486,3 +487,44 @@ describe("co-author lists", () => {
     );
   });
 });
+
+describe("articleIdOf", () => {
+  it("reduces a Medium URL to its post id", () => {
+    expect(articleIdOf("https://medium.com/@tituslhy/how-to-raft-your-llm-4c3844a9a6e3")).toBe("4c3844a9a6e3");
+  });
+
+  it("keeps a bare post id as it is", () => {
+    expect(articleIdOf("1c16fb47f435")).toBe("1c16fb47f435");
+  });
+
+  it("takes the post id from the end of a slug, so a slug the model writes still resolves", () => {
+    expect(articleIdOf("introducing-stablecoins-1a2b3c4d5e6f")).toBe("1a2b3c4d5e6f");
+  });
+
+  it("accepts a bare id with a trailing slash, and an eight-character id", () => {
+    expect(articleIdOf("1a2b3c4d5e6f/")).toBe("1a2b3c4d5e6f");
+    expect(articleIdOf("deadbeef")).toBe("deadbeef");
+  });
+
+  it("trims spaces and lowercases the result", () => {
+    expect(articleIdOf("  1C16FB47F435  ")).toBe("1c16fb47f435");
+    expect(articleIdOf(" Introducing-Stablecoins-1A2B3C4D5E6F ")).toBe("1a2b3c4d5e6f");
+  });
+
+  it("keeps junk as the trimmed, lowercased raw text, with no hex to take", () => {
+    expect(articleIdOf("  Not An Article  ")).toBe("not an article");
+    expect(articleIdOf("zz")).toBe("zz");
+    expect(articleIdOf("../../etc/passwd")).toBe("../../etc/passwd");
+  });
+
+  it("does not take a hex run that is longer than sixteen characters, or that is not at the end", () => {
+    const long = "a".repeat(20);
+    expect(articleIdOf(long)).toBe(long);
+    expect(articleIdOf("1a2b3c4d5e6f-and-more")).toBe("1a2b3c4d5e6f-and-more");
+  });
+
+  it("cuts the result to 64 characters", () => {
+    expect(articleIdOf("x".repeat(100))).toHaveLength(64);
+  });
+});
+

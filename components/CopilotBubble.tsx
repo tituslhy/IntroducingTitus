@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import FitBriefCard from "./FitBriefCard";
@@ -33,8 +34,13 @@ import { STARTER_PROMPTS } from "@/lib/starter-prompts";
 import { firstStop, groupStops, orderStops, type Stop } from "@/lib/page-stops";
 import { REVEAL_EVENT, reveal, requestShow } from "@/lib/reveal";
 import { waitForElement } from "@/lib/wait-for-element";
-import { toStep, upsertStep, type Step } from "@/lib/copilot-steps";
+import { pageMoveStep, toStep, upsertStep, type Step } from "@/lib/copilot-steps";
 import { StepFold, StepList, WaitingWord } from "@/components/CopilotSteps";
+import { cardLabel, historyContent, toCard, type CardData } from "@/lib/card-event";
+import { pickHref, rememberPickQuestion, toPick } from "@/lib/writing-pick";
+
+/** The card renderer (Google's A2UI engine and my drawings) loads only once a card arrives. */
+const A2uiCard = dynamic(() => import("@/components/cards/A2uiCard"), { ssr: false, loading: () => null });
 export { WAITING_WORDS, WAITING_WORD_MS } from "@/lib/copilot-steps";
 
 interface Message {
@@ -49,6 +55,15 @@ interface Message {
   steps?: Step[];
   /** Recruiter mode result; `content` then holds its plain-text form. */
   brief?: FitBrief;
+  /** A card under the reply (A2UI v1.0, lib/cards.ts). Later turns see its one-line summary instead. */
+  card?: CardData;
+  /** The articles the reply is about (Medium post ids): its Writing stop opens the paper filtered to them. */
+  pick?: string[];
+}
+
+/** A reply's Writing stop, when the reply picked articles: it opens the paper filtered to them (lib/writing-pick.ts). */
+function withPick(stop: Stop, pick: readonly string[] | undefined): Stop {
+  return pick?.length && stop.ids.includes("writing") ? { ...stop, path: pickHref(pick) } : stop;
 }
 
 const HIRING_PROMPT = "I'm hiring — check my fit for a role";
@@ -84,6 +99,8 @@ export interface CopilotTarget {
 
 /** How long the page waits after the copilot names a place before moving, so every place in the call has arrived. */
 const STOP_SETTLE_MS = 150;
+/** How near the bottom of the drawer (px) still counts as at the bottom, so new lines keep coming into view. */
+const FOLLOW_SLACK_PX = 48;
 /** How long "From your question" stays by the button after a stop on a phone. */
 const RETURN_NOTE_MS = 10000;
 /** Keys that scroll the page: pressing one while an answer streams means the visitor is reading. */
@@ -227,6 +244,9 @@ export default function CopilotBubble({
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
   const [liveMessage, setLiveMessage] = useState("");
   const messagesScrollRef = useRef<HTMLDivElement>(null);
+  // Whether the drawer follows new lines down. Off once the visitor scrolls up to read, so a reply streaming in
+  // never drags them back to the bottom; on again when they scroll back down or send a message.
+  const followRef = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLButtonElement>(null);
@@ -261,6 +281,7 @@ export default function CopilotBubble({
       scroller.scrollTop = 0;
       return;
     }
+    if (!followRef.current) return;
     // Moves only the drawer's own scroll box (never scrollIntoView, which also
     // walks the page's scrollers and would cancel a show_on_page scroll mid-flight).
     // A fit brief is read top-down, so land on its headline, not its footer.
@@ -270,6 +291,21 @@ export default function CopilotBubble({
       ? scroller.scrollTop + briefEl.getBoundingClientRect().top - scroller.getBoundingClientRect().top
       : scroller.scrollHeight;
   }, [messages, isLoading, isOpen]);
+
+  // The newest reply can grow after it renders (its card loads its renderer first): stay at the bottom while
+  // following, so the card comes into view under the reply.
+  const lastMessage = messages[messages.length - 1];
+  const followId = lastMessage && lastMessage.role === "assistant" && !lastMessage.brief ? lastMessage.id : null;
+  useEffect(() => {
+    const scroller = messagesScrollRef.current;
+    const el = followId ? document.getElementById(`copilot-msg-${followId}`) : null;
+    if (!scroller || !el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (followRef.current) scroller.scrollTop = scroller.scrollHeight;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [followId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -365,14 +401,17 @@ export default function CopilotBubble({
   const showStop = useCallback(
     (stop: Stop, source: "auto" | "click"): boolean => {
       const el = document.getElementById(stop.ids[0]);
+      const [route] = stop.path.split("?");
+      // A stop with a query (the Writing page filtered to a pick) loads that link, even on its own page.
+      const needsLink = stop.path.includes("?") && window.location.pathname + window.location.search !== stop.path;
       // Not on this page: its route is another page (the drawer lives in the root layout, so it stays open).
-      const elsewhere = !el && stop.path !== window.location.pathname;
+      const elsewhere = (!el && route !== window.location.pathname) || needsLink;
       if (!el && !elsewhere) return false;
       const sideBySide = window.matchMedia(isExpanded ? EXPANDED_SIDE_BY_SIDE_QUERY : SIDE_BY_SIDE_QUERY).matches;
       if (source === "auto" && !sideBySide) return false;
       if (source === "click" && !sideBySide) setIsOpen(false);
 
-      if (el) {
+      if (el && !needsLink) {
         revealStop(stop);
       } else {
         router.push(stop.path, { scroll: false });
@@ -592,6 +631,7 @@ export default function CopilotBubble({
     setTourOutro(false);
 
     const userMessage: Message = { id: crypto.randomUUID(), role: "user", content };
+    followRef.current = true;
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setInput("");
@@ -606,7 +646,9 @@ export default function CopilotBubble({
     abortControllerRef.current = controller;
 
     // Keep only the last 20 messages to avoid exceeding context limits
-    const historyToSend = updatedMessages.slice(-20).map(({ role, content }) => ({ role, content }));
+    const historyToSend = updatedMessages
+      .slice(-20)
+      .map(({ role, content, card }) => ({ role, content: historyContent(content, card) }));
     // Every article cited this session (not just in the 20 sent), so each keeps its number.
     const citations = collectCitations(updatedMessages);
 
@@ -653,6 +695,11 @@ export default function CopilotBubble({
       const replySources: Source[] = [];
       // And the tool steps, shown live under the dots, then folded into one line above the reply.
       let replySteps: Step[] = [];
+      // And the card: show_card runs before the answer is written, but the card goes under the reply only once
+      // the reply has streamed in. Shown earlier, the text grows above it, out of view. At most one per reply.
+      let replyCard: CardData | null = null;
+      // And the articles the reply is about (show_on_page's pick): the Writing page is filtered to them.
+      let replyPick: string[] | null = null;
       // The page moves once per reply, after every place in the call has arrived.
       let moveScheduled = false;
       if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
@@ -671,6 +718,7 @@ export default function CopilotBubble({
               ...(replyTargets.length > 0 && { targets: [...replyTargets] }),
               ...(replySources.length > 0 && { sources: [...replySources] }),
               ...(replySteps.length > 0 && { steps: replySteps }),
+              ...(replyPick && { pick: replyPick }),
             },
           ]);
         } else {
@@ -696,12 +744,16 @@ export default function CopilotBubble({
         moveTimerRef.current = setTimeout(() => {
           moveTimerRef.current = null;
           if (interactedRef.current) return;
-          const stops = groupStops(replyTargets, targetsById);
-          const i = firstStop(stops, window.location.pathname);
+          const stops = groupStops(replyTargets, targetsById).map((s) => withPick(s, replyPick ?? undefined));
+          // A reply that picked articles goes to them; otherwise to a stop on this page if there is one.
+          const i = replyPick ? stops.findIndex((s) => s.ids.includes("writing")) : firstStop(stops, window.location.pathname);
+          const samePage = stops[i]?.path === window.location.pathname;
           if (i === -1 || !showStop(stops[i], "auto")) return;
-          const where = stops[i].path === window.location.pathname ? stops[i].label : `${stops[i].page} · ${stops[i].label}`;
+          const where = samePage ? stops[i].label : `${stops[i].page} · ${stops[i].label}`;
           setTurningTo(where);
           setLiveMessage(`Showing ${where} on the page`);
+          // Only now, once the page has really moved, does the drawer say so.
+          addStep(pageMoveStep(stops[i], samePage, replyPick && stops[i].ids.includes("writing") ? replyPick.length : 0));
         }, STOP_SETTLE_MS);
       };
 
@@ -717,11 +769,40 @@ export default function CopilotBubble({
         }
       };
 
+      const handleCard = (raw: {
+        id?: unknown;
+        kind?: unknown;
+        summary?: unknown;
+        flair?: unknown;
+        messages?: unknown;
+        sources?: unknown;
+      }) => {
+        const card = toCard(raw);
+        if (!card || replyCard) return;
+        replyCard = card;
+      };
+
+      const handlePick = (raw: { articles?: unknown }) => {
+        const pick = toPick(raw);
+        if (!pick || replyPick) return;
+        replyPick = pick;
+        // The page's banner shows the question that made the pick (this visit only, never in the link).
+        rememberPickQuestion(pick, content);
+        if (!firstChunk) {
+          setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, pick } : m)));
+        }
+      };
+
       const handleStep = (raw: { id?: unknown; tool?: unknown; label?: unknown; done?: unknown }) => {
         const step = toStep(raw);
         if (!step) return;
-        replySteps = upsertStep(replySteps, step);
         if (!step.done) setLiveMessage(step.label);
+        addStep(step);
+      };
+
+      // Called by the page move too, after the first words may have arrived.
+      const addStep = (step: Step) => {
+        replySteps = upsertStep(replySteps, step);
         if (firstChunk) {
           setLiveSteps(replySteps);
         } else {
@@ -747,6 +828,11 @@ export default function CopilotBubble({
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
+          // The reply is all in: its card goes under it now.
+          const card = replyCard;
+          if (card && !firstChunk) {
+            setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, card } : m)));
+          }
           setLiveMessage("New reply received");
           break;
         }
@@ -768,6 +854,8 @@ export default function CopilotBubble({
             | { type: "source"; n?: unknown; title?: unknown; url?: unknown }
             | { type: "step"; id?: unknown; tool?: unknown; label?: unknown; done?: unknown }
             | { type: "thought"; text?: unknown }
+            | { type: "card"; id?: unknown; kind?: unknown; summary?: unknown; flair?: unknown; messages?: unknown; sources?: unknown }
+            | { type: "pick"; articles?: unknown }
             | { type: "error"; code: string };
           if (event.type === "error") {
             handleErrorCode(event.code);
@@ -777,6 +865,10 @@ export default function CopilotBubble({
             handleSource(event);
           } else if (event.type === "step") {
             handleStep(event);
+          } else if (event.type === "card") {
+            handleCard(event);
+          } else if (event.type === "pick") {
+            handlePick(event);
           } else if (event.type === "thought") {
             // Only while waiting: once the reply is being written, it speaks for itself.
             if (firstChunk && typeof event.text === "string" && event.text) setLiveThought(event.text);
@@ -859,6 +951,7 @@ export default function CopilotBubble({
     setFitNotice(null);
 
     const words = jd.split(/\s+/).length;
+    followRef.current = true;
     setMessages((prev) => [
       ...prev,
       { id: crypto.randomUUID(), role: "user", content: `Check my fit for this role (${words}-word job description).` },
@@ -1131,7 +1224,15 @@ export default function CopilotBubble({
         </span>
 
         {/* Messages */}
-        <div ref={messagesScrollRef} className="flex-1 space-y-5 overflow-y-auto px-5 py-5" style={{ minHeight: 0 }}>
+        <div
+          ref={messagesScrollRef}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_SLACK_PX;
+          }}
+          className="flex-1 space-y-5 overflow-y-auto px-5 py-5"
+          style={{ minHeight: 0 }}
+        >
           {messages.length === 0 && tourBlock}
           {/* The starters step aside while the tour plays, so the narration has the drawer to itself (what it points
               at shows under its own line); they're back when it ends. */}
@@ -1184,6 +1285,16 @@ export default function CopilotBubble({
           {messages.map((msg, i) => {
             // A reply may cite an article an earlier reply already footnoted, under the same number.
             const citable = [...(msg.sources ?? []), ...messages.slice(0, i).flatMap((m) => m.sources ?? [])];
+            // A card that lists its sources takes them out of the Sources row; any it doesn't list stay there.
+            const rowSources = (msg.sources ?? []).filter((s) => !msg.card?.sources.includes(s.n));
+            // A reply that picked articles shows its Writing stop as its own line, not a pill.
+            const pickStop = msg.pick?.length
+              ? groupStops(["writing"], targetsById).map((s) => withPick(s, msg.pick))[0]
+              : undefined;
+            const pillTargets = pickStop ? (msg.targets ?? []).filter((t) => t !== "writing") : msg.targets;
+            // What closes a reply (its page stops, sources and copy) waits until the reply has streamed in, so it
+            // comes last, under the card: shown earlier, the text grows above it, out of view.
+            const streamingNow = isStreaming && i === messages.length - 1;
             return (
             <article key={msg.id} id={`copilot-msg-${msg.id}`} className="flex flex-col gap-1.5">
               {msg.role === "user" ? (
@@ -1274,26 +1385,40 @@ export default function CopilotBubble({
                     >
                       {citable.length ? linkCitations(msg.content) : msg.content}
                     </ReactMarkdown>
+                    {msg.card && (
+                      <A2uiCard
+                        key={msg.card.id}
+                        messages={msg.card.messages}
+                        flair={msg.card.flair}
+                        label={cardLabel(msg.card)}
+                        onShow={(t) => showOnPage(t, "click")}
+                        onAsk={(q) => sendMessageRef.current(q)}
+                      />
+                    )}
                   </div>
                 )}
-                {msg.targets && msg.targets.length > 0 && (
+                {!streamingNow && pickStop && msg.pick && (
+                  <PickLine
+                    count={msg.pick.length}
+                    sideBySide={sideBySide}
+                    onOpen={() => onStopClick(pickStop, msg.id)}
+                    onShowAll={() => router.push("/writing", { scroll: false })}
+                  />
+                )}
+                {!streamingNow && pillTargets && pillTargets.length > 0 && (
                   <StopPills
-                    stops={
-                      // Reordered once the reply is complete, so the pills don't shuffle while it streams in.
-                      isStreaming && i === messages.length - 1
-                        ? groupStops(msg.targets, targetsById)
-                        : orderStops(groupStops(msg.targets, targetsById), msg.content, targetsById)
-                    }
+                    // In the order the finished reply names them.
+                    stops={orderStops(groupStops(pillTargets, targetsById), msg.content, targetsById)}
                     pathname={pathname}
                     onPick={(stop) => onStopClick(stop, msg.id)}
                   />
                 )}
-                {msg.sources && msg.sources.length > 0 && (
+                {!streamingNow && rowSources.length > 0 && (
                   <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
                       Sources
                     </span>
-                    {msg.sources.map((s) => (
+                    {rowSources.map((s) => (
                       <a
                         key={s.n}
                         href={s.url}
@@ -1307,6 +1432,7 @@ export default function CopilotBubble({
                     ))}
                   </div>
                 )}
+                {!streamingNow && (
                 <button
                   onClick={() => copyMessage(msg.id, msg.content)}
                   className="mt-2 flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint transition-colors hover:text-amber"
@@ -1315,6 +1441,7 @@ export default function CopilotBubble({
                 >
                   {copiedIndex === msg.id ? <><CheckIcon /><span>copied</span></> : <><CopyIcon /><span>copy</span></>}
                 </button>
+                )}
               </div>
             </article>
             );
@@ -1465,6 +1592,57 @@ function scrollUnderNav(el: HTMLElement, behavior: ScrollBehavior) {
   const clearNav = top <= window.scrollY || nav?.hasAttribute("data-pinned");
   const offset = clearNav ? (nav?.offsetHeight ?? 0) + STOP_GAP_PX : STOP_GAP_PX;
   window.scrollTo({ top: Math.max(0, top - offset), behavior });
+}
+
+/**
+ * The Writing page, filtered to the articles an answer is about. Beside the page (it has already moved there): one
+ * line saying so, with a way back to the whole paper. Where the drawer covers the page: a button that tucks the
+ * drawer away and shows them.
+ */
+function PickLine({
+  count,
+  sideBySide,
+  onOpen,
+  onShowAll,
+}: {
+  count: number;
+  sideBySide: boolean;
+  onOpen: () => void;
+  onShowAll: () => void;
+}) {
+  const these = count === 1 ? "this one" : `these ${count}`;
+  if (!sideBySide) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-3 flex min-h-[48px] w-full items-center justify-between gap-3 rounded-full bg-latte px-4 py-2.5 text-left font-mono text-[12px] leading-snug text-ink transition-colors hover:bg-ink hover:text-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
+      >
+        <span>
+          <b className="font-medium">See {these}</b> on the Writing page
+        </span>
+        <span aria-hidden="true" className="text-latte-accent">
+          →
+        </span>
+      </button>
+    );
+  }
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-dotted border-rule pt-2.5 font-mono text-[11.5px] text-ink-soft">
+      <span aria-hidden="true" className="h-2 w-2 rounded-full bg-amber" />
+      <button type="button" onClick={onOpen} className="text-left transition-colors hover:text-amber">
+        <b className="font-medium text-ink">Writing page</b> · filtered to {these}
+      </button>
+      <span className="flex-1" />
+      <button
+        type="button"
+        onClick={onShowAll}
+        className="border-b border-amber py-0.5 text-ink transition-colors hover:text-amber"
+      >
+        Show all
+      </button>
+    </div>
+  );
 }
 
 /**

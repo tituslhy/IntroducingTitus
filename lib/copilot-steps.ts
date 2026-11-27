@@ -37,9 +37,30 @@ export function upsertStep(steps: readonly Step[], step: Step): Step[] {
   return steps.map((s, j) => (j === i ? step : s));
 }
 
+/** The id of the step the drawer adds itself once the page has moved (the server never sends it). */
+export const PAGE_MOVE_STEP_ID = "page-move";
+
 /**
- * The quiet line above a finished reply: "Searched my writing · read 3 articles", or "Read 2 articles"
- * when it only read by id. `articles` is how many sources the reply was sent. Null when there is nothing to say.
+ * The step for a page move that really happened, written by the drawer (show_on_page only says where; the
+ * page may stay put if the visitor is reading). `stop` is where it went; `samePage` when it only scrolled;
+ * `picked` how many articles the Writing page was filtered to (0 for none).
+ */
+export function pageMoveStep(stop: { page: string; label: string }, samePage: boolean, picked = 0): Step {
+  const label =
+    picked > 0
+      ? `Filtered the Writing page to ${picked} article${picked === 1 ? "" : "s"}`
+      : samePage
+        ? `Scrolled to ${stop.label}`
+        : stop.label === stop.page
+          ? `Went to the ${stop.page} page`
+          : `Went to ${stop.label} on the ${stop.page} page`;
+  return { id: PAGE_MOVE_STEP_ID, tool: "show_on_page", label, done: true };
+}
+
+/**
+ * The quiet line above a finished reply: "Searched my writing · read 3 articles · went to Mastercard on the
+ * Experience page", or "Read 2 articles" when it only read by id. `articles` is how many sources the reply was
+ * sent. Null when there is nothing to say.
  */
 export function foldSteps(steps: readonly Step[], articles: number): string | null {
   if (steps.length === 0) return null;
@@ -47,5 +68,7 @@ export function foldSteps(steps: readonly Step[], articles: number): string | nu
   const parts: string[] = [];
   if (searched) parts.push("Searched my writing");
   if (articles > 0) parts.push(`${searched ? "read" : "Read"} ${articles} article${articles === 1 ? "" : "s"}`);
+  const moved = steps.find((s) => s.id === PAGE_MOVE_STEP_ID);
+  if (moved) parts.push(parts.length > 0 ? moved.label[0].toLowerCase() + moved.label.slice(1) : moved.label);
   return parts.length > 0 ? parts.join(" · ") : null;
 }

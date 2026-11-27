@@ -657,13 +657,13 @@
     },
     {
       "id": "broad",
-      "question": "How would you build production-ready agents?",
-      "recordedAt": "2026-11-24T14:56:35.986Z",
+      "question": "How would you design production-ready agents?",
+      "recordedAt": "2026-11-27T11:35:42.879Z",
       "models": {
         "gpt": "gpt-6-luna",
         "jev": "jev-latest"
       },
-      "totalMs": 24485,
+      "totalMs": 31235,
       "spans": [
         {
           "id": 0,
@@ -671,15 +671,15 @@
           "name": "copilot-chat",
           "kind": "chain",
           "start": 0,
-          "end": 24485,
+          "end": 31235,
           "inputs": {},
           "outputs": {
-            "answer": "I’d start with a **bounded workflow, not an agent with a blank cheque**. Make the state, tools, decision points and stop conditions explicit; use the model where language or judgment is genuinely needed, and ordinary code where the outcome should be predictable. I’d add multiple agents only when distinct specialists or parallel work solve a real problem—the architecture should follow the task, not the current fashion. [4]\n\nThat’s close to how I approached UOB’s onboarding workflow: deterministic steps handle the process, with LLM reasoning at specific points where documents are incomplete or inconsistent. For the harder retrieval problem at Illumina, I used an iterative agentic loop because engineers’ questions could span anything from a short instruction to a long troubleshooting guide; the system breaks questions into parts, retrieves and answers them in parallel, then checks whether the combined response is sufficient. [4]\n\nThen I’d make failure visible and bounded: validate tool inputs and outputs, set timeouts and retry limits, provide a clear fallback or human handoff, and trace each decision and tool call. I’d test ordinary cases as well as ambiguous, multi-part and adversarial inputs—not just whether the agent can produce a plausible answer. In my writing, I’ve explored query triage, red-teaming, and testing agent behavior with mocked external dependencies. [1][2][3]\n\nFinally, I’d ship it as a service with a repeatable deployment, protected secrets, health checks, metrics and a rollback path. My rule of thumb is to earn complexity: start with the smallest reliable workflow, measure where it fails, and add capability only where the evidence says it’s needed. I wrote my Giskard and mocked-testing articles in June 2025; tools move quickly, so I’d check current project docs before following their implementation steps. I wrote my Helm deployment walkthrough in February 2026, and the same caveat applies. [7]",
+            "answer": "I’d start with a **workflow, not a swarm**. Make state transitions, tool access and stop conditions explicit; bring in autonomous planning only where the task genuinely needs it. At UOB, the BYOC workflow stayed deterministic, with LLM reasoning at selected points. At Illumina, the retrieval problem justified more machinery: questions could need a short answer or a long, multi-part one, so I split them into sub-questions, answered those in parallel, combined the results and checked whether the response was complete. The architecture should earn its complexity. [1]\n\nThen I’d put firm boundaries around the agent: validate tool inputs and outputs, restrict what each tool can do, and cap retries, runtime and spend. Ask for clarification when a request is ambiguous; require human approval before consequential actions. For safety, I’d combine ordinary quality checks with adversarial tests for things like prompt injection, disclosure and harmful outputs—and review flagged cases rather than treating every red result as proof of a real defect. [3]\n\nI’d test the software separately from the model’s answer quality. Mock the LLMs and external services in unit tests so CI can check the control flow, tool contracts, errors and streaming behavior reliably; then use a separate evaluation set and red-team runs to probe response quality and failure modes. Those catch different classes of problems, and neither replaces the other. [4]\n\nFinally, I’d make every run observable and operable: trace the workflow and tool calls, track latency, failures and model usage, keep credentials out of deployment manifests, and have a way to scale and roll back safely. In my fictional-bassoon project, I used queued workers so a long agent run wouldn’t hold an HTTP request open. At Mastercard, the SDK and CLI work is about making a common, governed way to build agents the default. [6][7]\n\nI wrote the testing and Giskard pieces in June 2025, LiteLLM in July 2025, and the Helm piece in February 2026. These tools move quickly, so check each project’s current documentation before following implementation steps.",
             "actions": [
-              "role-uob",
               "role-illumina",
-              "project-illumina-rag",
-              "writing"
+              "role-uob",
+              "role-mastercard",
+              "project-fictional-bassoon"
             ],
             "sources": [
               1,
@@ -689,8 +689,7 @@
               5,
               6,
               7,
-              8,
-              9
+              8
             ]
           }
         },
@@ -699,14 +698,15 @@
           "parent": 0,
           "name": "gpt round 1",
           "kind": "llm",
-          "start": 0,
-          "end": 7288,
+          "start": 1,
+          "end": 8007,
           "inputs": {
-            "question": "How would you build production-ready agents?",
+            "question": "How would you design production-ready agents?",
             "tools": [
               "show_on_page",
               "search_writing",
-              "read_writing"
+              "read_writing",
+              "show_card"
             ]
           },
           "outputs": {
@@ -716,21 +716,20 @@
                 "arguments": {
                   "articles": [
                     "f6f8c689c406",
-                    "720a851cf8a8",
-                    "1c16fb47f435"
+                    "720a851cf8a8"
                   ],
-                  "focus": "production agent architecture, orchestration patterns, state and memory"
+                  "focus": "choosing production agent architecture, orchestration patterns and workflow design"
                 }
               },
               {
                 "name": "read_writing",
                 "arguments": {
                   "articles": [
-                    "f115d5ddac55",
                     "6c88b08c5f7a",
-                    "51154ad920be"
+                    "51154ad920be",
+                    "f115d5ddac55"
                   ],
-                  "focus": "agent guardrails, evaluation, and testing practices for production reliability"
+                  "focus": "agent safety guardrails, evaluation and tests, including handling ambiguous requests"
                 }
               },
               {
@@ -738,10 +737,10 @@
                 "arguments": {
                   "articles": [
                     "18dc88665fc1",
-                    "3445197f8f86",
-                    "60fa2e1a8731"
+                    "649d48a0c2c7",
+                    "2b668fb1cee9"
                   ],
-                  "focus": "deploying and operating agent applications, serving, scaling, routing, health checks and observability"
+                  "focus": "serving, deployment, observability and operating production agent applications"
                 }
               }
             ],
@@ -753,35 +752,28 @@
           "parent": 0,
           "name": "read_writing",
           "kind": "tool",
-          "start": 7288,
-          "end": 7587,
+          "start": 8008,
+          "end": 8394,
           "inputs": {
             "articles": [
               "f6f8c689c406",
-              "720a851cf8a8",
-              "1c16fb47f435"
+              "720a851cf8a8"
             ],
-            "focus": "production agent architecture, orchestration patterns, state and memory"
+            "focus": "choosing production agent architecture, orchestration patterns and workflow design"
           },
           "outputs": {
             "articles": [
               {
-                "n": 4,
+                "n": 1,
                 "title": "A field guide to multi-agent architectures",
                 "url": "https://medium.com/@tituslhy/a-field-guide-to-multi-agent-architectures-f6f8c689c406",
                 "published": "2026-07-27"
               },
               {
-                "n": 5,
+                "n": 2,
                 "title": "A second look at LangGraph: When “Command Sends” becomes “common sense”",
                 "url": "https://medium.com/@tituslhy/a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8",
                 "published": "2026-01-14"
-              },
-              {
-                "n": 6,
-                "title": "Agent Memory: The underrated superpower of agentic apps",
-                "url": "https://medium.com/@tituslhy/agent-memory-the-underrated-superpower-of-agentic-apps-1c16fb47f435",
-                "published": "2025-06-16"
               }
             ]
           }
@@ -791,107 +783,109 @@
           "parent": 2,
           "name": "jev sections (score)",
           "kind": "jev",
-          "start": 7290,
-          "end": 7587,
+          "start": 8009,
+          "end": 8392,
           "inputs": {
-            "focus": "production agent architecture, orchestration patterns, state and memory",
+            "focus": "choosing production agent architecture, orchestration patterns and workflow design",
             "slug": "a-field-guide-to-multi-agent-architectures-f6f8c689c406"
           },
           "outputs": {
             "scored": [
               {
                 "key": "Five Architectures. Five Different Answers to the Same Question.",
-                "score": 2.3
+                "score": 2.75
               },
               {
                 "key": "1\\. Hierarchical Multi-Agent Systems",
-                "score": 2.54
+                "score": 2.69
               },
               {
                 "key": "When should you use a hierarchical architecture?",
-                "score": 2.34
+                "score": 2.65
               },
               {
                 "key": "2\\. Explicit Multi Agent Workflows",
-                "score": 2.31
+                "score": 2.69
               },
               {
                 "key": "When to use explicit multi agent workflows",
-                "score": 1.63
+                "score": 2.48
               },
               {
                 "key": "3\\. Agent Swarm",
-                "score": 2.45
+                "score": 2.61
               },
               {
                 "key": "When should you use a swarm?",
-                "score": 1.72
+                "score": 2.46
               },
               {
                 "key": "4\\. Blackboard Multi Agent Systems",
-                "score": 2.32
+                "score": 2.61
               },
               {
                 "key": "a. The blackboard",
-                "score": 2.38
+                "score": 2.06
               },
               {
                 "key": "b. Knowledge sources",
-                "score": 2.04
+                "score": 1.92
               },
               {
                 "key": "c. The control component",
-                "score": 2.04
+                "score": 1.51
               },
               {
                 "key": "Execution is deliberately sequential",
-                "score": 2.18
+                "score": 2.11
               },
               {
                 "key": "When should you use a blackboard architecture?",
-                "score": 2.19
+                "score": 2.51
               },
               {
                 "key": "5\\. Actor-Critic (Adversarial) Multi Agent Systems",
-                "score": 1.91
+                "score": 2.38
               },
               {
                 "key": "a. The Actor",
-                "score": 1.68
+                "score": 1.59
               },
               {
                 "key": "b. The critic",
-                "score": 0.14
+                "score": 0.21
               },
               {
                 "key": "c. The judge",
-                "score": 0.54
+                "score": 0.53
               },
               {
                 "key": "Why a watchdog is still necessary",
-                "score": 1.88
+                "score": 1.92
               },
               {
                 "key": "Finalisation must distinguish success from exhaustion",
-                "score": 0.44
+                "score": 0.06
               },
               {
                 "key": "When should you use an adversarial architecture?",
-                "score": 0.42
+                "score": 2.03
               },
               {
                 "key": "Choosing an architecture",
-                "score": 2.41
+                "score": 2.62
               },
               {
                 "key": "Final Thoughts",
-                "score": 1.09
+                "score": 1.15
               }
             ],
             "chosen": [
               "(intro)",
+              "Five Architectures. Five Different Answers to the Same Question.",
               "1\\. Hierarchical Multi-Agent Systems",
-              "3\\. Agent Swarm"
+              "When to use explicit multi agent workflows",
+              "4\\. Blackboard Multi Agent Systems"
             ],
             "fallback": "none"
           }
@@ -901,309 +895,143 @@
           "parent": 2,
           "name": "jev sections (score)",
           "kind": "jev",
-          "start": 7291,
-          "end": 7576,
+          "start": 8014,
+          "end": 8394,
           "inputs": {
-            "focus": "production agent architecture, orchestration patterns, state and memory",
+            "focus": "choosing production agent architecture, orchestration patterns and workflow design",
             "slug": "a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8"
           },
           "outputs": {
             "scored": [
               {
                 "key": "A guide to edgeless graphs — and joy",
-                "score": 2.07
+                "score": 2.18
               },
               {
                 "key": "Why LangGraph felt harder than it needed to be",
-                "score": 1.91
+                "score": 1.78
               },
               {
                 "key": "What changed: Command and Send",
-                "score": 1.93
+                "score": 2.07
               },
               {
                 "key": "The planner and replanner",
-                "score": 2.19
+                "score": 2.27
               },
               {
                 "key": "Getting human feedback",
-                "score": 1.47
+                "score": 1.02
               },
               {
                 "key": "Command and Send!",
-                "score": 2.22
+                "score": 1.81
               },
               {
                 "key": "Constructing the nodes of the graph",
-                "score": 1.61
+                "score": 2.05
               },
               {
                 "key": "The router node",
-                "score": 2.43
-              },
-              {
-                "key": "Agent nodes in the workflow",
                 "score": 2.37
               },
               {
+                "key": "Agent nodes in the workflow",
+                "score": 2.35
+              },
+              {
                 "key": "Final nodes: respond and cancel",
-                "score": 1.49
+                "score": 1.48
               },
               {
                 "key": "The Graph’s State",
-                "score": 2.5
+                "score": 1.23
               },
               {
                 "key": "Visualizing the graph",
-                "score": 1.29
+                "score": 1.23
               },
               {
                 "key": "The Happy Path",
-                "score": 1.6
+                "score": 1.54
               },
               {
                 "key": "The replan path",
-                "score": 1.46
+                "score": 1.7
               },
               {
                 "key": "Concluding Thoughts",
-                "score": 2.03
+                "score": 2.3
               }
             ],
             "chosen": [
               "(intro)",
               "A guide to edgeless graphs — and joy",
+              "What changed: Command and Send",
               "Constructing the nodes of the graph",
-              "The router node",
-              "Final nodes: respond and cancel",
-              "The Graph’s State"
+              "The router node"
             ],
             "fallback": "none"
           }
         },
         {
           "id": 5,
-          "parent": 2,
-          "name": "jev sections (score)",
-          "kind": "jev",
-          "start": 7292,
-          "end": 7580,
-          "inputs": {
-            "focus": "production agent architecture, orchestration patterns, state and memory",
-            "slug": "agent-memory-the-underrated-superpower-of-agentic-apps-1c16fb47f435"
-          },
-          "outputs": {
-            "scored": [
-              {
-                "key": "Spoiler alert: memory is yet another application of RAG",
-                "score": 1.25
-              },
-              {
-                "key": "A very brief history of memory",
-                "score": 2.22
-              },
-              {
-                "key": "Smarter memory strategies emerged:",
-                "score": 2.37
-              },
-              {
-                "key": "Introducing Long-term Memory",
-                "score": 2.14
-              },
-              {
-                "key": "🔁 LangMem’s Take",
-                "score": 2.17
-              },
-              {
-                "key": "🦙 Meanwhile, LlamaIndex Evolved Too",
-                "score": 2.1
-              },
-              {
-                "key": "🧬 Not Just LangChain and LlamaIndex",
-                "score": 1.83
-              },
-              {
-                "key": "Introducing Mem0AI",
-                "score": 1.91
-              },
-              {
-                "key": "Mem0 AI’s take on memory",
-                "score": 2.36
-              },
-              {
-                "key": "Coding our app",
-                "score": 1.14
-              },
-              {
-                "key": "Time to have some fun!",
-                "score": 1.61
-              },
-              {
-                "key": "Taking a closer look at the integration",
-                "score": 2.12
-              },
-              {
-                "key": "What just happened?",
-                "score": 2.29
-              },
-              {
-                "key": "Are there tradeoffs?",
-                "score": 2.09
-              }
-            ],
-            "chosen": [
-              "(intro)",
-              "A very brief history of memory",
-              "Smarter memory strategies emerged:",
-              "🔁 LangMem’s Take",
-              "Mem0 AI’s take on memory",
-              "What just happened?"
-            ],
-            "fallback": "none"
-          }
-        },
-        {
-          "id": 6,
           "parent": 0,
           "name": "read_writing",
           "kind": "tool",
-          "start": 7293,
-          "end": 7587,
+          "start": 8015,
+          "end": 8411,
           "inputs": {
             "articles": [
-              "f115d5ddac55",
               "6c88b08c5f7a",
-              "51154ad920be"
+              "51154ad920be",
+              "f115d5ddac55"
             ],
-            "focus": "agent guardrails, evaluation, and testing practices for production reliability"
+            "focus": "agent safety guardrails, evaluation and tests, including handling ambiguous requests"
           },
           "outputs": {
             "articles": [
               {
-                "n": 1,
-                "title": "Your AI Agent Needs a Bouncer",
-                "url": "https://medium.com/@tituslhy/your-ai-agent-needs-a-bouncer-f115d5ddac55",
-                "published": "2026-10-16"
-              },
-              {
-                "n": 2,
+                "n": 3,
                 "title": "Think Your RAG App Is Safe? Giskard Might Prove You Wrong",
                 "url": "https://medium.com/@tituslhy/think-your-rag-app-is-safe-giskard-might-prove-you-wrong-6c88b08c5f7a",
                 "published": "2025-06-13"
               },
               {
-                "n": 3,
+                "n": 4,
                 "title": "A Guide to Code Testing RAG Agents Without Real LLMs or Vector DBs",
                 "url": "https://medium.com/@tituslhy/a-guide-to-code-testing-rag-agents-without-real-llms-or-vector-dbs-51154ad920be",
                 "published": "2025-06-05"
+              },
+              {
+                "n": 5,
+                "title": "Your AI Agent Needs a Bouncer",
+                "url": "https://medium.com/@tituslhy/your-ai-agent-needs-a-bouncer-f115d5ddac55",
+                "published": "2026-10-16"
               }
             ]
           }
         },
         {
-          "id": 7,
-          "parent": 6,
+          "id": 6,
+          "parent": 5,
           "name": "jev sections (score)",
           "kind": "jev",
-          "start": 7293,
-          "end": 7571,
+          "start": 8015,
+          "end": 8391,
           "inputs": {
-            "focus": "agent guardrails, evaluation, and testing practices for production reliability",
-            "slug": "your-ai-agent-needs-a-bouncer-f115d5ddac55"
-          },
-          "outputs": {
-            "scored": [
-              {
-                "key": "Catching Jev-er: Teaching a multi-agent system to triage messy questions.",
-                "score": 1.04
-              },
-              {
-                "key": "Why the hype?",
-                "score": 0.03
-              },
-              {
-                "key": "End of story?",
-                "score": 0.59
-              },
-              {
-                "key": "Important Fineprint",
-                "score": 0.07
-              },
-              {
-                "key": "How should you use Jev then?",
-                "score": 1.53
-              },
-              {
-                "key": "The idea",
-                "score": 0.37
-              },
-              {
-                "key": "The tools",
-                "score": 0.04
-              },
-              {
-                "key": "Jev as the bouncer",
-                "score": 1.81
-              },
-              {
-                "key": "Now for the query classification method",
-                "score": 0.05
-              },
-              {
-                "key": "Taking it out for a spin",
-                "score": 0.73
-              },
-              {
-                "key": "Assembling the multi-agent system",
-                "score": 0.12
-              },
-              {
-                "key": "It’s what our traces tell us that’s interesting",
-                "score": 0.18
-              },
-              {
-                "key": "How did the Jev-ed agents do for other question types?",
-                "score": 2.06
-              },
-              {
-                "key": "How did the baseline do?",
-                "score": 0.34
-              },
-              {
-                "key": "Final thoughts",
-                "score": 1.3
-              }
-            ],
-            "chosen": [
-              "(intro)",
-              "Catching Jev-er: Teaching a multi-agent system to triage messy questions.",
-              "Why the hype?",
-              "Jev as the bouncer",
-              "How did the Jev-ed agents do for other question types?"
-            ],
-            "fallback": "none"
-          }
-        },
-        {
-          "id": 8,
-          "parent": 6,
-          "name": "jev sections (score)",
-          "kind": "jev",
-          "start": 7294,
-          "end": 7581,
-          "inputs": {
-            "focus": "agent guardrails, evaluation, and testing practices for production reliability",
+            "focus": "agent safety guardrails, evaluation and tests, including handling ambiguous requests",
             "slug": "a-guide-to-code-testing-rag-agents-without-real-llms-or-vector-dbs-51154ad920be"
           },
           "outputs": {
             "scored": [
               {
                 "key": "Test everything, call nothing",
-                "score": 2.34
+                "score": 1.98
               },
               {
                 "key": "First, the RAG application — to prove it works",
-                "score": 0.09
+                "score": 0.02
               },
               {
                 "key": "Build the RAG query engine",
@@ -1211,120 +1039,124 @@
               },
               {
                 "key": "Using an agent",
-                "score": 0.15
+                "score": 0.11
               },
               {
                 "key": "Testing our agent",
-                "score": 2.22
+                "score": 1.66
               },
               {
                 "key": "Our first unit test: Mocking the Docling Reader",
-                "score": 1.85
+                "score": 1.19
               },
               {
                 "key": "Our next unit tests: Mocking the entire RAG code",
-                "score": 1.96
+                "score": 0.96
               },
               {
                 "key": "Testing the Agent Setup and Execution",
-                "score": 2.16
+                "score": 1.78
               },
               {
                 "key": "🌀Testing the Agent’s streaming response",
-                "score": 2.38
+                "score": 1.67
               },
               {
                 "key": "Running the test in command line",
-                "score": 1.14
+                "score": 0.99
               },
               {
                 "key": "💭 Thinking About What We Just Did",
-                "score": 1.34
+                "score": 0.64
               },
               {
                 "key": "🧠 So What Did We Accomplish?",
-                "score": 1.9
+                "score": 1.11
               },
               {
                 "key": "🧪 The Invisible Value: DevOps Compliance",
-                "score": 1.25
+                "score": 0.65
               },
               {
                 "key": "💡 Just a Final Note",
-                "score": 1.51
+                "score": 1.53
               }
             ],
             "chosen": [
               "(intro)",
-              "🌀Testing the Agent’s streaming response"
+              "Test everything, call nothing",
+              "Testing our agent",
+              "Testing the Agent Setup and Execution",
+              "🧠 So What Did We Accomplish?",
+              "💡 Just a Final Note"
             ],
             "fallback": "none"
           }
         },
         {
-          "id": 9,
-          "parent": 6,
+          "id": 7,
+          "parent": 5,
           "name": "jev sections (score)",
           "kind": "jev",
-          "start": 7294,
-          "end": 7587,
+          "start": 8015,
+          "end": 8403,
           "inputs": {
-            "focus": "agent guardrails, evaluation, and testing practices for production reliability",
+            "focus": "agent safety guardrails, evaluation and tests, including handling ambiguous requests",
             "slug": "think-your-rag-app-is-safe-giskard-might-prove-you-wrong-6c88b08c5f7a"
           },
           "outputs": {
             "scored": [
               {
                 "key": "⚠️ Health warning: Sleepless nights ahead",
-                "score": 1.45
+                "score": 1.24
               },
               {
                 "key": "Let’s first start by defining our RAG application",
-                "score": 0.02
+                "score": 0.01
               },
               {
                 "key": "Level 1: Correctness, Relevancy, Faithfulness and Similarity",
-                "score": 2.33
+                "score": 1.54
               },
               {
                 "key": "But hold on a second…",
-                "score": 1.81
+                "score": 1.74
               },
               {
                 "key": "Level 2: Redteaming with Giskard’s Scan",
-                "score": 2.56
-              },
-              {
-                "key": "Level 3: Redteaming with Giskard’s RAGET",
                 "score": 2.42
               },
               {
+                "key": "Level 3: Redteaming with Giskard’s RAGET",
+                "score": 2.37
+              },
+              {
                 "key": "💻 The Code (Surprisingly Simple Again)",
-                "score": 1.91
+                "score": 1.77
               },
               {
                 "key": "Can we actually get a 100% score on all 3 levels?",
-                "score": 1.57
+                "score": 1.61
               },
               {
                 "key": "Is there a tradeoff to scoring A+ on all 3 tests?",
-                "score": 1.27
+                "score": 0.75
               },
               {
                 "key": "The hard truth about LLMs",
-                "score": 1.96
+                "score": 2.04
               },
               {
                 "key": "A smarter defense: Layered LLM Systems",
-                "score": 1.82
+                "score": 1.87
               },
               {
                 "key": "Concluding thoughts",
-                "score": 0.02
+                "score": 0.01
               },
               {
                 "key": "🛡️ It’s easier to attack than defend.",
-                "score": 1.66
+                "score": 1.72
               }
             ],
             "chosen": [
@@ -1337,179 +1169,264 @@
           }
         },
         {
-          "id": 10,
+          "id": 8,
           "parent": 0,
           "name": "read_writing",
           "kind": "tool",
-          "start": 7295,
-          "end": 7588,
+          "start": 8016,
+          "end": 8694,
           "inputs": {
             "articles": [
               "18dc88665fc1",
-              "3445197f8f86",
-              "60fa2e1a8731"
+              "649d48a0c2c7",
+              "2b668fb1cee9"
             ],
-            "focus": "deploying and operating agent applications, serving, scaling, routing, health checks and observability"
+            "focus": "serving, deployment, observability and operating production agent applications"
           },
           "outputs": {
             "articles": [
               {
-                "n": 7,
+                "n": 6,
                 "title": "Helm Charts: The Multi-Server Orchestra Conductor",
                 "url": "https://medium.com/@tituslhy/helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1",
                 "published": "2026-02-01"
               },
               {
-                "n": 8,
-                "title": "Nginx: The Single-Server Swiss Army Knife",
-                "url": "https://medium.com/@tituslhy/nginx-the-single-server-swiss-army-knife-3445197f8f86",
-                "published": "2025-10-22"
+                "n": 7,
+                "title": "A gentle introduction to LiteLLM",
+                "url": "https://medium.com/@tituslhy/a-gentle-introduction-to-litellm-649d48a0c2c7",
+                "published": "2025-07-11"
               },
               {
-                "n": 9,
-                "title": "The Discovery Channel: Introducing Nacos Registry",
-                "url": "https://medium.com/@tituslhy/towards-general-discoverability-introducing-nacos-registry-60fa2e1a8731",
-                "published": "2025-08-07"
+                "n": 8,
+                "title": "Chain reaction: How to create an observable frontend workflow using LlamaIndex and Chainlit",
+                "url": "https://medium.com/@tituslhy/chain-reaction-how-to-create-an-observable-workflow-using-llamaindex-and-chainlit-2b668fb1cee9",
+                "published": "2024-08-28"
               }
             ]
           }
         },
         {
-          "id": 11,
-          "parent": 10,
+          "id": 9,
+          "parent": 5,
           "name": "jev sections (score)",
           "kind": "jev",
-          "start": 7295,
-          "end": 7587,
+          "start": 8016,
+          "end": 8411,
           "inputs": {
-            "focus": "deploying and operating agent applications, serving, scaling, routing, health checks and observability",
+            "focus": "agent safety guardrails, evaluation and tests, including handling ambiguous requests",
+            "slug": "your-ai-agent-needs-a-bouncer-f115d5ddac55"
+          },
+          "outputs": {
+            "scored": [
+              {
+                "key": "Catching Jev-er: Teaching a multi-agent system to triage messy questions.",
+                "score": 2.15
+              },
+              {
+                "key": "Why the hype?",
+                "score": 0.04
+              },
+              {
+                "key": "End of story?",
+                "score": 0.64
+              },
+              {
+                "key": "Important Fineprint",
+                "score": 0.11
+              },
+              {
+                "key": "How should you use Jev then?",
+                "score": 1.32
+              },
+              {
+                "key": "The idea",
+                "score": 0.65
+              },
+              {
+                "key": "The tools",
+                "score": 0.02
+              },
+              {
+                "key": "Jev as the bouncer",
+                "score": 1.77
+              },
+              {
+                "key": "Now for the query classification method",
+                "score": 1.82
+              },
+              {
+                "key": "Taking it out for a spin",
+                "score": 0.97
+              },
+              {
+                "key": "Assembling the multi-agent system",
+                "score": 0.11
+              },
+              {
+                "key": "It’s what our traces tell us that’s interesting",
+                "score": 0.12
+              },
+              {
+                "key": "How did the Jev-ed agents do for other question types?",
+                "score": 2.35
+              },
+              {
+                "key": "How did the baseline do?",
+                "score": 0.14
+              },
+              {
+                "key": "Final thoughts",
+                "score": 1.42
+              }
+            ],
+            "chosen": [
+              "(intro)",
+              "Catching Jev-er: Teaching a multi-agent system to triage messy questions.",
+              "Why the hype?",
+              "Now for the query classification method",
+              "How did the Jev-ed agents do for other question types?",
+              "Final thoughts"
+            ],
+            "fallback": "none"
+          }
+        },
+        {
+          "id": 10,
+          "parent": 8,
+          "name": "jev sections (score)",
+          "kind": "jev",
+          "start": 8016,
+          "end": 8694,
+          "inputs": {
+            "focus": "serving, deployment, observability and operating production agent applications",
             "slug": "helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1"
           },
           "outputs": {
             "scored": [
               {
                 "key": "What deployment looks like beyond docker compose",
-                "score": 1.84
+                "score": 2.34
               },
               {
                 "key": "Introducing Kubernetes",
-                "score": 1.73
+                "score": 2
               },
               {
                 "key": "Introducing Helm",
-                "score": 0.77
+                "score": 1.29
               },
               {
                 "key": "Interpolation and logic",
-                "score": 0.07
+                "score": 0.3
               },
               {
                 "key": "Rollback and Upgrades",
-                "score": 1.54
+                "score": 2.26
               },
               {
                 "key": "So what exactly is a Helm Chart?",
-                "score": 0.57
+                "score": 1.38
               },
               {
                 "key": "So where do we start with our Helm Chart?",
-                "score": 0.1
+                "score": 0.16
               },
               {
                 "key": "We start with the app we’re building",
-                "score": 2.07
+                "score": 2.53
               },
               {
                 "key": "Before editing your Helm Chart… check out Artifact Hub",
-                "score": 0.2
+                "score": 0.6
               },
               {
                 "key": "Now onto values.yaml file",
-                "score": 1.27
+                "score": 1.92
               },
               {
                 "key": "Adding a deployment.yaml file for your search agent",
-                "score": 2.21
+                "score": 2.41
               },
               {
                 "key": "Adding a service.yaml file for your search agent and phoenix",
-                "score": 2.4
+                "score": 2.53
               },
               {
                 "key": "The \\_helpers.tpl file: Helm’s secret sauce",
-                "score": 0.15
+                "score": 0.51
               },
               {
                 "key": "The Phoenix Deployment.yaml",
-                "score": 2.2
+                "score": 2.35
               },
               {
                 "key": "Enable autoscaling",
-                "score": 2.45
+                "score": 2.42
               },
               {
                 "key": "What about our Nginx service?",
-                "score": 1.81
+                "score": 1.58
               },
               {
                 "key": "Deploying Nginx via Helm Ingress",
-                "score": 1.87
+                "score": 2.16
               },
               {
                 "key": "An important note on the “hosts” spec",
-                "score": 0.64
+                "score": 0.77
               },
               {
                 "key": "Spinning everything up (safely) 🚀",
-                "score": 0.11
+                "score": 0.15
               },
               {
                 "key": "Check again",
-                "score": 0.35
+                "score": 1.15
               },
               {
                 "key": "Install Minikube add-ons",
-                "score": 2.11
+                "score": 1.9
               },
               {
                 "key": "Kickoff the ingress (Minikube tunnel)",
-                "score": 1.3
+                "score": 1.2
               },
               {
                 "key": "Installing the helm chart",
-                "score": 1.48
+                "score": 1.8
               },
               {
                 "key": "Sanity check: is everything running?",
-                "score": 2.11
+                "score": 2.32
               },
               {
                 "key": "Accessing the app",
-                "score": 1.07
+                "score": 1.6
               },
               {
                 "key": "Accessing phoenix",
-                "score": 0.99
+                "score": 1.49
               },
               {
                 "key": "Accessing Postgresql",
-                "score": 0.06
+                "score": 0.1
               },
               {
                 "key": "Editing your application (upgrades + rollback)",
-                "score": 1.65
+                "score": 2.38
               },
               {
                 "key": "Stress testing autoscaling",
-                "score": 2.14
+                "score": 2.08
               },
               {
                 "key": "The Helm Dashboard",
-                "score": 1.09
+                "score": 1.77
               },
               {
                 "key": "Spinning everything down",
-                "score": 0.25
+                "score": 0.74
               },
               {
                 "key": "Thinking about what we just did 🤔",
@@ -1517,252 +1434,288 @@
               },
               {
                 "key": "The elephant in the room",
-                "score": 1.18
+                "score": 1.55
               },
               {
                 "key": "How many servers do you actually need?",
-                "score": 1.7
+                "score": 1.87
               },
               {
                 "key": "The control plane needs 3 nodes",
-                "score": 0.51
+                "score": 0.56
               },
               {
                 "key": "We need at least 2 worker nodes",
-                "score": 1.62
+                "score": 1.26
               },
               {
                 "key": "The server configuration problem",
-                "score": 1.53
+                "score": 1.84
               },
               {
                 "key": "There must be a better way",
-                "score": 0.66
+                "score": 1.26
               }
             ],
             "chosen": [
               "(intro)",
               "So where do we start with our Helm Chart?",
+              "We start with the app we’re building",
               "Adding a deployment.yaml file for your search agent",
               "Adding a service.yaml file for your search agent and phoenix",
               "Enable autoscaling",
               "Spinning everything up (safely) 🚀",
-              "Install Minikube add-ons",
-              "Installing the helm chart",
-              "Stress testing autoscaling",
+              "Sanity check: is everything running?",
+              "Accessing phoenix",
+              "Editing your application (upgrades + rollback)",
               "Thinking about what we just did 🤔"
             ],
             "fallback": "none"
           }
         },
         {
-          "id": 12,
-          "parent": 10,
+          "id": 11,
+          "parent": 8,
           "name": "jev sections (score)",
           "kind": "jev",
-          "start": 7296,
-          "end": 7581,
+          "start": 8017,
+          "end": 8444,
           "inputs": {
-            "focus": "deploying and operating agent applications, serving, scaling, routing, health checks and observability",
-            "slug": "nginx-the-single-server-swiss-army-knife-3445197f8f86"
+            "focus": "serving, deployment, observability and operating production agent applications",
+            "slug": "a-gentle-introduction-to-litellm-649d48a0c2c7"
           },
           "outputs": {
             "scored": [
               {
-                "key": "A Deep Dive into Load Balancing and Reverse Proxying with Docker Compose",
-                "score": 1.94
+                "key": "A useful addition to any LLM technology stack",
+                "score": 1.31
               },
               {
-                "key": "The problem that Nginx solves",
-                "score": 1.99
-              },
-              {
-                "key": "Developing our app",
-                "score": 0.81
-              },
-              {
-                "key": "Deploying our app phase 1 (Docker)",
-                "score": 2.26
-              },
-              {
-                "key": "Running the App with Docker Compose",
-                "score": 2.27
-              },
-              {
-                "key": "Deploying our app phase 2 (Scaling)",
-                "score": 2.08
-              },
-              {
-                "key": "Scaling with multiple containers",
-                "score": 2.29
-              },
-              {
-                "key": "Deploying our app phase 3 (Nginx)",
-                "score": 2.16
-              },
-              {
-                "key": "Adjusting the Chainlit service",
-                "score": 1.97
-              },
-              {
-                "key": "The magical nginx.conf file",
-                "score": 2.23
-              },
-              {
-                "key": "Adding the Nginx Server Block",
-                "score": 2.24
-              },
-              {
-                "key": "What about all the proxy_set_header lines ?",
-                "score": 0.82
-              },
-              {
-                "key": "Suporting WebSockets (and why it matters for Chainlit)",
-                "score": 1.49
-              },
-              {
-                "key": "Spin everything up🚀",
-                "score": 0.81
-              },
-              {
-                "key": "🧭 Why Your Conversation Stays on One Container (TCP Persistence ≠ Sticky Sessions)",
-                "score": 1.91
-              },
-              {
-                "key": "⚠️ Note on IP Addresses",
-                "score": 0.27
-              },
-              {
-                "key": "🔍 Proof that Nginx sees 3 Chainlit replicas",
+                "key": "About LiteLLM",
                 "score": 2.15
               },
               {
-                "key": "🧠 Thinking of what we just did",
-                "score": 2.09
+                "key": "Introducing LiteLLM’s Python SDK",
+                "score": 0.87
               },
               {
-                "key": "Summary",
+                "key": "Introducing LiteLLM Proxy Server",
+                "score": 2.69
+              },
+              {
+                "key": "What are Helm Charts?",
+                "score": 1.49
+              },
+              {
+                "key": "🛠️ Installing Helm and Kubernetes",
+                "score": 1.66
+              },
+              {
+                "key": "🚀 Now to spin everything up",
+                "score": 2.27
+              },
+              {
+                "key": "Start by pulling the Helm charts for LiteLLM into your project folder:",
+                "score": 2.01
+              },
+              {
+                "key": "Unzip the helm package:",
+                "score": 1.42
+              },
+              {
+                "key": "🛠️ Configure your values.yaml",
+                "score": 1.82
+              },
+              {
+                "key": "🔐 Add Admin Credentials",
+                "score": 0.79
+              },
+              {
+                "key": "🗄️ About the Database",
+                "score": 0.43
+              },
+              {
+                "key": "⚙️ Start the Kubernetes Cluster",
+                "score": 1.63
+              },
+              {
+                "key": "📦 Install the Helm Chart",
+                "score": 2.19
+              },
+              {
+                "key": "🌐 Access the Proxy Server",
+                "score": 1.97
+              },
+              {
+                "key": "🗝️ Time to gatekeep our models",
+                "score": 1.49
+              },
+              {
+                "key": "🧪 Test It in the Playground",
+                "score": 0.15
+              },
+              {
+                "key": "In the event of guardrails and MCP servers",
+                "score": 1.53
+              },
+              {
+                "key": "👨🏻‍💻 Time to call it in code",
+                "score": 0.95
+              },
+              {
+                "key": "Using LangChain 🦜",
+                "score": 2.16
+              },
+              {
+                "key": "Using LlamaIndex 🦙",
+                "score": 1.13
+              },
+              {
+                "key": "Using the OpenAI SDK — with tools! ֎",
+                "score": 0.74
+              },
+              {
+                "key": "🆕 Bonus: OpenAI’s responses.create API",
+                "score": 0.97
+              },
+              {
+                "key": "🧐 Inspecting our LLM usage",
+                "score": 2.38
+              },
+              {
+                "key": "⚠️ It’s Not All Smooth Sailing",
+                "score": 0.78
+              },
+              {
+                "key": "🌀 LangGraph: The Tool Loop Spiral",
+                "score": 0.39
+              },
+              {
+                "key": "🤖 LlamaIndex: Returns Tool Call as Raw JSON",
+                "score": 0.06
+              },
+              {
+                "key": "🚨 Why This Happens",
+                "score": 0.3
+              },
+              {
+                "key": "🤔 Thinking About What We Just Did",
+                "score": 0.89
+              },
+              {
+                "key": "🧩 The OpenAI API Compatibility Problem",
+                "score": 0.65
+              },
+              {
+                "key": "🔁 Continuous Change = Continuous Breakage",
+                "score": 0.41
+              },
+              {
+                "key": "🧘 LiteLLM: Calm in the API Chaos",
+                "score": 1.98
+              },
+              {
+                "key": "🛠️ The Centralized Admin Problem",
                 "score": 2.1
               },
               {
-                "key": "🎭 Plot Twist",
-                "score": 1.58
+                "key": "⏱️ A Final Thought",
+                "score": 1.38
               }
             ],
             "chosen": [
               "(intro)",
-              "Deploying our app phase 1 (Docker)",
-              "Running the App with Docker Compose",
-              "Scaling with multiple containers",
-              "Deploying our app phase 3 (Nginx)",
-              "Adjusting the Chainlit service",
-              "Summary"
+              "About LiteLLM",
+              "Introducing LiteLLM Proxy Server",
+              "🚀 Now to spin everything up",
+              "Start by pulling the Helm charts for LiteLLM into your project folder:",
+              "Unzip the helm package:",
+              "⚙️ Start the Kubernetes Cluster",
+              "📦 Install the Helm Chart",
+              "🌐 Access the Proxy Server",
+              "👨🏻‍💻 Time to call it in code",
+              "Using LangChain 🦜",
+              "🧐 Inspecting our LLM usage",
+              "🤔 Thinking About What We Just Did",
+              "🧘 LiteLLM: Calm in the API Chaos",
+              "🛠️ The Centralized Admin Problem"
+            ],
+            "fallback": "none"
+          }
+        },
+        {
+          "id": 12,
+          "parent": 8,
+          "name": "jev sections (score)",
+          "kind": "jev",
+          "start": 8018,
+          "end": 8387,
+          "inputs": {
+            "focus": "serving, deployment, observability and operating production agent applications",
+            "slug": "chain-reaction-how-to-create-an-observable-workflow-using-llamaindex-and-chainlit-2b668fb1cee9"
+          },
+          "outputs": {
+            "scored": [
+              {
+                "key": "On LlamaIndex",
+                "score": 0.4
+              },
+              {
+                "key": "On LlamaIndex’s Workflow Abstraction:",
+                "score": 0.36
+              },
+              {
+                "key": "On Chainlit applications:",
+                "score": 0.6
+              },
+              {
+                "key": "The Simple Hybrid LLM App",
+                "score": 0.26
+              },
+              {
+                "key": "Now let’s elaborate on the Workflow’s steps!",
+                "score": 0.07
+              },
+              {
+                "key": "Did I answer your questions?",
+                "score": 0.23
+              },
+              {
+                "key": "Oh right the Chainlit app.",
+                "score": 1.3
+              },
+              {
+                "key": "Conclusion",
+                "score": 0.46
+              }
+            ],
+            "chosen": [
+              "(intro)",
+              "On LlamaIndex",
+              "On LlamaIndex’s Workflow Abstraction:",
+              "On Chainlit applications:",
+              "Now let’s elaborate on the Workflow’s steps!",
+              "Did I answer your questions?",
+              "Oh right the Chainlit app.",
+              "Conclusion"
             ],
             "fallback": "none"
           }
         },
         {
           "id": 13,
-          "parent": 10,
-          "name": "jev sections (score)",
-          "kind": "jev",
-          "start": 7297,
-          "end": 7575,
-          "inputs": {
-            "focus": "deploying and operating agent applications, serving, scaling, routing, health checks and observability",
-            "slug": "towards-general-discoverability-introducing-nacos-registry-60fa2e1a8731"
-          },
-          "outputs": {
-            "scored": [
-              {
-                "key": "Make any API, MCP and agent interoperability protocol discoverable and usable",
-                "score": 1.27
-              },
-              {
-                "key": "How do we make these deployed agent services discoverable?",
-                "score": 2.61
-              },
-              {
-                "key": "Introducing Nacos",
-                "score": 2.23
-              },
-              {
-                "key": "Setting up our own Nacos registry",
-                "score": 2.27
-              },
-              {
-                "key": "🧭 Visiting the Nacos Registry",
-                "score": 1.03
-              },
-              {
-                "key": "📊 Connecting Prometheus",
-                "score": 1.8
-              },
-              {
-                "key": "📈 Hooking Up Grafana",
-                "score": 2.16
-              },
-              {
-                "key": "Registering our MCP with Nacos",
-                "score": 1.23
-              },
-              {
-                "key": "🔍 What’s Different Here?",
-                "score": 0.16
-              },
-              {
-                "key": "🛰️ Registering Our ACP with Nacos",
-                "score": 1.75
-              },
-              {
-                "key": "✅ Summary",
-                "score": 1.61
-              },
-              {
-                "key": "The Discovery Channel",
-                "score": 1.19
-              },
-              {
-                "key": "🔁 Nacos and the Magic of MCP Zero",
-                "score": 1.98
-              },
-              {
-                "key": "Let’s wrap our tools to an agent — MCP zero style.",
-                "score": 0.69
-              },
-              {
-                "key": "So… Why Not Just Convert Everything to an MCP Service?",
-                "score": 0.8
-              },
-              {
-                "key": "🧩 Closing Thoughts",
-                "score": 0.83
-              }
-            ],
-            "chosen": [
-              "(intro)",
-              "How do we make these deployed agent services discoverable?",
-              "Setting up our own Nacos registry",
-              "📊 Connecting Prometheus",
-              "📈 Hooking Up Grafana",
-              "✅ Summary"
-            ],
-            "fallback": "none"
-          }
-        },
-        {
-          "id": 14,
           "parent": 0,
           "name": "gpt round 2",
           "kind": "llm",
-          "start": 7588,
-          "end": 15137,
+          "start": 8694,
+          "end": 21799,
           "inputs": {
             "toolResults": 3,
             "tools": [
               "show_on_page",
               "search_writing",
-              "read_writing"
+              "read_writing",
+              "show_card"
             ]
           },
           "outputs": {
@@ -1771,11 +1724,45 @@
                 "name": "show_on_page",
                 "arguments": {
                   "targets": [
-                    "role-uob",
                     "role-illumina",
-                    "project-illumina-rag",
-                    "writing"
-                  ]
+                    "role-uob",
+                    "role-mastercard",
+                    "project-fictional-bassoon"
+                  ],
+                  "articles": []
+                }
+              },
+              {
+                "name": "show_card",
+                "arguments": {
+                  "card": {
+                    "kind": "evidence",
+                    "places": [
+                      {
+                        "target": "role-illumina",
+                        "line": "Shipped a 16-component retrieval system"
+                      },
+                      {
+                        "target": "role-uob",
+                        "line": "Kept onboarding deterministic; used LLM reasoning selectively"
+                      },
+                      {
+                        "target": "role-mastercard",
+                        "line": "Built a shared governed agent SDK and CLI"
+                      },
+                      {
+                        "target": "project-fictional-bassoon",
+                        "line": "Exercised async jobs, events and tracing end to end"
+                      }
+                    ],
+                    "articles": [
+                      "f6f8c689c406",
+                      "6c88b08c5f7a",
+                      "51154ad920be",
+                      "18dc88665fc1",
+                      "649d48a0c2c7"
+                    ]
+                  }
                 }
               }
             ],
@@ -1783,102 +1770,138 @@
           }
         },
         {
-          "id": 15,
+          "id": 14,
           "parent": 0,
           "name": "show_on_page",
           "kind": "tool",
-          "start": 15137,
-          "end": 15137,
+          "start": 21801,
+          "end": 21826,
           "inputs": {
             "targets": [
-              "role-uob",
               "role-illumina",
-              "project-illumina-rag",
-              "writing"
-            ]
+              "role-uob",
+              "role-mastercard",
+              "project-fictional-bassoon"
+            ],
+            "articles": []
           },
           "outputs": {
             "shown": [
-              "role-uob",
               "role-illumina",
-              "project-illumina-rag",
-              "writing"
+              "role-uob",
+              "role-mastercard",
+              "project-fictional-bassoon"
             ]
           }
+        },
+        {
+          "id": 15,
+          "parent": 0,
+          "name": "show_card",
+          "kind": "tool",
+          "start": 21801,
+          "end": 21826,
+          "inputs": {
+            "card": {
+              "kind": "evidence",
+              "places": [
+                {
+                  "target": "role-illumina",
+                  "line": "Shipped a 16-component retrieval system"
+                },
+                {
+                  "target": "role-uob",
+                  "line": "Kept onboarding deterministic; used LLM reasoning selectively"
+                },
+                {
+                  "target": "role-mastercard",
+                  "line": "Built a shared governed agent SDK and CLI"
+                },
+                {
+                  "target": "project-fictional-bassoon",
+                  "line": "Exercised async jobs, events and tracing end to end"
+                }
+              ],
+              "articles": [
+                "f6f8c689c406",
+                "6c88b08c5f7a",
+                "51154ad920be",
+                "18dc88665fc1",
+                "649d48a0c2c7"
+              ]
+            }
+          },
+          "outputs": {}
         },
         {
           "id": 16,
           "parent": 0,
           "name": "gpt round 3",
           "kind": "llm",
-          "start": 15137,
-          "end": 24485,
+          "start": 21826,
+          "end": 31234,
           "inputs": {
-            "toolResults": 1,
+            "toolResults": 2,
             "tools": [
               "show_on_page",
               "search_writing",
-              "read_writing"
+              "read_writing",
+              "show_card"
             ]
           },
           "outputs": {
             "calls": [],
-            "text": "I’d start with a **bounded workflow, not an agent with a blank cheque**. Make the state, tools, decision points and stop conditions explicit; use the model where language or judgment is genuinely needed, and ordinary code where the outcome should be predictable. I’d add multiple agents only when distinct specialists or parallel work solve a real problem—the architecture should follow the task, not the current fashion. [4]\n\nThat’s close to how I approached UOB’s onboarding workflow: deterministic steps handle the process, with LLM reasoning at specific points where documents are incomplete or inconsistent. For the harder retrieval problem at Illumina, I used an iterative agentic loop because engineers’ questions could span anything from a short instruction to a long troubleshooting guide; the system breaks questions into parts, retrieves and answers them in parallel, then checks whether the combined response is sufficient. [4]\n\nThen I’d make failure visible and bounded: validate tool inputs and outputs, set timeouts and retry limits, provide a clear fallback or human handoff, and trace each decision and tool call. I’d test ordinary cases as well as ambiguous, multi-part and adversarial inputs—not just whether the agent can produce a plausible answer. In my writing, I’ve explored query triage, red-teaming, and testing agent behavior with mocked external dependencies. [1][2][3]\n\nFinally, I’d ship it as a service with a repeatable deployment, protected secrets, health checks, metrics and a rollback path. My rule of thumb is to earn complexity: start with the smallest reliable workflow, measure where it fails, and add capability only where the evidence says it’s needed. I wrote my Giskard and mocked-testing articles in June 2025; tools move quickly, so I’d check current project docs before following their implementation steps. I wrote my Helm deployment walkthrough in February 2026, and the same caveat applies. [7]"
+            "text": "I’d start with a **workflow, not a swarm**. Make state transitions, tool access and stop conditions explicit; bring in autonomous planning only where the task genuinely needs it. At UOB, the BYOC workflow stayed deterministic, with LLM reasoning at selected points. At Illumina, the retrieval problem justified more machinery: questions could need a short answer or a long, multi-part one, so I split them into sub-questions, answered those in parallel, combined the results and checked whether the response was complete. The architecture should earn its complexity. [1]\n\nThen I’d put firm boundaries around the agent: validate tool inputs and outputs, restrict what each tool can do, and cap retries, runtime and spend. Ask for clarification when a request is ambiguous; require human approval before consequential actions. For safety, I’d combine ordinary quality checks with adversarial tests for things like prompt injection, disclosure and harmful outputs—and review flagged cases rather than treating every red result as proof of a real defect. [3]\n\nI’d test the software separately from the model’s answer quality. Mock the LLMs and external services in unit tests so CI can check the control flow, tool contracts, errors and streaming behavior reliably; then use a separate evaluation set and red-team runs to probe response quality and failure modes. Those catch different classes of problems, and neither replaces the other. [4]\n\nFinally, I’d make every run observable and operable: trace the workflow and tool calls, track latency, failures and model usage, keep credentials out of deployment manifests, and have a way to scale and roll back safely. In my fictional-bassoon project, I used queued workers so a long agent run wouldn’t hold an HTTP request open. At Mastercard, the SDK and CLI work is about making a common, governed way to build agents the default. [6][7]\n\nI wrote the testing and Giskard pieces in June 2025, LiteLLM in July 2025, and the Helm piece in February 2026. These tools move quickly, so check each project’s current documentation before following implementation steps."
           }
         }
       ],
-      "answer": "I’d start with a **bounded workflow, not an agent with a blank cheque**. Make the state, tools, decision points and stop conditions explicit; use the model where language or judgment is genuinely needed, and ordinary code where the outcome should be predictable. I’d add multiple agents only when distinct specialists or parallel work solve a real problem—the architecture should follow the task, not the current fashion. [4]\n\nThat’s close to how I approached UOB’s onboarding workflow: deterministic steps handle the process, with LLM reasoning at specific points where documents are incomplete or inconsistent. For the harder retrieval problem at Illumina, I used an iterative agentic loop because engineers’ questions could span anything from a short instruction to a long troubleshooting guide; the system breaks questions into parts, retrieves and answers them in parallel, then checks whether the combined response is sufficient. [4]\n\nThen I’d make failure visible and bounded: validate tool inputs and outputs, set timeouts and retry limits, provide a clear fallback or human handoff, and trace each decision and tool call. I’d test ordinary cases as well as ambiguous, multi-part and adversarial inputs—not just whether the agent can produce a plausible answer. In my writing, I’ve explored query triage, red-teaming, and testing agent behavior with mocked external dependencies. [1][2][3]\n\nFinally, I’d ship it as a service with a repeatable deployment, protected secrets, health checks, metrics and a rollback path. My rule of thumb is to earn complexity: start with the smallest reliable workflow, measure where it fails, and add capability only where the evidence says it’s needed. I wrote my Giskard and mocked-testing articles in June 2025; tools move quickly, so I’d check current project docs before following their implementation steps. I wrote my Helm deployment walkthrough in February 2026, and the same caveat applies. [7]",
+      "answer": "I’d start with a **workflow, not a swarm**. Make state transitions, tool access and stop conditions explicit; bring in autonomous planning only where the task genuinely needs it. At UOB, the BYOC workflow stayed deterministic, with LLM reasoning at selected points. At Illumina, the retrieval problem justified more machinery: questions could need a short answer or a long, multi-part one, so I split them into sub-questions, answered those in parallel, combined the results and checked whether the response was complete. The architecture should earn its complexity. [1]\n\nThen I’d put firm boundaries around the agent: validate tool inputs and outputs, restrict what each tool can do, and cap retries, runtime and spend. Ask for clarification when a request is ambiguous; require human approval before consequential actions. For safety, I’d combine ordinary quality checks with adversarial tests for things like prompt injection, disclosure and harmful outputs—and review flagged cases rather than treating every red result as proof of a real defect. [3]\n\nI’d test the software separately from the model’s answer quality. Mock the LLMs and external services in unit tests so CI can check the control flow, tool contracts, errors and streaming behavior reliably; then use a separate evaluation set and red-team runs to probe response quality and failure modes. Those catch different classes of problems, and neither replaces the other. [4]\n\nFinally, I’d make every run observable and operable: trace the workflow and tool calls, track latency, failures and model usage, keep credentials out of deployment manifests, and have a way to scale and roll back safely. In my fictional-bassoon project, I used queued workers so a long agent run wouldn’t hold an HTTP request open. At Mastercard, the SDK and CLI work is about making a common, governed way to build agents the default. [6][7]\n\nI wrote the testing and Giskard pieces in June 2025, LiteLLM in July 2025, and the Helm piece in February 2026. These tools move quickly, so check each project’s current documentation before following implementation steps.",
       "actions": [
-        "role-uob",
         "role-illumina",
-        "project-illumina-rag",
-        "writing"
+        "role-uob",
+        "role-mastercard",
+        "project-fictional-bassoon"
       ],
       "sources": [
         {
           "n": 1,
-          "title": "Your AI Agent Needs a Bouncer",
-          "url": "https://medium.com/@tituslhy/your-ai-agent-needs-a-bouncer-f115d5ddac55"
-        },
-        {
-          "n": 2,
-          "title": "Think Your RAG App Is Safe? Giskard Might Prove You Wrong",
-          "url": "https://medium.com/@tituslhy/think-your-rag-app-is-safe-giskard-might-prove-you-wrong-6c88b08c5f7a"
-        },
-        {
-          "n": 3,
-          "title": "A Guide to Code Testing RAG Agents Without Real LLMs or Vector DBs",
-          "url": "https://medium.com/@tituslhy/a-guide-to-code-testing-rag-agents-without-real-llms-or-vector-dbs-51154ad920be"
-        },
-        {
-          "n": 4,
           "title": "A field guide to multi-agent architectures",
           "url": "https://medium.com/@tituslhy/a-field-guide-to-multi-agent-architectures-f6f8c689c406"
         },
         {
-          "n": 5,
+          "n": 2,
           "title": "A second look at LangGraph: When “Command Sends” becomes “common sense”",
           "url": "https://medium.com/@tituslhy/a-second-look-at-langgraph-when-command-sends-becomes-common-sense-720a851cf8a8"
         },
         {
-          "n": 6,
-          "title": "Agent Memory: The underrated superpower of agentic apps",
-          "url": "https://medium.com/@tituslhy/agent-memory-the-underrated-superpower-of-agentic-apps-1c16fb47f435"
+          "n": 3,
+          "title": "Think Your RAG App Is Safe? Giskard Might Prove You Wrong",
+          "url": "https://medium.com/@tituslhy/think-your-rag-app-is-safe-giskard-might-prove-you-wrong-6c88b08c5f7a"
         },
         {
-          "n": 7,
+          "n": 4,
+          "title": "A Guide to Code Testing RAG Agents Without Real LLMs or Vector DBs",
+          "url": "https://medium.com/@tituslhy/a-guide-to-code-testing-rag-agents-without-real-llms-or-vector-dbs-51154ad920be"
+        },
+        {
+          "n": 5,
+          "title": "Your AI Agent Needs a Bouncer",
+          "url": "https://medium.com/@tituslhy/your-ai-agent-needs-a-bouncer-f115d5ddac55"
+        },
+        {
+          "n": 6,
           "title": "Helm Charts: The Multi-Server Orchestra Conductor",
           "url": "https://medium.com/@tituslhy/helm-charts-the-multi-server-orchestra-conductor-18dc88665fc1"
         },
         {
-          "n": 8,
-          "title": "Nginx: The Single-Server Swiss Army Knife",
-          "url": "https://medium.com/@tituslhy/nginx-the-single-server-swiss-army-knife-3445197f8f86"
+          "n": 7,
+          "title": "A gentle introduction to LiteLLM",
+          "url": "https://medium.com/@tituslhy/a-gentle-introduction-to-litellm-649d48a0c2c7"
         },
         {
-          "n": 9,
-          "title": "The Discovery Channel: Introducing Nacos Registry",
-          "url": "https://medium.com/@tituslhy/towards-general-discoverability-introducing-nacos-registry-60fa2e1a8731"
+          "n": 8,
+          "title": "Chain reaction: How to create an observable frontend workflow using LlamaIndex and Chainlit",
+          "url": "https://medium.com/@tituslhy/chain-reaction-how-to-create-an-observable-workflow-using-llamaindex-and-chainlit-2b668fb1cee9"
         }
       ]
     }

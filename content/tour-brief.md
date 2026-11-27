@@ -37,7 +37,7 @@ names and titles exactly as written.
 6. Projects: your projects play like films; this one is fictional-bassoon, which you built on your own.
    Targets: `project-fictional-bassoon`.
 7. Writing: it's a newspaper of your articles, by year and theme, and you can answer questions on any of them;
-   here are two examples, which they'll also find in Ask Titus after the tour. Targets: `writing`. Ask: "How would you build
+   here are two examples, which they'll also find in Ask Titus after the tour. Targets: `writing`. Ask: "How would you design
    production-ready agents?", "LoRA, RAFT or GRPO: which fine-tuning approach should I use, and when?".
 8. About: a periodic table of every tool you've used, lighting up in the order you picked each one up.
    Targets: `tool-langgraph`.

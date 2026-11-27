@@ -50,7 +50,7 @@ const QUESTION_KINDS: [question: string, route: string][] = [
     'search_writing(["LiteLLM", "Helm", "Nginx"]): one call, three searches inside it (one per topic), merged so each topic’s best article comes first.',
   ],
   [
-    'How would you build production-ready agents?',
+    'How would you design production-ready agents?',
     'No search. GPT splits it into parts (architecture, reliability, deployment), picks the articles for each part from the library map in its prompt, and opens each part with its own read_writing call, all at once. It stops when I have nothing more to add.',
   ],
   [
@@ -66,6 +66,7 @@ const GUARDRAILS: [guardrail: string, prevents: string][] = [
   ['“Not on file”', 'Overselling, especially in recruiter mode'],
   ['Job descriptions wrapped as data and not stored upstream', 'Prompt injection; keeping confidential postings'],
   ['Fit briefs re-validated after the model writes them', '“Strong” claims without evidence'],
+  ['Cards built by the server from my data, checked as A2UI before they’re sent', 'A card showing a role, article, link or date that doesn’t exist'],
   ['Origin check, rate limits, output caps, timeouts, tool-call limits', 'Abuse and runaway cost'],
   ['Scope rules', 'Salary, family or weakness talk'],
 ]
@@ -345,7 +346,7 @@ export default function ColophonPage() {
                 'Reading by theme',
                 <>
                 <p className={prose}>
-                  Search answers concrete questions well and broad ones badly. Ask “how would you build production-ready
+                  Search answers concrete questions well and broad ones badly. Ask “how would you design production-ready
                   agents?” and every article is a little relevant, so none stands out. For those, GPT doesn’t search. Its
                   prompt carries a map of my library: a handful of themes, each article listed under its theme with a
                   one-line summary, and an article that does two jobs listed under both. GPT splits the question into its
@@ -378,6 +379,23 @@ export default function ColophonPage() {
                   answer mentions them, and the server drops any it doesn’t recognise. On a wide screen the drawer moves
                   the page once, to the first of them, and never while you’re scrolling. The rest sit under the answer as
                   See on page pills: ↓ for this page, → for another.
+                </p>
+                </>,
+              ],
+              [
+                'Cards',
+                <>
+                <p className={prose}>
+                  A card is only for an answer no single page shows: one that spans the site, like how I&rsquo;d build
+                  something (the roles and projects behind it, and the articles it cites), or a table comparing two or
+                  three options. GPT asks for one with <code className="font-mono text-[14px]">show_card</code>, naming
+                  places and articles by id and writing only a few words for each, or the table&rsquo;s short cells. The
+                  server builds the card from my data (every name, colour, title and link comes from there), drops any id
+                  it doesn&rsquo;t recognise, and checks the result against the A2UI spec before it is sent. A2UI is
+                  Google&rsquo;s open format for agents that answer with interface: the card travels as data in A2UI
+                  v1.0, read by Google&rsquo;s engine and drawn in this site&rsquo;s own style. A question only about my
+                  articles gets no card: the Writing page is filtered to the articles in the answer instead. Later turns
+                  see one line in place of the card.
                 </p>
                 </>,
               ],
@@ -462,10 +480,10 @@ export default function ColophonPage() {
 
           <Section folio={next()} title="Stack">
             <p className="font-mono text-[12.5px] leading-relaxed tracking-[0.02em] text-ink">
-              Next.js · a ~70-line tool loop on the OpenAI Responses API · Jev (TypeSafe AI) · Vercel
+              Next.js · a ~70-line tool loop on the OpenAI Responses API · Jev (TypeSafe AI) · A2UI v1.0 (Google) · Vercel
             </p>
             <p className={`${prose} mt-3`}>
-              No agent framework. Three tools and at most four rounds is one loop, and a loop I can read end to end is one
+              No agent framework. Four tools and at most four rounds is one loop, and a loop I can read end to end is one
               I can debug at 2am. The source is on{' '}
               <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-amber underline underline-offset-2">
                 GitHub

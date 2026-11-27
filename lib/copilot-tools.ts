@@ -9,8 +9,11 @@ import {
   type SearchTrace,
 } from "@/lib/writing-search";
 import type { TraceSpan } from "@/lib/copilot-loop";
-import { mediumPostId, publishedDate, type PriorCitation } from "@/lib/citation-ledger";
+import { articleIdOf, mediumPostId, publishedDate, type PriorCitation } from "@/lib/citation-ledger";
 import { pickSections, type PickInput, type PickOptions, type PickedArticle, type SectionTrace } from "@/lib/section-pick";
+import { SHOW_CARD_PARAMETERS, buildCard, parseShowCardArgs, type ShowCardArgs } from "@/lib/cards";
+import type { CardKind, Flair } from "@/lib/a2ui-catalog";
+import type { AgentToRendererMessage } from "@a2ui/web_core/v1_0";
 
 // ---------------------------------------------------------------------------
 // Copilot tool registry. The /api/chat loop offers every tool here to the
@@ -21,6 +24,11 @@ import { pickSections, type PickInput, type PickOptions, type PickedArticle, typ
 
 export type CopilotEvent =
   | { type: "action"; target: string }
+  /**
+   * The articles an answer about my writing is about, by Medium post id, in the answer's order: the drawer opens
+   * the Writing page filtered to just these (lib/writing-pick.ts). Sent before the `writing` action. At most one per reply.
+   */
+  | { type: "pick"; articles: string[] }
   /** relevance/score are Jev's for search_writing; null for read_writing, which reads by id without ranking. */
   | { type: "source"; n: number; title: string; url: string; relevance: number | null; score: number | null }
   /**
@@ -29,7 +37,21 @@ export type CopilotEvent =
    */
   | { type: "step"; id: string; tool: string; label: string; done: boolean }
   /** The headline of a reasoning summary the model streamed while thinking (lib/copilot-steps.ts summaryHeadline). */
-  | { type: "thought"; text: string };
+  | { type: "thought"; text: string }
+  /**
+   * A card under the reply (lib/cards.ts): A2UI v1.0 messages built from my data and already checked. `summary` is
+   * the one line later turns see in place of the card. At most one per reply.
+   */
+  | {
+      type: "card";
+      id: string;
+      kind: CardKind;
+      summary: string;
+      flair: Flair;
+      messages: AgentToRendererMessage[];
+      /** Citation numbers the card lists as its sources, which the drawer then leaves out of its Sources row. */
+      sources: number[];
+    };
 
 /** How a call reads in the drawer: while it runs, and once it has. Plain words, never a whimsical verb. */
 export type StepLabels = { doing: string; done: string };
@@ -63,13 +85,16 @@ export interface CopilotTool<A = unknown> {
 // show_on_page — a client-side action. The route never touches the DOM; it
 // relays a validated target to the browser, which scrolls to and highlights
 // that anchor. The enum is generated from lib/profile.ts, so the model can
-// only name anchors that actually exist on the page.
+// only name anchors that actually exist on the page. For an answer about my
+// articles it also passes their ids, and the Writing page is filtered to them.
 // ---------------------------------------------------------------------------
 
 const PAGE_TARGET_SET = new Set<string>(PAGE_TARGET_IDS);
 
 /** Most targets one reply may point at (several tools in one table count separately). */
 export const MAX_PAGE_TARGETS = 8;
+/** Most articles the Writing page may be filtered to (a desk's worth: the largest has 16). */
+export const MAX_PICKED_ARTICLES = 12;
 
 /**
  * Returns the validated targets from show_on_page's raw arguments, in the order given: unknown ids
@@ -87,13 +112,45 @@ export function parseShowOnPageTargets(raw: string): string[] | null {
   }
 }
 
-function createShowOnPageTool(): CopilotTool<string[]> {
+export type ShowOnPageArgs = { targets: string[]; articles: string[] };
+
+/**
+ * Returns the validated show_on_page arguments, or null. `isArticle` says whether a cleaned id is one of my
+ * articles. Articles keep the model's order, unknown ids and repeats dropped, at most MAX_PICKED_ARTICLES. When any
+ * article survives, `writing` is among the targets (added first if the model left it out). Null when neither a
+ * target nor an article is left.
+ */
+export function parseShowOnPageArgs(raw: string, isArticle: (id: string) => boolean): ShowOnPageArgs | null {
+  let parsed: { targets?: unknown; articles?: unknown } | null;
+  try {
+    parsed = JSON.parse(raw) as { targets?: unknown; articles?: unknown } | null;
+  } catch {
+    return null;
+  }
+  const targetList = Array.isArray(parsed?.targets) ? parsed.targets : [];
+  const articleList = Array.isArray(parsed?.articles) ? parsed.articles : [];
+  const articles = [
+    ...new Set(
+      articleList
+        .filter((x): x is string => typeof x === "string")
+        .map((x) => articleIdOf(x))
+        .filter((id) => id && isArticle(id))
+    ),
+  ].slice(0, MAX_PICKED_ARTICLES);
+  const targets = [...new Set(targetList.filter((t): t is string => typeof t === "string" && PAGE_TARGET_SET.has(t)))];
+  if (articles.length > 0 && !targets.includes("writing")) targets.unshift("writing");
+  if (targets.length === 0) return null;
+  return { targets: targets.slice(0, MAX_PAGE_TARGETS), articles };
+}
+
+function createShowOnPageTool(catalog: readonly Article[]): CopilotTool<ShowOnPageArgs> {
+  const ids = articleIds(catalog);
   return {
     definition: {
       type: "function",
       name: "show_on_page",
       description:
-        "Show the visitor where your answer lives on the site, in the order your answer mentions them. The page goes to the best of them and the rest are listed under your answer. Call at most once per answer, before writing it.",
+        "Show the visitor where your answer lives on the site, in the order your answer mentions them. The page goes to the best of them and the rest are listed under your answer. For an answer about my articles, also pass their ids: the Writing page is then filtered to just those. Call at most once per answer, before writing it.",
       strict: true,
       parameters: {
         type: "object",
@@ -103,18 +160,34 @@ function createShowOnPageTool(): CopilotTool<string[]> {
             items: { type: "string", enum: PAGE_TARGET_IDS },
             description: `Anchor ids from the Targets list in the system prompt, in the order your answer mentions them; at most ${MAX_PAGE_TARGETS}.`,
           },
+          articles: {
+            type: "array",
+            items: { type: "string" },
+            description: `Only when the answer is about my articles: the ids (from My Library) of the articles it recommends or describes, in the order it gives them; at most ${MAX_PICKED_ARTICLES}. Otherwise empty.`,
+          },
         },
-        required: ["targets"],
+        required: ["targets", "articles"],
         additionalProperties: false,
       },
     },
     maxCallsPerReply: 1,
-    parse: parseShowOnPageTargets,
-    async run(targets, { emit }) {
+    parse: (raw) => parseShowOnPageArgs(raw, (id) => ids.has(id)),
+    async run({ targets, articles }, { emit }) {
+      if (articles.length > 0) emit({ type: "pick", articles });
       for (const target of targets) emit({ type: "action", target });
-      return { shown: targets };
+      return articles.length > 0 ? { shown: targets, writingFilteredTo: articles.length } : { shown: targets };
     },
   };
+}
+
+/** My articles' Medium post ids. */
+function articleIds(catalog: readonly Article[]): Set<string> {
+  const ids = new Set<string>();
+  for (const a of catalog) {
+    const pid = mediumPostId(a.url);
+    if (pid) ids.add(pid);
+  }
+  return ids;
 }
 
 /** ["LiteLLM", "Helm"] → “LiteLLM” and “Helm”; three → “a”, “b” and “c”. */
@@ -146,6 +219,8 @@ function createReading(prior: readonly PriorCitation[]) {
   return {
     /** How many more new articles this reply may read. */
     room: () => Math.max(0, MAX_ARTICLES_PER_REPLY - served.size),
+    /** The article's citation number in this conversation, if it has one yet. */
+    numberOf: (slug: string) => numbered.get(slug),
     isServed: (slug: string) => served.has(slug),
     /** Keeps already-served articles; admits new ones only while there's room. */
     admit<T extends { slug: string }>(articles: readonly T[]): T[] {
@@ -167,8 +242,10 @@ function createReading(prior: readonly PriorCitation[]) {
         emitted.add(a.slug);
         emit({ type: "source", n, title: a.title, url: a.url, ...rank });
       }
+      const id = mediumPostId(a.url);
       return {
         n,
+        ...(id && { id }),
         title: a.title,
         url: a.url,
         ...(a.publishedAt && { published: publishedDate(a.publishedAt) }),
@@ -533,6 +610,43 @@ function recordJevSteps(trace: TraceSpan, query: string, t: SearchTrace): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// show_card — a card under the reply (lib/cards.ts). The model picks article
+// ids and writes short text; the card is built from my data and checked as
+// A2UI v1.0 before it is emitted. A card that fails is never sent, and the
+// model is told so it can answer in prose.
+// ---------------------------------------------------------------------------
+
+function createShowCardTool(catalog: readonly Article[], reading: Reading): CopilotTool<ShowCardArgs> {
+  let shown = 0;
+  return {
+    definition: {
+      type: "function",
+      name: "show_card",
+      description:
+        "Put one card under your answer, only when the answer organises something no single page of my site shows: an answer that spans the site (the roles, projects or schools behind it, and the articles it cites), or a compare table. Call at most once, before writing the answer. Your answer still stands on its own.",
+      strict: true,
+      parameters: SHOW_CARD_PARAMETERS as unknown as Record<string, unknown>,
+    },
+    maxCallsPerReply: 1,
+    parse: parseShowCardArgs,
+    describe: () => null, // instant and local: no progress line
+    async run(args, { emit, trace }) {
+      const id = `card_${++shown}`;
+      const built = buildCard(args, id, { catalog, numberOf: reading.numberOf });
+      if (!built.ok) {
+        trace?.annotate({ card: { kind: args.kind, error: built.error } });
+        console.warn(JSON.stringify({ event: "copilot_card_dropped", kind: args.kind, error: built.error }));
+        return { shown: false, error: `${built.error}; answer without a card` };
+      }
+      const { card } = built;
+      trace?.annotate({ card: { kind: args.kind, flair: card.flair, summary: card.summary, articles: card.articles } });
+      emit({ type: "card", id, kind: card.kind, summary: card.summary, flair: card.flair, messages: card.messages, sources: card.sources });
+      return { shown: true, card: card.summary };
+    },
+  };
+}
+
 /**
  * Built per request, so per-reply state (counters) lives in closures.
  * `prior` is the conversation's citation ledger, already resolved against the corpus.
@@ -543,8 +657,9 @@ export function createCopilotTools(
   const reading = createReading(deps.prior ?? []);
   const pick = deps.pick ?? pickSections;
   return [
-    createShowOnPageTool() as CopilotTool,
+    createShowOnPageTool(deps.catalog ?? ARTICLES) as CopilotTool,
     createSearchWritingTool(deps.search ?? searchMyWriting, reading, pick) as CopilotTool,
     createReadWritingTool(deps.catalog ?? ARTICLES, reading, pick) as CopilotTool,
+    createShowCardTool(deps.catalog ?? ARTICLES, reading) as CopilotTool,
   ];
 }

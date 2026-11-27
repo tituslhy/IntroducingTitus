@@ -7,11 +7,14 @@
 import articleThemes from '@/content/article-themes.json'
 import type { Cover } from './article-cover'
 import { ARTICLES, type Article } from './articles'
+import { mediumPostId } from './citation-ledger'
 
 export type Desk = { id: string; name: string; count: number }
 
 export type Story = {
   slug: string
+  /** Its Medium post id: how Ask Titus names it, and how a pick (lib/writing-pick.ts) lists it. */
+  id?: string
   title: string
   url: string
   /** "2026-10-16". */
@@ -62,6 +65,7 @@ export function stories(articles: readonly Article[] = ARTICLES): Story[] {
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
     .map((a) => ({
       slug: a.slug,
+      ...(mediumPostId(a.url) && { id: mediumPostId(a.url) as string }),
       title: a.title,
       url: a.url,
       date: a.publishedAt.slice(0, 10),

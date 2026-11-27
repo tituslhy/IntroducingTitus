@@ -316,3 +316,15 @@ describe("the real articles", () => {
     expect(editions(all).reduce((sum, e) => sum + e.count, 0)).toBe(all.length);
   });
 });
+
+describe('stories: the Medium post id', () => {
+  it('gives a story the Medium post id at the end of its url, so a pick (?read=) can name it', () => {
+    const [s] = stories([article({ slug: 'with-id', url: 'https://medium.com/@tituslhy/a-title-abcdef123456' })])
+    expect(s.id).toBe('abcdef123456')
+  })
+
+  it('leaves the id off a story whose url has no Medium post id', () => {
+    const [s] = stories([article({ slug: 'no-id', url: 'https://medium.com/@tituslhy/no-id-here' })])
+    expect(s).not.toHaveProperty('id')
+  })
+})

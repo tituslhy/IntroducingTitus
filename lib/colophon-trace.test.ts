@@ -25,7 +25,7 @@ describe("REPLAY_QUESTIONS", () => {
   it("offers the tool question first and the broad question second, with stable ids", () => {
     expect(REPLAY_QUESTIONS).toEqual([
       { id: "search", question: "Have you used LangChain and LangGraph?" },
-      { id: "broad", question: "How would you build production-ready agents?" },
+      { id: "broad", question: "How would you design production-ready agents?" },
     ]);
   });
 });

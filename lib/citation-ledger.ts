@@ -36,6 +36,16 @@ export function mediumPostId(url: string): string | null {
   }
 }
 
+/**
+ * An article id as the model may write it: the post id itself, a full Medium URL, or a slug ending in the post id
+ * ("introducing-stablecoins-1a2b3c4d5e6f"). Lowercased and cut to 64 characters.
+ */
+export function articleIdOf(raw: string): string {
+  const x = raw.trim();
+  const id = mediumPostId(x) ?? x.match(/(?:^|-)([0-9a-f]{8,16})\/?$/i)?.[1] ?? x;
+  return id.toLowerCase().slice(0, 64);
+}
+
 function indexByPostId(catalog: readonly Article[]): Map<string, Article> {
   const byId = new Map<string, Article>();
   for (const a of catalog) {

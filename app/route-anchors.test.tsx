@@ -7,6 +7,13 @@ import ExperiencePage from "./experience/page";
 import ProjectsPage from "./projects/page";
 import WritingPage from "./writing/page";
 
+// The paper reads a pick from the link and moves the link with the App Router; these page tests render it outside a router.
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn(), back: jest.fn() }),
+  usePathname: () => '/writing',
+  useSearchParams: () => new URLSearchParams(),
+}))
+
 // The copilot's show_on_page scrolls to a target id on the route the target names.
 // This checks that each route really renders the ids it is given, and no one else's.
 const PAGES: Record<SitePath, ComponentType> = {

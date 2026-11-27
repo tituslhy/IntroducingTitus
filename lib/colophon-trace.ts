@@ -52,7 +52,7 @@ export type ReplayStep = { id: string; tool: string; doing: string; done: string
 /** The two questions, in the order the panel offers them. */
 export const REPLAY_QUESTIONS: { id: Recording["id"]; question: string }[] = [
   { id: "search", question: "Have you used LangChain and LangGraph?" },
-  { id: "broad", question: "How would you build production-ready agents?" },
+  { id: "broad", question: "How would you design production-ready agents?" },
 ];
 
 // ---------------------------------------------------------------------------

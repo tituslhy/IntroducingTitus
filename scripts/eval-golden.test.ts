@@ -5,7 +5,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { buildSystemPrompt } from "../lib/copilot-prompt";
-import { GOLDEN, countsForRetrieval, retrievalQueries, usedRecord, type GoldenRow } from "./eval-golden";
+import { GOLDEN, countsForRetrieval, expectedCard, expectedPick, retrievalQueries, usedRecord, type GoldenRow } from "./eval-golden";
 
 const TEMPLATE_PATH = join(__dirname, "..", "copilot-system-prompt.md");
 const RENDERED = buildSystemPrompt(readFileSync(TEMPLATE_PATH, "utf-8"));
@@ -141,5 +141,90 @@ describe("GOLDEN experience-with rows", () => {
     for (const r of GOLDEN.filter((g) => g.expect.kind === "no-search")) {
       expect(r.record).toBeUndefined();
     }
+  });
+});
+
+describe("expectedCard", () => {
+  it("is none for a no-search row, which must not carry a card", () => {
+    expect(expectedCard(row({ expect: { kind: "no-search" } }))).toBe("none");
+  });
+
+  it("is none for a none row, which searches and finds nothing to card", () => {
+    expect(expectedCard(row({ expect: { kind: "none" } }))).toBe("none");
+  });
+
+  it("is null for an article row with no card set: not scored", () => {
+    expect(expectedCard(row({ expect: { kind: "articles", titles: ["Agent Memory"] } }))).toBeNull();
+  });
+
+  it("returns the row's own card for an article row", () => {
+    expect(expectedCard(row({ expect: { kind: "articles", titles: ["x"] }, card: "evidence" }))).toBe("evidence");
+    expect(expectedCard(row({ expect: { kind: "articles", titles: ["x"] }, card: "compare" }))).toBe("compare");
+  });
+
+  it("uses only the current card kinds in the golden set", () => {
+    for (const r of GOLDEN) expect(["evidence", "compare", "none", undefined]).toContain(r.card);
+  });
+
+  it("lets an explicit card win over the default for a no-search row", () => {
+    expect(expectedCard(row({ expect: { kind: "no-search" }, card: "compare" }))).toBe("compare");
+  });
+
+  it("lets an explicit none stand on an article row", () => {
+    expect(expectedCard(row({ expect: { kind: "articles", titles: ["x"] }, card: "none" }))).toBe("none");
+  });
+
+  it("is never null for a no-search or none row in the real golden set", () => {
+    for (const r of GOLDEN.filter((g) => g.expect.kind === "no-search" || g.expect.kind === "none")) {
+      expect(expectedCard(r)).toBe("none");
+    }
+  });
+
+  it("marks the LoRA-RAFT-GRPO compare row in the golden set", () => {
+    const compareRow = GOLDEN.find((r) => /LoRA, RAFT or GRPO/.test(r.question));
+    expect(expectedCard(compareRow!)).toBe("compare");
+  });
+
+  it("expects no card for the 'which of your articles' row, which only filters the Writing page", () => {
+    const listRow = GOLDEN.find((r) => /Which of your articles should I read to build production-ready agents/.test(r.question));
+    expect(listRow).toBeDefined();
+    expect(expectedCard(listRow!)).toBe("none");
+  });
+
+  it("expects no card for the blockchain row, which is about my articles only", () => {
+    const blockchain = GOLDEN.find((r) => /blockchain/i.test(r.question));
+    expect(blockchain).toBeDefined();
+    expect(expectedCard(blockchain!)).toBe("none");
+  });
+
+  it("expects an evidence card for the 'how would you design' row, which spans the site", () => {
+    const design = GOLDEN.find((r) => /How would you design production-ready agents/.test(r.question));
+    expect(expectedCard(design!)).toBe("evidence");
+  });
+});
+
+describe("expectedPick", () => {
+  it("is the row's own pick flag when it sets one", () => {
+    expect(expectedPick(row({ pick: true }))).toBe(true);
+    expect(expectedPick(row({ pick: false }))).toBe(false);
+  });
+
+  it("is null for a row with no pick flag: not scored", () => {
+    expect(expectedPick(row({ expect: { kind: "articles", titles: ["x"] } }))).toBeNull();
+    expect(expectedPick(row({ pick: undefined }))).toBeNull();
+  });
+
+  it("marks the articles-only rows as a pick, and the rows that span the site as not", () => {
+    const blockchain = GOLDEN.find((r) => /blockchain/i.test(r.question));
+    const onlyArticles = GOLDEN.find((r) => /Which of your articles should I read to build production-ready agents/.test(r.question));
+    const design = GOLDEN.find((r) => /How would you design production-ready agents/.test(r.question));
+    expect(expectedPick(blockchain!)).toBe(true);
+    expect(expectedPick(onlyArticles!)).toBe(true);
+    expect(expectedPick(design!)).toBe(false);
+  });
+
+  it("leaves a plain retrieval row unscored", () => {
+    const litellm = GOLDEN.find((r) => /What do you think about LiteLLM/.test(r.question));
+    expect(expectedPick(litellm!)).toBeNull();
   });
 });

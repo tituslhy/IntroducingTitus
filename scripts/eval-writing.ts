@@ -20,7 +20,10 @@ import { buildSystemPrompt } from "../lib/copilot-prompt";
 import { copilotStream, MODEL as GPT_MODEL } from "../lib/copilot-loop";
 import { createCopilotTools, mergeByTopic, type CopilotTool } from "../lib/copilot-tools";
 import { JEV_MODEL, PAGE_SIZE, searchMyWriting, type SearchTrace } from "../lib/writing-search";
-import { GOLDEN, countsForRetrieval, retrievalQueries, usedRecord, type Expect } from "./eval-golden";
+import { mediumPostId } from "../lib/citation-ledger";
+import type { ShowCardArgs } from "../lib/cards";
+import { GOLDEN, countsForRetrieval, expectedCard, expectedPick, retrievalQueries, usedRecord, type Expect } from "./eval-golden";
+import type { ShowOnPageArgs } from "../lib/copilot-tools";
 
 const OUT = join(process.cwd(), "content", "eval-results.json");
 const AGENT_TIMEOUT_MS = 60_000;
@@ -40,18 +43,60 @@ function expectedSlugs(expect: Expect, corpus: readonly Article[]): string[] {
     .map((a) => a.slug);
 }
 
-type AgentRun = { searched: boolean; queries: number; reads: number; sources: { n: number; url: string }[]; text: string };
+type CardRun = {
+  /** The kind show_card was called with, or null when it wasn't. */
+  kind: ShowCardArgs["kind"] | null;
+  /** Whether a card reached the stream (built from my data and passed its A2UI check). */
+  shown: boolean;
+  /** Article ids the model put on the card that aren't one of my articles (dropped before the visitor sees them). */
+  inventedIds: string[];
+  /** Compare cards: option names the reply's text never mentions. */
+  unmentionedOptions: string[];
+};
+
+type AgentRun = {
+  searched: boolean;
+  queries: number;
+  reads: number;
+  sources: { n: number; url: string }[];
+  text: string;
+  card: CardRun;
+  /** How many articles show_on_page filtered the Writing page to (0: none). */
+  picked: number;
+  /** show_on_page as the model called it: its targets and the article ids it passed, before any were dropped. */
+  showOnPage: { targets: unknown; articles: unknown } | null;
+};
 
 async function runAgent(openai: OpenAI, systemPrompt: string, question: string): Promise<AgentRun> {
   let queries = 0;
   let reads = 0;
+  let cardArgs: ShowCardArgs | null = null;
+  let picked = 0;
+  let showOnPage: AgentRun["showOnPage"] = null;
   const tools: CopilotTool[] = createCopilotTools().map((t) =>
-    t.definition.name === "search_writing"
+    t.definition.name === "show_on_page"
+      ? {
+          ...t,
+          parse: (raw: string) => {
+            try {
+              const call = JSON.parse(raw) as { targets?: unknown; articles?: unknown };
+              showOnPage = { targets: call.targets, articles: call.articles };
+            } catch {
+              showOnPage = { targets: null, articles: null };
+            }
+            return t.parse(raw);
+          },
+          run: (args, ctx) => ((picked = (args as ShowOnPageArgs).articles.length), t.run(args, ctx)),
+        }
+      : t.definition.name === "search_writing"
       ? { ...t, run: (args, ctx) => (queries++, t.run(args, ctx)) }
       : t.definition.name === "read_writing"
         ? { ...t, run: (args, ctx) => (reads++, t.run(args, ctx)) }
-        : t
+        : t.definition.name === "show_card"
+          ? { ...t, run: (args, ctx) => ((cardArgs = args as ShowCardArgs), t.run(args, ctx)) }
+          : t
   );
+  let cardShown = false;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS);
   let text = "";
@@ -64,11 +109,26 @@ async function runAgent(openai: OpenAI, systemPrompt: string, question: string):
     for await (const chunk of copilotStream(openai, input, tools, controller.signal)) {
       if (chunk.kind === "text") text += chunk.text;
       else if (chunk.event.type === "source") sources.push({ n: chunk.event.n, url: chunk.event.url });
+      else if (chunk.event.type === "card") cardShown = true;
     }
   } finally {
     clearTimeout(timer);
   }
-  return { searched: queries + reads > 0, queries, reads, sources, text };
+  return { searched: queries + reads > 0, queries, reads, sources, text, card: cardRun(cardArgs, cardShown, text), picked, showOnPage };
+}
+
+const KNOWN_IDS = new Set(ARTICLES.map((a) => mediumPostId(a.url)).filter((id): id is string => id !== null));
+
+function cardRun(args: ShowCardArgs | null, shown: boolean, text: string): CardRun {
+  if (!args) return { kind: null, shown, inventedIds: [], unmentionedOptions: [] };
+  const ids = args.kind === "evidence" ? args.articles : args.options.flatMap((o) => (o.article ? [o.article] : []));
+  const reply = text.toLowerCase();
+  return {
+    kind: args.kind,
+    shown,
+    inventedIds: ids.filter((id) => !KNOWN_IDS.has(id)),
+    unmentionedOptions: args.kind === "compare" ? args.options.map((o) => o.name).filter((n) => !reply.includes(n.toLowerCase())) : [],
+  };
 }
 
 const URL_RE = /https?:\/\/[^\s)\]>"'`]+/g;
@@ -169,6 +229,9 @@ async function main() {
         danglingCitations: dangling,
         // Experience-with rows: the reply named when and where from my record.
         usedRecord: usedRecord(row, agent.text),
+        card: { expected: expectedCard(row), ...agent.card },
+        // Questions only about my articles: the Writing page was filtered to them (and not for the others).
+        pick: { expected: expectedPick(row), picked: agent.picked, called: agent.showOnPage },
       },
     });
   }
@@ -202,6 +265,18 @@ async function main() {
       results.filter((r) => r.agent.inventedUrls.length === 0 && r.agent.danglingCitations.length === 0).length,
       results.length
     ),
+    // Cards: the expected card (or none) was shown; invented article ids are counted (target 0, always dropped).
+    cardAccuracy: ratio(
+      results.filter((r) => r.agent.card.expected !== null && r.agent.card.shown === (r.agent.card.expected !== "none") && (r.agent.card.expected === "none" || r.agent.card.kind === r.agent.card.expected)).length,
+      results.filter((r) => r.agent.card.expected !== null).length
+    ),
+    cardsShown: results.filter((r) => r.agent.card.shown).length,
+    pickAccuracy: ratio(
+      results.filter((r) => r.agent.pick.expected !== null && r.agent.pick.expected === r.agent.pick.picked > 0).length,
+      results.filter((r) => r.agent.pick.expected !== null).length
+    ),
+    cardInventedIds: results.reduce((sum, r) => sum + r.agent.card.inventedIds.length, 0),
+    compareOptionsUnmentioned: results.reduce((sum, r) => sum + r.agent.card.unmentionedOptions.length, 0),
     recordAccuracy: ratio(
       results.filter((r) => r.agent.usedRecord === true).length,
       results.filter((r) => r.agent.usedRecord !== null).length

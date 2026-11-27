@@ -22,7 +22,7 @@ import { MAX_ARTICLES_PER_REPLY, MAX_READING_CALLS, MAX_TOPICS, MIN_SCORE, PAGE_
 const MONO = 'var(--font-ibm-plex-mono), ui-monospace, monospace'
 
 export type DiagramKey =
-  | 'record' | 'visitor' | 'guards' | 'gpt' | 'calls' | 'results' | 'tools' | 'show' | 'search'
+  | 'record' | 'visitor' | 'guards' | 'gpt' | 'calls' | 'results' | 'tools' | 'show' | 'card' | 'search'
   | 'filter' | 'rank' | 'merge' | 'read' | 'sections' | 'answer' | 'checks' | 'drawer'
 export type BoxState = 'lit' | 'done' | 'idle'
 type StateOf = (k: DiagramKey) => BoxState | undefined
@@ -224,7 +224,7 @@ function ToolRow({ x, y, size, k, children }: { x: number; y: number; size: numb
   )
 }
 
-/** Tools box listing the three tools; search_writing's row lines up with its expanded chain. */
+/** Tools box listing the four tools; search_writing's row lines up with its expanded chain. */
 function ToolsBox({ x, y, w }: { x: number; y: number; w: number }) {
   const st = useContext(StateCtx)('tools')
   const paint = boxPaint(st, false)
@@ -232,10 +232,11 @@ function ToolsBox({ x, y, w }: { x: number; y: number; w: number }) {
     <g data-k="tools" data-state={st} opacity={paint.opacity} className={FADE}>
       <rect x={x} y={y} width={w} height={TOOLS_H} fill={paint.fill} stroke={paint.stroke} strokeWidth={paint.strokeWidth} className={FADE} />
       <Label x={x + 10} y={y + 16}>TOOLS</Label>
-      <ToolRow x={x + 10} y={y + 36} size={12} k="show">show_on_page</ToolRow>
+      <ToolRow x={x + 10} y={y + 32} size={11} k="show">show_on_page</ToolRow>
       {/* 22 mono chars at 10.5px ≈ 139px: fits the 150px mobile box */}
-      <ToolRow x={x + 10} y={y + 54} size={10.5} k="search">search_writing(topics)</ToolRow>
-      <ToolRow x={x + 10} y={y + 72} size={10.5} k="read">read_writing(ids)</ToolRow>
+      <ToolRow x={x + 10} y={y + 47} size={10.5} k="search">search_writing(topics)</ToolRow>
+      <ToolRow x={x + 10} y={y + 62} size={10.5} k="read">read_writing(ids)</ToolRow>
+      <ToolRow x={x + 10} y={y + 77} size={10.5} k="card">show_card</ToolRow>
     </g>
   )
 }
@@ -280,7 +281,7 @@ export default function ReplyDiagram({
   const description =
     `A visitor's question passes the guards and enters the agent loop. GPT's prompt carries my record (roles, projects, and every tool with when and where I used it) and the library map. ` +
     `Each round, GPT either answers or calls tools; ` +
-    `the tool results go back to GPT for the next round, for at most four rounds. The tools are show_on_page, search_writing and read_writing. ` +
+    `the tool results go back to GPT for the next round, for at most four rounds. The tools are show_on_page, search_writing, read_writing and show_card (a card under the answer, built by the server from my data as A2UI v1.0). ` +
     `Articles are reached by one of two routes, one route per call: search_writing or read_writing, and a reply can use both. ` +
     `search_writing takes up to ${MAX_TOPICS} topics in one call and searches each topic separately: for each, ` +
     `a Jev filter (noul: one yes/no question per article, ${articleCount} articles, kept at p(yes) ≥ ${RELEVANT}), ` +

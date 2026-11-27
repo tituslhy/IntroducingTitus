@@ -1,19 +1,24 @@
 import {
   MAX_PAGE_TARGETS,
+  MAX_PICKED_ARTICLES,
   createCopilotTools,
   mergeByTopic,
   parseReadWritingArgs,
   parseSearchWritingArgs,
+  parseShowOnPageArgs,
   parseShowOnPageTargets,
   quoteList,
   type CopilotTool,
+  type ShowOnPageArgs,
 } from "./copilot-tools";
 import type { Article } from "./articles";
 import { MAX_ARTICLES_PER_REPLY, MAX_READING_CALLS } from "./search-config";
 import { PAGE_TARGET_IDS } from "./profile";
 import type { SearchTrace } from "./writing-search";
 import type { TraceSpan } from "./copilot-loop";
-import type { PriorCitation } from "./citation-ledger";
+import { mediumPostId, type PriorCitation } from "./citation-ledger";
+import { ARTICLES } from "./articles";
+import { SHOW_CARD_PARAMETERS, parseShowCardArgs, type ShowCardArgs } from "./cards";
 
 describe("parseShowOnPageTargets", () => {
   it("returns the single target as a one-item list", () => {
@@ -124,11 +129,120 @@ describe("parseShowOnPageTargets", () => {
   });
 });
 
+describe("parseShowOnPageArgs", () => {
+  it("accepts a slug that ends in the post id, and resolves it to the id", () => {
+    const isArticle = jest.fn((id: string) => id === "1a2b3c4d5e6f");
+    const out = parseShowOnPageArgs(JSON.stringify({ targets: [], articles: ["introducing-stablecoins-1a2b3c4d5e6f"] }), isArticle);
+    expect(out).toEqual({ targets: ["writing"], articles: ["1a2b3c4d5e6f"] });
+    expect(isArticle).toHaveBeenCalledWith("1a2b3c4d5e6f");
+  });
+
+  const RAFT_ID = mediumPostId(ARTICLES.find((a) => /How to RAFT your LLM/.test(a.title))!.url)!;
+  const BOUNCER_ID = mediumPostId(ARTICLES.find((a) => /Needs a Bouncer/.test(a.title))!.url)!;
+  const known = (...ids: string[]) => (id: string) => ids.includes(id);
+  const parse = (raw: string, isArticle: (id: string) => boolean = known(RAFT_ID, BOUNCER_ID)) => parseShowOnPageArgs(raw, isArticle);
+
+  it("returns the targets and the articles, with writing added first when an article is picked", () => {
+    expect(parse(JSON.stringify({ targets: ["role-illumina"], articles: [RAFT_ID] }))).toEqual({
+      targets: ["writing", "role-illumina"],
+      articles: [RAFT_ID],
+    });
+  });
+
+  it("keeps writing where the model put it when it is already a target", () => {
+    expect(parse(JSON.stringify({ targets: ["role-illumina", "writing"], articles: [RAFT_ID] }))).toEqual({
+      targets: ["role-illumina", "writing"],
+      articles: [RAFT_ID],
+    });
+  });
+
+  it("adds no writing target when no article survives, and keeps the other targets", () => {
+    expect(parse(JSON.stringify({ targets: ["role-illumina"], articles: ["nosuchid00"] }))).toEqual({
+      targets: ["role-illumina"],
+      articles: [],
+    });
+  });
+
+  it("returns writing alone when only articles survive and no target is valid", () => {
+    expect(parse(JSON.stringify({ targets: ["nope"], articles: [BOUNCER_ID] }))).toEqual({ targets: ["writing"], articles: [BOUNCER_ID] });
+  });
+
+  it("returns null when neither a target nor an article is left", () => {
+    expect(parse(JSON.stringify({ targets: [], articles: [] }))).toBeNull();
+    expect(parse(JSON.stringify({ targets: ["nope"], articles: ["nosuchid00"] }))).toBeNull();
+    expect(parse(JSON.stringify({ targets: [], articles: ["nosuchid00"] }))).toBeNull();
+  });
+
+  it("returns null for malformed JSON, a null body, or an object with neither key", () => {
+    expect(parse("{")).toBeNull();
+    expect(parse("null")).toBeNull();
+    expect(parse("{}")).toBeNull();
+  });
+
+  it("ignores a targets or articles value that is not a list", () => {
+    expect(parse(JSON.stringify({ targets: "role-illumina", articles: RAFT_ID }))).toBeNull();
+    expect(parse(JSON.stringify({ targets: ["role-illumina"], articles: RAFT_ID }))).toEqual({ targets: ["role-illumina"], articles: [] });
+  });
+
+  it("drops unknown targets, non-string targets and repeats, keeping the order", () => {
+    expect(parse(JSON.stringify({ targets: ["tool-neo4j", 7, "role-nasa", "tool-neo4j", "role-illumina"], articles: [] }))).toEqual({
+      targets: ["tool-neo4j", "role-illumina"],
+      articles: [],
+    });
+  });
+
+  it("caps the targets at MAX_PAGE_TARGETS", () => {
+    const out = parse(JSON.stringify({ targets: PAGE_TARGET_IDS.slice(0, MAX_PAGE_TARGETS + 2), articles: [] }));
+    expect(out?.targets).toHaveLength(MAX_PAGE_TARGETS);
+    expect(out?.targets).toEqual(PAGE_TARGET_IDS.slice(0, MAX_PAGE_TARGETS));
+  });
+
+  it("cleans each article id: a full Medium URL is reduced to its post id, and case and spaces are dropped", () => {
+    const isArticle = jest.fn(known(RAFT_ID));
+    const out = parse(JSON.stringify({ targets: [], articles: [`  ${RAFT_ID.toUpperCase()}  `] }), isArticle);
+    expect(out?.articles).toEqual([RAFT_ID]);
+    expect(isArticle).toHaveBeenCalledWith(RAFT_ID);
+
+    const fromUrl = parse(JSON.stringify({ targets: [], articles: [ARTICLES.find((a) => /How to RAFT your LLM/.test(a.title))!.url] }));
+    expect(fromUrl?.articles).toEqual([RAFT_ID]);
+  });
+
+  it("drops an article that is not one of mine, and keeps the order of the ones that are", () => {
+    expect(parse(JSON.stringify({ targets: [], articles: [BOUNCER_ID, "nosuchid00", RAFT_ID] }))?.articles).toEqual([BOUNCER_ID, RAFT_ID]);
+  });
+
+  it("drops a repeated article, keeping its first position", () => {
+    expect(parse(JSON.stringify({ targets: [], articles: [RAFT_ID, BOUNCER_ID, RAFT_ID] }))?.articles).toEqual([RAFT_ID, BOUNCER_ID]);
+  });
+
+  it("drops article ids that are not strings", () => {
+    expect(parse(JSON.stringify({ targets: [], articles: [7, null, RAFT_ID] }))?.articles).toEqual([RAFT_ID]);
+  });
+
+  it("caps the picked articles at MAX_PICKED_ARTICLES, keeping the first", () => {
+    expect(MAX_PICKED_ARTICLES).toBe(12);
+    const ids = Array.from({ length: 15 }, (_, i) => (0x100 + i).toString(16));
+    const out = parseShowOnPageArgs(JSON.stringify({ targets: [], articles: ids }), () => true);
+    expect(out?.articles).toEqual(ids.slice(0, MAX_PICKED_ARTICLES));
+  });
+
+  it("cuts an article id at 64 characters before asking whether it is one of mine", () => {
+    const isArticle = jest.fn(() => false);
+    parse(JSON.stringify({ targets: ["role-illumina"], articles: ["a".repeat(100)] }), isArticle);
+    expect(isArticle).toHaveBeenCalledWith("a".repeat(64));
+  });
+
+  it("ignores articles that are not a list", () => {
+    expect(parse(JSON.stringify({ targets: ["role-illumina"], articles: "x" }))).toEqual({ targets: ["role-illumina"], articles: [] });
+  });
+});
+
 describe("show_on_page tool run", () => {
-  function getShowOnPage(): CopilotTool<string[]> {
+  const RAFT_ID = mediumPostId(ARTICLES.find((a) => /How to RAFT your LLM/.test(a.title))!.url)!;
+  function getShowOnPage(): CopilotTool<ShowOnPageArgs> {
     const tool = createCopilotTools().find((t) => t.definition.name === "show_on_page");
     if (!tool) throw new Error("show_on_page is not registered");
-    return tool as CopilotTool<string[]>;
+    return tool as CopilotTool<ShowOnPageArgs>;
   }
 
   it("emits one action event per target, in order, and returns what was shown", async () => {
@@ -136,7 +250,7 @@ describe("show_on_page tool run", () => {
     const emit = jest.fn();
     const signal = new AbortController().signal;
 
-    const result = await tool.run(["tool-tigergraph", "tool-neo4j", "role-illumina"], { emit, signal });
+    const result = await tool.run({ targets: ["tool-tigergraph", "tool-neo4j", "role-illumina"], articles: [] }, { emit, signal });
 
     expect(emit.mock.calls).toEqual([
       [{ type: "action", target: "tool-tigergraph" }],
@@ -145,31 +259,64 @@ describe("show_on_page tool run", () => {
     ]);
     expect(result).toEqual({ shown: ["tool-tigergraph", "tool-neo4j", "role-illumina"] });
   });
+
+  it("emits no pick when no article was picked, and returns no writingFilteredTo", async () => {
+    const emit = jest.fn();
+    const result = await getShowOnPage().run({ targets: ["role-illumina"], articles: [] }, { emit, signal: new AbortController().signal });
+    expect(emit.mock.calls.map(([e]) => e.type)).toEqual(["action"]);
+    expect(result).toEqual({ shown: ["role-illumina"] });
+    expect(result).not.toHaveProperty("writingFilteredTo");
+  });
+
+  it("emits the pick before the action events, so the Writing page is filtered before it is shown", async () => {
+    const emit = jest.fn();
+    await getShowOnPage().run({ targets: ["writing", "role-illumina"], articles: [RAFT_ID] }, { emit, signal: new AbortController().signal });
+    expect(emit.mock.calls).toEqual([
+      [{ type: "pick", articles: [RAFT_ID] }],
+      [{ type: "action", target: "writing" }],
+      [{ type: "action", target: "role-illumina" }],
+    ]);
+  });
+
+  it("returns how many articles the Writing page is filtered to, when there are some", async () => {
+    const result = await getShowOnPage().run(
+      { targets: ["writing"], articles: [RAFT_ID] },
+      { emit: jest.fn(), signal: new AbortController().signal }
+    );
+    expect(result).toEqual({ shown: ["writing"], writingFilteredTo: 1 });
+  });
 });
 
 describe("createCopilotTools", () => {
-  it(`registers show_on_page (one call per reply), search_writing and read_writing (${MAX_READING_CALLS} each), in that order`, () => {
+  it(`registers show_on_page (one call per reply), search_writing and read_writing (${MAX_READING_CALLS} each) and show_card (one call per reply), in that order`, () => {
     const tools = createCopilotTools();
 
-    expect(tools.map((t) => t.definition.name)).toEqual(["show_on_page", "search_writing", "read_writing"]);
+    expect(tools.map((t) => t.definition.name)).toEqual(["show_on_page", "search_writing", "read_writing", "show_card"]);
     expect(tools[0].maxCallsPerReply).toBe(1);
     expect(tools[1].maxCallsPerReply).toBe(MAX_READING_CALLS);
     expect(tools[2].maxCallsPerReply).toBe(MAX_READING_CALLS);
+    expect(tools[3].maxCallsPerReply).toBe(1);
   });
 
-  it("defines show_on_page as a strict function tool with a required array of the page anchor ids", () => {
+  it("defines show_on_page as a strict function tool, with both targets and articles required", () => {
     const { definition } = createCopilotTools()[0];
 
     expect(definition).toMatchObject({ type: "function", name: "show_on_page", strict: true });
     expect(definition.parameters).toMatchObject({
       type: "object",
-      required: ["targets"],
+      required: ["targets", "articles"],
       additionalProperties: false,
-      properties: { targets: { type: "array", items: { type: "string" } } },
+      properties: { targets: { type: "array", items: { type: "string" } }, articles: { type: "array", items: { type: "string" } } },
     });
     expect(
       (definition.parameters as { properties: { targets: { items: { enum: string[] } } } }).properties.targets.items.enum
     ).toEqual(PAGE_TARGET_IDS);
+  });
+
+  it("states the article cap in the articles description the model reads", () => {
+    const { definition } = createCopilotTools()[0];
+    const articles = (definition.parameters as { properties: { articles: { description: string } } }).properties.articles;
+    expect(articles.description).toContain(`at most ${MAX_PICKED_ARTICLES}`);
   });
 
   it("returns fresh tool instances on each call so per-reply state is not shared", () => {
@@ -180,12 +327,25 @@ describe("createCopilotTools", () => {
     expect(first[0]).not.toBe(second[0]);
   });
 
-  it("wires the tool's parse to the same validation as parseShowOnPageTargets", () => {
+  it("wires the tool's parse to the same validation as parseShowOnPageArgs", () => {
     const tool = createCopilotTools()[0];
+    const RAFT_ID = mediumPostId(ARTICLES.find((a) => /How to RAFT your LLM/.test(a.title))!.url)!;
 
-    expect(tool.parse('{"targets":["role-illumina","role-nasa"]}')).toEqual(["role-illumina"]);
-    expect(tool.parse('{"targets":["role-nasa"]}')).toBeNull();
+    expect(tool.parse(JSON.stringify({ targets: ["role-illumina", "role-nasa"], articles: [] }))).toEqual({
+      targets: ["role-illumina"],
+      articles: [],
+    });
+    expect(tool.parse(JSON.stringify({ targets: ["role-nasa"], articles: [] }))).toBeNull();
+    expect(tool.parse(JSON.stringify({ targets: [], articles: [RAFT_ID] }))).toEqual({ targets: ["writing"], articles: [RAFT_ID] });
     expect(tool.parse("{")).toBeNull();
+  });
+
+  it("checks picked articles against the catalog it is given", () => {
+    const RAFT_ID = mediumPostId(ARTICLES.find((a) => /How to RAFT your LLM/.test(a.title))!.url)!;
+    const empty = createCopilotTools({ catalog: [] })[0];
+    expect(empty.parse(JSON.stringify({ targets: [], articles: [RAFT_ID] }))).toBeNull();
+    const full = createCopilotTools({ catalog: ARTICLES })[0];
+    expect(full.parse(JSON.stringify({ targets: [], articles: [RAFT_ID] }))).not.toBeNull();
   });
 });
 
@@ -1504,6 +1664,7 @@ describe("read_writing", () => {
       articles: [
         {
           n: 1,
+          id: "aaaaaaaaaaaa",
           title: "Title alpha",
           url: ALPHA.url,
           published: "2025-06-18",
@@ -1512,6 +1673,7 @@ describe("read_writing", () => {
         },
         {
           n: 2,
+          id: "bbbbbbbbbbbb",
           title: "Title beta",
           url: BETA.url,
           published: "2025-06-18",
@@ -1795,5 +1957,191 @@ describe("step labels (describe)", () => {
   it("gives show_on_page no describe, as it has its own caption", () => {
     const tool = createCopilotTools({ catalog }).find((t) => t.definition.name === "show_on_page");
     expect(tool?.describe).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// show_card: a card under the reply (lib/cards.ts), built from my data.
+// ---------------------------------------------------------------------------
+
+describe("show_card tool", () => {
+  const signal = new AbortController().signal;
+  const RAFT = ARTICLES.find((a) => /How to RAFT your LLM/.test(a.title))!;
+  const RAFT_ID = mediumPostId(RAFT.url)!;
+  const PLACES = [
+    { target: "role-illumina", line: "Built the RAG stack" },
+    { target: "project-margin-call", line: "Side project" },
+  ];
+  const evidenceCard = (articles: string[] = [], places = PLACES) => JSON.stringify({ card: { kind: "evidence", places, articles } });
+  const showCard = (prior?: PriorCitation[]) => {
+    const tool = createCopilotTools({ catalog: ARTICLES, prior }).find((t) => t.definition.name === "show_card")!;
+    return tool as unknown as CopilotTool<ShowCardArgs>;
+  };
+  const RAFT_PRIOR: PriorCitation[] = [{ n: 4, slug: RAFT.slug, title: RAFT.title, url: RAFT.url, publishedAt: RAFT.publishedAt }];
+  let warn: jest.SpyInstance;
+  beforeEach(() => {
+    warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    warn.mockRestore();
+  });
+
+  it("is a strict function tool with the card schema, one call per reply, and no progress line", () => {
+    const tool = showCard();
+    expect(tool.definition).toEqual({
+      type: "function",
+      name: "show_card",
+      description: expect.stringContaining("Call at most once"),
+      strict: true,
+      parameters: SHOW_CARD_PARAMETERS,
+    });
+    expect(tool.maxCallsPerReply).toBe(1);
+    expect(tool.describe?.(tool.parse(evidenceCard())!)).toBeNull();
+  });
+
+  it("parses its raw arguments with parseShowCardArgs, and refuses the retired reading list", () => {
+    const tool = showCard();
+    expect(tool.parse(evidenceCard([RAFT_ID]))).toEqual(parseShowCardArgs(evidenceCard([RAFT_ID])));
+    expect(tool.parse('{"card":{"kind":"table"}}')).toBeNull();
+    expect(tool.parse(JSON.stringify({ card: { kind: "reading_list", articles: [] } }))).toBeNull();
+    expect(tool.parse("not json")).toBeNull();
+  });
+
+  it("emits one evidence card event with the id, kind, summary, plain flair and messages, and returns shown with the summary", async () => {
+    const tool = showCard();
+    const emit = jest.fn();
+    const args = tool.parse(evidenceCard())!;
+
+    const result = await tool.run(args, { emit, signal });
+
+    expect(emit).toHaveBeenCalledTimes(1);
+    const event = emit.mock.calls[0][0];
+    expect(event).toMatchObject({
+      type: "card",
+      id: "card_1",
+      kind: "evidence",
+      flair: "plain",
+      summary: "[Card shown: where I did it, “Illumina”, “TheMarginCall”]",
+      sources: [],
+    });
+    expect(event.messages[0]).toMatchObject({ createSurface: { surfaceId: "card_1" } });
+    expect(result).toEqual({ shown: true, card: event.summary });
+  });
+
+  it("emits a compare card with kind compare and no sources", async () => {
+    const tool = showCard();
+    const emit = jest.fn();
+    const compare = JSON.stringify({
+      card: {
+        kind: "compare",
+        title: "LoRA or RAFT",
+        options: [
+          { name: "LoRA", article: null },
+          { name: "RAFT", article: RAFT_ID },
+        ],
+        rows: [{ label: "Trains on", cells: ["Adapters", "Docs"] }],
+      },
+    });
+    await tool.run(tool.parse(compare)!, { emit, signal });
+    expect(emit.mock.calls[0][0]).toMatchObject({ type: "card", kind: "compare", flair: "plain", sources: [] });
+  });
+
+  it("lists a numbered article as a source, with its number in the event and in the summary", async () => {
+    const tool = showCard(RAFT_PRIOR);
+    const emit = jest.fn();
+    await tool.run(tool.parse(evidenceCard([RAFT_ID]))!, { emit, signal });
+
+    const event = emit.mock.calls[0][0];
+    expect(event.sources).toEqual([4]);
+    expect(event.summary).toBe("[Card shown: where I did it, “Illumina”, “TheMarginCall”; sources [4]]");
+    expect(JSON.stringify(event.messages)).toContain('"n":4');
+  });
+
+  it("numbers each card's id in the order the cards are built, card_1 then card_2", async () => {
+    const tool = showCard();
+    const emit = jest.fn();
+    await tool.run(tool.parse(evidenceCard())!, { emit, signal });
+    await tool.run(tool.parse(evidenceCard())!, { emit, signal });
+    expect(emit.mock.calls.map(([e]) => e.id)).toEqual(["card_1", "card_2"]);
+  });
+
+  it("does not emit when no place is on my site: returns shown false with an error, and tells the model to answer in prose", async () => {
+    const tool = showCard();
+    const emit = jest.fn();
+
+    const result = (await tool.run(tool.parse(evidenceCard([], [{ target: "role-nasa", line: "x" }]))!, { emit, signal })) as {
+      shown: boolean;
+      error: string;
+    };
+
+    expect(emit).not.toHaveBeenCalled();
+    expect(result.shown).toBe(false);
+    expect(result.error).toMatch(/none of those places is on my site/);
+    expect(result.error).toMatch(/answer without a card$/);
+  });
+
+  it("does not emit a card that covers one part of the site, and says why", async () => {
+    const tool = showCard();
+    const emit = jest.fn();
+    const result = (await tool.run(
+      tool.parse(evidenceCard([], [PLACES[0], { target: "role-uob", line: "x" }]))!,
+      { emit, signal }
+    )) as { shown: boolean; error: string };
+    expect(emit).not.toHaveBeenCalled();
+    expect(result.error).toMatch(/span my site/);
+  });
+
+  it("logs the drop as a copilot_card_dropped line without any card text", async () => {
+    const tool = showCard();
+    await tool.run(tool.parse(evidenceCard([], [{ target: "role-nasa", line: "Built the RAG stack" }]))!, { emit: jest.fn(), signal });
+    expect(warn).toHaveBeenCalledTimes(1);
+    const line = JSON.parse(warn.mock.calls[0][0]);
+    expect(line).toEqual({ event: "copilot_card_dropped", kind: "evidence", error: expect.any(String) });
+    expect(warn.mock.calls[0][0]).not.toContain("Built the RAG stack");
+  });
+
+  it("keeps the card's id counter when a dropped card comes before a good one", async () => {
+    const tool = showCard();
+    const emit = jest.fn();
+    await tool.run(tool.parse(evidenceCard([], [{ target: "role-nasa", line: "x" }]))!, { emit, signal });
+    await tool.run(tool.parse(evidenceCard())!, { emit, signal });
+    expect(emit).toHaveBeenCalledTimes(1);
+    expect(emit.mock.calls[0][0].id).toBe("card_2");
+  });
+
+  it("annotates the trace span with the card's kind, flair, summary and sources when it is shown", async () => {
+    const tool = showCard(RAFT_PRIOR);
+    const span = { annotate: jest.fn(), step: jest.fn(), end: jest.fn(), fail: jest.fn() };
+    await tool.run(tool.parse(evidenceCard([RAFT_ID]))!, { emit: jest.fn(), signal, trace: span as unknown as TraceSpan });
+    expect(span.annotate).toHaveBeenCalledWith({
+      card: {
+        kind: "evidence",
+        flair: "plain",
+        summary: "[Card shown: where I did it, “Illumina”, “TheMarginCall”; sources [4]]",
+        articles: [RAFT.slug],
+      },
+    });
+  });
+
+  it("annotates the trace span with the error when the card is dropped", async () => {
+    const tool = showCard();
+    const span = { annotate: jest.fn(), step: jest.fn(), end: jest.fn(), fail: jest.fn() };
+    await tool.run(tool.parse(evidenceCard([], [{ target: "role-nasa", line: "x" }]))!, {
+      emit: jest.fn(),
+      signal,
+      trace: span as unknown as TraceSpan,
+    });
+    expect(span.annotate).toHaveBeenCalledWith({
+      card: { kind: "evidence", error: expect.stringMatching(/none of those places/) },
+    });
+  });
+
+  it("works with no trace span, and the output is the same", async () => {
+    const tool = showCard();
+    const emit = jest.fn();
+    await expect(tool.run(tool.parse(evidenceCard())!, { emit, signal })).resolves.toEqual({
+      shown: true,
+      card: "[Card shown: where I did it, “Illumina”, “TheMarginCall”]",
+    });
   });
 });
