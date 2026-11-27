@@ -101,7 +101,7 @@ function PickFromLink({ onPick }: { onPick: (ids: string[]) => void }) {
 export function pickSummary(list: readonly Story[]): string {
   // A story the themes file doesn't list sits on no desk, so it doesn't count as one.
   const desks = new Set(list.flatMap((s) => (s.desk ? [s.desk] : []))).size
-  const years = list.map((s) => s.year).sort()
+  const years = list.map((s) => s.year).sort((a, b) => a.localeCompare(b))
   const span = years[0] === years[years.length - 1] ? `in ${years[0]}` : `${years[0]} to ${years[years.length - 1]}`
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
   return `${plural(list.length, 'article')}${desks ? ` from ${plural(desks, 'desk')}` : ''}, ${span}`
