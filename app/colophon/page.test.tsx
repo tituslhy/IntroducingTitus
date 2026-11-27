@@ -343,7 +343,7 @@ describe("ColophonPage theme count", () => {
 describe("ColophonPage four kinds of question", () => {
   const GUARDRAILS_Q = "What have you written about guardrails?";
   const LITELLM_Q = "How do I use LiteLLM, Helm and Nginx?";
-  const BROAD_Q = "How would you build production-ready agents?";
+  const BROAD_Q = "How would you design production-ready agents?";
   const LANGGRAPH_Q = "Have you used LangGraph?";
 
   function block(): HTMLElement {

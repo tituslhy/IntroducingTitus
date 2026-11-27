@@ -1,4 +1,13 @@
-import { foldSteps, MAX_HEADLINE_CHARS, summaryHeadline, toStep, upsertStep, type Step } from "./copilot-steps";
+import {
+  foldSteps,
+  MAX_HEADLINE_CHARS,
+  PAGE_MOVE_STEP_ID,
+  pageMoveStep,
+  summaryHeadline,
+  toStep,
+  upsertStep,
+  type Step,
+} from "./copilot-steps";
 
 const search = (id: string, done: boolean, label = "Searching my writing for “a”"): Step => ({
   id,
@@ -170,5 +179,89 @@ describe("summaryHeadline", () => {
 
   it("skips a title one character over the limit, rather than truncating it", () => {
     expect(summaryHeadline(`**${"t".repeat(MAX_HEADLINE_CHARS + 1)}**\n\nDetails`)).toBeNull();
+  });
+});
+
+describe("pageMoveStep", () => {
+  it("says it went to a place on another page", () => {
+    expect(pageMoveStep({ page: "Experience", label: "Mastercard" }, false)).toEqual({
+      id: PAGE_MOVE_STEP_ID,
+      tool: "show_on_page",
+      label: "Went to Mastercard on the Experience page",
+      done: true,
+    });
+  });
+
+  it("says it went to a page when the place is the page itself", () => {
+    expect(pageMoveStep({ page: "Writing", label: "Writing" }, false).label).toBe("Went to the Writing page");
+  });
+
+  it("says it scrolled when the place is on the page it is already on", () => {
+    expect(pageMoveStep({ page: "Experience", label: "Mastercard" }, true).label).toBe("Scrolled to Mastercard");
+  });
+
+  it("is always done, with the show_on_page tool and the fixed page-move id", () => {
+    const step = pageMoveStep({ page: "About", label: "Tools" }, false);
+    expect(step).toMatchObject({ id: "page-move", tool: "show_on_page", done: true });
+    expect(PAGE_MOVE_STEP_ID).toBe("page-move");
+  });
+
+  it("says how many articles the Writing page was filtered to", () => {
+    expect(pageMoveStep({ page: "Writing", label: "Writing" }, false, 3).label).toBe(
+      "Filtered the Writing page to 3 articles",
+    );
+  });
+
+  it("uses the singular for a pick of one article", () => {
+    expect(pageMoveStep({ page: "Writing", label: "Writing" }, false, 1).label).toBe(
+      "Filtered the Writing page to 1 article",
+    );
+  });
+
+  it("gives the pick wording over the same-page wording", () => {
+    expect(pageMoveStep({ page: "Writing", label: "Writing" }, true, 2).label).toBe(
+      "Filtered the Writing page to 2 articles",
+    );
+  });
+
+  it("treats a pick of zero as no pick", () => {
+    expect(pageMoveStep({ page: "Writing", label: "Writing" }, false, 0).label).toBe("Went to the Writing page");
+  });
+});
+
+describe("foldSteps with a page move", () => {
+  const moved = (label: string): Step => ({ id: PAGE_MOVE_STEP_ID, tool: "show_on_page", label, done: true });
+
+  it("appends the page move after the search and read counts, in lower case", () => {
+    expect(
+      foldSteps(
+        [search("c1", true), moved("Went to Mastercard on the Experience page")],
+        3,
+      ),
+    ).toBe("Searched my writing · read 3 articles · went to Mastercard on the Experience page");
+  });
+
+  it("appends the page move after a read-only line", () => {
+    expect(foldSteps([read("c1", true), moved("Went to the Writing page")], 2)).toBe(
+      "Read 2 articles · went to the Writing page",
+    );
+  });
+
+  it("keeps the page move as it is when it stands alone", () => {
+    expect(foldSteps([moved("Went to the Writing page")], 0)).toBe("Went to the Writing page");
+  });
+
+  it("lowers the first letter of a pick line that follows other parts", () => {
+    expect(foldSteps([search("c1", true), moved("Filtered the Writing page to 2 articles")], 2)).toBe(
+      "Searched my writing · read 2 articles · filtered the Writing page to 2 articles",
+    );
+  });
+
+  it("gives the page move alone when there were no searches or articles", () => {
+    expect(foldSteps([moved("Scrolled to Tools")], 0)).toBe("Scrolled to Tools");
+  });
+
+  it("does not add a page move that never happened", () => {
+    expect(foldSteps([search("c1", true)], 1)).toBe("Searched my writing · read 1 article");
   });
 });

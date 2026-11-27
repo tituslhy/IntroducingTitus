@@ -50,7 +50,7 @@ const QUESTION_KINDS: [question: string, route: string][] = [
     'search_writing(["LiteLLM", "Helm", "Nginx"]): one call, three searches inside it (one per topic), merged so each topic’s best article comes first.',
   ],
   [
-    'How would you build production-ready agents?',
+    'How would you design production-ready agents?',
     'No search. GPT splits it into parts (architecture, reliability, deployment), picks the articles for each part from the library map in its prompt, and opens each part with its own read_writing call, all at once. It stops when I have nothing more to add.',
   ],
   [
@@ -346,7 +346,7 @@ export default function ColophonPage() {
                 'Reading by theme',
                 <>
                 <p className={prose}>
-                  Search answers concrete questions well and broad ones badly. Ask “how would you build production-ready
+                  Search answers concrete questions well and broad ones badly. Ask “how would you design production-ready
                   agents?” and every article is a little relevant, so none stands out. For those, GPT doesn’t search. Its
                   prompt carries a map of my library: a handful of themes, each article listed under its theme with a
                   one-line summary, and an article that does two jobs listed under both. GPT splits the question into its

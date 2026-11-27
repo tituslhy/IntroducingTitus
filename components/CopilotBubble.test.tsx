@@ -1970,7 +1970,7 @@ describe("CopilotBubble", () => {
       expect(screen.getByText(/the Illumina work last/)).toBeInTheDocument();
     });
 
-    it("keeps the arrival order while the reply is still streaming, then reorders once it finishes", async () => {
+    it("shows no pills while the reply is still streaming, then the text order once it closes", async () => {
       const { response, release } = scriptedResponse([
         actionLine("role-illumina"),
         actionLine("edu-smu"),
@@ -1983,11 +1983,13 @@ describe("CopilotBubble", () => {
       await openDrawer();
 
       await waitFor(() => expect(screen.getByText(/the Illumina work last/)).toBeInTheDocument());
-      await waitFor(() => expect(pillLabels()).toEqual(ARRIVAL));
+      expect(screen.queryByText("See on page")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Experience · Illumina, 2023" })).not.toBeInTheDocument();
 
       await act(async () => release());
 
       await waitFor(() => expect(pillLabels()).toEqual(TEXT_ORDER));
+      expect(pillLabels()).not.toEqual(ARRIVAL);
     });
 
     it("keeps an earlier reply's pills in text order while a later reply is still streaming", async () => {
@@ -2219,15 +2221,16 @@ describe("CopilotBubble", () => {
       render(<CopilotBubble targets={[ILLUMINA]} />);
       await askQuestion("Show me Illumina");
 
-      await screen.findByRole("button", { name: "Experience · Illumina, 2023" });
+      // The stops are listed once the reply has closed, so wait for its first words, then scroll the page.
+      await screen.findByText(/^Here/);
       fireEvent.wheel(document.body);
       await letPageSettle();
       gated.release();
 
       await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
+      expect(screen.getByRole("button", { name: "Experience · Illumina, 2023" })).toBeInTheDocument();
       expect(scrollTo).not.toHaveBeenCalled();
       expect(mockPush).not.toHaveBeenCalled();
-      expect(screen.getByRole("button", { name: "Experience · Illumina, 2023" })).toBeInTheDocument();
       illumina.remove();
     });
 
@@ -2242,11 +2245,12 @@ describe("CopilotBubble", () => {
       render(<CopilotBubble targets={[ILLUMINA]} />);
       await askQuestion("Show me Illumina");
 
-      await screen.findByRole("button", { name: "Experience · Illumina, 2023" });
+      await screen.findByText(/^Here/);
       fireEvent.wheel(screen.getByPlaceholderText(/ask about my work/i));
       gated.release();
 
       await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 384, behavior: "smooth" }));
+      expect(await screen.findByRole("button", { name: "Experience · Illumina, 2023" })).toBeInTheDocument();
       illumina.remove();
     });
 
@@ -5422,5 +5426,664 @@ describe("CopilotBubble: a pick from show_on_page", () => {
   it("remembers the question that made the pick, for the Writing page's banner", async () => {
     await askFor([pickLine(TWO), writingAction]);
     expect(pickQuestion(TWO)).toBe("Which of your articles should I read?");
+  });
+});
+
+describe("CopilotBubble: a card waits for the reply", () => {
+  const SUMMARY = "[Card shown: where I did it, “Illumina”, “TheMarginCall”]";
+  const surface = [
+    { version: "1.0", createSurface: { surfaceId: "card_1", catalogId: "x", metadata: {} } },
+    { version: "1.0", updateComponents: { surfaceId: "card_1", components: [] } },
+  ];
+  const cardLine = `${JSON.stringify({ type: "card", id: "card_1", kind: "evidence", summary: SUMMARY, flair: "plain", messages: surface, sources: [] })}\n`;
+
+  beforeEach(() => {
+    global.fetch = jest.fn();
+    global.crypto = {
+      randomUUID: jest.fn(() => "test-id-" + Math.random().toString(36).substr(2, 9)),
+    } as unknown as Crypto;
+    if (!global.TextDecoder) {
+      global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+    }
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  async function askQuestion(question: string) {
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), `${question}{Enter}`);
+  }
+
+  it("does not draw the card while the reply is still streaming in", async () => {
+    const stream = pausingResponse([cardLine, deltaLine("Start with RAFT."), WAIT]);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    await askQuestion("How would you design production-ready agents?");
+
+    await screen.findByText("Start with RAFT.");
+    expect(screen.queryByTestId("a2ui-card")).not.toBeInTheDocument();
+  });
+
+  it("draws the card below the reply once the stream has closed", async () => {
+    const stream = pausingResponse([cardLine, deltaLine("Start with RAFT."), WAIT]);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    await askQuestion("How would you design production-ready agents?");
+
+    await screen.findByText("Start with RAFT.");
+    expect(screen.queryByTestId("a2ui-card")).not.toBeInTheDocument();
+
+    await stream.release();
+    const card = await screen.findByTestId("a2ui-card");
+    expect(card).toHaveTextContent("Where I did it, and sources (2 messages)");
+    const reply = screen.getByText("Start with RAFT.");
+    expect(reply.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getAllByTestId("a2ui-card")).toHaveLength(1);
+  });
+
+  it("keeps the card out of the reply when the stream fails partway through", async () => {
+    const encoder = new TextEncoder();
+    const reader = {
+      read: jest
+        .fn()
+        .mockResolvedValueOnce({ done: false, value: encoder.encode(cardLine) })
+        .mockResolvedValueOnce({ done: false, value: encoder.encode(deltaLine("Partway")) })
+        .mockRejectedValueOnce(new TypeError("network error")),
+    };
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, status: 200, body: { getReader: () => reader } });
+    await askQuestion("Anything?");
+
+    await waitFor(() => expect(screen.getByText(/connection dropped before I could finish/i)).toBeInTheDocument());
+    expect(screen.getByText("Partway")).toBeInTheDocument();
+    expect(screen.queryByTestId("a2ui-card")).not.toBeInTheDocument();
+  });
+
+  it("keeps the card out of a failed reply that never sent any text", async () => {
+    const encoder = new TextEncoder();
+    const reader = {
+      read: jest
+        .fn()
+        .mockResolvedValueOnce({ done: false, value: encoder.encode(cardLine) })
+        .mockRejectedValueOnce(new TypeError("network error")),
+    };
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, status: 200, body: { getReader: () => reader } });
+    await askQuestion("Anything?");
+
+    await waitFor(() => expect(screen.getByText(/connection dropped before I could finish/i)).toBeInTheDocument());
+    expect(screen.queryByTestId("a2ui-card")).not.toBeInTheDocument();
+  });
+});
+
+describe("CopilotBubble: the page-move step", () => {
+  const TARGET_ID = "role-illumina";
+  const TARGETS = [{ id: TARGET_ID, label: "Illumina, 2023", path: "/experience", page: "Experience" }];
+  const WRITING = [{ id: "writing", label: "Writing", path: "/writing", page: "Writing" }];
+  const SIDE_BY_SIDE = "(min-width: 1024px)";
+  const MOVED = "Went to Illumina, 2023 on the Experience page";
+  const pickLine = (ids: string[]) => `${JSON.stringify({ type: "pick", articles: ids })}\n`;
+  let originalMatchMedia: typeof window.matchMedia;
+  const originalScrollTo = window.scrollTo;
+
+  beforeEach(() => {
+    originalMatchMedia = window.matchMedia;
+    window.scrollTo = jest.fn() as unknown as typeof window.scrollTo;
+    if (!global.TextDecoder) {
+      global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+    }
+    global.fetch = jest.fn();
+    global.crypto = {
+      randomUUID: jest.fn(() => "test-id-" + Math.random().toString(36).substr(2, 9)),
+    } as unknown as Crypto;
+    mockPush.mockReset();
+    mockPathname = "/";
+    window.history.replaceState({}, "", "/");
+  });
+
+  afterEach(async () => {
+    await letPageSettle();
+    window.matchMedia = originalMatchMedia;
+    window.scrollTo = originalScrollTo;
+    document.getElementById(TARGET_ID)?.remove();
+    window.history.replaceState({}, "", "/");
+  });
+
+  function mockMatchMedia(matchingQueries: string[]) {
+    window.matchMedia = jest.fn((query: string) => ({
+      matches: matchingQueries.includes(query),
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(() => true),
+    }));
+  }
+
+  async function askWith(
+    script: Array<string | typeof WAIT>,
+    { targets = TARGETS, matching = [SIDE_BY_SIDE] }: { targets?: typeof TARGETS; matching?: string[] } = {},
+  ) {
+    mockMatchMedia(matching);
+    const stream = pausingResponse(script);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    render(<CopilotBubble targets={targets} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "Show me Illumina{Enter}");
+    return { user, stream };
+  }
+
+  const liveList = () => screen.queryByRole("list", { name: "What I'm doing" });
+
+  it("lists the move under the dots, before the reply has started, once the page has moved", async () => {
+    const { stream } = await askWith([actionLine(TARGET_ID), WAIT, deltaLine("Here it is.")]);
+
+    await letPageSettle();
+    const list = await waitFor(() => {
+      const found = liveList();
+      expect(found).toBeInTheDocument();
+      return found as HTMLElement;
+    });
+    expect(within(list).getByText(MOVED)).toBeInTheDocument();
+    expect(within(list).getByText(MOVED).closest("li")?.textContent).toBe(MOVED);
+    expect(screen.getByText("Writing the reply")).toBeInTheDocument();
+    expect(mockPush).toHaveBeenCalledWith("/experience", { scroll: false });
+
+    await stream.release();
+    await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
+    expect(liveList()).not.toBeInTheDocument();
+  });
+
+  it("joins the folded line above the reply when the move comes after the first words", async () => {
+    const { stream } = await askWith([deltaLine("Here it is."), actionLine(TARGET_ID), WAIT, deltaLine(" More.")]);
+    await screen.findByText(/Here it is\./);
+
+    await letPageSettle();
+    const fold = await screen.findByText(MOVED, { selector: "summary" });
+    expect(fold.closest("details")).not.toBeNull();
+    expect(liveList()).not.toBeInTheDocument();
+
+    await stream.release();
+    await waitFor(() => expect(screen.getByText(/More\./)).toBeInTheDocument());
+    expect(screen.getByText(MOVED, { selector: "summary" })).toBeInTheDocument();
+  });
+
+  it("adds the move to the fold after a search, with the other parts first", async () => {
+    const stepLine = (id: string, tool: string, label: string, done: boolean) =>
+      `${JSON.stringify({ type: "step", id, tool, label, done })}\n`;
+    const { stream } = await askWith([
+      stepLine("c1", "search_writing", "Searching my writing for “x”", false),
+      stepLine("c1", "search_writing", "Searched my writing for “x”", true),
+      actionLine(TARGET_ID),
+      deltaLine("Here it is."),
+      WAIT,
+    ]);
+    await letPageSettle();
+    await stream.release();
+    await waitFor(() =>
+      expect(screen.getByText(`Searched my writing · went to Illumina, 2023 on the Experience page`, { selector: "summary" })).toBeInTheDocument(),
+    );
+  });
+
+  it("does not list a move when the page is too narrow for the drawer beside it", async () => {
+    const { stream } = await askWith([actionLine(TARGET_ID), WAIT, deltaLine("Here it is.")], { matching: [] });
+    await letPageSettle();
+
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(liveList()).not.toBeInTheDocument();
+    expect(screen.queryByText(/Went to/)).not.toBeInTheDocument();
+
+    await stream.release();
+    await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
+    expect(screen.queryByText(/Went to/)).not.toBeInTheDocument();
+  });
+
+  it("does not list a move when the visitor scrolled the page during the answer", async () => {
+    const { stream } = await askWith([deltaLine("Here "), actionLine(TARGET_ID), WAIT, deltaLine("it is.")]);
+    await screen.findByText(/^Here/);
+    fireEvent.wheel(document.body);
+    await letPageSettle();
+
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Went to/)).not.toBeInTheDocument();
+
+    await stream.release();
+    await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
+    expect(screen.queryByText(/Went to/)).not.toBeInTheDocument();
+  });
+
+  it("says how many articles the Writing page was filtered to, for a pick beside the page", async () => {
+    const { stream } = await askWith(
+      [pickLine(["0000000a", "00000001"]), actionLine("writing"), WAIT, deltaLine("Here they are.")],
+      { targets: WRITING },
+    );
+    await letPageSettle();
+
+    expect(mockPush).toHaveBeenCalledWith("/writing?read=0000000a,00000001", { scroll: false });
+    expect(within(liveList()!).getByText("Filtered the Writing page to 2 articles")).toBeInTheDocument();
+
+    await stream.release();
+    await waitFor(() => expect(screen.getByText("Here they are.")).toBeInTheDocument());
+    expect(screen.getByText("Filtered the Writing page to 2 articles", { selector: "summary" })).toBeInTheDocument();
+  });
+
+  it("uses the singular for a pick of one article", async () => {
+    const { stream } = await askWith(
+      [pickLine(["0000000a"]), actionLine("writing"), WAIT, deltaLine("Here it is.")],
+      { targets: WRITING },
+    );
+    await letPageSettle();
+
+    expect(within(liveList()!).getByText("Filtered the Writing page to 1 article")).toBeInTheDocument();
+    await stream.release();
+    await waitFor(() => expect(screen.getByText("Here it is.")).toBeInTheDocument());
+  });
+});
+
+describe("CopilotBubble: following the bottom of the drawer", () => {
+  let height: number;
+  let scroller: HTMLElement;
+  let originalRO: unknown;
+  const globalRO = globalThis as unknown as { ResizeObserver?: unknown };
+  const hadRO = "ResizeObserver" in globalThis;
+
+  beforeEach(() => {
+    global.fetch = jest.fn();
+    global.crypto = {
+      randomUUID: jest.fn(() => "test-id-" + Math.random().toString(36).substr(2, 9)),
+    } as unknown as Crypto;
+    if (!global.TextDecoder) {
+      global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+    }
+    height = 1000;
+    originalRO = globalRO.ResizeObserver;
+    // jsdom has no ResizeObserver: these tests do not need one (the ResizeObserver describe below defines its own).
+    delete globalRO.ResizeObserver;
+  });
+
+  afterEach(() => {
+    if (hadRO) globalRO.ResizeObserver = originalRO;
+    else delete globalRO.ResizeObserver;
+    jest.restoreAllMocks();
+  });
+
+  /** Opens the drawer and gives its scroll box a geometry jsdom lacks: `height` is the content, the box is 400px. */
+  async function openDrawer() {
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    scroller = messagesScroller();
+    Object.defineProperty(scroller, "scrollHeight", { configurable: true, get: () => height });
+    Object.defineProperty(scroller, "clientHeight", { configurable: true, value: 400 });
+    return user;
+  }
+
+  /** The visitor scrolls the drawer to `top`: the scroll position changes, and a scroll event follows. */
+  function scrollDrawerTo(top: number) {
+    scroller.scrollTop = top;
+    fireEvent.scroll(scroller);
+  }
+
+  async function ask(user: ReturnType<typeof userEvent.setup>, question: string) {
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), `${question}{Enter}`);
+  }
+
+  it("pins the new lines to the bottom as a reply streams in", async () => {
+    const user = await openDrawer();
+    const stream = pausingResponse([deltaLine("One."), WAIT, deltaLine(" Two.")]);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    await ask(user, "Go on");
+
+    await screen.findByText(/One\./);
+    expect(scroller.scrollTop).toBe(1000);
+
+    height = 1200;
+    await stream.release();
+    await waitFor(() => expect(scroller.scrollTop).toBe(1200));
+  });
+
+  it("stops following when the visitor scrolls up, so further lines leave their place", async () => {
+    const user = await openDrawer();
+    const stream = pausingResponse([deltaLine("One."), WAIT, deltaLine(" Two."), WAIT, deltaLine(" Three.")]);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    await ask(user, "Go on");
+    await screen.findByText(/One\./);
+
+    scrollDrawerTo(100);
+    height = 1200;
+    await stream.release();
+    await screen.findByText(/Two\./);
+    expect(scroller.scrollTop).toBe(100);
+
+    height = 1400;
+    await stream.release();
+    await screen.findByText(/Three\./);
+    expect(scroller.scrollTop).toBe(100);
+  });
+
+  it("follows again once the visitor scrolls back to the bottom", async () => {
+    const user = await openDrawer();
+    const stream = pausingResponse([deltaLine("One."), WAIT, deltaLine(" Two."), WAIT, deltaLine(" Three.")]);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    await ask(user, "Go on");
+    await screen.findByText(/One\./);
+
+    scrollDrawerTo(100);
+    height = 1200;
+    await stream.release();
+    await screen.findByText(/Two\./);
+    expect(scroller.scrollTop).toBe(100);
+
+    scrollDrawerTo(1200 - 400);
+    height = 1500;
+    await stream.release();
+    await waitFor(() => expect(scroller.scrollTop).toBe(1500));
+  });
+
+  it("still counts as at the bottom within 48px of it", async () => {
+    const user = await openDrawer();
+    const stream = pausingResponse([deltaLine("One."), WAIT, deltaLine(" Two.")]);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    await ask(user, "Go on");
+    await screen.findByText(/One\./);
+
+    scrollDrawerTo(1000 - 400 - 48);
+    height = 1200;
+    await stream.release();
+    await waitFor(() => expect(scroller.scrollTop).toBe(1200));
+  });
+
+  it("stops following once it is more than 48px from the bottom", async () => {
+    const user = await openDrawer();
+    const stream = pausingResponse([deltaLine("One."), WAIT, deltaLine(" Two.")]);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    await ask(user, "Go on");
+    await screen.findByText(/One\./);
+
+    scrollDrawerTo(1000 - 400 - 49);
+    height = 1200;
+    await stream.release();
+    await screen.findByText(/Two\./);
+    expect(scroller.scrollTop).toBe(1000 - 400 - 49);
+  });
+
+  it("follows the new message when the visitor sends one, even after scrolling up", async () => {
+    const user = await openDrawer();
+    (global.fetch as jest.Mock).mockResolvedValueOnce(createStreamingResponse([deltaLine("First.")]));
+    await ask(user, "First question");
+    await screen.findByText(/First\./);
+
+    scrollDrawerTo(50);
+    height = 2000;
+    (global.fetch as jest.Mock).mockResolvedValueOnce(createStreamingResponse([deltaLine("Second.")]));
+    await ask(user, "Second question");
+
+    await waitFor(() => expect(scroller.scrollTop).toBe(2000));
+  });
+});
+
+describe("CopilotBubble: the newest reply is re-pinned as it grows", () => {
+  type FakeRO = { cb: () => void; observed: Element[]; disconnect: jest.Mock };
+  let instances: FakeRO[];
+  const globalRO = globalThis as unknown as { ResizeObserver?: unknown };
+  let originalRO: unknown;
+  const hadRO = "ResizeObserver" in globalThis;
+  let height: number;
+
+  beforeEach(() => {
+    global.fetch = jest.fn();
+    global.crypto = {
+      randomUUID: jest.fn(() => "test-id-" + Math.random().toString(36).substr(2, 9)),
+    } as unknown as Crypto;
+    if (!global.TextDecoder) {
+      global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+    }
+    height = 1000;
+    originalRO = globalRO.ResizeObserver;
+    instances = [];
+    globalRO.ResizeObserver = class {
+      private readonly self: FakeRO;
+      constructor(cb: () => void) {
+        this.self = { cb, observed: [], disconnect: jest.fn() };
+        instances.push(this.self);
+      }
+      observe(el: Element) {
+        this.self.observed.push(el);
+      }
+      unobserve() {}
+      disconnect() {
+        this.self.disconnect();
+      }
+    };
+  });
+
+  afterEach(() => {
+    if (hadRO) globalRO.ResizeObserver = originalRO;
+    else delete globalRO.ResizeObserver;
+    jest.restoreAllMocks();
+  });
+
+  /** Lets the reply grow in layout (as its card or a late image would) and reports the change the way a browser does. */
+  function growReply(newHeight: number) {
+    height = newHeight;
+    act(() => {
+      for (const ro of instances) ro.cb();
+    });
+  }
+
+  it("watches the newest assistant reply itself", async () => {
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    const stream = pausingResponse([deltaLine("Answer."), WAIT]);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "Question{Enter}");
+    const reply = await screen.findByText("Answer.");
+    const article = reply.closest<HTMLElement>("article")!;
+
+    expect(article.id).toMatch(/^copilot-msg-/);
+    expect(instances.some((ri) => ri.observed.includes(article))).toBe(true);
+    await stream.release();
+  });
+
+  it("re-pins the bottom when the reply grows, while the drawer is following", async () => {
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    const scroller = messagesScroller();
+    Object.defineProperty(scroller, "scrollHeight", { configurable: true, get: () => height });
+    Object.defineProperty(scroller, "clientHeight", { configurable: true, value: 400 });
+    const stream = pausingResponse([deltaLine("Answer."), WAIT]);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "Question{Enter}");
+    await screen.findByText("Answer.");
+
+    growReply(1300);
+    expect(scroller.scrollTop).toBe(1300);
+    await stream.release();
+  });
+
+  it("leaves the scroll alone when the reply grows after the visitor scrolled up", async () => {
+    const user = userEvent.setup();
+    render(<CopilotBubble />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    const scroller = messagesScroller();
+    Object.defineProperty(scroller, "scrollHeight", { configurable: true, get: () => height });
+    Object.defineProperty(scroller, "clientHeight", { configurable: true, value: 400 });
+    const stream = pausingResponse([deltaLine("Answer."), WAIT]);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "Question{Enter}");
+    await screen.findByText("Answer.");
+
+    scroller.scrollTop = 100;
+    fireEvent.scroll(scroller);
+    growReply(1300);
+    expect(scroller.scrollTop).toBe(100);
+    await stream.release();
+  });
+});
+
+describe("CopilotBubble: the footer under a reply waits for the reply", () => {
+  const TARGETS = [
+    { id: "role-illumina", label: "Illumina, 2023", path: "/experience", page: "Experience" },
+    { id: "writing", label: "Writing", path: "/writing", page: "Writing" },
+  ];
+  const GUARDRAILS = "https://medium.com/@tituslhy/guardrails";
+  const source = (n: number, title: string) => `${JSON.stringify({ type: "source", n, title, url: GUARDRAILS })}\n`;
+  const pickLine = (ids: string[]) => `${JSON.stringify({ type: "pick", articles: ids })}\n`;
+  const cardLine = `${JSON.stringify({
+    type: "card",
+    id: "card_1",
+    kind: "evidence",
+    summary: "[Card shown: where I did it]",
+    flair: "plain",
+    messages: [
+      { version: "1.0", createSurface: { surfaceId: "card_1", catalogId: "x", metadata: {} } },
+      { version: "1.0", updateComponents: { surfaceId: "card_1", components: [] } },
+    ],
+    sources: [],
+  })}\n`;
+  const PILL = "Experience · Illumina, 2023";
+  const PICK_BUTTON = /See these 2 on the Writing page/;
+  let originalMatchMedia: typeof window.matchMedia;
+
+  beforeEach(() => {
+    originalMatchMedia = window.matchMedia;
+    global.fetch = jest.fn();
+    global.crypto = {
+      randomUUID: jest.fn(() => "test-id-" + Math.random().toString(36).substr(2, 9)),
+    } as unknown as Crypto;
+    if (!global.TextDecoder) {
+      global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+    }
+    // Narrow screen: the actions only mark pills and the pick only shows its line, so the page stays where it is.
+    window.matchMedia = jest.fn((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(() => true),
+    }));
+    mockPathname = "/";
+    window.history.replaceState({}, "", "/");
+  });
+
+  afterEach(async () => {
+    await letPageSettle();
+    window.matchMedia = originalMatchMedia;
+    jest.restoreAllMocks();
+  });
+
+  /** A reply with every footer item: a card, sources, a pick line, a stop pill (the copy button is always there once it closes). */
+  const fullReply = (text: string, extra: string[] = []) => [
+    deltaLine(text),
+    source(1, "Your agent needs a bouncer"),
+    pickLine(["0000000a", "00000001"]),
+    actionLine("role-illumina"),
+    ...extra,
+  ];
+
+  async function openDrawer() {
+    const user = userEvent.setup();
+    render(<CopilotBubble targets={TARGETS} />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    return user;
+  }
+
+  /** The message whose text is `text`. Every message has a copy button, so the copy checks look inside the reply. */
+  const replyOf = (text: string) => screen.getByText(text).closest<HTMLElement>("article")!;
+  const copyIn = (article: HTMLElement) => within(article).queryAllByRole("button", { name: "Copy message" });
+
+  function expectNoFooter(text: string) {
+    expect(screen.queryByText("Sources")).not.toBeInTheDocument();
+    expect(screen.queryByText("See on page")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: PILL })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: PICK_BUTTON })).not.toBeInTheDocument();
+    expect(copyIn(replyOf(text))).toHaveLength(0);
+  }
+
+  it("shows no Sources row, stop pills, pick line or copy button while the reply is streaming", async () => {
+    const stream = pausingResponse([...fullReply("Two pieces cover it."), WAIT]);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    const user = await openDrawer();
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "Where do I write about guardrails?{Enter}");
+
+    await screen.findByText("Two pieces cover it.");
+    expectNoFooter("Two pieces cover it.");
+
+    await stream.release();
+    await waitFor(() => expect(copyIn(replyOf("Two pieces cover it."))).toHaveLength(1));
+  });
+
+  it("shows every footer item once the stream has closed", async () => {
+    const stream = pausingResponse([...fullReply("Two pieces cover it."), WAIT]);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    const user = await openDrawer();
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "Where do I write about guardrails?{Enter}");
+    await screen.findByText("Two pieces cover it.");
+    expectNoFooter("Two pieces cover it.");
+
+    await stream.release();
+
+    expect(await screen.findByText("Sources")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Your agent needs a bouncer/ })).toHaveAttribute("href", GUARDRAILS);
+    expect(screen.getByText("See on page")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: PILL })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: PICK_BUTTON })).toBeInTheDocument();
+    expect(copyIn(replyOf("Two pieces cover it."))).toHaveLength(1);
+  });
+
+  it("puts the card before the pills, pick line, sources and copy button once the stream has closed", async () => {
+    const stream = pausingResponse([cardLine, ...fullReply("Two pieces cover it."), WAIT]);
+    (global.fetch as jest.Mock).mockResolvedValue(stream.response);
+    const user = await openDrawer();
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "Where do I write about guardrails?{Enter}");
+    await screen.findByText("Two pieces cover it.");
+    expect(screen.queryByTestId("a2ui-card")).not.toBeInTheDocument();
+    expectNoFooter("Two pieces cover it.");
+
+    await stream.release();
+
+    const card = await screen.findByTestId("a2ui-card");
+    const text = screen.getByText("Two pieces cover it.");
+    const pill = screen.getByRole("button", { name: PILL });
+    const pick = screen.getByRole("button", { name: PICK_BUTTON });
+    const sources = screen.getByText("Sources");
+    const copy = copyIn(replyOf("Two pieces cover it."))[0];
+    const following = (a: Node, b: Node) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(following(text, card)).toBe(true);
+    expect(following(card, pick)).toBe(true);
+    expect(following(card, pill)).toBe(true);
+    expect(following(card, sources)).toBe(true);
+    expect(following(sources, copy)).toBe(true);
+  });
+
+  it("keeps an earlier finished reply's footer while a later reply is still streaming", async () => {
+    const later = pausingResponse([deltaLine("Let me think about that."), WAIT]);
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(createStreamingResponse(fullReply("Two pieces cover it.")))
+      .mockResolvedValueOnce(later.response);
+    const user = await openDrawer();
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "Where do I write about guardrails?{Enter}");
+    await waitFor(() => expect(copyIn(replyOf("Two pieces cover it."))).toHaveLength(1));
+
+    await user.type(screen.getByPlaceholderText(/ask about my work/i), "And what about your studies?{Enter}");
+    await screen.findByText("Let me think about that.");
+
+    // The first reply keeps its footer; the streaming one has none yet.
+    expect(screen.getByText("Sources")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: PILL })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: PICK_BUTTON })).toBeInTheDocument();
+    expect(copyIn(replyOf("Two pieces cover it."))).toHaveLength(1);
+    expect(copyIn(replyOf("Let me think about that."))).toHaveLength(0);
+
+    await later.release();
+    await waitFor(() => expect(copyIn(replyOf("Let me think about that."))).toHaveLength(1));
   });
 });
