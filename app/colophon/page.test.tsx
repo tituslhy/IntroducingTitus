@@ -270,6 +270,61 @@ describe("ColophonPage cards copy", () => {
   });
 });
 
+describe("ColophonPage voice copy", () => {
+  it("has a Voice entry after the Cards entry, saying the mic records up to a minute and transcribes with gpt-transcribe", () => {
+    render(<ColophonPage />);
+
+    const cards = screen.getByText("Cards");
+    const voice = screen.getByText("Voice");
+    expect(cards.compareDocumentPosition(voice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const section = voice.closest("section")!;
+    expect(section.textContent ?? "").toMatch(/the mic beside Send records up to a minute/);
+    expect(section.textContent ?? "").toMatch(/gpt-transcribe/);
+  });
+
+  it("the Voice entry says the names list is what keeps LangGraph spelled right", () => {
+    render(<ColophonPage />);
+
+    const section = screen.getByText("Voice").closest("section")!;
+    expect(section.textContent ?? "").toMatch(/list of the names that come up here/);
+    expect(section.textContent ?? "").toMatch(/LangGraph comes back as LangGraph/);
+  });
+
+  it("the Voice entry says the words go in the box, not straight into the chat", () => {
+    render(<ColophonPage />);
+
+    const section = screen.getByText("Voice").closest("section")!;
+    expect(section.textContent ?? "").toMatch(/The words go in the box, not\s+straight into the chat/);
+    expect(section.textContent ?? "").toMatch(/fix a misheard one before you send/);
+  });
+
+  it("the Voice entry says the clip and its words are not stored, logged or traced, and the log keeps size, format, timing, characters and the IP", () => {
+    render(<ColophonPage />);
+
+    const section = screen.getByText("Voice").closest("section")!;
+    expect(section.textContent ?? "").toMatch(/I don’t store, log or trace it or its words/);
+    expect(section.textContent ?? "").toMatch(/keeps its size, format and timing, how many characters came back/);
+    expect(section.textContent ?? "").toMatch(/the IP the rate limit counts by, as chat’s does/);
+  });
+
+  it("the Voice entry says that where the browser can hear the voice level, it stops when you pause and sends nothing if it never heard you", () => {
+    render(<ColophonPage />);
+
+    const section = screen.getByText("Voice").closest("section")!;
+    expect(section.textContent ?? "").toMatch(/Where the browser can hear your voice level, it stops when you pause/);
+    expect(section.textContent ?? "").toMatch(/sends\s+nothing if it never heard you/);
+  });
+
+  it("guardrails has a row saying voice clips are transcribed into the box, never sent by themselves, and not kept", () => {
+    render(<ColophonPage />);
+
+    const section = screen.getByRole("heading", { level: 2, name: /guardrails/i }).closest("section")!;
+    const rows = within(within(section).getByRole("table")).getAllByRole("row").map((r) => r.textContent ?? "");
+    expect(rows.some((text) => /Voice clips transcribed into the box, never sent by themselves; I don’t keep them/.test(text))).toBe(true);
+    expect(rows.some((text) => /A misheard question sent unchecked; recordings kept/.test(text))).toBe(true);
+  });
+});
+
 describe("ColophonPage topics copy", () => {
   it("walkthrough calls search_writing with a list of topics", () => {
     render(<ColophonPage />);

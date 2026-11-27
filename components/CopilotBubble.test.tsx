@@ -6087,3 +6087,469 @@ describe("CopilotBubble: the footer under a reply waits for the reply", () => {
     await waitFor(() => expect(copyIn(replyOf("Let me think about that."))).toHaveLength(1));
   });
 });
+
+describe("CopilotBubble: voice in", () => {
+  // A MediaRecorder stand-in: stop() hands over the clip the test chose, then fires onstop, as a browser does.
+  class FakeRecorder {
+    static instances: FakeRecorder[] = [];
+    state: "inactive" | "recording" = "inactive";
+    mimeType = "audio/webm";
+    ondataavailable: ((e: { data: Blob }) => void) | null = null;
+    onstop: (() => void) | null = null;
+    clipBytes = 5_000;
+    constructor(public stream: MediaStream) {
+      FakeRecorder.instances.push(this);
+    }
+    start() {
+      this.state = "recording";
+    }
+    stop() {
+      if (this.state === "inactive") return;
+      this.state = "inactive";
+      this.ondataavailable?.({ data: new Blob([new Uint8Array(this.clipBytes)], { type: "audio/webm" }) });
+      this.onstop?.();
+    }
+  }
+  const tracks: Array<{ stop: jest.Mock }> = [];
+  let getUserMedia: jest.Mock;
+  let originalMatchMedia: typeof window.matchMedia;
+
+  const MIC = "Speak your question";
+  const STOP = "Stop recording";
+  const SEND = "Send message";
+  const TRANSCRIBE_TEXT = "What did you build at Illumina?";
+  const PRIVACY = "Voice clips go to OpenAI to be transcribed; I don’t keep them.";
+  const alertText = () => screen.queryByRole("alert")?.textContent ?? null;
+  const box = () => screen.queryByPlaceholderText(/ask about my work/i) as HTMLTextAreaElement | null;
+  const micButton = () => screen.queryByRole("button", { name: MIC });
+
+  /** Routes fetch: the transcription goes to `transcribe`, the chat to the stream given. */
+  function routeFetch(transcribe: () => Promise<Response>, chat: Response | Promise<Response> = createStreamingResponse([deltaLine("Sure.")])) {
+    const chatFetch = jest.fn<Promise<Response>, [string]>(async () => chat);
+    global.fetch = jest.fn((url: string) => (url === "/api/transcribe" ? transcribe() : chatFetch(url))) as unknown as typeof fetch;
+    return { chatFetch };
+  }
+  const transcribedOk = (text: string) => async () => ({ ok: true, status: 200, json: async () => ({ text }) }) as unknown as Response;
+  const transcribeCalls = () => (global.fetch as jest.Mock).mock.calls.filter(([url]) => url === "/api/transcribe");
+  const chatCalls = () => (global.fetch as jest.Mock).mock.calls.filter(([url]) => url !== "/api/transcribe");
+
+  async function flush() {
+    await act(async () => {
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+    });
+  }
+
+  async function openDrawer(targets = [] as Array<{ id: string; label: string; path: string; page?: string }>) {
+    const user = userEvent.setup();
+    render(<CopilotBubble targets={targets} email="me@example.com" />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    return user;
+  }
+
+  beforeEach(() => {
+    originalMatchMedia = window.matchMedia;
+    window.matchMedia = jest.fn((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(() => true),
+    }));
+    FakeRecorder.instances = [];
+    tracks.length = 0;
+    getUserMedia = jest.fn(async () => {
+      const track = { stop: jest.fn() };
+      tracks.push(track);
+      return { getTracks: () => [track] } as unknown as MediaStream;
+    });
+    Object.defineProperty(navigator, "mediaDevices", { value: { getUserMedia }, configurable: true });
+    Object.defineProperty(window, "MediaRecorder", { value: FakeRecorder, configurable: true, writable: true });
+    global.crypto = {
+      randomUUID: jest.fn(() => "test-id-" + Math.random().toString(36).substr(2, 9)),
+    } as unknown as Crypto;
+    if (!global.TextDecoder) {
+      global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+    }
+    routeFetch(transcribedOk(TRANSCRIBE_TEXT));
+  });
+
+  afterEach(async () => {
+    await act(async () => {});
+    delete (window as unknown as { MediaRecorder?: unknown }).MediaRecorder;
+    delete (navigator as unknown as { mediaDevices?: unknown }).mediaDevices;
+    window.matchMedia = originalMatchMedia;
+    jest.restoreAllMocks();
+  });
+
+  describe("the mic", () => {
+    it("sits between the box and Send where the browser can record", async () => {
+      await openDrawer();
+
+      const mic = micButton()!;
+      const send = screen.getByRole("button", { name: SEND });
+      expect(mic).toBeInTheDocument();
+      expect(box()!.compareDocumentPosition(mic) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(mic.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("is absent where the browser has no MediaRecorder, and the privacy line says nothing about voice", async () => {
+      delete (window as unknown as { MediaRecorder?: unknown }).MediaRecorder;
+      await openDrawer();
+
+      expect(micButton()).toBeNull();
+      expect(screen.getByRole("button", { name: SEND })).toBeInTheDocument();
+      expect(screen.queryByText(/Voice clips go to OpenAI/)).not.toBeInTheDocument();
+    });
+
+    it("is not offered in the job-description mode", async () => {
+      const user = await openDrawer();
+      await user.click(screen.getByRole("button", { name: /i'm hiring/i }));
+
+      expect(micButton()).toBeNull();
+    });
+
+    it("is disabled while a reply streams", async () => {
+      const stream = pausingResponse([deltaLine("One."), WAIT]);
+      global.fetch = jest.fn(async (url: string) => (url === "/api/transcribe" ? transcribedOk(TRANSCRIBE_TEXT)() : stream.response)) as unknown as typeof fetch;
+      const user = await openDrawer();
+      await user.type(box()!, "Go on{Enter}");
+      await screen.findByText("One.");
+
+      expect(micButton()).toBeDisabled();
+      await stream.release();
+    });
+
+    it("shows Send as just its arrow on a phone, where the mic takes the room", async () => {
+      await openDrawer();
+      const label = screen.getByRole("button", { name: SEND }).querySelector("span");
+      expect(label).toHaveTextContent("Send");
+      expect(label).toHaveClass("hidden", "min-[400px]:inline");
+    });
+
+    it("leaves Send's label alone where there is no mic", async () => {
+      delete (window as unknown as { MediaRecorder?: unknown }).MediaRecorder;
+      await openDrawer();
+      const label = screen.getByRole("button", { name: SEND }).querySelector("span");
+      expect(label).toHaveTextContent("Send");
+      expect(label).not.toHaveClass("hidden");
+    });
+
+    it("says voice clips go to OpenAI to be transcribed and are not kept, only where the mic is", async () => {
+      await openDrawer();
+      expect(screen.getByText(new RegExp(PRIVACY.replace(/[.]/g, "\\."))));
+    });
+
+    it("stops a playing tour when the visitor starts to speak", async () => {
+      await openDrawer();
+      act(() => startTour());
+      await screen.findByRole("button", { name: "Pause" });
+
+      fireEvent.click(micButton()!);
+      await flush();
+
+      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("recording and transcribing", () => {
+    it("while recording, the box and Send give way to a listening line and a Stop button", async () => {
+      await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+
+      expect(getUserMedia).toHaveBeenCalledWith({ audio: true });
+      expect(screen.getByRole("status")).toHaveTextContent("Listening");
+      expect(box()).toBeNull();
+      expect(screen.getByRole("button", { name: STOP })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: SEND })).toBeNull();
+      expect(micButton()).toBeNull();
+    });
+
+    it("Stop ends the recording and shows Transcribing, with the mic and Send disabled", async () => {
+      let finish!: (r: Response) => void;
+      routeFetch(() => new Promise<Response>((resolve) => (finish = resolve)));
+      await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      fireEvent.click(screen.getByRole("button", { name: STOP }));
+      await flush();
+
+      expect(screen.getByRole("status")).toHaveTextContent("Transcribing…");
+      expect(micButton()).toBeDisabled();
+      expect(screen.getByRole("button", { name: SEND })).toBeDisabled();
+      expect(box()).toBeNull();
+
+      await act(async () => finish({ ok: true, status: 200, json: async () => ({ text: "Done." }) } as unknown as Response));
+      await flush();
+      expect(box()).toBeInTheDocument();
+    });
+
+    it("puts the words in the box after what is typed, focuses it, and sends nothing by itself", async () => {
+      const user = await openDrawer();
+      await user.type(box()!, "Tell me about");
+      fireEvent.click(micButton()!);
+      await flush();
+      fireEvent.click(screen.getByRole("button", { name: STOP }));
+      await flush();
+
+      await waitFor(() => expect(box()!.value).toBe(`Tell me about ${TRANSCRIBE_TEXT}`));
+      await waitFor(() => expect(document.activeElement).toBe(box()));
+      expect(transcribeCalls()).toHaveLength(1);
+      expect(chatCalls()).toHaveLength(0);
+      expect(screen.queryByText(TRANSCRIBE_TEXT, { selector: "article *" })).toBeNull();
+    });
+
+    it("with nothing typed, the words are the whole box", async () => {
+      await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      fireEvent.click(screen.getByRole("button", { name: STOP }));
+      await waitFor(() => expect(box()!.value).toBe(TRANSCRIBE_TEXT));
+    });
+
+    it("the words come back to the box as a user adds more, with nothing sent until Send", async () => {
+      const user = await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      fireEvent.click(screen.getByRole("button", { name: STOP }));
+      await waitFor(() => expect(box()!.value).toBe(TRANSCRIBE_TEXT));
+
+      await user.type(box()!, " and Mastercard?");
+      expect(chatCalls()).toHaveLength(0);
+      await user.click(screen.getByRole("button", { name: SEND }));
+      await waitFor(() => expect(chatCalls()).toHaveLength(1));
+      expect(screen.getByText(`${TRANSCRIBE_TEXT} and Mastercard?`)).toBeInTheDocument();
+    });
+
+    it("a clip with nothing said is not sent: the line says so, and no request is made", async () => {
+      await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      FakeRecorder.instances[0].clipBytes = 200;
+      fireEvent.click(screen.getByRole("button", { name: STOP }));
+      await flush();
+
+      expect(alertText()).toMatch(/I couldn't hear anything from your microphone/);
+      expect(transcribeCalls()).toHaveLength(0);
+      expect(box()!.value).toBe("");
+    });
+  });
+
+  describe("problems", () => {
+    it("a refused microphone shows the browser-settings line under the box, and typing clears it", async () => {
+      getUserMedia.mockRejectedValueOnce(Object.assign(new Error("no"), { name: "NotAllowedError" }));
+      const user = await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+
+      expect(alertText()).toMatch(/microphone is blocked/);
+      expect(box()).toBeInTheDocument();
+
+      await user.type(box()!, "x");
+      expect(alertText()).toBeNull();
+    });
+
+    it("a 429 from the route says there were too many clips", async () => {
+      routeFetch(async () => ({ ok: false, status: 429, json: async () => ({}) }) as unknown as Response);
+      await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      fireEvent.click(screen.getByRole("button", { name: STOP }));
+      await waitFor(() => expect(alertText()).toMatch(/a lot of voice clips in a minute/));
+    });
+
+    it("a failed transcription says the clip did not come through, and the box stays usable", async () => {
+      routeFetch(async () => ({ ok: false, status: 502, json: async () => ({}) }) as unknown as Response);
+      await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      fireEvent.click(screen.getByRole("button", { name: STOP }));
+      await waitFor(() => expect(alertText()).toMatch(/That clip didn't come through/));
+      expect(box()).toBeInTheDocument();
+      expect(micButton()).not.toBeDisabled();
+    });
+  });
+
+  describe("closing the drawer", () => {
+    it("closed while the mic permission is still being asked, then granted: no recording, nothing sent, the mic is handed back", async () => {
+      let grant!: (s: MediaStream) => void;
+      getUserMedia.mockReturnValueOnce(new Promise<MediaStream>((resolve) => (grant = resolve)));
+      const user = await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      await user.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "Close chat" }));
+      await flush();
+
+      const track = { stop: jest.fn() };
+      await act(async () => grant({ getTracks: () => [track] } as unknown as MediaStream));
+      await flush();
+
+      expect(FakeRecorder.instances).toHaveLength(0);
+      expect(track.stop).toHaveBeenCalled();
+      expect(transcribeCalls()).toHaveLength(0);
+      expect(chatCalls()).toHaveLength(0);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      expect(screen.queryByRole("status")).toBeNull();
+      expect(screen.queryByRole("button", { name: STOP })).toBeNull();
+      expect(alertText()).toBeNull();
+      expect(box()!.value).toBe("");
+    });
+
+    it("while recording drops the clip: nothing is sent, the mic is released, and the notice is cleared", async () => {
+      getUserMedia.mockRejectedValueOnce(Object.assign(new Error("no"), { name: "NotAllowedError" }));
+      const user = await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      expect(alertText()).toMatch(/microphone is blocked/);
+
+      // Record a clip, then close the drawer before stopping it.
+      fireEvent.click(micButton()!);
+      await flush();
+      expect(screen.getByRole("button", { name: STOP })).toBeInTheDocument();
+      await user.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "Close chat" }));
+      await flush();
+
+      expect(transcribeCalls()).toHaveLength(0);
+      expect(tracks.every((t) => t.stop.mock.calls.length > 0)).toBe(true);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      expect(alertText()).toBeNull();
+      expect(screen.queryByRole("status")).toBeNull();
+      expect(box()).toBeInTheDocument();
+    });
+
+    it("while transcribing aborts the request and puts nothing in the box", async () => {
+      // The transcription never answers on its own: it only ends when the drawer aborts it.
+      let signal: AbortSignal | undefined;
+      global.fetch = jest.fn((url: string, init?: RequestInit) => {
+        if (url !== "/api/transcribe") return Promise.resolve(createStreamingResponse([]));
+        signal = init?.signal as AbortSignal;
+        return new Promise<Response>((_resolve, reject) => {
+          signal!.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })));
+        });
+      }) as unknown as typeof fetch;
+      const user = await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      fireEvent.click(screen.getByRole("button", { name: STOP }));
+      await flush();
+      expect(screen.getByRole("status")).toHaveTextContent("Transcribing…");
+
+      await user.click(within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "Close chat" }));
+      await flush();
+
+      expect(signal!.aborted).toBe(true);
+      expect(alertText()).toBeNull();
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      expect(box()!.value).toBe("");
+    });
+  });
+
+  describe("keyboard focus follows the mic", () => {
+    it("while recording, focus lands on Stop", async () => {
+      await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: STOP }));
+    });
+
+    it("while transcribing, focus lands on the Transcribing line, which stays in the tab order", async () => {
+      routeFetch(() => new Promise<Response>(() => {}));
+      await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      fireEvent.click(screen.getByRole("button", { name: STOP }));
+      await flush();
+
+      const line = screen.getByRole("status");
+      expect(line).toHaveTextContent("Transcribing…");
+      expect(line).toHaveAttribute("tabindex", "0");
+      expect(document.activeElement).toBe(line);
+    });
+
+    it("back to idle with the drawer open, focus returns to the box with the cursor after the words", async () => {
+      const user = await openDrawer();
+      await user.type(box()!, "Tell me about");
+      fireEvent.click(micButton()!);
+      await flush();
+      fireEvent.click(screen.getByRole("button", { name: STOP }));
+
+      await waitFor(() => expect(box()!.value).toBe(`Tell me about ${TRANSCRIBE_TEXT}`));
+      await waitFor(() => expect(document.activeElement).toBe(box()));
+      expect(box()!.selectionStart).toBe(box()!.value.length);
+      expect(box()!.selectionEnd).toBe(box()!.value.length);
+    });
+
+    it("after a problem, focus goes to the mic, to try again", async () => {
+      routeFetch(async () => ({ ok: false, status: 429, json: async () => ({}) }) as unknown as Response);
+      await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      fireEvent.click(screen.getByRole("button", { name: STOP }));
+
+      await waitFor(() => expect(alertText()).toMatch(/a lot of voice clips in a minute/));
+      await waitFor(() => expect(document.activeElement).toBe(micButton()));
+    });
+
+    it("does not pull focus when the visitor has moved it elsewhere in the drawer while the clip was on its way", async () => {
+      let answer!: (r: Response) => void;
+      routeFetch(() => new Promise<Response>((resolve) => (answer = resolve)));
+      await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      fireEvent.click(screen.getByRole("button", { name: STOP }));
+      await flush();
+
+      const close = within(screen.getByRole("dialog", { name: /ask titus/i })).getByRole("button", { name: "Close chat" });
+      act(() => close.focus());
+      await act(async () => answer({ ok: false, status: 429, json: async () => ({}) } as unknown as Response));
+
+      await waitFor(() => expect(alertText()).toMatch(/a lot of voice clips in a minute/));
+      await flush();
+      expect(document.activeElement).toBe(close);
+    });
+
+    it("once idle again with the drawer open, focus is back in the box, even with no problem to show", async () => {
+      await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      fireEvent.click(screen.getByRole("button", { name: STOP }));
+      await waitFor(() => expect(box()).toBeInTheDocument());
+      await waitFor(() => expect(document.activeElement).toBe(box()));
+    });
+  });
+
+  describe("the job-description mode takes over a clip", () => {
+    it("opening it while recording drops the clip: the mic is handed back, nothing is sent, and the box is the job-description box", async () => {
+      const user = await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      expect(FakeRecorder.instances[0].state).toBe("recording");
+
+      await user.click(screen.getByRole("button", { name: /i'm hiring/i }));
+      await flush();
+
+      expect(FakeRecorder.instances[0].state).toBe("inactive");
+      expect(tracks.every((t) => t.stop.mock.calls.length > 0)).toBe(true);
+      expect(screen.queryByRole("button", { name: STOP })).toBeNull();
+      expect(screen.queryByRole("status")).toBeNull();
+      expect(transcribeCalls()).toHaveLength(0);
+      expect(screen.getByRole("textbox", { name: /job description/i })).toBeInTheDocument();
+    });
+
+    it("opening it clears a voice notice that was showing", async () => {
+      getUserMedia.mockRejectedValueOnce(Object.assign(new Error("no"), { name: "NotAllowedError" }));
+      const user = await openDrawer();
+      fireEvent.click(micButton()!);
+      await flush();
+      expect(alertText()).toMatch(/microphone is blocked/);
+
+      await user.click(screen.getByRole("button", { name: /i'm hiring/i }));
+      await flush();
+
+      expect(alertText()).toBeNull();
+    });
+  });
+});

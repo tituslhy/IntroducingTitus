@@ -22,7 +22,16 @@ import { createCopilotTools, mergeByTopic, type CopilotTool } from "../lib/copil
 import { JEV_MODEL, PAGE_SIZE, searchMyWriting, type SearchTrace } from "../lib/writing-search";
 import { mediumPostId } from "../lib/citation-ledger";
 import type { ShowCardArgs } from "../lib/cards";
-import { GOLDEN, countsForRetrieval, expectedCard, expectedPick, retrievalQueries, usedRecord, type Expect } from "./eval-golden";
+import {
+  GOLDEN,
+  countsForRetrieval,
+  expectedCard,
+  expectedPick,
+  missingRecord,
+  retrievalQueries,
+  usedRecord,
+  type Expect,
+} from "./eval-golden";
 import type { ShowOnPageArgs } from "../lib/copilot-tools";
 
 const OUT = join(process.cwd(), "content", "eval-results.json");
@@ -173,11 +182,18 @@ async function main() {
   // URLs the bot may legitimately write: my articles plus every link already in its prompt.
   const allowedUrls = new Set([...ARTICLES.map((a) => a.url), ...(systemPrompt.match(URL_RE) ?? []).map(trimUrl)]);
 
+  // `--only "computer vision"`: just the questions containing that text, and nothing written (a quick check).
+  const onlyAt = process.argv.indexOf("--only");
+  const only = onlyAt === -1 ? null : (process.argv[onlyAt + 1] ?? "").trim().toLowerCase();
+  if (only === "" || only?.startsWith("--")) throw new Error('--only needs the text to match, e.g. --only "computer vision".');
+  const rows = only ? GOLDEN.filter((g) => g.question.toLowerCase().includes(only)) : GOLDEN;
+  if (rows.length === 0) throw new Error(`No golden question contains "${only}".`);
+
   let jevModel: string | null = null;
   const results = [];
-  for (const [i, row] of GOLDEN.entries()) {
+  for (const [i, row] of rows.entries()) {
     const { question, expect } = row;
-    process.stdout.write(`[${i + 1}/${GOLDEN.length}] ${question}\n`);
+    process.stdout.write(`[${i + 1}/${rows.length}] ${question}\n`);
     const expected = expectedSlugs(expect, ARTICLES);
     const expectedUrls = new Set(ARTICLES.filter((a) => expected.includes(a.slug)).map((a) => a.url));
 
@@ -197,6 +213,11 @@ async function main() {
     const fallback = traces.find((tr) => tr.fallback !== "none")?.fallback ?? traces[0]?.fallback ?? null;
 
     const agent = await runAgent(openai, systemPrompt, question);
+    // A record miss says which words were missing and shows the reply, so the cause is visible (it isn't saved).
+    const missing = missingRecord(row, agent.text);
+    if (missing?.length) {
+      console.log(`  ✗ record: the reply doesn't name ${missing.join(", ")}\n${agent.text.replace(/^/gm, "    │ ")}`);
+    }
     const invented = [...new Set((agent.text.match(URL_RE) ?? []).map(trimUrl))].filter((u) => !allowedUrls.has(u));
     const citedNumbers = [...agent.text.matchAll(/(?<![\w[])\[(\d{1,2})\](?![(\]])/g)].map((m) => Number(m[1]));
     const dangling = [...new Set(citedNumbers.filter((n) => !agent.sources.some((s) => s.n === n)))];
@@ -290,7 +311,7 @@ async function main() {
 
   const output = { runAt: new Date().toISOString(), model: { jev: jevModel, gpt: GPT_MODEL }, questions: results, metrics };
   console.log(JSON.stringify(metrics, null, 2));
-  if (process.argv.includes("--dry")) return;
+  if (process.argv.includes("--dry") || only !== null) return;
   writeFileSync(OUT, JSON.stringify(output, null, 2) + "\n");
   console.log(`\n✓ Wrote content/eval-results.json`);
 }

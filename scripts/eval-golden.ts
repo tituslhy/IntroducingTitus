@@ -17,7 +17,10 @@ export type GoldenRow = {
   topics?: string[];
   /** false: an abstract question answered from the library tree, scored end to end only (not in recall or precision). */
   retrieval?: false;
-  /** Experience-with rows: words from my record (lib/about.ts, lib/profile.ts) the reply must contain, case-insensitive. */
+  /**
+   * Experience-with rows: words from my record (lib/about.ts, lib/profile.ts) the reply must contain, case-insensitive.
+   * "SMU|MITB" accepts either: the same place under two names.
+   */
   record?: string[];
   /** The card the reply should carry (show_card). Unset: no-search and none rows expect no card; others aren't scored. */
   card?: CardExpect;
@@ -88,7 +91,7 @@ export const GOLDEN: GoldenRow[] = [
     question: "Have you worked on computer vision use cases?",
     expect: { kind: "articles", titles: ["Multimodal RAG"] },
     topics: ["computer vision"],
-    record: ["Illumina", "SMU"],
+    record: ["Illumina", "SMU|MITB|Singapore Management University"],
   },
   { question: "Have you used Helm?", expect: { kind: "articles", titles: ["Helm Charts"] }, topics: ["Helm"], record: ["Illumina"] },
   { question: "Have you written about Rust?", expect: { kind: "none" } },
@@ -104,9 +107,18 @@ export const GOLDEN: GoldenRow[] = [
 /** What the retrieval pass searches: one query per topic, or the question itself. */
 export const retrievalQueries = (row: GoldenRow): string[] => row.topics ?? [row.question];
 
+/** The row's record words the reply leaves out (any one name of a "a|b" entry counts), or null when it has none. */
+export const missingRecord = (row: GoldenRow, reply: string): string[] | null => {
+  if (!row.record) return null;
+  const text = reply.toLowerCase();
+  return row.record.filter((w) => !w.split("|").some((name) => text.includes(name.toLowerCase())));
+};
+
 /** Whether `reply` names every word of the row's record, or null when the row has none. */
-export const usedRecord = (row: GoldenRow, reply: string): boolean | null =>
-  row.record ? row.record.every((w) => reply.toLowerCase().includes(w.toLowerCase())) : null;
+export const usedRecord = (row: GoldenRow, reply: string): boolean | null => {
+  const missing = missingRecord(row, reply);
+  return missing === null ? null : missing.length === 0;
+};
 
 /** Whether the row counts toward the retrieval-only metrics (recall, precision, abstain). */
 export const countsForRetrieval = (row: GoldenRow): boolean => row.retrieval !== false;
