@@ -56,7 +56,7 @@ let requestCounter = 0;
 // The markdown file is a template: facts come from lib/profile.ts and
 // lib/content.ts (the same data the page renders) via buildSystemPrompt.
 function renderSystemPrompt(): string {
-  const template = readFileSync(join(process.cwd(), "copilot-system-prompt.md"), "utf-8");
+  const template = readFileSync(join(process.cwd(), "prompts", "copilot-system-prompt.md"), "utf-8");
   return buildSystemPrompt(template);
 }
 

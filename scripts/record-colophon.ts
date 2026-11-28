@@ -92,7 +92,7 @@ async function main() {
   const dry = process.argv.includes("--dry");
   const only = process.argv.slice(2).find((a) => a === "search" || a === "broad");
   const openai = new OpenAI();
-  const systemPrompt = buildSystemPrompt(readFileSync(join(process.cwd(), "copilot-system-prompt.md"), "utf-8"));
+  const systemPrompt = buildSystemPrompt(readFileSync(join(process.cwd(), "prompts", "copilot-system-prompt.md"), "utf-8"));
 
   const existing: ColophonTraces = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf-8")) : { recordings: [] };
   const recordings: Recording[] = [];

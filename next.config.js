@@ -11,6 +11,13 @@ const nextConfig = {
   // agents) — verify with a clean `npm run build` before relying on it, and
   // re-expand the list if that build reports an un-transpiled ESM package.
   transpilePackages: ['react-markdown', 'remark-gfm'],
+  // The chat and fit routes read prompts/*.md at runtime with readFileSync
+  // (nothing imports them), so tell Vercel to ship the folder with those
+  // functions. Keys are route globs; values are globs from the project root.
+  outputFileTracingIncludes: {
+    '/api/chat': ['./prompts/**'],
+    '/api/fit': ['./prompts/**'],
+  },
 }
 
 module.exports = nextConfig

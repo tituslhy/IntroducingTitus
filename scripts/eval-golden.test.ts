@@ -17,7 +17,7 @@ import {
   type GoldenRow,
 } from "./eval-golden";
 
-const TEMPLATE_PATH = join(__dirname, "..", "copilot-system-prompt.md");
+const TEMPLATE_PATH = join(__dirname, "..", "prompts", "copilot-system-prompt.md");
 const RENDERED = buildSystemPrompt(readFileSync(TEMPLATE_PATH, "utf-8"));
 const row = (overrides: Partial<GoldenRow>): GoldenRow => ({ question: "q", expect: { kind: "none" }, ...overrides });
 

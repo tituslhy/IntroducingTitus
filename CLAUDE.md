@@ -2,12 +2,12 @@
 
 ## Ralph Wiggum Protocol (READ THIS FIRST)
 Before writing ANY code:
-1. Read `requirements.md` completely
-2. Confirm understanding of requirements
+1. Read `CLAUDE.md` completely, and `lib/profile.ts` for career facts (the single source of roles, projects and copy)
+2. Confirm your understanding of what is being asked
 3. Ask clarifying questions if anything is ambiguous
 4. Only then write code
 
-Do not skip step 1. Do not assume. Read the paper first.
+Do not skip step 1. Do not assume. Read the project first.
 
 ---
 
@@ -177,7 +177,7 @@ Reverse chronological timeline/card layout. Each card:
 - Tech stack as inline tags
 - Optional: key metric/achievement callout
 
-*(See requirements.md for full role content)*
+*(See `lib/profile.ts` for full role content)*
 
 ---
 
@@ -212,7 +212,7 @@ drawer that opens upward). Visual shell follows the README; backend is unchanged
 - Tools (hand-written loop in `lib/copilot-loop.ts`, ≤4 rounds, no agent framework):
   `show_on_page` and `search_writing` (my Medium articles via Jev, cited as `[n]`).
   No web search. Corpus: `npm run articles:build` from `resources/medium-export.zip`.
-- System prompt: see `copilot-system-prompt.md`
+- System prompt: see `prompts/copilot-system-prompt.md`
 - Medium profile URL passed as context: https://medium.com/@tituslhy
 
 **Voice:** First-person ("I built…", not "Titus built…"). Dry, precise, lightly
@@ -225,7 +225,7 @@ warm. No emoji, no exclamation points. Two short paragraphs max unless asked, ex
 - Redirect off-topic questions politely back to my work
 - Redirect salary/availability/personal questions to email
 
-**Copilot system prompt file:** `/copilot-system-prompt.md` — create this file if it doesn't exist, using the scope rules defined below as the basis.
+**Copilot system prompt file:** `prompts/copilot-system-prompt.md` (a template; its `{{TOKENS}}` are filled from `lib/profile.ts`). The fit brief lives beside it in `prompts/copilot-fit-prompt.md`.
 
 ---
 

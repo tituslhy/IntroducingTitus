@@ -29,7 +29,7 @@ const normaliseDashes = (s: string) => s.replace(/\s*[—–]\s*/g, ' – ')
 // The REAL template and its rendered output. The drift guard below runs
 // against this, not against a fixture, so it fails the moment the markdown,
 // the profile data, or the renderer disagree.
-const TEMPLATE_PATH = join(__dirname, '..', 'copilot-system-prompt.md')
+const TEMPLATE_PATH = join(__dirname, '..', 'prompts', 'copilot-system-prompt.md')
 const template = readFileSync(TEMPLATE_PATH, 'utf-8')
 const rendered = buildSystemPrompt(template)
 

@@ -3,7 +3,7 @@
  * appears both on the page and in the copilot's system prompt.
  *
  * Components render from these arrays, and `lib/copilot-prompt.ts` renders
- * the same arrays into `copilot-system-prompt.md`'s {{TOKENS}}. Edit a role,
+ * the same arrays into `prompts/copilot-system-prompt.md`'s {{TOKENS}}. Edit a role,
  * project, article, or link here once and both the site and the copilot pick
  * it up — no hand-copied duplicates to drift out of sync.
  *

@@ -30,7 +30,7 @@ let fitPromptCache: string | null = null;
 
 function getFitPrompt(): string {
   if (fitPromptCache && process.env.NODE_ENV === "production") return fitPromptCache;
-  const template = readFileSync(join(process.cwd(), "copilot-fit-prompt.md"), "utf-8");
+  const template = readFileSync(join(process.cwd(), "prompts", "copilot-fit-prompt.md"), "utf-8");
   fitPromptCache = buildSystemPrompt(template);
   return fitPromptCache;
 }

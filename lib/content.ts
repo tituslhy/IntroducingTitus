@@ -2,8 +2,8 @@
  * Canonical shared content values.
  *
  * These figures are quoted in more than one place across the site (page
- * copy, metadata, and — soon — the copilot system prompt). requirements.md
- * is the source of truth for each value; update it there first, then here,
+ * copy, metadata, and — soon — the copilot system prompt). This file is
+ * the source of truth for each value; update it here once,
  * so every consumer picks up the change from a single spot instead of
  * drifting out of sync the way "Ten years" / "8+ years" / "Fifty two" did.
  */
@@ -70,13 +70,13 @@ export const ARTICLE_COUNT_WORD = numberToWords(ARTICLE_COUNT_NUMBER)
 export const AGENT_SUITE_URL =
   'https://www.mastercard.com/global/en/news-and-trends/press/2026/january/mastercard-launches-agent-suite-to-ready-enterprises-for-a-new-e.html'
 
-/** fictional-bassoon test coverage (requirements.md line 168: "90%+ test coverage"). */
+/** fictional-bassoon test coverage (the approved figure: "90%+ test coverage"). */
 export const FICTIONAL_BASSOON_COVERAGE = '90%+'
 
-/** Illumina anticipated savings, in millions of USD (requirements.md line 124). */
+/** Illumina anticipated savings, in millions of USD (the approved figure). */
 export const ILLUMINA_SAVINGS_MILLIONS = 9
 
-/** Prose form: "USD 9 million" — no dollar sign, matches requirements.md exactly. */
+/** Prose form: "USD 9 million" — no dollar sign, matches the approved wording exactly. */
 export const ILLUMINA_SAVINGS_PROSE = `USD ${ILLUMINA_SAVINGS_MILLIONS} million`
 
 /** Compact figure-panel form: "$9M". */

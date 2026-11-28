@@ -44,7 +44,7 @@ The gate uses `github.repository_owner`, so it follows whoever owns the new repo
 These describe this site. In both files, look for:
 
 - **Stack line**, e.g. "personal site (Next.js 16, TypeScript, Jest)". Describe the new repo.
-- **"Read these first"**: `requirements.md`, `CLAUDE.md`, `design_handoff_personal_site/README.md`. Point at the new repo's equivalents (README, CONTRIBUTING, architecture notes).
+- **"Read these first"**: `CLAUDE.md`, `lib/profile.ts`, `design_handoff_personal_site/README.md`. Point at the new repo's equivalents (README, CONTRIBUTING, architecture notes).
 - **"Follow `CLAUDE.md` design and content rules"**. Keep it if the new repo has a `CLAUDE.md`; otherwise drop it or name the file that holds the rules.
 - **Name**: "Titus". Fine if it's still you.
 

@@ -15,8 +15,8 @@ import { join } from 'path'
 import { buildSystemPrompt, promptTokens } from './copilot-prompt'
 
 const ROOT = join(__dirname, '..')
-const SYSTEM_TEMPLATE = readFileSync(join(ROOT, 'copilot-system-prompt.md'), 'utf-8')
-const FIT_TEMPLATE = readFileSync(join(ROOT, 'copilot-fit-prompt.md'), 'utf-8')
+const SYSTEM_TEMPLATE = readFileSync(join(ROOT, 'prompts', 'copilot-system-prompt.md'), 'utf-8')
+const FIT_TEMPLATE = readFileSync(join(ROOT, 'prompts', 'copilot-fit-prompt.md'), 'utf-8')
 
 const TOKEN_LIKE = /\{\{[^{}\n]*\}\}/g
 

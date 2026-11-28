@@ -54,7 +54,7 @@ vercel --prod       # production deployment
 ```bash
 claude
 ```
-Claude Code reads `CLAUDE.md` at the root for project-specific instructions. Always follow the Ralph Wiggum Protocol defined there: read `requirements.md` before writing any code.
+Claude Code reads `CLAUDE.md` at the root for project-specific instructions. Always follow the Ralph Wiggum Protocol defined there: read `CLAUDE.md` (and `lib/profile.ts` for career facts) before writing any code.
 
 **Start a Ralph Loop** (iterative build loop — Claude works autonomously in cycles):
 ```
@@ -91,8 +91,7 @@ app/
   ...               # Next.js App Router pages and layout
 components/         # All page sections (Hero, Experience, ProjectsWriting, etc.)
 public/             # Static assets (headshot.jpeg)
-copilot-system-prompt.md  # System prompt for the Copilot chat feature
+prompts/            # Copilot prompt templates (chat system prompt, fit brief)
 sonar-project.properties  # SonarQube static analysis config
 CLAUDE.md           # Claude Code instructions and design rules
-requirements.md     # Full product requirements document
 ```
