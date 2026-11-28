@@ -13,8 +13,8 @@
 ## Global Constraints
 
 - Gate: Task 1 waits for the spike's go (Titus's iPhone keeps up, and he has picked a voice). The voice id goes in `KOKORO_VOICE`.
-- Engine: WebGPU only, `dtype: "fp16"`, model `onnx-community/Kokoro-82M-v1.0-ONNX`. No WASM fallback: without WebGPU the reply stays text, with state 4's line.
-- Download size in copy: "163 MB".
+- Engine: WebGPU only, `dtype: "fp16"`, the **patched** model hosted on Titus's Hugging Face (repo id in `KOKORO_MODEL`; built by `scripts/kokoro/patch-fp16.py` then `promote-fp32.py`, see the spec's spike results), loaded with `session_options: { graphOptimizationLevel: "basic" }` (the official model, or "all", makes NaN on ONNX Runtime 1.31 WebGPU). kokoro-js stays on `@huggingface/transformers` 4.3.2 via `overrides`. No WASM fallback: without WebGPU the reply stays text, with state 4's line.
+- Download size in copy: "172 MB".
 - Copy, exact: thinking line "You asked out loud, so I’ll answer out loud."; strip "Speaking" · "type to cut in" · "Stop"; "hear again"; fallback "My voice couldn’t keep up on this device, so this one’s written out."; phone offer "I can answer out loud. It’s a one-off 163 MB download." with buttons "Speak replies" / "Text is fine"; loading strip "Getting my voice ready · N%".
 - Voice rules for the site: no emoji, no exclamation points; curly apostrophes as the site uses them.
 - Nothing about voice is stored except the model in the browser's cache; "don't ask again" lives in memory for the visit.
@@ -40,11 +40,11 @@
 - Create: `lib/voice-reply/config.ts`
 
 **Interfaces:**
-- Produces: `KOKORO_MODEL = "onnx-community/Kokoro-82M-v1.0-ONNX"`, `KOKORO_DTYPE = "fp16"`, `KOKORO_VOICE` (Titus's pick), `ORT_PATH = "/voice/ort/"`, `MODEL_FILE_URL` (the fp16 `.onnx` URL on huggingface.co, used for the cache check), `DOWNLOAD_MB = 163` in `config.ts`.
+- Produces: `KOKORO_MODEL` (Titus's Hugging Face repo with the patched model), `KOKORO_DTYPE = "fp16"`, `KOKORO_VOICE` (Titus's pick), `ORT_PATH = "/voice/ort/"`, `MODEL_FILE_URL` (that repo's `onnx/model_fp16.onnx` URL, used for the cache check), `DOWNLOAD_MB = 172` in `config.ts`.
 - Produces (worker protocol, replaces the spike's): in `{ type: "load" }` | `{ type: "speak", id: number, text: string }` | `{ type: "cancel", upTo: number }`; out `{ type: "progress", loaded: number, total: number }` | `{ type: "ready" }` | `{ type: "audio", id, audio: Float32Array, sampleRate: number }` | `{ type: "error", id?: number, message: string }`. `cancel` drops queued `speak`s with `id <= upTo`.
 
 - [ ] **Step 1:** `scripts/copy-ort.mjs` copies `ort-wasm-simd-threaded.jsep.mjs` and `.wasm` from `node_modules/@huggingface/transformers/dist/` to `public/voice/ort/` (creates the folder; exits non-zero if a source is missing). Wire it as `predev` and `prebuild`.
-- [ ] **Step 2:** In the worker, import `env` from `@huggingface/transformers` and set `env.backends.onnx.wasm.wasmPaths = ORT_PATH` and `env.allowLocalModels = false` before loading; load with `device: "webgpu"`, `dtype: KOKORO_DTYPE`; speak with `KOKORO_VOICE`; sum progress across files into one `{loaded,total}`; implement `cancel`.
+- [ ] **Step 2:** In the worker (keep the spike's Safari stream polyfill import first), import `env` from `@huggingface/transformers` and set `env.backends.onnx.wasm.wasmPaths = ORT_PATH` and `env.allowLocalModels = false` before loading; build Kokoro by hand as the spike does (`StyleTextToSpeech2Model.from_pretrained(KOKORO_MODEL, { device: "webgpu", dtype: KOKORO_DTYPE, session_options: { graphOptimizationLevel: "basic" } })` + `AutoTokenizer`, then `new KokoroTTS(model, tokenizer)`); speak with `KOKORO_VOICE` via `stream()` on a closed `TextSplitterStream`, or `generate()`; sum progress across files into one `{loaded,total}`; implement `cancel`. Add `@huggingface/transformers` 4.3.2 as a direct dependency.
 - [ ] **Step 3:** Point the lab at the new protocol (it keeps its engine and voice pickers by passing overrides; keep them as optional fields on `load`/`speak`).
 - [ ] **Step 4: Verify** `npm run build` passes, then on `npx next start` load `/voice-lab` in Chrome and confirm in the Network panel that `ort-wasm-simd-threaded.jsep.wasm` comes from `/voice/ort/`, not jsDelivr, and that Speak still works.
 - [ ] **Step 5: Commit** `feat(voice-reply): serve the ONNX runtime from the site; fix the engine to WebGPU fp16`.
