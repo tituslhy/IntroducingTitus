@@ -40,6 +40,25 @@ export function canRecord(): boolean {
 }
 
 /**
+ * Opens the mic with the browser's automatic gain control off and noise suppression on. Gain control turns the mic
+ * up whenever the visitor goes quiet, which pushes a fan's hum back up toward speech level in every pause (so the
+ * pause is never heard); noise suppression removes steady noise like fans before we measure it. A browser that
+ * can't honour those settings (OverconstrainedError, or a TypeError for the constraint object) gets one retry
+ * with plain `{ audio: true }`; any other error is the caller's, as before.
+ */
+async function getMic(): Promise<MediaStream> {
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: { autoGainControl: false, noiseSuppression: true, echoCancellation: true },
+    });
+  } catch (error) {
+    const name = error instanceof Error || (typeof DOMException !== "undefined" && error instanceof DOMException) ? (error as Error).name : "";
+    if (name !== "OverconstrainedError" && !(error instanceof TypeError)) throw error;
+    return navigator.mediaDevices.getUserMedia({ audio: true });
+  }
+}
+
+/**
  * Records one clip at a time and transcribes it. `onText` gets the words; `problem` says why it stopped short.
  * `cancel` drops a clip in progress (the drawer closing): nothing is sent.
  */
@@ -149,7 +168,7 @@ export function useVoiceInput(onText: (text: string) => void) {
     const dropContext = () => void ctx?.close().catch(() => {});
     let stream: MediaStream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await getMic();
     } catch (error) {
       dropContext();
       // A cancelled start says nothing, and leaves a newer start's flag alone.

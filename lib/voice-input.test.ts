@@ -8,7 +8,9 @@ import {
   MAX_TRANSCRIPT_CHARS,
   MIN_SPEECH_MS,
   NO_SPEECH_MS,
+  QUIET_OF_SPEECH,
   RECORDING_TYPES,
+  SPEECH_LEVEL_HALF_LIFE_MS,
   VOICE_PROBLEMS,
   appendTranscript,
   audioExtension,
@@ -388,5 +390,64 @@ describe("createHearing", () => {
     const h = createHearing(0);
     feed(h, 0, 0, 1000);
     expect(h.heard()).toBe(false);
+  });
+});
+
+describe("createHearing: hearing the end of a question over steady noise", () => {
+  /** Feeds a frame every 50 ms from `from` for `ms` milliseconds at `level`, returning every answer. */
+  function feedAll(h: ReturnType<typeof createHearing>, level: number, from: number, ms: number) {
+    const answers: { t: number; answer: ReturnType<typeof h.hear> }[] = [];
+    for (let t = from + 50; t <= from + ms; t += 50) answers.push({ t, answer: h.hear(level, t) });
+    return { answers, end: from + ms };
+  }
+  const firstDone = (answers: { t: number; answer: string }[]) => answers.find((a) => a.answer === "done")?.t;
+
+  it("holds the numbers the pause is measured against", () => {
+    expect(QUIET_OF_SPEECH).toBe(0.5);
+    expect(SPEECH_LEVEL_HALF_LIFE_MS).toBe(3_000);
+  });
+
+  it("with a loud fan (0.06), ends END_PAUSE_MS after the speech does, not never", () => {
+    const h = createHearing(0);
+    const fan = feedAll(h, 0.06, 0, 1_000);
+    const speech = feedAll(h, 0.2, fan.end, 1_500);
+    expect(firstDone(speech.answers)).toBeUndefined();
+    const after = feedAll(h, 0.06, speech.end, 3_000);
+    const done = firstDone(after.answers);
+    expect(done).toBeDefined();
+    expect(done!).toBeGreaterThanOrEqual(speech.end + END_PAUSE_MS - 50);
+    expect(done!).toBeLessThanOrEqual(speech.end + END_PAUSE_MS + 100);
+  });
+
+  it("a quiet speaker in a quiet room (speech 0.02, room 0.003) is done after the pause", () => {
+    const h = createHearing(0);
+    const room = feedAll(h, 0.003, 0, 500);
+    const speech = feedAll(h, 0.02, room.end, 1_000);
+    expect(h.heard()).toBe(true);
+    const after = feedAll(h, 0.003, speech.end, 3_000);
+    const done = firstDone(after.answers);
+    expect(done).toBeGreaterThanOrEqual(speech.end + END_PAUSE_MS - 50);
+    expect(done).toBeLessThanOrEqual(speech.end + END_PAUSE_MS + 100);
+  });
+
+  it("natural speech that dips (0.2 then 0.08 every 150 ms for 2 s) is never done mid-speech", () => {
+    const h = createHearing(0);
+    const room = feedAll(h, 0.001, 0, 500);
+    const answers: string[] = [];
+    for (let t = room.end + 50; t <= room.end + 2_000; t += 50) {
+      const inCycle = (t - room.end - 50) % 300;
+      answers.push(h.hear(inCycle < 150 ? 0.2 : 0.08, t));
+    }
+    expect(answers).not.toContain("done");
+    expect(h.heard()).toBe(true);
+  });
+
+  it("one loud shout (0.6 for 100 ms) inside normal speech (0.15) does not end the recording early", () => {
+    const h = createHearing(0);
+    const room = feedAll(h, 0.001, 0, 500);
+    const before = feedAll(h, 0.15, room.end, 1_000);
+    const shout = feedAll(h, 0.6, before.end, 100);
+    const after = feedAll(h, 0.15, shout.end, 2_000);
+    expect(after.answers.map((a) => a.answer)).not.toContain("done");
   });
 });

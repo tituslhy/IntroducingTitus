@@ -135,7 +135,9 @@ describe("useVoiceInput: a clip", () => {
     fireEvent.click(screen.getByText("start"));
     await flush();
 
-    expect(getUserMedia).toHaveBeenCalledWith({ audio: true });
+    expect(getUserMedia).toHaveBeenCalledWith({
+      audio: { autoGainControl: false, noiseSuppression: true, echoCancellation: true },
+    });
     expect(screen.getByTestId("state")).toHaveTextContent("recording");
     expect(FakeRecorder.instances).toHaveLength(1);
     expect(FakeRecorder.instances[0].state).toBe("recording");
@@ -239,6 +241,62 @@ describe("useVoiceInput: problems", () => {
     fireEvent.click(screen.getByText("stop"));
     await flush();
   }
+
+  it("asks for the mic with automatic gain off and noise suppression on, so a fan isn't turned back up in a pause", async () => {
+    render(<Harness onText={() => {}} />);
+    fireEvent.click(screen.getByText("start"));
+    await flush();
+
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(getUserMedia).toHaveBeenCalledWith({
+      audio: { autoGainControl: false, noiseSuppression: true, echoCancellation: true },
+    });
+  });
+
+  it("retries once with plain { audio: true } when the browser can't honour those settings (OverconstrainedError)", async () => {
+    getUserMedia.mockRejectedValueOnce(Object.assign(new Error("no"), { name: "OverconstrainedError" }));
+    render(<Harness onText={() => {}} />);
+    fireEvent.click(screen.getByText("start"));
+    await flush();
+
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect(getUserMedia).toHaveBeenLastCalledWith({ audio: true });
+    expect(screen.getByTestId("state")).toHaveTextContent("recording");
+    expect(screen.getByTestId("problem")).toHaveTextContent("");
+  });
+
+  it("retries once with plain { audio: true } on a TypeError for the constraint object", async () => {
+    getUserMedia.mockRejectedValueOnce(new TypeError("bad constraints"));
+    render(<Harness onText={() => {}} />);
+    fireEvent.click(screen.getByText("start"));
+    await flush();
+
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect(getUserMedia).toHaveBeenLastCalledWith({ audio: true });
+    expect(screen.getByTestId("state")).toHaveTextContent("recording");
+  });
+
+  it("does not retry on other errors (a refused permission stays blocked) and retries only once", async () => {
+    getUserMedia.mockRejectedValueOnce(Object.assign(new Error("no"), { name: "NotAllowedError" }));
+    render(<Harness onText={() => {}} />);
+    fireEvent.click(screen.getByText("start"));
+    await flush();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("problem")).toHaveTextContent(VOICE_PROBLEMS.blocked);
+  });
+
+  it("when the plain retry fails too, reports that failure's problem", async () => {
+    getUserMedia
+      .mockRejectedValueOnce(Object.assign(new Error("no"), { name: "OverconstrainedError" }))
+      .mockRejectedValueOnce(Object.assign(new Error("no"), { name: "NotFoundError" }));
+    render(<Harness onText={() => {}} />);
+    fireEvent.click(screen.getByText("start"));
+    await flush();
+
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId("problem")).toHaveTextContent(VOICE_PROBLEMS.no_mic);
+    expect(screen.getByTestId("state")).toHaveTextContent("idle");
+  });
 
   it("says the mic is blocked when the visitor refused it, and stays idle", async () => {
     getUserMedia.mockRejectedValueOnce(Object.assign(new Error("no"), { name: "NotAllowedError" }));
