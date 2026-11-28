@@ -15,7 +15,8 @@
 - Gate: Task 1 waits for the spike's go (Titus's iPhone keeps up, and he has picked a voice). The voice id goes in `KOKORO_VOICE`.
 - Engine: WebGPU only, `dtype: "fp16"`, the **patched** model hosted on Titus's Hugging Face (repo id in `KOKORO_MODEL`; built by `scripts/kokoro/patch-fp16.py` then `promote-fp32.py`, see the spec's spike results), loaded with `session_options: { graphOptimizationLevel: "basic" }` (the official model, or "all", makes NaN on ONNX Runtime 1.31 WebGPU). kokoro-js stays on `@huggingface/transformers` 4.3.2 via `overrides`. No WASM fallback: without WebGPU the reply stays text, with state 4's line.
 - Download size in copy: "172 MB".
-- Copy, exact: thinking line "You asked out loud, so I’ll answer out loud."; strip "Speaking" · "type to cut in" · "Stop"; "hear again"; fallback "My voice couldn’t keep up on this device, so this one’s written out."; phone offer "I can answer out loud. It’s a one-off 172 MB download." with buttons "Speak replies" / "Text is fine"; loading strip "Getting my voice ready · N%".
+- Copy, exact: thinking line "You asked out loud, so I’ll answer out loud."; strip "Speaking" · "type to cut in" · "Stop"; "hear again"; fallback "My voice couldn’t keep up on this device, so this one’s written out."; phone offer (at the first mic tap) "I can answer out loud. It’s a one-off 172 MB download, best on Wi-Fi." with buttons "Speak replies" / "Text is fine" (44 px); first-time step under the dots "Getting my voice ready · N%" + "First time only: X of 172 MB. Your browser keeps it, so next time I answer straight away."; loading strip "Getting my voice ready · N%" + "I’ll read it out as soon as it’s in." + "Just read"; late strip "My voice is ready." + "Hear this reply" (▶) + a dismiss ✕.
+- First time (spec "The download, and the first time"; canvas states 6–9): on a computer the download starts at the first mic tap; on a phone the offer shows at the first mic tap. Speech starts by itself only if the voice is ready within `LATE_MS = 8000` of the reply finishing and the visitor hasn't typed, tapped the mic or scrolled the drawer since; otherwise the late strip. Progress is the real download, never filler.
 - Voice rules for the site: no emoji, no exclamation points; curly apostrophes as the site uses them.
 - Nothing about voice is stored except the model in the browser's cache; "don't ask again" lives in memory for the visit.
 - Tests: per CLAUDE.md, test files are written by the unit-test-writer agent. Each task's test step is a brief for that agent: the test names and assertions below.
@@ -135,12 +136,15 @@
 
 **Interfaces:**
 - Consumes: Tasks 2–5.
-- Produces: `useVoiceReply(): { prime(): void; begin(replyKey: string): void; feed(markdown: string): void; finish(markdown: string): void; stop(): void; hearAgain(replyKey: string): void; status: { key: string; phase: "offer" | "loading" | "speaking" | "done" | "failed"; progress: number } | null; answerOffer(yes: boolean): void; supported: boolean }`.
+- Produces: `useVoiceReply(): { prime(): void; begin(replyKey: string): void; feed(markdown: string): void; finish(markdown: string): void; stop(): void; hearAgain(replyKey: string): void; status: { key: string; phase: "offer" | "loading" | "speaking" | "late" | "done" | "failed"; progress: number; loadedMb: number } | null; answerOffer(yes: boolean): void; justRead(): void; noteInteraction(): void; supported: boolean }`. `noteInteraction()` is called on typing, a mic tap and a drawer scroll (for the 8 s rule).
 - `Message` gains `spoken?: boolean` (on the visitor's message).
 
 - [ ] **Step 1: Tests (unit-test-writer brief; mock the engine, player and support modules):**
   - drawer: words from the mic then Send → the request body has `spoken: true` and the visitor's message shows the "spoken" tag; typed, a starter prompt or an "Ask about X" pill → no `spoken` key; mic words then the box emptied then typed → no `spoken`; mic words lightly edited → `spoken: true`.
-  - thinking state of a spoken question shows "You asked out loud, so I’ll answer out loud." (desktop) or the download offer (coarse pointer, not cached).
+  - thinking state of a spoken question shows "You asked out loud, so I’ll answer out loud."; while the voice downloads it also shows the first-time step with the real percentage and MB.
+  - computer, not cached: the first mic tap calls `load()`. Phone (coarse pointer), not cached: the first mic tap shows the offer while recording carries on; nothing downloads until "Speak replies". Cached: no offer, no first-time step, anywhere.
+  - reply finished while loading: the strip shows the loading copy and "Just read"; "Just read" → nothing spoken for this reply.
+  - voice ready within 8 s of the reply finishing, no interaction → speech starts. Ready after 8 s, or after `noteInteraction()` → phase "late": no audio, the late strip; "Hear this reply" plays from sentence 0; ✕ dismisses it.
   - "Text is fine" → no speech for this reply and no offer for the next spoken question this visit; "Speak replies" → `load()` called.
   - streaming deltas feed sentences to the engine as they complete; `finish` sends the last fragment.
   - while speaking: the strip shows "Speaking", "type to cut in", and Stop; Stop, typing, the mic, Send, closing the drawer and starting the tour each call `stop()` and the strip goes.
@@ -153,7 +157,7 @@
   - `highlightSentence` sets a highlight over the matching text across text nodes (bold inside a sentence), `clearHighlight` removes it, and both no-op without `CSS.highlights`.
 - [ ] **Step 2:** Run `npx jest components/VoiceReply.test.tsx components/CopilotBubble.test.tsx lib/voice-reply/highlight.test.ts`; expect the new tests to FAIL.
 - [ ] **Step 3: Implement the hook.** `prime()` (called in the mic tap and in Send/Enter, both user gestures) sets `navigator.audioSession.type = "playback"` where it exists (else the iPhone's silent switch mutes Web Audio), creates or resumes one `AudioContext` and, on desktop when `canSpeak`, starts `load()`. `begin` decides offer / loading / speaking. Each `onSentence` highlights in `#copilot-msg-<id>`.
-- [ ] **Step 4: Wire the drawer.** Set a `spokenDraft` ref in the `useVoiceInput` callback; clear it when the box is emptied; `sendMessage(textOverride)` with an override is never spoken. Include `spoken: true` in the body only when set. Call `begin` at send, `feed` from `appendDelta` with the message's full content, `finish` on stream end, `stop` on the listed actions and in the `catch`. Render the states per the mock (strip above the input row; offer and thinking line under the dots; "hear again" beside "copy"; fallback line under the reply).
+- [ ] **Step 4: Wire the drawer.** Set a `spokenDraft` ref in the `useVoiceInput` callback; clear it when the box is emptied; `sendMessage(textOverride)` with an override is never spoken. Include `spoken: true` in the body only when set. Call `begin` at send, `feed` from `appendDelta` with the message's full content, `finish` on stream end, `stop` on the listed actions and in the `catch`. Render the states per the mock (strip above the input row; thinking line and first-time step under the dots; the phone offer above the input row at the mic tap; "hear again" beside "copy"; fallback line under the reply). Call `prime()` in the mic tap and Send/Enter; `noteInteraction()` on typing, a mic tap and the messages pane's scroll.
 - [ ] **Step 5:** Run the tests; expect PASS. Run `npm run lint` and `npx tsc --noEmit`.
 - [ ] **Step 6: Commit** `feat(ask-titus): speak to it, and it speaks back`.
 
@@ -172,17 +176,25 @@
 - [ ] **Step 4:** Run the tests; expect PASS. Run `npm run eval:writing -- --only "<one spoken row>"` locally if a key is set (skip if not, and say so).
 - [ ] **Step 5: Commit** `feat(ask-titus): a spoken question gets a reply written to be heard`.
 
-### Task 8: Copy (drawer privacy line, colophon) and the lab's fate
+### Task 8: Copy (drawer privacy line, the colophon's Voice section) and the lab's fate
 
 **Files:**
-- Modify: `components/CopilotBubble.tsx` (privacy line), `app/colophon/page.tsx` (Voice section, guardrail row), their tests; `CLAUDE.md` and `requirements.md` (copilot behaviour bullet: voice reply); delete `app/voice-lab/` (the spike is done)
+- Modify: `components/CopilotBubble.tsx` (privacy line), `app/colophon/page.tsx` (Voice section elaborated into how a spoken reply works: written to be heard, made on the visitor's device by Kokoro on WebGPU, the first-time download, and the engineering story in plain words — the fp16 overflow and crackle, the patched 172 MB model linked on Hugging Face; the "How it works" diagram gains the voice step; guardrail row), their tests; `CLAUDE.md` and `requirements.md` (copilot behaviour bullet: voice reply); delete `app/voice-lab/` (the spike is done)
 - Test: `components/CopilotBubble.test.tsx`, `app/colophon/page.test.tsx`
 
 - [ ] **Step 1: Tests:** where voice is supported the privacy line reads exactly the spec's proposed text; where it isn't, today's line minus the voice sentences. The colophon's Voice section says spoken replies are made on the device, no audio is sent, and the voice comes from Hugging Face once and is kept in the browser's cache; its guardrail row adds `['Spoken replies made on your device; only a question you spoke is spoken back', 'Audio sent to a server; a typed question read aloud']`.
 - [ ] **Step 2:** Run; expect FAIL. **Step 3:** Implement. **Step 4:** Run the full suite `npm test`; expect PASS; `npm run lint`; `npm run build`.
 - [ ] **Step 5: Commit** `docs(ask-titus): say where spoken replies are made`.
 
-### Task 9: Device checks and the PR
+### Task 9: The tour mentions it
+
+**Files:** Modify `content/tour-brief.md` (a beat: you can speak to Ask Titus, and it answers out loud); then Titus runs `npm run tour:record` (needs the OpenAI key) and reviews the printed tour; `content/site-tour.json` is the recording.
+
+- [ ] **Step 1:** Add the beat to the brief (where the drawer is introduced, one line; keep the tour under two minutes).
+- [ ] **Step 2:** Titus records and reviews; the tour's narration tests (`lib/site-tour.test.ts`) still pass.
+- [ ] **Step 3: Commit** `feat(tour): it mentions speaking to Ask Titus`.
+
+### Task 10: Device checks and the PR
 
 - [ ] **Step 1:** Push; on the Vercel preview check iPhone Safari, Android Chrome, desktop Chrome, Safari and Firefox: audio plays after a spoken question, the highlight follows, Stop and typing cut it off, "hear again" works, the phone offer shows once, and Chrome's CPU throttling (6×) brings up the fallback line instead of stutter.
 - [ ] **Step 2:** Screenshots of the five states on desktop and phone for Titus.

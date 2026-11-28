@@ -90,15 +90,28 @@ Everything else (scope, honesty, first person, tools, cards, page moves) is unch
    this device, so this one's written out." No "hear again".
 5. **Phone:** the same states at phone width; Send shrinks to its arrow as today.
 
-### The download
+### The download, and the first time (approved by Titus 2026-11-28; canvas row 2, states 6–9)
 
-- **Desktop:** the model starts downloading at the mic tap, silently, so it is usually ready before the reply.
-- **Phone** (a coarse pointer, or the browser reports cellular or Save-Data): the first spoken question shows a
-  one-tap line in the thinking state: "I can answer out loud. It's a one-off 172 MB download." **Speak replies** /
-  **Text is fine**. Yes starts the download while it thinks; No answers in text and doesn't ask again this visit
-  (in memory only).
-- **Already downloaded** (the model is in the browser's cache): no question, anywhere.
-- **Still downloading when the reply's text is done:** the strip reads "Getting my voice ready · 40%" with Stop.
+The voice is a 172 MB download the first time (about 65 s on Titus's iPhone for 163 MB), while speaking the question,
+checking the words and thinking take 15–25 s. So on a computer it is often ready in time and on a phone usually not.
+The first time is designed around that, honestly: the progress shown is the real download, never filler steps.
+
+- **Computer:** the download starts at the **first mic tap** (where WebGPU works and the voice isn't cached), so it
+  overlaps the speaking, the checking and the thinking.
+- **Phone** (a coarse pointer, or the browser reports cellular or Save-Data): the offer appears **at the first mic tap**
+  (the recording starts anyway): "I can answer out loud. It's a one-off 172 MB download, best on Wi-Fi." **Speak
+  replies** / **Text is fine** (44 px buttons). Yes starts the download while they talk; No answers in text and
+  doesn't ask again this visit (in memory only). (State 9.)
+- **While it thinks** (state 6): under the dots, beside "You asked out loud, so I'll answer out loud.", a real step:
+  "Getting my voice ready · 38%", a thin progress bar, and "First time only: 65 of 172 MB. Your browser keeps it, so
+  next time I answer straight away."
+- **The reply never waits for the voice** (state 7): the text streams as usual; the strip reads "Getting my voice ready
+  · 86%", "I'll read it out as soon as it's in.", and a **Just read** button (no speech for this reply; on a computer
+  the download carries on for next time).
+- **Ready too late** (state 8): it starts reading by itself only if the voice is ready within **8 s** of the reply
+  finishing and the visitor hasn't typed, tapped the mic or scrolled the drawer since. Otherwise it never starts
+  talking out of nowhere: the strip says "My voice is ready." with **▶ Hear this reply** and a dismiss ✕.
+- **Already downloaded** (the model is in the browser's cache): none of this; it loads in about 2 s.
 
 ### Too slow, or it fails
 
@@ -124,6 +137,15 @@ where voice is supported:
 
 The colophon's Voice section and its guardrail row gain the same facts (spoken replies made on the device; no audio
 sent; the model's host).
+
+### The colophon and the tour (Titus, 2026-11-28)
+
+- **Colophon:** the Voice section is elaborated into how a spoken reply works: written to be heard, made on the
+  visitor's device by Kokoro on WebGPU, the first-time download, and the engineering story in plain words (the fp16
+  overflow and crackle, and the patched 172 MB model, with a link to it on Hugging Face). Its "How it works" diagram
+  gains the voice step. Only numbers a script or a recorded run produced (the colophon's rule).
+- **Tour:** re-recorded so it mentions speaking to Ask Titus and hearing it answer: `content/tour-brief.md` gains the
+  beat, then `npm run tour:record` (needs the OpenAI key: Titus runs it) and Titus reviews the printed tour.
 
 ### Third parties
 
@@ -192,19 +214,20 @@ builds cleanly, the spike says so before any real code is written.
 
 - Unit tests (the unit-test-writer agent): speakable text and sentence splitting; the pronunciation map; the
   spoken-message flag (set by a transcription, cleared by the listed actions); the route's `spoken` validation and
-  its system message; the phone download offer; the stop rules; the too-slow rules, with a fake worker and fake
-  audio clock.
+  its system message; the phone download offer at the mic tap; the first-time states (progress step, Just read, the
+  8 s rule and "Hear this reply"); the stop rules; the too-slow rules, with a fake worker and fake audio clock.
 - Eval: `npm run eval:writing` gains spoken cases (no list markup, no URLs, two paragraphs at most, a card mentioned
   in a plain line).
 - By hand, on a Vercel preview: iPhone Safari, Android Chrome, desktop Chrome, Safari and Firefox. Check that audio is
-  allowed to play, the highlight, Stop, "hear again", the phone offer, and the slow-device line (simulated with CPU
-  throttling).
+  allowed to play, the highlight, Stop, "hear again", the phone offer, the first time on a slow connection
+  (throttled), and the slow-device line (simulated with CPU throttling).
 
 ## Build order
 
 0. The spike (above). Titus picks the voice; go / no-go.
 1. Route: `spoken` flag and its system message; eval cases.
 2. `lib/voice-reply/`: speakable text, pronunciation map, sentence queue, worker, playback, too-slow rules.
-3. Drawer: the spoken flag, the five states, the phone offer, stopping, "hear again".
-4. Copy: drawer privacy line, colophon Voice section and guardrail row.
-5. Preview checks on real devices, then a PR.
+3. Drawer: the spoken flag, the five states, the first-time states (6–9), stopping, "hear again".
+4. Copy: drawer privacy line; the colophon's Voice section elaborated, its diagram and guardrail row.
+5. The tour: brief updated, re-recorded by Titus.
+6. Preview checks on real devices, then a PR.
