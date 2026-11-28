@@ -3,6 +3,8 @@
 //           out { type: "progress", file, loaded, total } | { type: "ready", loadMs, device, dtype }
 //               | { type: "audio", id, audio, sampleRate, genMs } | { type: "error", id?, message }
 
+// First, before kokoro-js: Safari needs it to unpack the phonemizer's dictionary (see the file).
+import "./stream-polyfill";
 import { KokoroTTS } from "kokoro-js";
 
 type Dtype = "fp32" | "fp16" | "q8" | "q4" | "q4f16";
