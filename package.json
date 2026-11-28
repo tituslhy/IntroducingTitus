@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/copy-ort.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-ort.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -19,6 +21,7 @@
   "dependencies": {
     "@a2ui/react": "0.16.1",
     "@a2ui/web_core": "0.16.1",
+    "@huggingface/transformers": "4.3.2",
     "@typesafe-ai/sdk": "0.7.0",
     "baseline-browser-mapping": "^2.11.34",
     "caniuse-lite": "^1.0.30001820",

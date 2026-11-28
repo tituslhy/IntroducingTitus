@@ -65,3 +65,6 @@ handoffs/
 
 # The patched Kokoro model to upload to Hugging Face (172 MB; never committed)
 /voice-model-upload/
+
+# ONNX Runtime wasm files for the voice engine, copied by scripts/copy-ort.mjs
+/public/voice/ort/
