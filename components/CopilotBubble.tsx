@@ -289,8 +289,12 @@ export default function CopilotBubble({
     feed: feedVoiceReply,
     finish: finishVoiceReply,
     stop: stopVoiceReply,
+    justRead: dropVoiceReply,
     noteInteraction: noteVoiceInteraction,
   } = voiceReply;
+  // A new question makes the late strip ("My voice is ready.") stale; "hear again" on a reply already read stays.
+  const voiceLateRef = useRef(false);
+  voiceLateRef.current = voiceReply.status?.phase === "late";
   // Keyboard focus follows the mic, so it never falls out of the drawer: to Stop while recording, to the
   // "Transcribing…" line while it works, then back to the box (cursor after the words) once it's done.
   const stopVoiceRef = useRef<HTMLButtonElement>(null);
@@ -715,6 +719,7 @@ export default function CopilotBubble({
     // Sending stops a reply being read out. Only the box's own words can be spoken: a starter prompt, an "Ask about
     // X" pill or a card's question never is.
     stopVoiceReply();
+    if (voiceLateRef.current) dropVoiceReply();
     const spoken = textOverride === undefined && spokenDraftRef.current;
     spokenDraftRef.current = false;
 
@@ -978,8 +983,10 @@ export default function CopilotBubble({
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") return;
-      // The reply broke off: stop reading it. The error message is never read out.
-      stopVoiceReply();
+      // The reply broke off: a spoken one is dropped (nothing left waiting on the voice, nothing to hear again),
+      // anything else just stops. The error message is never read out.
+      if (spoken) dropVoiceReply();
+      else stopVoiceReply();
       setLiveMessage("Reply failed");
       setMessages((prev) => [
         ...prev,
@@ -1011,6 +1018,7 @@ export default function CopilotBubble({
     showStop,
     email,
     stopVoiceReply,
+    dropVoiceReply,
     primeVoiceReply,
     beginVoiceReply,
     feedVoiceReply,
@@ -1187,6 +1195,11 @@ export default function CopilotBubble({
   const voiceStatus = voiceReply.status;
   const voicePhase = voiceStatus?.phase ?? null;
   const lastIsSpokenQuestion = lastMessage?.role === "user" && !!lastMessage.spoken;
+  // While a spoken question's reply streams, the box stays live so the visitor can type to cut in (Send still waits
+  // for the reply). Keyed on the question, not the voice's phase: typing stops the voice, and the box must not go
+  // dead mid-keystroke. A typed question's reply keeps the box disabled, as before.
+  const questionOfLast = messages[messages.length - 2];
+  const boxLive = isStreaming && lastMessage?.role === "assistant" && questionOfLast?.role === "user" && !!questionOfLast.spoken;
   // Thinking about a spoken question that will be answered out loud: the line goes under the dots, not the strip.
   const thinkingAloud = isLoading && lastIsSpokenQuestion && (voicePhase === "loading" || voicePhase === "speaking");
   const voiceStrip =
@@ -1675,7 +1688,7 @@ export default function CopilotBubble({
               onKeyDown={handleKeyDown}
               placeholder={mode === "fit" ? "Paste the job description…" : "Ask about my work…"}
               aria-label={mode === "fit" ? "Job description" : "Message"}
-              disabled={busy}
+              disabled={busy && !boxLive}
               rows={1}
               className="flex-1 resize-none overflow-y-auto border border-rule bg-paper px-3 py-2 font-mono text-[12.5px] text-ink placeholder:text-ink-faint transition-colors focus:border-amber focus:outline-none disabled:opacity-50"
               style={{ minHeight: mode === "fit" ? "96px" : "36px", maxHeight: mode === "fit" ? "220px" : "120px" }}

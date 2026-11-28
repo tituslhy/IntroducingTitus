@@ -6832,7 +6832,7 @@ describe("CopilotBubble: voice reply", () => {
       act(() => engine().progress(0.38));
 
       expect(screen.getByText(THINKING_LINE)).toBeInTheDocument();
-      expect(screen.getByText("38%")).toBeInTheDocument();
+      expect(screen.getByText("Getting my voice ready").parentElement).toHaveTextContent(/^Getting my voice ready · 38%$/);
       expect(screen.getByText(/First time only: 65 of 172 MB\./)).toBeInTheDocument();
       await stream.release();
     });
@@ -6950,6 +6950,58 @@ describe("CopilotBubble: voice reply", () => {
       expect(screen.queryByText("My voice is ready.")).toBeNull();
     });
 
+    it("a typed Send clears the late strip", async () => {
+      const user = await openDrawer();
+      await speakIntoBox();
+      await sendSpoken(user);
+      const reply = await screen.findByText("I started in supply chain. Then data science.");
+      fireEvent.wheel(reply);
+      await act(async () => engine().becomeReady());
+      await flush();
+
+      await user.type(box()!, "Something else");
+      expect(screen.getByText("My voice is ready.")).toBeInTheDocument();
+      await user.keyboard("{Enter}");
+      await flush();
+      expect(screen.queryByText("My voice is ready.")).toBeNull();
+    });
+
+    it("a stream error while the voice downloads: no strip, and nothing appears when the voice arrives", async () => {
+      chatReplies.push(createStreamingResponse([deltaLine("I started in supply chain. Then"), `{"type":"error","code":"ERR_RATE_LIMIT"}\n`]));
+      const user = await openDrawer();
+      await speakIntoBox();
+      await sendSpoken(user);
+      await screen.findByText(/lot of questions right now/);
+
+      expect(screen.queryByText(/Getting my voice ready/)).toBeNull();
+      await act(async () => engine().becomeReady());
+      await flush();
+      expect(screen.queryByText("My voice is ready.")).toBeNull();
+      expect(strip()).toBeNull();
+      expect(engine().speak).not.toHaveBeenCalled();
+    });
+
+    it("closed mid-stream, the voice arriving before the reply is in: “Hear this reply” plays it", async () => {
+      const stream = pausingResponse([deltaLine("One here. Two"), WAIT, deltaLine(" there.")]);
+      chatReplies.push(stream.response);
+      const user = await openDrawer();
+      await speakIntoBox();
+      await sendSpoken(user);
+      await screen.findByText("One here. Two");
+      fireEvent.click(screen.getAllByRole("button", { name: "Close chat" })[0]);
+      await flush();
+      await act(async () => engine().becomeReady());
+      await flush();
+      expect(engine().speak).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+      fireEvent.click(screen.getByRole("button", { name: "Hear this reply" }));
+      await flush();
+      expect(engine().texts()).toEqual(["One here."]);
+      await stream.release();
+      expect(engine().texts()).toEqual(["One here.", "Two there."]);
+    });
+
     it("the drawer closed while the voice downloads: when it arrives, nothing is spoken", async () => {
       const stream = pausingResponse([WAIT, deltaLine("One here. Two there.")]);
       chatReplies.push(stream.response);
@@ -6978,6 +7030,38 @@ describe("CopilotBubble: voice reply", () => {
       await stream.release();
       expect(engine().texts()).toEqual(["I started in supply chain.", "Then data science"]);
       expect(player().finished).toBe(true);
+    });
+
+    it("while a spoken reply streams, the box stays live: typing cuts in, and Send waits for the reply", async () => {
+      const stream = pausingResponse([deltaLine("I started in supply chain. Then"), WAIT, deltaLine(" data science.")]);
+      chatReplies.push(stream.response);
+      const user = await voiceReady();
+      await sendSpoken(user);
+      await screen.findByText("Speaking");
+      const speaking = player();
+
+      expect(box()).toBeEnabled();
+      await user.type(box()!, "Next");
+      expect(speaking.stopped).toBe(true);
+      expect(strip()).toBeNull();
+      expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
+      await user.keyboard("{Enter}");
+      expect(chatCalls()).toHaveLength(1);
+
+      await stream.release();
+      expect(box()).toBeEnabled();
+      expect(box()!.value).toBe("Next");
+    });
+
+    it("while a typed reply streams, the box is disabled as before", async () => {
+      const stream = pausingResponse([deltaLine("A typed answer"), WAIT, deltaLine(".")]);
+      chatReplies.push(stream.response);
+      const user = await openDrawer();
+      await user.type(box()!, "Typed{Enter}");
+      await screen.findByText("A typed answer");
+
+      expect(box()).toBeDisabled();
+      await stream.release();
     });
 
     it("shows the strip: “Speaking”, “type to cut in” and Stop", async () => {
@@ -7035,12 +7119,12 @@ describe("CopilotBubble: voice reply", () => {
       act(() => player().opts.onDone());
 
       expect(strip()).toBeNull();
-      expect(within(reply).getByRole("button", { name: "Hear this reply again" })).toBeInTheDocument();
+      expect(within(reply).getByRole("button", { name: "hear again" })).toBeInTheDocument();
       expect(within(reply).getByRole("button", { name: "Copy message" })).toBeInTheDocument();
-      expect(screen.getAllByRole("button", { name: "Hear this reply again" })).toHaveLength(1);
+      expect(screen.getAllByRole("button", { name: "hear again" })).toHaveLength(1);
 
       const first = player();
-      fireEvent.click(within(reply).getByRole("button", { name: "Hear this reply again" }));
+      fireEvent.click(within(reply).getByRole("button", { name: "hear again" }));
       await flush();
       expect(player()).not.toBe(first);
       expect(player().expected).toEqual([0, 1]);
@@ -7054,7 +7138,7 @@ describe("CopilotBubble: voice reply", () => {
       act(() => player().opts.onStall());
 
       expect(within(reply).getByText(FALLBACK)).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Hear this reply again" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "hear again" })).toBeNull();
       expect(strip()).toBeNull();
     });
 
@@ -7080,7 +7164,7 @@ describe("CopilotBubble: voice reply", () => {
       expect(screen.queryByText(THINKING_LINE)).toBeNull();
       await stream.release();
       expect(screen.getByText(FALLBACK)).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Hear this reply again" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "hear again" })).toBeNull();
       expect(engine().load).not.toHaveBeenCalled();
     });
 

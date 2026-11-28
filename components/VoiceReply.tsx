@@ -44,12 +44,15 @@ export interface VoiceReply {
   feed(markdown: string): void;
   /** The reply is all in. */
   finish(markdown: string): void;
-  /** Stop speaking now (Stop, typing, the mic, Send, closing the drawer, the tour, a stream error). */
+  /** Stop speaking now (Stop, typing, the mic, Send, closing the drawer, the tour). Leaves the late strip. */
   stop(): void;
   hearAgain(replyKey: string): void;
   status: VoiceReplyStatus | null;
   answerOffer(yes: boolean): void;
-  /** "Just read": no speech for this reply (the download carries on for next time). */
+  /**
+   * "Just read", the late strip's ✕, a broken reply: no speech for this reply and nothing left for it on screen
+   * (the download carries on for next time).
+   */
   justRead(): void;
   /** The visitor typed, tapped the mic or scrolled the drawer (for the 8 s rule). */
   noteInteraction(): void;
@@ -219,8 +222,8 @@ function createController(ui: UI) {
       player.stop();
       player = null;
     }
-    // Nothing can be queued before the download started (speech only begins once the voice is ready).
-    if (loading) engine().cancelAll();
+    // Safe on an idle engine; and the page's one engine may already be speaking for an earlier mount of the drawer.
+    engine().cancelAll();
     clearHighlight();
   }
 
@@ -399,14 +402,14 @@ function createController(ui: UI) {
       } else if (mode === "pending" || mode === "offer" || mode === "loading") {
         // Nothing is playing yet: when the voice comes, it offers the reply rather than starting by itself.
         r.noAuto = true;
-      } else if (mode === "late") {
-        setMode("idle", null);
       }
+      // The late strip stays: it often shows because the visitor is typing. Its ✕ and a new question clear it.
     },
 
     hearAgain(key: string) {
       const r = reply;
-      if (!r || r.key !== key || !r.finished) return;
+      // From the late strip the reply may still be streaming: playback carries on as the rest arrives.
+      if (!r || r.key !== key || !(r.finished || mode === "late")) return;
       primeAudio();
       halt();
       startSpeaking();
@@ -546,12 +549,9 @@ export const ThinkingVoiceLine = ({ download }: { download?: { progress: number;
     </p>
     {download && (
       <div className="flex flex-col gap-[7px] border border-rule bg-paper-deep px-3 py-2.5">
-        <div className="flex items-baseline justify-between gap-2.5">
-          <span role="status" className="font-mono text-[11.5px] text-ink">
-            Getting my voice ready
-          </span>
-          <span className="font-mono text-[11px] text-ink-soft">{download.progress}%</span>
-        </div>
+        <span className="font-mono text-[11.5px] text-ink">
+          <span role="status">Getting my voice ready</span> · {download.progress}%
+        </span>
         <DownloadBar progress={download.progress} />
         <p className="m-0 font-mono text-[10.5px] leading-[1.45] text-ink-faint">
           First time only: {download.loadedMb} of {DOWNLOAD_MB} MB. Your browser keeps it, so next time I answer straight
@@ -648,7 +648,7 @@ export const SpeakingStrip = ({
         type="button"
         onClick={onDismiss}
         aria-label="Dismiss"
-        className="flex-shrink-0 p-1.5 text-ink-faint transition-colors hover:text-amber max-[640px]:p-3"
+        className="flex flex-shrink-0 items-center justify-center p-1.5 text-ink-faint transition-colors hover:text-amber max-[640px]:min-h-[44px] max-[640px]:min-w-[44px]"
       >
         <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <path d="M6 6l12 12M18 6L6 18" />
@@ -689,8 +689,7 @@ export const HearAgainButton = ({ onClick }: { onClick: () => void }) => (
   <button
     type="button"
     onClick={onClick}
-    aria-label="Hear this reply again"
-    title="Hear again"
+    title="Hear this reply again"
     className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.08em] text-amber transition-colors hover:text-ink"
   >
     <SpeakerIcon size={11} />

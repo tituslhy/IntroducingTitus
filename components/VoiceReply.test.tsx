@@ -370,7 +370,7 @@ describe("useVoiceReply", () => {
       expect(player().expected).toEqual([0, 1]);
     });
 
-    it("the late strip's ✕ (stop) dismisses it", async () => {
+    it("the late strip stays when the visitor types (stop); its ✕ (justRead) dismisses it", async () => {
       const { result } = await downloading();
       act(() => result.current.finish("One sentence."));
       act(() => result.current.noteInteraction());
@@ -378,7 +378,25 @@ describe("useVoiceReply", () => {
       await flush();
 
       act(() => result.current.stop());
+      expect(lastPhase(result)).toBe("late");
+      act(() => result.current.justRead());
       expect(result.current.status).toBeNull();
+    });
+
+    it("stopped mid-stream, the voice arriving before the reply is in: “Hear this reply” reads what has arrived", async () => {
+      const { result } = await downloading();
+      act(() => result.current.feed("One sentence. Two"));
+      act(() => result.current.stop());
+      act(() => mockEngine.becomeReady());
+      await flush();
+      expect(lastPhase(result)).toBe("late");
+
+      act(() => result.current.hearAgain(KEY));
+      expect(lastPhase(result)).toBe("speaking");
+      expect(mockEngine.texts()).toEqual(["One sentence."]);
+      act(() => result.current.finish("One sentence. Two sentences."));
+      expect(mockEngine.texts()).toEqual(["One sentence.", "Two sentences."]);
+      expect(player().finished).toBe(true);
     });
 
     it("“Just read”: nothing is spoken for this reply when the voice arrives", async () => {
@@ -596,6 +614,19 @@ describe("useVoiceReply", () => {
       expect(lastPhase(result)).toBe("failed");
     });
 
+    it("a new question drops the engine's queue even when the voice was loaded before this drawer (a remount)", async () => {
+      mockEngine.state = "ready";
+      const { result } = renderHook(() => useVoiceReply());
+      act(() => result.current.begin(KEY));
+      await flush();
+      act(() => result.current.feed("One here. Two"));
+      mockEngine.cancelAll.mockClear();
+
+      act(() => result.current.begin("reply-2"));
+
+      expect(mockEngine.cancelAll).toHaveBeenCalled();
+    });
+
     it("a second spoken question during speech stops the first; the first's late audio never plays", async () => {
       const { result } = await readyHook();
       act(() => result.current.begin(KEY));
@@ -633,8 +664,7 @@ describe("the voice pieces", () => {
     expect(screen.queryByText(/First time only/)).toBeNull();
 
     rerender(<ThinkingVoiceLine download={{ progress: 38, loadedMb: 65 }} />);
-    expect(screen.getByText("Getting my voice ready")).toBeInTheDocument();
-    expect(screen.getByText("38%")).toBeInTheDocument();
+    expect(screen.getByText("Getting my voice ready").parentElement).toHaveTextContent(/^Getting my voice ready · 38%$/);
     expect(
       screen.getByText("First time only: 65 of 172 MB. Your browser keeps it, so next time I answer straight away.")
     ).toBeInTheDocument();
@@ -642,6 +672,12 @@ describe("the voice pieces", () => {
   });
 
   describe("SpeakingStrip", () => {
+    it("the late strip's ✕ is a 44px target on a phone", () => {
+      const noop = () => {};
+      render(<SpeakingStrip phase="late" progress={0} still={false} onStop={noop} onJustRead={noop} onHear={noop} onDismiss={noop} />);
+      expect(screen.getByRole("button", { name: "Dismiss" })).toHaveClass("max-[640px]:min-h-[44px]", "max-[640px]:min-w-[44px]");
+    });
+
     const noop = () => {};
     const props = { progress: 0, still: false, onStop: noop, onJustRead: noop, onHear: noop, onDismiss: noop };
 
@@ -702,7 +738,7 @@ describe("the voice pieces", () => {
   it("HearAgainButton reads “hear again”", () => {
     const onClick = jest.fn();
     render(<HearAgainButton onClick={onClick} />);
-    fireEvent.click(screen.getByRole("button", { name: "Hear this reply again" }));
+    fireEvent.click(screen.getByRole("button", { name: "hear again" }));
     expect(screen.getByText("hear again")).toBeInTheDocument();
     expect(onClick).toHaveBeenCalled();
   });
