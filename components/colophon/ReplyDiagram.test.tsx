@@ -505,11 +505,25 @@ describe("ReplyDiagram voice step", () => {
       // The end marker sits inside the translated group in both layouts.
       const t = /translate\(([-\d.]+),\s*([-\d.]+)\)/.exec(g.closest("g[transform]")?.getAttribute("transform") ?? "") ?? ["", "0", "0"];
       const circle = g.querySelector("circle")!;
+      const label = g.querySelector("text")!;
       const cx = num(circle, "cx") + Number(t[1]);
       const cy = num(circle, "cy") + Number(t[2]);
       expect(cx + 8).toBeLessThanOrEqual(minX + w);
-      expect(cy + 30).toBeLessThanOrEqual(minY + h);
+      // The ring (r 7.5) and the "end" label (10.5px, its baseline at y) both fit above the bottom edge.
+      expect(cy + 8).toBeLessThanOrEqual(minY + h);
+      expect(num(label, "y") + Number(t[2]) + 4).toBeLessThanOrEqual(minY + h);
     }
+  });
+
+  it("leaves no tall empty band below the end marker on mobile", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    const svg = mobileSvg(container);
+    const [, minY, , h] = (svg.getAttribute("viewBox") ?? "").split(" ").map(Number);
+    const g = svg.querySelector('[data-terminal="end"]')!;
+    const t = /translate\(([-\d.]+),\s*([-\d.]+)\)/.exec(g.closest("g[transform]")?.getAttribute("transform") ?? "")!;
+    const ringBottom = num(g.querySelector("circle"), "cy") + Number(t[2]) + 7.5;
+    expect(minY + h - ringBottom).toBeLessThanOrEqual(16);
   });
 
   it("the description says a spoken question's reply is also read aloud on the visitor's device, and a typed one ends at the drawer", () => {

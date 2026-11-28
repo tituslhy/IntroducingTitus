@@ -399,7 +399,7 @@ export default function ReplyDiagram({
           </svg>
 
           {/* Mobile */}
-          <svg viewBox="0 -40 340 1090" role="img" aria-label={description} className="mx-auto block h-auto w-full max-w-[400px] min-[760px]:hidden">
+          <svg viewBox="0 -40 340 1072" role="img" aria-label={description} className="mx-auto block h-auto w-full max-w-[400px] min-[760px]:hidden">
             <ArrowHead id="reply-arrow-v" />
             <Terminal kind="start" cx={170} cy={-28} tx={182} ty={-24} anchor="start" />
             <Arrow d="M170,-21 V-2" k="visitor" marker="reply-arrow-v" />

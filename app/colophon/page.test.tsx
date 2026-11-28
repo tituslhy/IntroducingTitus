@@ -337,7 +337,9 @@ describe("ColophonPage spoken replies", () => {
 
     const text = voiceEntry().textContent ?? "";
     expect(text).toMatch(/Ask out loud and I answer out loud/);
-    expect(text).toMatch(/plain sentences, no lists, tables or links, about 80 words/);
+    expect(text).toMatch(/plain sentences, no lists, tables or links, kept short/);
+    // A prompt's word budget is a setting, not a number a script produced (the colophon's rule).
+    expect(text).not.toMatch(/\d+\s+words/);
     expect(text).toMatch(/type the next one and it comes back as text/);
   });
 

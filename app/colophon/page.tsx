@@ -419,8 +419,8 @@ export default function ColophonPage() {
                 </p>
                 <p className={`${prose} mt-4`}>
                   Ask out loud and I answer out loud. The drawer marks the question as spoken, and GPT is told its reply
-                  will be heard as well as read: plain sentences, no lists, tables or links, about 80 words, and one plain
-                  line at the end if it has put something on screen. The text streams in as usual, and each sentence is
+                  will be heard as well as read: plain sentences, no lists, tables or links, kept short, and one plain line
+                  at the end if it has put something on screen. The text streams in as usual, and each sentence is
                   spoken as soon as it&rsquo;s finished. Only that question gets a voice: type the next one and it comes
                   back as text.
                 </p>
