@@ -79,20 +79,26 @@ export const SPEECH_OVER_FLOOR = 3;
  */
 export const LOUD_RMS = 0.04;
 /**
- * Once speech has been heard, a frame quieter than this fraction of the visitor's own speaking level counts as a
- * pause, however loud the room is. A fan louder than LOUD_RMS would otherwise count as speech for ever and the
- * pause would never start; measured against their voice, steady noise sits well under it.
+ * A frame also has to stand out of the room: be at least this many times the room's quietest moment. A steady fan
+ * above LOUD_RMS passes the bar above for ever, but it never gets this far over its own quietest moment, so on its
+ * own it is not speech. A fan's jitter peaks about 1.16 times its quietest moment, and a visitor 1.33 times a loud
+ * room (0.04 over 0.03) must still count, so the bar sits between the two. In a quiet room the bar above is already
+ * the higher of the two.
  */
-export const QUIET_OF_SPEECH = 0.5;
+export const STANDS_OUT_OF_ROOM = 1.25;
 /**
- * The speaking level is a peak envelope over the frames counted as speech: it rises quickly toward a louder frame
- * (SPEECH_LEVEL_ATTACK_HALF_LIFE_MS) and otherwise halves this often. Decaying means a quiet speaker's level is
- * still theirs a few seconds later, and loud speech from long ago doesn't hold the bar up for ever.
+ * Once speech has been heard, a frame has to be past this fraction of the way from the room's level up to the
+ * visitor's speaking level to count as speech again: a pause is closer to the room than to their voice. Measured
+ * from the room, a fan that is loud but steady sits at the bottom. It is under half because the speaking level
+ * only rises: a loud laugh or an emphasised word lifts it, and at a half the bar would then sit above their normal
+ * voice, making the next sentence look like a pause.
  */
-export const SPEECH_LEVEL_HALF_LIFE_MS = 3_000;
+export const PAUSE_POINT = 0.35;
 /**
- * Rise time of the speaking level (the gap to a louder frame halves this often): a single loud word mustn't make
- * normal speech look like a pause, while a second of real speech still sets the level.
+ * The speaking level is a peak envelope over the frames counted as speech. It rises toward a louder frame (the gap
+ * halves this often) so a single loud word mustn't make normal speech look like a pause, while a second of real
+ * speech still sets the level. It never falls during a recording (a minute at most): a level that sank during a
+ * pause would drag the bar down toward the fan, and the pause would never be heard.
  */
 export const SPEECH_LEVEL_ATTACK_HALF_LIFE_MS = 250;
 /** Speech for this long, in total, before it counts (a cough or a click doesn't). */
@@ -122,21 +128,24 @@ export function createHearing(startedAt: number) {
   let speechMs = 0;
   let lastFrame = startedAt;
   let lastLoud: number | null = null;
-  // The visitor's speaking level: a decaying peak over the frames counted as speech (see SPEECH_LEVEL_HALF_LIFE_MS).
+  // The visitor's speaking level: a peak over the frames counted as speech that only rises (see SPEECH_LEVEL_ATTACK_HALF_LIFE_MS).
   let speakingLevel = 0;
   return {
     hear(level: number, now: number): Hearing {
       const frameMs = Math.max(0, now - lastFrame);
       lastFrame = now;
+      // The room as it was before this frame: a frame can't stand out of itself, so the first frame (or a talker's
+      // first word, as the mic opens) has no room to stand out of yet.
+      const roomBefore = Number.isFinite(floor) ? floor : 0;
       // Exact silence (a muted or just-opened track) says nothing about the room.
       if (level > 0) floor = Math.min(floor, level);
-      const roomBar = Math.min(LOUD_RMS, (Number.isFinite(floor) ? floor : 0) * SPEECH_OVER_FLOOR);
-      speakingLevel *= Math.pow(0.5, frameMs / SPEECH_LEVEL_HALF_LIFE_MS);
-      // Once they have spoken, a frame also has to be a fair share of their own voice: a steady fan can sit above
-      // the room bar for ever, but it stays well under half of how loud they talk.
-      const spokeBefore = speechMs >= MIN_SPEECH_MS;
-      const loud =
-        level >= Math.max(SPEECH_RMS, roomBar) && (!spokeBefore || level >= QUIET_OF_SPEECH * speakingLevel);
+      const room = Number.isFinite(floor) ? floor : 0;
+      const roomBar = Math.min(LOUD_RMS, room * SPEECH_OVER_FLOOR);
+      // A frame is speech if it clears the room bar and stands out of the room itself.
+      let loud = level >= Math.max(SPEECH_RMS, roomBar) && level >= roomBefore * STANDS_OUT_OF_ROOM;
+      // Once they have spoken, it also has to be past the pause point between the room and their voice: a steady fan
+      // can sit above the room bar for ever, but it stays at the bottom of that range.
+      if (loud && speechMs >= MIN_SPEECH_MS) loud = level >= room + PAUSE_POINT * (speakingLevel - room);
       if (loud) {
         speechMs += frameMs;
         lastLoud = now;
