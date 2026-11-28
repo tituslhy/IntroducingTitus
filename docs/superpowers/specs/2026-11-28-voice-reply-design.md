@@ -158,7 +158,21 @@ First results (2026-11-28, Chrome on Titus's Mac, via Playwright):
 
 Still to measure: Safari on the Mac, and the iPhone (WebGPU needs HTTPS, so on a Vercel preview).
 
-Found on Titus's iPhone (Safari): the fp16 model downloaded and loaded (163 MB in 67 s), then the first sentence never
+What the iPhone runs taught us (2026-11-28), in order:
+
+1. kokoro-js 1.2.1 pins transformers 3.x → ONNX Runtime 1.22 (JSEP). On the iPhone a sentence hung forever on the
+   model. Moving kokoro-js onto transformers 4.3.2 (ORT 1.31, `overrides` in package.json) fixed the hang: the iPhone
+   made speech at 4.3× real time, first sound 2.1 s.
+2. But ORT 1.31's WebGPU makes the official fp16 model output NaN (29–61% of samples), on the iPhone **and** Chrome.
+   Cause, found by exposing every tensor in Chrome: the AdaIN layers average thousands of fp16 samples and ORT sums
+   them in fp16, so the mean overflows to Inf and (x − mean) / std becomes NaN.
+3. Fix: `scripts/kokoro/patch-fp16.py` runs every ReduceMean/ReduceSum in fp32 (same 163 MB), **and** the model is
+   loaded with `graphOptimizationLevel: "basic"`, because ORT's "extended" fusions merge the reductions back into fp16
+   ones. Chrome: patched + basic = clean at 15× real time; patched + all, or official at any level = NaN.
+4. fp32 (326 MB) reloads the page on the iPhone: out of memory. Phones get the patched fp16 or nothing.
+5. The patched model has to be hosted (it can't go in git: 163 MB, and GitHub's limit is 100 MB per file).
+
+Earlier on the iPhone: the fp16 model downloaded and loaded (163 MB in 67 s), then the first sentence never
 came back. Cause: kokoro-js's phonemizer unpacks its espeak dictionary with `for await` over a `ReadableStream`, which
 Safari doesn't support. Fixed with `lib/voice-reply/stream-polyfill.ts`, imported by the worker before kokoro-js.
 Also: iPhone Safari mutes Web Audio on the silent switch unless `navigator.audioSession.type = "playback"`.

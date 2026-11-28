@@ -8,6 +8,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // q4f16 made a silent sentence; q8 (WebGPU or WASM) ran at 0.6×, too slow to keep up.
 const ENGINES = [
   { id: "webgpu-fp16", label: "WebGPU · fp16 (≈163 MB)", device: "webgpu", dtype: "fp16" },
+  // The official fp16 with every ReduceMean/ReduceSum in fp32 (scripts/kokoro/patch-fp16.py), loaded with "basic"
+  // graph optimization: the official one makes NaN on ONNX Runtime 1.31's WebGPU. Served from public/voice-models/
+  // (not committed; built by the script), so only where that folder exists.
+  { id: "webgpu-fp16-patched", label: "WebGPU · fp16 patched (≈163 MB)", device: "webgpu", dtype: "fp16", model: "kokoro-patched" },
   { id: "webgpu-fp32", label: "WebGPU · fp32 (≈326 MB)", device: "webgpu", dtype: "fp32" },
   { id: "wasm-q8", label: "No GPU · WASM q8 (≈92 MB)", device: "wasm", dtype: "q8" },
 ] as const;
@@ -141,6 +145,11 @@ export default function VoiceLab() {
         }
       } else if (m.type === "audio") {
         onAudio(m.id, m.audio, m.sampleRate, m.genMs);
+        // For the NaN hunt: each sentence's exact tokens, readable from the console or a test.
+        (window as unknown as { __labIds?: Record<number, number[]> }).__labIds = {
+          ...(window as unknown as { __labIds?: Record<number, number[]> }).__labIds,
+          [m.id % 1000]: m.ids,
+        };
       } else if (m.type === "error") {
         setError(m.message);
         if (m.id === undefined) setStatus("error");
@@ -162,7 +171,7 @@ export default function VoiceLab() {
     setError(null);
     filesRef.current = {};
     setDownloaded({ loaded: 0, total: 0 });
-    getWorker().postMessage({ type: "load", device: e.device, dtype: e.dtype });
+    getWorker().postMessage({ type: "load", device: e.device, dtype: e.dtype, model: "model" in e ? e.model : undefined });
     void readDevice().then(setEnv);
   };
 
