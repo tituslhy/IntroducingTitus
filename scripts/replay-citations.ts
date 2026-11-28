@@ -98,7 +98,7 @@ async function main() {
   const selected = names.length ? SCENARIOS.filter((s) => names.includes(s.name)) : SCENARIOS;
 
   const openai = new OpenAI();
-  const systemPrompt = buildSystemPrompt(readFileSync(join(process.cwd(), "copilot-system-prompt.md"), "utf-8"));
+  const systemPrompt = buildSystemPrompt(readFileSync(join(process.cwd(), "prompts", "copilot-system-prompt.md"), "utf-8"));
   const failures: string[] = [];
   for (const scenario of selected) failures.push(...(await runScenario(openai, systemPrompt, scenario)));
 

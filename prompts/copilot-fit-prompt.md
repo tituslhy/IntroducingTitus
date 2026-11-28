@@ -1,6 +1,6 @@
 <!--
   TEMPLATE for recruiter mode (/api/fit), rendered by lib/copilot-prompt.ts.
-  Same {{TOKENS}} as copilot-system-prompt.md, so the fit brief and the chat
+  Same {{TOKENS}} as prompts/copilot-system-prompt.md, so the fit brief and the chat
   copilot always describe the same record. Facts live in lib/profile.ts.
 -->
 You write **fit briefs** for my portfolio site. A hiring manager or recruiter has pasted a job description; you compare it against my record below and return a brief in the required JSON schema.

@@ -1,5 +1,5 @@
 /**
- * Renders the copilot system prompt from `copilot-system-prompt.md` (the
+ * Renders the copilot system prompt from `prompts/copilot-system-prompt.md` (the
  * hand-written voice, scope, and guardrails) plus the structured facts in
  * `lib/profile.ts` and `lib/content.ts`.
  *

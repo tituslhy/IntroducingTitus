@@ -48,7 +48,7 @@ RSS only carries the latest ~10 posts, so the export is the source of truth. Re-
 - [ ] `npx jest`. The drift tests (`lib/copilot-prompt.test.ts`, `lib/profile.test.ts`) catch the page and the prompt disagreeing. If my title changed, one test fails on purpose: `lib/profile.test.ts` pins today's title ("reads Lead AI Engineer today"). Update that string.
 - [ ] Commit, push.
 
-Don't hand-edit facts into `copilot-system-prompt.md`. It is a template; its `{{TOKENS}}` are filled from `lib/profile.ts`.
+Don't hand-edit facts into `prompts/copilot-system-prompt.md`. It is a template; its `{{TOKENS}}` are filled from `lib/profile.ts`.
 
 ---
 
@@ -80,7 +80,7 @@ Local: `.env.local` at the repo root (gitignored; the npm scripts load it automa
   - Search didn't find the right article: usually a weak note. Fix the summary/keywords in `content/article-notes.json`, rebuild. Add the question to `GOLDEN` in `scripts/eval-writing.ts` so it stays fixed.
   - A broad question read the wrong articles: look at the library tree. The article may be under the wrong theme in `content/article-themes.json`, or its summary may not say what it's about.
   - The right article, but the wrong part of it: check its section notes (`sections` in `article-notes.json`) and the `jev sections (score)` step.
-  - Search found it but the answer was wrong (bad citation, apology on a correction, stale self-description): prompt or loop problem. Look at `copilot-system-prompt.md` and `lib/copilot-loop.ts`.
+  - Search found it but the answer was wrong (bad citation, apology on a correction, stale self-description): prompt or loop problem. Look at `prompts/copilot-system-prompt.md` and `lib/copilot-loop.ts`.
 - [ ] Reproduce: `npm run eval:replay -- <scenario>`. Each file in `scripts/replay-scenarios/` is one scripted conversation (`langserve`, `mixed-modes`, `evaluative`) with its own checks; `-- --list` lists them without calling any API. To replay a new conversation, copy one of those files, put the visitor's turns in `TURNS`, write its checks, and add it to `SCENARIOS` in `scripts/replay-scenarios/index.ts`. Every scenario also gets the shared footnote checks.
 - [ ] Without LangSmith: Vercel's runtime logs have one `copilot_writing_search` JSON line per search (latency, fallback, errors, no query text) and `copilot_chat_rejected` lines for refused requests.
 

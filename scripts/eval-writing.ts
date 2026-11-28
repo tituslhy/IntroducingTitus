@@ -181,7 +181,7 @@ async function main() {
   }
 
   const openai = new OpenAI();
-  const systemPrompt = buildSystemPrompt(readFileSync(join(process.cwd(), "copilot-system-prompt.md"), "utf-8"));
+  const systemPrompt = buildSystemPrompt(readFileSync(join(process.cwd(), "prompts", "copilot-system-prompt.md"), "utf-8"));
   // URLs the bot may legitimately write: my articles plus every link already in its prompt.
   const allowedUrls = new Set([...ARTICLES.map((a) => a.url), ...(systemPrompt.match(URL_RE) ?? []).map(trimUrl)]);
 

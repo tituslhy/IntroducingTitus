@@ -16,7 +16,7 @@ the repo. The prompt gives you `ISSUE` (also in your environment).
    - `bash .github/issue-agent/label.sh add <label>` / `remove <label>`
    You can read any file (Read, Glob, Grep) and write only inside
    `.issue-agent-tmp/`.
-3. Before your first question, read `requirements.md`, `CLAUDE.md`,
+3. Before your first question, read `CLAUDE.md`, `lib/profile.ts`,
    `design_handoff_personal_site/README.md` and the code the feature touches.
    Never ask what those already answer — state it as a constraint.
 4. No emoji. Be brief and specific to this codebase.

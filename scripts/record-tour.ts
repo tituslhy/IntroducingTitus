@@ -21,7 +21,7 @@ const TOUR_QUESTION = "Show me around.";
 async function main() {
   const dry = process.argv.includes("--dry");
   const openai = new OpenAI();
-  const systemPrompt = buildSystemPrompt(readFileSync(join(process.cwd(), "copilot-system-prompt.md"), "utf-8"));
+  const systemPrompt = buildSystemPrompt(readFileSync(join(process.cwd(), "prompts", "copilot-system-prompt.md"), "utf-8"));
   const brief = readFileSync(join(process.cwd(), "content", "tour-brief.md"), "utf-8");
 
   const res = await openai.responses.create({
