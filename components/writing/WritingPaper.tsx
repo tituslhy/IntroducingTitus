@@ -219,7 +219,7 @@ export default function WritingPaper({ stories, desks, editions, folio, featured
             <button
               type="button"
               onClick={leavePick}
-              className="group inline-flex min-h-[44px] flex-none items-center gap-2.5 rounded-full border border-ink bg-transparent px-5 font-mono text-[12px] uppercase tracking-[0.1em] text-ink transition-colors hover:bg-ink hover:text-paper"
+              className="group inline-flex min-h-[44px] flex-none items-center gap-2.5 rounded-full border border-ink bg-transparent px-5 font-mono text-[12px] uppercase tracking-[0.1em] text-ink hover:bg-ink hover:text-paper"
             >
               Show the whole paper
               <span aria-hidden="true" className="transition-transform group-hover:translate-x-1">
@@ -253,7 +253,7 @@ export default function WritingPaper({ stories, desks, editions, folio, featured
               type="button"
               aria-pressed={!picking && view.desk === d.id}
               onClick={() => choose({ ...view, desk: !picking && view.desk === d.id ? null : d.id })}
-              className="group rounded-full bg-latte px-[13px] py-[7px] font-mono text-[12.5px] text-latte-soft transition-colors hover:bg-ink hover:text-paper aria-pressed:bg-ink aria-pressed:text-paper"
+              className="group rounded-full bg-latte px-[13px] py-[7px] font-mono text-[12.5px] text-latte-soft hover:bg-ink hover:text-paper aria-pressed:bg-ink aria-pressed:text-paper"
             >
               {d.name}
               <b className="ml-1 font-semibold text-latte-accent group-hover:text-amber-hi group-aria-pressed:text-amber-hi">{d.count}</b>
@@ -373,7 +373,7 @@ export default function WritingPaper({ stories, desks, editions, folio, featured
           href={mediumUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="group mt-[clamp(28px,4vw,44px)] inline-flex items-center gap-3 rounded-full border border-ink px-[22px] py-3 font-mono text-[12px] uppercase tracking-[0.1em] text-ink transition-colors hover:bg-ink hover:text-paper"
+          className="group mt-[clamp(28px,4vw,44px)] inline-flex items-center gap-3 rounded-full border border-ink px-[22px] py-3 font-mono text-[12px] uppercase tracking-[0.1em] text-ink hover:bg-ink hover:text-paper"
         >
           <span>Every article on Medium</span>
           <span className="transition-transform group-hover:translate-x-1">→</span>

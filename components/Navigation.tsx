@@ -113,7 +113,7 @@ export default function Navigation() {
         <a
           href={`mailto:${EMAIL}?subject=Resume Request`}
           aria-label="Email Titus"
-          className="inline-flex min-h-0 min-w-0 items-center justify-center gap-2 whitespace-nowrap border border-ink px-3.5 py-[7px] font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink transition-colors duration-150 hover:bg-ink hover:text-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 max-[720px]:col-start-2 max-[720px]:row-start-1 max-[720px]:min-h-11 max-[720px]:min-w-11"
+          className="inline-flex min-h-0 min-w-0 items-center justify-center gap-2 whitespace-nowrap border border-ink px-3.5 py-[7px] font-mono text-[11.5px] uppercase tracking-[0.06em] text-ink duration-150 hover:bg-ink hover:text-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber focus-visible:outline-offset-2 max-[720px]:col-start-2 max-[720px]:row-start-1 max-[720px]:min-h-11 max-[720px]:min-w-11"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-amber shadow-[0_0_0_3px_color-mix(in_oklch,var(--amber)_30%,transparent)]" />
           <span className="max-[860px]:hidden">Get in touch</span>

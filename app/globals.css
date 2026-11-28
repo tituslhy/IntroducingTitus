@@ -156,6 +156,7 @@ body {
   z-index: -1;
   background: radial-gradient(closest-side, oklch(0.62 0.155 55 / 0.35), transparent 70%);
   animation: glow-drift 14s ease-in-out infinite alternate;
+  animation-delay: var(--glow-delay, 0s); /* the results row staggers its tiles so they don't drift in step */
 }
 /* The tour: a step's progress bar fills left to right; Resume pulses while the tour waits on the visitor. */
 .tour-progress { transform-origin: left; animation-name: tour-progress; animation-timing-function: linear; animation-fill-mode: forwards; }

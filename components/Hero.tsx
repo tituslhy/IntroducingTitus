@@ -50,7 +50,7 @@ export default function Hero() {
           className={`${TOUR_ON_SITE ? 'mt-5' : 'mt-[26px]'} flex w-fit flex-wrap items-center gap-x-3 gap-y-3 font-mono text-[clamp(12.5px,1.7vw,15px)] min-[900px]:text-[12.5px]`}
         >
           {TOUR_ON_SITE ? (
-            <Link href="/experience" className="border border-ink px-[15px] py-[10px] transition-colors hover:bg-ink hover:text-paper">
+            <Link href="/experience" className="border border-ink px-[15px] py-[10px] hover:bg-ink hover:text-paper">
               View experience <b className="font-medium text-amber">→</b>
             </Link>
           ) : (
@@ -59,7 +59,7 @@ export default function Hero() {
               <Link href="/experience" className="bg-ink px-4 py-[11px] text-paper transition-colors hover:bg-amber">
                 View experience <b className="font-medium text-amber-line">→</b>
               </Link>
-              <Link href="/writing" className="border border-ink px-[15px] py-[10px] transition-colors hover:bg-ink hover:text-paper">
+              <Link href="/writing" className="border border-ink px-[15px] py-[10px] hover:bg-ink hover:text-paper">
                 Read the writing <b className="font-medium text-amber">→</b>
               </Link>
             </>

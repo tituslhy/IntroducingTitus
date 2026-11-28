@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, type CSSProperties } from 'react'
 import RiseIn from '@/components/tiles/RiseIn'
 import { reveal } from '@/lib/reveal'
 
@@ -40,12 +40,14 @@ export default function ResultsRow({ results }: { results: RowResult[] }) {
 
   return (
     <ul className="m-0 mb-6 grid list-none grid-cols-2 gap-3 p-0 min-[900px]:grid-cols-4">
-      {results.map((r) => (
+      {results.map((r, i) => (
         <li key={r.key}>
+          {/* The same slow amber glow as the dark highlight tiles, each tile at a different point of its drift */}
           <button
             type="button"
             onClick={() => show(r.key)}
-            className="group flex h-full w-full flex-col rounded-[20px] bg-ink px-5 pb-[18px] pt-5 text-left text-paper transition-transform motion-safe:hover:-translate-y-[3px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
+            style={{ '--glow-delay': `${-i * 3.5}s` } as CSSProperties}
+            className="glow-tile group flex h-full w-full flex-col rounded-[20px] bg-ink px-5 pb-[18px] pt-5 text-left text-paper transition-transform motion-safe:hover:-translate-y-[3px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
           >
             <span className="block whitespace-nowrap font-serif text-[clamp(28px,3.2vw,42px)] font-medium leading-none tracking-[-0.03em] text-amber-hi">
               <RiseIn figure={r.figure} />

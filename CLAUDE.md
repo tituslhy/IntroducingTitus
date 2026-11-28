@@ -93,6 +93,8 @@ Do not deviate from this stack unless explicitly instructed.
   - **Small capital mono labels** (`GroupLabel`) head each group; tools are rounded pills.
   - **Ask pill** (`AskPill`) closes an item: "Ask about X →" opens Ask Titus with its question.
   - Hover lifts tiles 3px; all motion respects reduced motion. No shadows on type.
+  - A button whose hover swaps dark and light (background and text both flip) swaps instantly: no `transition-colors`.
+    A fade passes through a grey where the text matches its background and the button seems to flash.
   - **Same same but different:** each page keeps this grammar but may add its own flair. Writing is a
     newspaper (*The Titus Times*, mock `design/rethink/writing-paper.html`): editions by year, one desk per theme.
     Experience is a desk of **staff passes** (mock `design/rethink/experience-passes.html`), one per role in its

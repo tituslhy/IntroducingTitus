@@ -13,7 +13,7 @@ export default function AskPill({ ask, tone = 'paper', text }: { ask: AskPrompt;
     <button
       type="button"
       onClick={() => openCopilot('chat', ask.question)}
-      className={`group mt-[18px] inline-flex items-center gap-2 whitespace-nowrap rounded-full border bg-transparent font-mono transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber ${colours}`}
+      className={`group mt-[18px] inline-flex items-center gap-2 whitespace-nowrap rounded-full border bg-transparent font-mono focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber ${colours}`}
     >
       {text ?? `Ask about ${ask.label}`}
       <span aria-hidden="true" className={tone === 'latte' ? '' : 'font-semibold text-amber group-hover:text-amber-hi'}>

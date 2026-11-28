@@ -16,7 +16,7 @@ import { creditRef, figureKey, hasNumber, projectResults, secondaryKey } from '@
 import { EARLIER_PROJECTS, OPEN_SOURCE, PROJECTS, pageFolio, type Project, type ProjectFrame } from '@/lib/profile'
 
 const LINK_PILL =
-  'rounded-full border border-rule px-[13px] py-[7px] font-mono text-[12.5px] text-ink transition-colors hover:border-ink hover:bg-ink hover:text-paper'
+  'rounded-full border border-rule px-[13px] py-[7px] font-mono text-[12.5px] text-ink hover:border-ink hover:bg-ink hover:text-paper'
 const THUMB_WORDS = 'grid h-full place-items-center p-1 text-center font-mono text-[9.5px] font-medium leading-[1.2] text-paper'
 
 const projectId = (p: Project) => `project-${p.slug}`
