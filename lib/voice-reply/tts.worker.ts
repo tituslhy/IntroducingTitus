@@ -6,6 +6,7 @@
 // First, before kokoro-js: Safari needs it to unpack the phonemizer's dictionary (see the file).
 import "./stream-polyfill";
 import { KokoroTTS } from "kokoro-js";
+import { phonemize } from "phonemizer";
 
 type Dtype = "fp32" | "fp16" | "q8" | "q4" | "q4f16";
 type Device = "wasm" | "webgpu";
@@ -63,6 +64,11 @@ ctx.onmessage = (event: MessageEvent<InMessage>) => {
         if (!loading) throw new Error("Load the model first.");
         const tts = await loading;
         const started = performance.now();
+        // Two stages, reported as they start, so a stuck sentence says where it's stuck: the words become
+        // pronunciation (espeak, on the CPU; the first call unpacks its dictionary), then the model makes the sound.
+        ctx.postMessage({ type: "stage", id: msg.id, stage: "pronouncing" });
+        await phonemize(msg.text, "en-us");
+        ctx.postMessage({ type: "stage", id: msg.id, stage: "running the model" });
         const raw = await tts.generate(msg.text, { voice: msg.voice as Voice });
         const genMs = Math.round(performance.now() - started);
         const audio = raw.audio as Float32Array;

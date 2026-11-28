@@ -40,6 +40,8 @@ type Row = {
   firstSoundSec?: number;
   /** Loudest sample: 0 (or NaN) means the model made silence, a broken engine rather than a slow one. */
   peak?: number;
+  /** What the worker is doing with it now: "pronouncing" or "running the model". */
+  stage?: string;
 };
 
 function sentences(text: string): string[] {
@@ -123,6 +125,11 @@ export default function VoiceLab() {
       } else if (m.type === "ready") {
         setStatus("ready");
         setLoadMs(m.loadMs);
+      } else if (m.type === "stage") {
+        const n = m.id % 1000;
+        if (Math.floor(m.id / 1000) === runRef.current) {
+          setRows((prev) => prev.map((r) => (r.n === n ? { ...r, stage: m.stage } : r)));
+        }
       } else if (m.type === "audio") {
         onAudio(m.id, m.audio, m.sampleRate, m.genMs);
       } else if (m.type === "error") {
@@ -227,7 +234,13 @@ export default function VoiceLab() {
     `Downloaded: ${mb(downloaded.loaded)} MB · load ${loadMs !== null ? (loadMs / 1000).toFixed(1) + " s" : "?"}`,
     `First sound after tap: ${firstSound !== undefined ? firstSound.toFixed(1) + " s" : "?"}`,
     `Speed: ${totalGen > 0 ? (totalAudio / totalGen).toFixed(2) : "?"}× real time · gaps ${totalGaps.toFixed(1)} s`,
-    ...(pending ? [`Still working: ${Math.max(0, Math.round((now - speakStartedAt) / 1000))} s since Speak`] : []),
+    ...(pending
+      ? [
+          `Still working: ${Math.max(0, Math.round((now - speakStartedAt) / 1000))} s since Speak, sentence ${
+            (rows.find((r) => r.genMs === undefined)?.n ?? 0) + 1
+          } ${rows.find((r) => r.genMs === undefined)?.stage ?? "queued"}`,
+        ]
+      : []),
     ...Object.entries(env).map(([k, v]) => `${k}: ${v}`),
   ].join("\n");
 
@@ -369,7 +382,7 @@ export default function VoiceLab() {
                       {r.genMs !== undefined
                         ? `${(r.genMs / 1000).toFixed(1)} s`
                         : r.n === rows.findIndex((x) => x.genMs === undefined)
-                          ? `working ${Math.max(0, Math.round((now - speakStartedAt) / 1000))} s`
+                          ? `${r.stage ?? "queued"} ${Math.max(0, Math.round((now - speakStartedAt) / 1000))} s`
                           : "waiting"}
                     </td>
                     <td className="py-1.5 pr-3">{r.audioSec !== undefined ? `${r.audioSec.toFixed(1)} s` : ""}</td>
