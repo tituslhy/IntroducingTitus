@@ -94,7 +94,7 @@ Everything else (scope, honesty, first person, tools, cards, page moves) is unch
 
 - **Desktop:** the model starts downloading at the mic tap, silently, so it is usually ready before the reply.
 - **Phone** (a coarse pointer, or the browser reports cellular or Save-Data): the first spoken question shows a
-  one-tap line in the thinking state: "I can answer out loud. It's a one-off 163 MB download." **Speak replies** /
+  one-tap line in the thinking state: "I can answer out loud. It's a one-off 172 MB download." **Speak replies** /
   **Text is fine**. Yes starts the download while it thinks; No answers in text and doesn't ask again this visit
   (in memory only).
 - **Already downloaded** (the model is in the browser's cache): no question, anywhere.
@@ -170,7 +170,10 @@ What the iPhone runs taught us (2026-11-28), in order:
    loaded with `graphOptimizationLevel: "basic"`, because ORT's "extended" fusions merge the reductions back into fp16
    ones. Chrome: patched + basic = clean at 15× real time; patched + all, or official at any level = NaN.
 4. fp32 (326 MB) reloads the page on the iPhone: out of memory. Phones get the patched fp16 or nothing.
-5. The patched model has to be hosted (it can't go in git: 163 MB, and GitHub's limit is 100 MB per file).
+5. fp16 on WebGPU also crackles ("a bad phone line"): 3× fp32's energy above 7 kHz, old and new runtimes alike.
+   `scripts/kokoro/promote-fp32.py` runs the generator's later layers in fp32: 0.8% (fp32 itself: 0.95%), and the
+   file grows to **172 MB**. Whole generator in fp32 also works but is 202 MB. The download offer says 172 MB.
+6. The patched model has to be hosted (it can't go in git: 163 MB, and GitHub's limit is 100 MB per file).
 
 Earlier on the iPhone: the fp16 model downloaded and loaded (163 MB in 67 s), then the first sentence never
 came back. Cause: kokoro-js's phonemizer unpacks its espeak dictionary with `for await` over a `ReadableStream`, which
