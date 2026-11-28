@@ -1752,15 +1752,12 @@ export default function CopilotBubble({
             </p>
           ) : (
             <p className="mt-2 font-mono text-[10px] leading-snug text-ink-faint">
-              {voicePrivacy ? (
-                // The voice model stays in the browser's cache, so "nothing is stored" would no longer be true.
-                "Messages go to OpenAI to generate a reply and are logged so I can improve answers. Your messages aren’t stored in your browser. Voice clips go to OpenAI to be transcribed; I don’t keep them. Spoken replies are made on your device, with a voice downloaded once from Hugging Face and kept in your browser’s cache."
-              ) : (
-                <>
-                  Messages go to OpenAI to generate a reply and are logged so I can improve answers. Nothing is stored in your browser.
-                  {voice.supported && " Voice clips go to OpenAI to be transcribed; I don’t keep them."}
-                </>
-              )}
+              {voicePrivacy
+                ? // The voice model stays in the browser's cache, so "nothing is stored" would no longer be true.
+                  "OpenAI writes the replies (logged to improve them) and transcribes voice clips (I don’t keep them)."
+                : voice.supported
+                  ? "OpenAI writes the replies (logged to improve them) and transcribes voice clips (I don’t keep them). Nothing is stored in your browser."
+                  : "OpenAI writes the replies (logged to improve them). Nothing is stored in your browser."}
             </p>
           )}
         </div>

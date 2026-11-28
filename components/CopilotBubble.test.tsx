@@ -1066,7 +1066,7 @@ describe("CopilotBubble", () => {
     // Assert
     expect(
       screen.getByText(
-        "Messages go to OpenAI to generate a reply and are logged so I can improve answers. Nothing is stored in your browser."
+        "OpenAI writes the replies (logged to improve them). Nothing is stored in your browser."
       )
     ).toBeInTheDocument();
     expect(screen.queryByText(/does not save your chat history/i)).not.toBeInTheDocument();
@@ -1079,10 +1079,10 @@ describe("CopilotBubble", () => {
       render(<CopilotBubble />);
       await user.click(screen.getByRole("button", { name: /open ask titus/i }));
 
-      expect(screen.getByText(/^Messages go to OpenAI to generate a reply/).textContent).toBe(
-        "Messages go to OpenAI to generate a reply and are logged so I can improve answers. Nothing is stored in your browser."
+      expect(screen.getByText(/^OpenAI writes the replies/).textContent).toBe(
+        "OpenAI writes the replies (logged to improve them). Nothing is stored in your browser."
       );
-      expect(screen.queryByText(/Voice clips|Spoken replies/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/transcribes voice clips|Spoken replies/)).not.toBeInTheDocument();
     } finally {
       delete (navigator as unknown as { gpu?: unknown }).gpu;
     }
@@ -6213,7 +6213,7 @@ describe("CopilotBubble: voice in", () => {
   const STOP = "Stop recording";
   const SEND = "Send message";
   const TRANSCRIBE_TEXT = "What did you build at Illumina?";
-  const PRIVACY = "Voice clips go to OpenAI to be transcribed; I don’t keep them.";
+  const PRIVACY = /transcribes voice clips \(I don’t keep them\)/;
   const alertText = () => screen.queryByRole("alert")?.textContent ?? null;
   const box = () => screen.queryByPlaceholderText(/ask about my work/i) as HTMLTextAreaElement | null;
   const micButton = () => screen.queryByRole("button", { name: MIC });
@@ -6296,7 +6296,7 @@ describe("CopilotBubble: voice in", () => {
 
       expect(micButton()).toBeNull();
       expect(screen.getByRole("button", { name: SEND })).toBeInTheDocument();
-      expect(screen.queryByText(/Voice clips go to OpenAI/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/transcribes voice clips/)).not.toBeInTheDocument();
     });
 
     it("is not offered in the job-description mode", async () => {
@@ -6334,7 +6334,7 @@ describe("CopilotBubble: voice in", () => {
 
     it("says voice clips go to OpenAI to be transcribed and are not kept, only where the mic is", async () => {
       await openDrawer();
-      expect(screen.getByText(new RegExp(PRIVACY.replace(/[.]/g, "\\."))));
+      expect(screen.getByText(PRIVACY)).toBeInTheDocument();
     });
 
     it("stops a playing tour when the visitor starts to speak", async () => {
@@ -6776,10 +6776,10 @@ describe("CopilotBubble: voice reply", () => {
 
   describe("the privacy line", () => {
     const WITH_VOICE =
-      "Messages go to OpenAI to generate a reply and are logged so I can improve answers. Your messages aren’t stored in your browser. Voice clips go to OpenAI to be transcribed; I don’t keep them. Spoken replies are made on your device, with a voice downloaded once from Hugging Face and kept in your browser’s cache.";
+      "OpenAI writes the replies (logged to improve them) and transcribes voice clips (I don’t keep them).";
     const MIC_ONLY =
-      "Messages go to OpenAI to generate a reply and are logged so I can improve answers. Nothing is stored in your browser. Voice clips go to OpenAI to be transcribed; I don’t keep them.";
-    const line = () => screen.getByText(/^Messages go to OpenAI to generate a reply/);
+      "OpenAI writes the replies (logged to improve them) and transcribes voice clips (I don’t keep them). Nothing is stored in your browser.";
+    const line = () => screen.getByText(/^OpenAI writes the replies/);
 
     afterEach(() => {
       delete (navigator as unknown as { gpu?: unknown }).gpu;

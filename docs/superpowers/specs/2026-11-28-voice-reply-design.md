@@ -129,12 +129,12 @@ drawer lives across pages.
 
 ### Privacy copy (needs Titus's sign-off)
 
-Today's drawer line says "Nothing is stored in your browser." With the voice cached, that is no longer true. Proposed,
-where voice is supported:
+Today's drawer line says "Nothing is stored in your browser." With the voice cached, that is no longer true. Where
+voice is supported:
 
-> Messages go to OpenAI to generate a reply and are logged so I can improve answers. Your messages aren't stored in
-> your browser. Voice clips go to OpenAI to be transcribed; I don't keep them. Spoken replies are made on your device,
-> with a voice downloaded once from Hugging Face and kept in your browser's cache.
+> OpenAI writes the replies (logged to improve them) and transcribes voice clips (I don’t keep them).
+
+Shortened by Titus on 2026-11-28 (too long on a phone); the colophon carries the details (model host, browser cache).
 
 The colophon's Voice section and its guardrail row gain the same facts (spoken replies made on the device; no audio
 sent; the model's host).
