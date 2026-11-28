@@ -65,6 +65,10 @@ export default function VoiceLab() {
   const [rows, setRows] = useState<Row[]>([]);
   const [env, setEnv] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
+  // Counts the seconds while a sentence is being made, so "nothing yet" reads as slow or stuck, not as no sound.
+  const [speakStartedAt, setSpeakStartedAt] = useState(0);
+  const [now, setNow] = useState(0);
+  const pending = rows.length > 0 && rows.some((r) => r.genMs === undefined);
 
   useEffect(() => {
     return () => {
@@ -72,6 +76,12 @@ export default function VoiceLab() {
       void audioRef.current?.ctx.close();
     };
   }, []);
+
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setInterval(() => setNow(performance.now()), 1000);
+    return () => clearInterval(timer);
+  }, [pending]);
 
   const onAudio = useCallback((id: number, audio: Float32Array, sampleRate: number, genMs: number) => {
     const run = Math.floor(id / 1000);
@@ -120,6 +130,12 @@ export default function VoiceLab() {
         if (m.id === undefined) setStatus("error");
       }
     };
+    // The worker dying (often out of memory on a phone) sends no message of its own: say so.
+    worker.onerror = (event) => {
+      setError(`The voice process crashed${event.message ? `: ${event.message}` : " (no details; often out of memory)"}.`);
+      setStatus("error");
+      workerRef.current = null;
+    };
     workerRef.current = worker;
     return worker;
   }, [onAudio]);
@@ -131,6 +147,47 @@ export default function VoiceLab() {
     filesRef.current = {};
     setDownloaded({ loaded: 0, total: 0 });
     getWorker().postMessage({ type: "load", device: e.device, dtype: e.dtype });
+    void readDevice().then(setEnv);
+  };
+
+  // What this device offers: shader-f16 is what the fp16 model wants from the GPU.
+  const readDevice = async (): Promise<Record<string, string>> => {
+    type Adapter = { features: Set<string>; info?: { vendor?: string; architecture?: string } };
+    const nav = navigator as Navigator & {
+      deviceMemory?: number;
+      gpu?: { requestAdapter(): Promise<Adapter | null> };
+    };
+    let adapter: Adapter | null = null;
+    try {
+      adapter = (await nav.gpu?.requestAdapter()) ?? null;
+    } catch {
+      adapter = null;
+    }
+    return {
+      WebGPU: nav.gpu ? (adapter ? "yes" : "API present, no adapter") : "no",
+      "GPU shader-f16": adapter ? (adapter.features.has("shader-f16") ? "yes" : "no") : "?",
+      GPU: adapter?.info ? `${adapter.info.vendor ?? "?"} ${adapter.info.architecture ?? ""}`.trim() : "?",
+      "Cross-origin isolated (threads)": String(self.crossOriginIsolated),
+      "CPU cores": String(nav.hardwareConcurrency ?? "?"),
+      "Memory (GB, Chrome only)": String(nav.deviceMemory ?? "?"),
+      Browser: nav.userAgent,
+    };
+  };
+
+  // A half-second tone: proves this page can make sound here at all, apart from the voice.
+  const testSound = () => {
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session) session.type = "playback";
+    const ctx = new AudioContext();
+    void ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    gain.gain.value = 0.2;
+    osc.frequency.value = 440;
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.5);
+    osc.onended = () => void ctx.close();
   };
 
   const stop = () => {
@@ -149,14 +206,8 @@ export default function VoiceLab() {
     const ctx = new AudioContext();
     void ctx.resume();
     audioRef.current = { ctx, nextStart: 0, prevEnd: 0, clickedAt: performance.now() };
-    const nav = navigator as Navigator & { deviceMemory?: number; gpu?: unknown };
-    setEnv({
-      "Cross-origin isolated (threads)": String(self.crossOriginIsolated),
-      "CPU cores": String(nav.hardwareConcurrency ?? "?"),
-      "Memory (GB, Chrome only)": String(nav.deviceMemory ?? "?"),
-      WebGPU: nav.gpu ? "yes" : "no",
-      Browser: nav.userAgent,
-    });
+    setSpeakStartedAt(performance.now());
+    setNow(performance.now());
     const run = runRef.current;
     const parts = sentences(text);
     setRows(parts.map((t, n) => ({ n, text: t })));
@@ -176,6 +227,7 @@ export default function VoiceLab() {
     `Downloaded: ${mb(downloaded.loaded)} MB · load ${loadMs !== null ? (loadMs / 1000).toFixed(1) + " s" : "?"}`,
     `First sound after tap: ${firstSound !== undefined ? firstSound.toFixed(1) + " s" : "?"}`,
     `Speed: ${totalGen > 0 ? (totalAudio / totalGen).toFixed(2) : "?"}× real time · gaps ${totalGaps.toFixed(1)} s`,
+    ...(pending ? [`Still working: ${Math.max(0, Math.round((now - speakStartedAt) / 1000))} s since Speak`] : []),
     ...Object.entries(env).map(([k, v]) => `${k}: ${v}`),
   ].join("\n");
 
@@ -236,6 +288,21 @@ export default function VoiceLab() {
             {error}
           </p>
         )}
+        {Object.keys(env).length > 0 && (
+          <dl className="mt-3 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[11px] text-ink-soft">
+            {Object.entries(env)
+              .filter(([k]) => k !== "Browser")
+              .map(([k, v]) => (
+                <div key={k} className="contents">
+                  <dt className="text-ink-faint">{k}</dt>
+                  <dd className="m-0 break-words">{v}</dd>
+                </div>
+              ))}
+          </dl>
+        )}
+        <button type="button" className={`${ghost} mt-4`} onClick={testSound}>
+          Test sound (a short beep)
+        </button>
       </section>
 
       <section className="mt-8 border-t border-rule pt-5">
@@ -274,6 +341,9 @@ export default function VoiceLab() {
             Reset text
           </button>
         </div>
+        {status !== "ready" && (
+          <p className="mt-2 text-[11px] text-ink-faint">Speak wakes up once the voice has loaded (step 1).</p>
+        )}
       </section>
 
       {rows.length > 0 && (
@@ -295,7 +365,13 @@ export default function VoiceLab() {
                 {rows.map((r) => (
                   <tr key={r.n} className="border-t border-rule align-top">
                     <td className="py-1.5 pr-3 font-serif text-[13px] text-ink-soft">{r.text}</td>
-                    <td className="py-1.5 pr-3">{r.genMs !== undefined ? `${(r.genMs / 1000).toFixed(1)} s` : "…"}</td>
+                    <td className="py-1.5 pr-3">
+                      {r.genMs !== undefined
+                        ? `${(r.genMs / 1000).toFixed(1)} s`
+                        : r.n === rows.findIndex((x) => x.genMs === undefined)
+                          ? `working ${Math.max(0, Math.round((now - speakStartedAt) / 1000))} s`
+                          : "waiting"}
+                    </td>
                     <td className="py-1.5 pr-3">{r.audioSec !== undefined ? `${r.audioSec.toFixed(1)} s` : ""}</td>
                     <td className="py-1.5 pr-3">
                       {r.genMs && r.audioSec ? `${(r.audioSec / (r.genMs / 1000)).toFixed(1)}×` : ""}
@@ -312,21 +388,20 @@ export default function VoiceLab() {
             </table>
           </div>
           {done && (
-            <>
-              <p className="mt-4 font-serif text-[16px]">
-                {totalGaps < 0.5
-                  ? "Keeps up: after the first sentence, it never ran out of speech."
-                  : `Falls behind: ${totalGaps.toFixed(1)} s of silence between sentences.`}{" "}
-                First sound {firstSound?.toFixed(1)} s after the tap.
-              </p>
-              <pre className="mt-3 whitespace-pre-wrap break-words border border-rule bg-paper-deep p-3 text-[11px] text-ink-soft">
-                {summary}
-              </pre>
-              <button type="button" className={`${ghost} mt-3`} onClick={copy}>
-                {copied ? "Copied" : "Copy results"}
-              </button>
-            </>
+            <p className="mt-4 font-serif text-[16px]">
+              {totalGaps < 0.5
+                ? "Keeps up: after the first sentence, it never ran out of speech."
+                : `Falls behind: ${totalGaps.toFixed(1)} s of silence between sentences.`}{" "}
+              First sound {firstSound?.toFixed(1)} s after the tap.
+            </p>
           )}
+          {/* Shown while it's still working too, so a stuck run can be copied as it stands. */}
+          <pre className="mt-3 whitespace-pre-wrap break-words border border-rule bg-paper-deep p-3 text-[11px] text-ink-soft">
+            {summary}
+          </pre>
+          <button type="button" className={`${ghost} mt-3`} onClick={copy}>
+            {copied ? "Copied" : "Copy results"}
+          </button>
         </section>
       )}
     </main>
