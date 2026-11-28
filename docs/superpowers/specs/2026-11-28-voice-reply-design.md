@@ -72,7 +72,9 @@ Everything else (scope, honesty, first person, tools, cards, page moves) is unch
 - **Streaming:** as the reply streams in, each finished sentence goes to the worker; audio comes back per sentence and
   plays in order, so speech starts after the first sentence, not the whole reply.
 - **Playback:** an `AudioContext` made and resumed **inside the mic tap** (Safari only lets audio play from a page if
-  a tap started it), kept for that reply, scheduling one buffer per sentence.
+  a tap started it), kept for that reply, scheduling one buffer per sentence. Before it, `navigator.audioSession.type
+  = "playback"` (Safari's Audio Session API): otherwise iPhone Safari treats Web Audio as ambient sound and the silent
+  switch mutes it (found on Titus's iPhone in the spike).
 - **Highlight:** the sentence playing gets a soft amber wash using the CSS Custom Highlight API, without touching the
   rendered markdown. Where the browser lacks it, no highlight; speech still plays.
 
