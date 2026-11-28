@@ -63,6 +63,85 @@ jest.mock("remark-gfm", () => ({
   default: jest.fn(),
 }));
 
+// Voice reply: the engine, the player and the browser checks are fakes (each is tested on its own in lib/voice-reply).
+// By default the browser can't speak (as jsdom can't), so every other test here sees the drawer as it was; the
+// "voice reply" tests at the end switch the voice on.
+interface MockSpoken {
+  text: string;
+  resolve(value: { audio: Float32Array; sampleRate: number }): void;
+  reject(reason: Error): void;
+}
+class MockVoiceEngine {
+  state: "idle" | "loading" | "ready" | "failed" = "idle";
+  listeners = new Set<(fraction: number) => void>();
+  spoken: MockSpoken[] = [];
+  private settle: { resolve(): void; reject(e: Error): void } | null = null;
+  private promise: Promise<void> | null = null;
+  private lastId = 0;
+  load = jest.fn(() => {
+    if (!this.promise) {
+      this.state = "loading";
+      this.promise = new Promise<void>((resolve, reject) => (this.settle = { resolve, reject }));
+    }
+    return this.promise;
+  });
+  onProgress = jest.fn((cb: (fraction: number) => void) => {
+    this.listeners.add(cb);
+    return () => void this.listeners.delete(cb);
+  });
+  speak = jest.fn((text: string) => {
+    const id = ++this.lastId;
+    let entry!: MockSpoken;
+    const audio = new Promise<{ audio: Float32Array; sampleRate: number }>((resolve, reject) => {
+      entry = { text, resolve, reject };
+    });
+    this.spoken.push(entry);
+    return { id, audio };
+  });
+  cancelAll = jest.fn();
+  progress(fraction: number) {
+    this.listeners.forEach((cb) => cb(fraction));
+  }
+  becomeReady() {
+    this.state = "ready";
+    this.settle?.resolve();
+  }
+  failToLoad() {
+    this.state = "failed";
+    this.settle?.reject(new Error("The voice failed to load."));
+  }
+  texts() {
+    return this.spoken.map((s) => s.text);
+  }
+}
+class MockVoicePlayer {
+  expected: number[] = [];
+  stopped = false;
+  finished = false;
+  constructor(public opts: { onSentence(i: number): void; onDone(): void; onStall(): void }) {}
+  expect = (i: number) => void this.expected.push(i);
+  play = jest.fn();
+  finish = () => void (this.finished = true);
+  stop = () => void (this.stopped = true);
+}
+let mockVoiceEngine: MockVoiceEngine | null = null;
+let mockVoicePlayers: MockVoicePlayer[] = [];
+const mockVoiceSupport = { speak: false, cached: false };
+jest.mock("@/lib/voice-reply/engine", () => ({ getVoiceEngine: () => (mockVoiceEngine ??= new MockVoiceEngine()) }));
+jest.mock("@/lib/voice-reply/player", () => ({
+  createReplyPlayer: (_ctx: unknown, opts: MockVoicePlayer["opts"]) => {
+    const player = new MockVoicePlayer(opts);
+    mockVoicePlayers.push(player);
+    return player;
+  },
+}));
+jest.mock("@/lib/voice-reply/support", () => ({
+  ...jest.requireActual("@/lib/voice-reply/support"),
+  canSpeak: async () => mockVoiceSupport.speak,
+  isVoiceCached: async () => mockVoiceSupport.cached,
+}));
+jest.mock("@/lib/voice-reply/highlight", () => ({ highlightSentence: jest.fn(), clearHighlight: jest.fn() }));
+
 function createStreamingResponse(chunks: string[]): Response {
   const encoder = new TextEncoder();
   const encodedChunks = chunks.map((chunk) => encoder.encode(chunk));
@@ -6550,6 +6629,470 @@ describe("CopilotBubble: voice in", () => {
       await flush();
 
       expect(alertText()).toBeNull();
+    });
+  });
+});
+
+describe("CopilotBubble: voice reply", () => {
+  // A MediaRecorder stand-in (as in "voice in"): stop() hands over a clip, then fires onstop.
+  class FakeRecorder {
+    state: "inactive" | "recording" = "inactive";
+    mimeType = "audio/webm";
+    ondataavailable: ((e: { data: Blob }) => void) | null = null;
+    onstop: (() => void) | null = null;
+    constructor(public stream: MediaStream) {}
+    start() {
+      this.state = "recording";
+    }
+    stop() {
+      if (this.state === "inactive") return;
+      this.state = "inactive";
+      this.ondataavailable?.({ data: new Blob([new Uint8Array(5_000)], { type: "audio/webm" }) });
+      this.onstop?.();
+    }
+  }
+  class FakeAudioContext {
+    state = "suspended";
+    currentTime = 0;
+    destination = {};
+    resume = jest.fn(async () => {
+      this.state = "running";
+    });
+    close = jest.fn(async () => {});
+  }
+
+  const SPOKEN_WORDS = "Walk me through your career.";
+  const THINKING_LINE = "You asked out loud, so I’ll answer out loud.";
+  const FALLBACK = "My voice couldn’t keep up on this device, so this one’s written out.";
+  const box = () => screen.queryByPlaceholderText(/ask about my work/i) as HTMLTextAreaElement | null;
+  const mic = () => screen.getByRole("button", { name: "Speak your question" });
+  const engine = () => mockVoiceEngine!;
+  const player = () => mockVoicePlayers[mockVoicePlayers.length - 1];
+  const strip = () => screen.queryByText("type to cut in");
+  const chatCalls = () => (global.fetch as jest.Mock).mock.calls.filter(([url]) => url !== "/api/transcribe");
+  const chatBody = (n = 0) => JSON.parse(chatCalls()[n][1].body);
+  let media: Record<string, boolean>;
+  let chatReplies: Array<Response | Promise<Response>>;
+  let originalMatchMedia: typeof window.matchMedia;
+
+  async function flush() {
+    await act(async () => {
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+    });
+  }
+
+  async function openDrawer() {
+    const user = userEvent.setup();
+    render(<CopilotBubble targets={[]} email="me@example.com" />);
+    await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+    return user;
+  }
+
+  /** Taps the mic, then Stop: the words land in the box. */
+  async function speakIntoBox() {
+    fireEvent.click(mic());
+    await flush();
+    fireEvent.click(screen.getByRole("button", { name: "Stop recording" }));
+    await waitFor(() => expect(box()!.value).toBe(SPOKEN_WORDS));
+  }
+
+  /** A returning visitor: the voice is cached and loads at the mic tap. */
+  async function voiceReady() {
+    mockVoiceSupport.cached = true;
+    const user = await openDrawer();
+    await speakIntoBox();
+    await act(async () => engine().becomeReady());
+    await flush();
+    return user;
+  }
+
+  async function sendSpoken(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+    await flush();
+  }
+
+  beforeEach(() => {
+    mockVoiceEngine = new MockVoiceEngine();
+    mockVoicePlayers = [];
+    mockVoiceSupport.speak = true;
+    mockVoiceSupport.cached = false;
+    media = {};
+    originalMatchMedia = window.matchMedia;
+    window.matchMedia = jest.fn((query: string) => ({
+      matches: !!media[query],
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(() => true),
+    })) as unknown as typeof window.matchMedia;
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: { getUserMedia: jest.fn(async () => ({ getTracks: () => [{ stop: jest.fn() }] })) },
+      configurable: true,
+    });
+    Object.defineProperty(window, "MediaRecorder", { value: FakeRecorder, configurable: true, writable: true });
+    (window as unknown as { AudioContext: unknown }).AudioContext = FakeAudioContext;
+    let n = 0;
+    global.crypto = { randomUUID: jest.fn(() => `voice-id-${++n}`) } as unknown as Crypto;
+    if (!global.TextDecoder) global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+    window.scrollTo = jest.fn() as unknown as typeof window.scrollTo;
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { value: jest.fn(), writable: true });
+    chatReplies = [];
+    global.fetch = jest.fn(async (url: string) => {
+      if (url === "/api/transcribe") return { ok: true, status: 200, json: async () => ({ text: SPOKEN_WORDS }) } as unknown as Response;
+      return chatReplies.shift() ?? createStreamingResponse([deltaLine("I started in supply chain. Then data science.")]);
+    }) as unknown as typeof fetch;
+  });
+
+  afterEach(async () => {
+    await act(async () => {});
+    mockVoiceSupport.speak = false;
+    mockVoiceSupport.cached = false;
+    delete (window as unknown as { MediaRecorder?: unknown }).MediaRecorder;
+    delete (navigator as unknown as { mediaDevices?: unknown }).mediaDevices;
+    delete (window as unknown as { AudioContext?: unknown }).AudioContext;
+    window.matchMedia = originalMatchMedia;
+  });
+
+  describe("which questions are spoken", () => {
+    it("words from the mic, then Send: the request says spoken, and the question is tagged spoken", async () => {
+      const user = await openDrawer();
+      await speakIntoBox();
+      await sendSpoken(user);
+
+      expect(chatBody().spoken).toBe(true);
+      const question = screen.getByText(SPOKEN_WORDS, { selector: "article p" }).closest("article")!;
+      expect(within(question).getByText("spoken")).toBeInTheDocument();
+    });
+
+    it("a typed question sends no spoken flag and has no tag", async () => {
+      const user = await openDrawer();
+      await user.type(box()!, "What did you build?{Enter}");
+      await flush();
+
+      expect(chatBody()).not.toHaveProperty("spoken");
+      expect(screen.queryByText("spoken")).toBeNull();
+    });
+
+    it("a starter prompt sends no spoken flag", async () => {
+      const user = await openDrawer();
+      await user.click(screen.getByRole("button", { name: new RegExp(STARTER_PROMPTS[0].slice(0, 20)) }));
+      await flush();
+
+      expect(chatBody()).not.toHaveProperty("spoken");
+    });
+
+    it("an “Ask about X” pill sends no spoken flag, even with spoken words in the box", async () => {
+      await openDrawer();
+      await speakIntoBox();
+      act(() => openCopilot("chat", "Ask about Illumina"));
+      await flush();
+
+      expect(chatBody()).not.toHaveProperty("spoken");
+    });
+
+    it("mic words, the box emptied, then typed: not spoken", async () => {
+      const user = await openDrawer();
+      await speakIntoBox();
+      await user.clear(box()!);
+      await user.type(box()!, "Something else{Enter}");
+      await flush();
+
+      expect(chatBody()).not.toHaveProperty("spoken");
+    });
+
+    it("mic words lightly edited: still spoken", async () => {
+      const user = await openDrawer();
+      await speakIntoBox();
+      await user.type(box()!, " Briefly.");
+      await sendSpoken(user);
+
+      expect(chatBody().spoken).toBe(true);
+      expect(chatBody().messages[0].content).toBe(`${SPOKEN_WORDS} Briefly.`);
+    });
+  });
+
+  describe("the first time", () => {
+    it("on a computer, the first mic tap starts the download", async () => {
+      await openDrawer();
+      fireEvent.click(mic());
+      await flush();
+
+      expect(engine().load).toHaveBeenCalledTimes(1);
+    });
+
+    it("while it thinks: the out-loud line, and the first-time step with the real percentage and MB", async () => {
+      const stream = pausingResponse([WAIT, deltaLine("Hello.")]);
+      chatReplies.push(stream.response);
+      const user = await openDrawer();
+      await speakIntoBox();
+      await sendSpoken(user);
+      act(() => engine().progress(0.38));
+
+      expect(screen.getByText(THINKING_LINE)).toBeInTheDocument();
+      expect(screen.getByText("38%")).toBeInTheDocument();
+      expect(screen.getByText(/First time only: 65 of 172 MB\./)).toBeInTheDocument();
+      await stream.release();
+    });
+
+    it("a typed question while the voice downloads has no out-loud line", async () => {
+      const stream = pausingResponse([WAIT, deltaLine("Hello.")]);
+      chatReplies.push(stream.response);
+      const user = await openDrawer();
+      fireEvent.click(mic());
+      await flush();
+      fireEvent.click(screen.getByRole("button", { name: "Stop recording" }));
+      await waitFor(() => expect(box()!.value).toBe(SPOKEN_WORDS));
+      await user.clear(box()!);
+      await user.type(box()!, "Typed{Enter}");
+      await flush();
+
+      expect(screen.queryByText(THINKING_LINE)).toBeNull();
+      await stream.release();
+    });
+
+    it("on a phone, the first mic tap shows the offer while recording carries on; nothing downloads until “Speak replies”", async () => {
+      media["(pointer: coarse)"] = true;
+      await openDrawer();
+      fireEvent.click(mic());
+      await flush();
+
+      expect(screen.getByText("I can answer out loud. It’s a one-off 172 MB download, best on Wi-Fi.")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Stop recording" })).toBeInTheDocument();
+      expect(screen.getByText("Listening")).toBeInTheDocument();
+      expect(engine().load).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: "Speak replies" }));
+      await flush();
+      expect(engine().load).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText(/I can answer out loud/)).toBeNull();
+    });
+
+    it("on a phone, “Text is fine”: no speech for this reply, and no offer for the next spoken question", async () => {
+      media["(pointer: coarse)"] = true;
+      const user = await openDrawer();
+      await speakIntoBox();
+      fireEvent.click(screen.getByRole("button", { name: "Text is fine" }));
+      await sendSpoken(user);
+      await screen.findByText("I started in supply chain. Then data science.");
+
+      await speakIntoBox();
+      await flush();
+      expect(screen.queryByText(/I can answer out loud/)).toBeNull();
+      expect(engine().load).not.toHaveBeenCalled();
+      expect(engine().speak).not.toHaveBeenCalled();
+    });
+
+    it("already cached, on a phone: no offer and no first-time step", async () => {
+      media["(pointer: coarse)"] = true;
+      mockVoiceSupport.cached = true;
+      const stream = pausingResponse([WAIT, deltaLine("Hello.")]);
+      chatReplies.push(stream.response);
+      const user = await openDrawer();
+      await speakIntoBox();
+      expect(screen.queryByText(/I can answer out loud/)).toBeNull();
+      await sendSpoken(user);
+      act(() => engine().progress(0.5));
+
+      expect(screen.getByText(THINKING_LINE)).toBeInTheDocument();
+      expect(screen.queryByText(/First time only/)).toBeNull();
+      expect(screen.queryByText(/Getting my voice ready/)).toBeNull();
+      await stream.release();
+    });
+
+    it("the reply finished while it loads: the strip says so with Just read, which speaks nothing for this reply", async () => {
+      const user = await openDrawer();
+      await speakIntoBox();
+      await sendSpoken(user);
+      await screen.findByText("I started in supply chain. Then data science.");
+      act(() => engine().progress(0.86));
+
+      expect(screen.getByText(/Getting my voice ready/).closest("div")).toHaveTextContent("Getting my voice ready · 86%");
+      expect(screen.getByText("I’ll read it out as soon as it’s in.")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Just read" }));
+      await act(async () => engine().becomeReady());
+      await flush();
+
+      expect(engine().speak).not.toHaveBeenCalled();
+      expect(screen.queryByText(/Getting my voice ready/)).toBeNull();
+    });
+
+    it("ready after the visitor scrolled the drawer: the late strip; “Hear this reply” reads it from the start; ✕ dismisses", async () => {
+      const user = await openDrawer();
+      await speakIntoBox();
+      await sendSpoken(user);
+      const reply = await screen.findByText("I started in supply chain. Then data science.");
+      fireEvent.wheel(reply);
+      await act(async () => engine().becomeReady());
+      await flush();
+
+      expect(screen.getByText("My voice is ready.")).toBeInTheDocument();
+      expect(engine().speak).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Hear this reply" }));
+      await flush();
+      expect(engine().texts()).toEqual(["I started in supply chain.", "Then data science."]);
+      expect(player().expected).toEqual([0, 1]);
+      expect(strip()).toBeInTheDocument();
+    });
+
+    it("the late strip's ✕ dismisses it", async () => {
+      const user = await openDrawer();
+      await speakIntoBox();
+      await sendSpoken(user);
+      const reply = await screen.findByText("I started in supply chain. Then data science.");
+      fireEvent.wheel(reply);
+      await act(async () => engine().becomeReady());
+      await flush();
+
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+      expect(screen.queryByText("My voice is ready.")).toBeNull();
+    });
+
+    it("the drawer closed while the voice downloads: when it arrives, nothing is spoken", async () => {
+      const stream = pausingResponse([WAIT, deltaLine("One here. Two there.")]);
+      chatReplies.push(stream.response);
+      const user = await openDrawer();
+      await speakIntoBox();
+      await sendSpoken(user);
+      fireEvent.click(screen.getAllByRole("button", { name: "Close chat" })[0]);
+      await flush();
+      await stream.release();
+      await act(async () => engine().becomeReady());
+      await flush();
+
+      expect(engine().speak).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("speaking", () => {
+    it("streams sentences to the voice as they complete, and the last one when the reply is in", async () => {
+      const stream = pausingResponse([deltaLine("I started in supply chain. Then"), WAIT, deltaLine(" data science")]);
+      chatReplies.push(stream.response);
+      const user = await voiceReady();
+      await sendSpoken(user);
+      await screen.findByText("I started in supply chain. Then");
+
+      expect(engine().texts()).toEqual(["I started in supply chain."]);
+      await stream.release();
+      expect(engine().texts()).toEqual(["I started in supply chain.", "Then data science"]);
+      expect(player().finished).toBe(true);
+    });
+
+    it("shows the strip: “Speaking”, “type to cut in” and Stop", async () => {
+      const user = await voiceReady();
+      await sendSpoken(user);
+      await screen.findByText("I started in supply chain. Then data science.");
+
+      expect(screen.getByText("Speaking")).toBeInTheDocument();
+      expect(strip()).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Stop speaking" })).toBeInTheDocument();
+    });
+
+    it("with reduced motion, the strip's bars have no animation class", async () => {
+      media["(prefers-reduced-motion: reduce)"] = true;
+      const user = await voiceReady();
+      await sendSpoken(user);
+      await screen.findByText("Speaking");
+
+      const bars = Array.from(document.querySelectorAll("[data-voice-bars] > span"));
+      expect(bars).toHaveLength(5);
+      bars.forEach((bar) => expect(bar.className).not.toMatch(/voice-bar-move|animate/));
+    });
+
+    const stoppers: Array<[string, (user: ReturnType<typeof userEvent.setup>) => Promise<unknown>]> = [
+      ["Stop", async () => fireEvent.click(screen.getByRole("button", { name: "Stop speaking" }))],
+      ["typing", async (user) => user.type(box()!, "W")],
+      ["the mic", async () => fireEvent.click(mic())],
+      ["sending", async () => act(() => openCopilot("chat", "Ask about Illumina"))],
+      ["closing the drawer", async () => fireEvent.click(screen.getAllByRole("button", { name: "Close chat" })[0])],
+      ["starting the tour", async () => act(() => startTour())],
+    ];
+    it.each(stoppers)("%s stops the speech and the strip goes", async (_name, action) => {
+      const user = await voiceReady();
+      await sendSpoken(user);
+      await screen.findByText("Speaking");
+      const speaking = player();
+
+      await action(user);
+      await flush();
+
+      expect(speaking.stopped).toBe(true);
+      expect(engine().cancelAll).toHaveBeenCalled();
+      expect(strip()).toBeNull();
+    });
+
+    it("done: “hear again” beside copy on that reply only, and it replays from sentence 0", async () => {
+      chatReplies.push(createStreamingResponse([deltaLine("A typed answer.")]));
+      const user = await voiceReady();
+      await user.clear(box()!);
+      await user.type(box()!, "Typed first{Enter}");
+      await screen.findByText("A typed answer.");
+      await speakIntoBox();
+      await sendSpoken(user);
+      const reply = (await screen.findByText("I started in supply chain. Then data science.")).closest("article")!;
+      act(() => player().opts.onDone());
+
+      expect(strip()).toBeNull();
+      expect(within(reply).getByRole("button", { name: "Hear this reply again" })).toBeInTheDocument();
+      expect(within(reply).getByRole("button", { name: "Copy message" })).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: "Hear this reply again" })).toHaveLength(1);
+
+      const first = player();
+      fireEvent.click(within(reply).getByRole("button", { name: "Hear this reply again" }));
+      await flush();
+      expect(player()).not.toBe(first);
+      expect(player().expected).toEqual([0, 1]);
+      expect(strip()).toBeInTheDocument();
+    });
+
+    it("a stall: the fallback line under the reply, and no “hear again”", async () => {
+      const user = await voiceReady();
+      await sendSpoken(user);
+      const reply = (await screen.findByText("I started in supply chain. Then data science.")).closest("article")!;
+      act(() => player().opts.onStall());
+
+      expect(within(reply).getByText(FALLBACK)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Hear this reply again" })).toBeNull();
+      expect(strip()).toBeNull();
+    });
+
+    it("the voice failing to load: the fallback line", async () => {
+      const user = await openDrawer();
+      await speakIntoBox();
+      await sendSpoken(user);
+      await screen.findByText("I started in supply chain. Then data science.");
+      await act(async () => engine().failToLoad());
+      await flush();
+
+      expect(screen.getByText(FALLBACK)).toBeInTheDocument();
+    });
+
+    it("no WebGPU: no out-loud line, the fallback line, no “hear again”", async () => {
+      mockVoiceSupport.speak = false;
+      const stream = pausingResponse([WAIT, deltaLine("I started in supply chain.")]);
+      chatReplies.push(stream.response);
+      const user = await openDrawer();
+      await speakIntoBox();
+      await sendSpoken(user);
+
+      expect(screen.queryByText(THINKING_LINE)).toBeNull();
+      await stream.release();
+      expect(screen.getByText(FALLBACK)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Hear this reply again" })).toBeNull();
+      expect(engine().load).not.toHaveBeenCalled();
+    });
+
+    it("a stream error mid-reply stops the speech, and the error message is never spoken", async () => {
+      chatReplies.push(createStreamingResponse([deltaLine("I started in supply chain. Then"), `{"type":"error","code":"ERR_RATE_LIMIT"}\n`]));
+      const user = await voiceReady();
+      await sendSpoken(user);
+      await screen.findByText(/lot of questions right now/);
+
+      expect(player().stopped).toBe(true);
+      expect(engine().texts()).toEqual(["I started in supply chain."]);
+      expect(strip()).toBeNull();
     });
   });
 });

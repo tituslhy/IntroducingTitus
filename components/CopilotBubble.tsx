@@ -37,6 +37,15 @@ import { waitForElement } from "@/lib/wait-for-element";
 import { pageMoveStep, toStep, upsertStep, type Step } from "@/lib/copilot-steps";
 import { StepFold, StepList, WaitingWord } from "@/components/CopilotSteps";
 import { MicButton, StopRecordingButton, VoiceStatus, useVoiceInput } from "@/components/VoiceInput";
+import {
+  DownloadOffer,
+  HearAgainButton,
+  SpeakingStrip,
+  SpokenTag,
+  ThinkingVoiceLine,
+  VoiceFallbackLine,
+  useVoiceReply,
+} from "@/components/VoiceReply";
 import { appendTranscript } from "@/lib/voice-input";
 import { cardLabel, historyContent, toCard, type CardData } from "@/lib/card-event";
 import { pickHref, rememberPickQuestion, toPick } from "@/lib/writing-pick";
@@ -61,6 +70,8 @@ interface Message {
   card?: CardData;
   /** The articles the reply is about (Medium post ids): its Writing stop opens the paper filtered to them. */
   pick?: string[];
+  /** On the visitor's message: they spoke it (the mic's words, sent), so the reply is read out too. */
+  spoken?: boolean;
 }
 
 /** A reply's Writing stop, when the reply picked articles: it opens the paper filtered to them (lib/writing-pick.ts). */
@@ -190,7 +201,16 @@ const CheckIcon = () => (
   </svg>
 );
 
-const TypingIndicator = ({ caption, steps = [] }: { caption?: string | null; steps?: Step[] }) => (
+const TypingIndicator = ({
+  caption,
+  steps = [],
+  voice,
+}: {
+  caption?: string | null;
+  steps?: Step[];
+  /** Under the dots of a spoken question: it will answer out loud (and, the first time, the download). */
+  voice?: React.ReactNode;
+}) => (
   <article className="flex flex-col gap-1.5">
     <AssistantLabel />
     <div className="flex h-4 items-center gap-1.5 border-l border-rule pl-3.5">
@@ -207,6 +227,7 @@ const TypingIndicator = ({ caption, steps = [] }: { caption?: string | null; ste
         )
       )}
     </div>
+    {voice}
     {steps.length > 0 && <StepList steps={steps} />}
   </article>
 );
@@ -251,10 +272,25 @@ export default function CopilotBubble({
   const followRef = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Voice in: the words land in the box, after anything already typed, to check before sending.
-  const voice = useVoiceInput((text) => setInput((prev) => appendTranscript(prev, text)));
+  // Voice in: the words land in the box, after anything already typed, to check before sending. Words from the mic
+  // make the question a spoken one (its reply is read out), until the box is emptied.
+  const spokenDraftRef = useRef(false);
+  const voice = useVoiceInput((text) => {
+    spokenDraftRef.current = true;
+    setInput((prev) => appendTranscript(prev, text));
+  });
   const voiceBusy = voice.state !== "idle";
   const { cancel: cancelVoice, clearProblem: clearVoiceProblem } = voice;
+  // Voice out: a spoken question's reply is read aloud by the voice in the browser (components/VoiceReply.tsx).
+  const voiceReply = useVoiceReply();
+  const {
+    prime: primeVoiceReply,
+    begin: beginVoiceReply,
+    feed: feedVoiceReply,
+    finish: finishVoiceReply,
+    stop: stopVoiceReply,
+    noteInteraction: noteVoiceInteraction,
+  } = voiceReply;
   // Keyboard focus follows the mic, so it never falls out of the drawer: to Stop while recording, to the
   // "Transcribing…" line while it works, then back to the box (cursor after the words) once it's done.
   const stopVoiceRef = useRef<HTMLButtonElement>(null);
@@ -286,13 +322,14 @@ export default function CopilotBubble({
       el.setSelectionRange(el.value.length, el.value.length);
     }
   }, [voice.state, voice.problem, isOpen]);
-  // Closing the drawer drops a clip in progress (nothing is sent) and its notice.
+  // Closing the drawer drops a clip in progress (nothing is sent) and its notice, and stops a reply being read out.
   useEffect(() => {
     if (!isOpen) {
       cancelVoice();
       clearVoiceProblem();
+      stopVoiceReply();
     }
-  }, [isOpen, cancelVoice, clearVoiceProblem]);
+  }, [isOpen, cancelVoice, clearVoiceProblem, stopVoiceReply]);
   const drawerRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLButtonElement>(null);
   const wasOpenRef = useRef(false);
@@ -622,6 +659,7 @@ export default function CopilotBubble({
   startTourRef.current = tour.start;
   useEffect(() => {
     const onTour = () => {
+      stopVoiceReply();
       setMode("chat");
       setFitNotice(null);
       setTourOutro(false);
@@ -631,7 +669,7 @@ export default function CopilotBubble({
     };
     window.addEventListener(COPILOT_TOUR_EVENT, onTour);
     return () => window.removeEventListener(COPILOT_TOUR_EVENT, onTour);
-  }, []);
+  }, [stopVoiceReply]);
 
   // While an answer is on its way, scrolling or tapping the page (not the drawer) means the visitor is reading.
   useEffect(() => {
@@ -674,8 +712,20 @@ export default function CopilotBubble({
     if (!content || busy) return;
     tourStopRef.current();
     setTourOutro(false);
+    // Sending stops a reply being read out. Only the box's own words can be spoken: a starter prompt, an "Ask about
+    // X" pill or a card's question never is.
+    stopVoiceReply();
+    const spoken = textOverride === undefined && spokenDraftRef.current;
+    spokenDraftRef.current = false;
 
-    const userMessage: Message = { id: crypto.randomUUID(), role: "user", content };
+    const userMessage: Message = { id: crypto.randomUUID(), role: "user", content, ...(spoken && { spoken: true }) };
+    // Made now, so the voice knows which reply to read out (and to highlight in) before it arrives.
+    const assistantId = crypto.randomUUID();
+    if (spoken) {
+      // Still inside the tap (Send or Enter): the audio is readied here, as Safari requires.
+      primeVoiceReply();
+      beginVoiceReply(assistantId);
+    }
     followRef.current = true;
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
@@ -701,7 +751,7 @@ export default function CopilotBubble({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: historyToSend, citations }),
+        body: JSON.stringify({ messages: historyToSend, citations, ...(spoken && { spoken: true }) }),
         signal: controller.signal,
       });
 
@@ -732,7 +782,8 @@ export default function CopilotBubble({
       const decoder = new TextDecoder();
       let firstChunk = true;
       let buffer = "";
-      const assistantId = crypto.randomUUID();
+      // The reply so far, which the voice reads from (it holds back a sentence until it is complete).
+      let replyText = "";
       // Targets can arrive before the first text delta (the model is told to
       // call show_on_page first), so they're held here until the message exists.
       const replyTargets: string[] = [];
@@ -750,6 +801,8 @@ export default function CopilotBubble({
       if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
 
       const appendDelta = (text: string) => {
+        replyText += text;
+        if (spoken) feedVoiceReply(replyText);
         if (firstChunk) {
           firstChunk = false;
           setIsLoading(false);
@@ -873,7 +926,8 @@ export default function CopilotBubble({
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
-          // The reply is all in: its card goes under it now.
+          // The reply is all in: the voice reads its last sentence, and its card goes under it now.
+          if (spoken) finishVoiceReply(replyText);
           const card = replyCard;
           if (card && !firstChunk) {
             setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, card } : m)));
@@ -924,6 +978,8 @@ export default function CopilotBubble({
       }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") return;
+      // The reply broke off: stop reading it. The error message is never read out.
+      stopVoiceReply();
       setLiveMessage("Reply failed");
       setMessages((prev) => [
         ...prev,
@@ -947,7 +1003,19 @@ export default function CopilotBubble({
       setLiveSteps([]);
       setLiveThought(null);
     }
-  }, [input, busy, messages, targetsById, showStop, email]);
+  }, [
+    input,
+    busy,
+    messages,
+    targetsById,
+    showStop,
+    email,
+    stopVoiceReply,
+    primeVoiceReply,
+    beginVoiceReply,
+    feedVoiceReply,
+    finishVoiceReply,
+  ]);
   // The open event (e.g. a prompt clicked on the front page) always sends with the latest sendMessage.
   const sendMessageRef = useRef(sendMessage);
   useEffect(() => {
@@ -988,6 +1056,7 @@ export default function CopilotBubble({
     const jd = input.trim();
     if (!jd || busy) return;
     tourStopRef.current();
+    stopVoiceReply();
     if (jd.length < MIN_JD_CHARS) {
       setFitNotice(FIT_ERRORS.job_description_too_short);
       return;
@@ -1058,7 +1127,7 @@ export default function CopilotBubble({
       setLoadingCaption(null);
       setIsLoading(false);
     }
-  }, [input, busy, email]);
+  }, [input, busy, email, stopVoiceReply]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (mode === "fit") {
@@ -1112,6 +1181,18 @@ export default function CopilotBubble({
   // Collapsed is tall enough for the intro and every starter prompt without
   // scrolling, but never taller than the space above the FAB.
   const panelHeight = isExpanded ? "min(80vh, 740px)" : "min(700px, calc(100dvh - 9rem))";
+
+  // A spoken reply's state (components/VoiceReply.tsx): what shows under the dots, above the input row and under the
+  // reply it belongs to.
+  const voiceStatus = voiceReply.status;
+  const voicePhase = voiceStatus?.phase ?? null;
+  const lastIsSpokenQuestion = lastMessage?.role === "user" && !!lastMessage.spoken;
+  // Thinking about a spoken question that will be answered out loud: the line goes under the dots, not the strip.
+  const thinkingAloud = isLoading && lastIsSpokenQuestion && (voicePhase === "loading" || voicePhase === "speaking");
+  const voiceStrip =
+    voicePhase === "speaking" || voicePhase === "late" || (voicePhase === "loading" && voiceStatus?.firstTime)
+      ? voicePhase
+      : null;
 
   const tourSteps = touring ? SITE_TOUR.steps.slice(0, tour.index + 1) : tourOutro ? SITE_TOUR.steps.slice(-1) : [];
   const tourControl =
@@ -1278,6 +1359,13 @@ export default function CopilotBubble({
             const el = e.currentTarget;
             followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_SLACK_PX;
           }}
+          // The visitor scrolling the drawer themselves (onScroll also fires when it follows new lines down): a
+          // voice that arrives late then offers the reply instead of starting to talk.
+          onWheel={noteVoiceInteraction}
+          onTouchMove={noteVoiceInteraction}
+          onKeyDown={(e) => {
+            if (SCROLL_KEYS.has(e.key)) noteVoiceInteraction();
+          }}
           className="flex-1 space-y-5 overflow-y-auto px-5 py-5"
           style={{ minHeight: 0 }}
         >
@@ -1346,8 +1434,9 @@ export default function CopilotBubble({
             return (
             <article key={msg.id} id={`copilot-msg-${msg.id}`} className="flex flex-col gap-1.5">
               {msg.role === "user" ? (
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
+                <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
                   You
+                  {msg.spoken && <SpokenTag />}
                 </p>
               ) : (
                 <AssistantLabel />
@@ -1480,15 +1569,21 @@ export default function CopilotBubble({
                     ))}
                   </div>
                 )}
+                {!streamingNow && voiceStatus?.key === msg.id && voicePhase === "failed" && <VoiceFallbackLine />}
                 {!streamingNow && (
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
                 <button
                   onClick={() => copyMessage(msg.id, msg.content)}
-                  className="mt-2 flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint transition-colors hover:text-amber"
+                  className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint transition-colors hover:text-amber"
                   aria-label="Copy message"
                   title="Copy"
                 >
                   {copiedIndex === msg.id ? <><CheckIcon /><span>copied</span></> : <><CopyIcon /><span>copy</span></>}
                 </button>
+                {voiceStatus?.key === msg.id && voicePhase === "done" && (
+                  <HearAgainButton onClick={() => voiceReply.hearAgain(msg.id)} />
+                )}
+                </div>
                 )}
               </div>
             </article>
@@ -1500,6 +1595,13 @@ export default function CopilotBubble({
             <TypingIndicator
               caption={loadingCaption ?? (turningTo ? `Turning to ${turningTo}…` : null) ?? liveThought}
               steps={liveSteps}
+              voice={
+                thinkingAloud ? (
+                  <ThinkingVoiceLine
+                    download={voicePhase === "loading" && voiceStatus?.firstTime ? voiceStatus : null}
+                  />
+                ) : null
+              }
             />
           )}
         </div>
@@ -1535,6 +1637,18 @@ export default function CopilotBubble({
               </button>
             </div>
           )}
+          {voicePhase === "offer" && <DownloadOffer onAnswer={voiceReply.answerOffer} />}
+          {voiceStrip && !thinkingAloud && (
+            <SpeakingStrip
+              phase={voiceStrip}
+              progress={voiceStatus?.progress ?? 0}
+              still={prefersReducedMotion}
+              onStop={stopVoiceReply}
+              onJustRead={voiceReply.justRead}
+              onHear={() => voiceStatus && voiceReply.hearAgain(voiceStatus.key)}
+              onDismiss={voiceReply.justRead}
+            />
+          )}
           <div className="flex items-end gap-2">
             {voice.state !== "idle" ? (
               <VoiceStatus
@@ -1552,6 +1666,10 @@ export default function CopilotBubble({
                 // Typing into the drawer means the visitor is talking to me: stop the tour quietly.
                 if (touring) tour.stop();
                 if (voice.problem) voice.clearProblem();
+                // Typing cuts a reply being read out short ("type to cut in").
+                stopVoiceReply();
+                noteVoiceInteraction();
+                if (!e.target.value.trim()) spokenDraftRef.current = false;
                 setInput(e.target.value);
               }}
               onKeyDown={handleKeyDown}
@@ -1570,8 +1688,13 @@ export default function CopilotBubble({
             {mode !== "fit" && voice.supported && (
               <MicButton
                 onClick={() => {
-                  // Speaking to the drawer, like typing into it, stops the tour quietly.
+                  // Speaking to the drawer, like typing into it, stops the tour quietly, and a reply being read out.
                   if (touring) tour.stop();
+                  stopVoiceReply();
+                  noteVoiceInteraction();
+                  // The first tap starts the voice's download on a computer (or asks first, on a phone), so it
+                  // overlaps the speaking and the thinking.
+                  primeVoiceReply({ recording: true });
                   void voice.start();
                 }}
                 disabled={busy || voiceBusy}

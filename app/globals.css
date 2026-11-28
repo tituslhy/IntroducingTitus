@@ -555,3 +555,19 @@ body {
     50% { outline-offset: 8px; }
   }
 }
+
+/* Ask Titus speaking a reply: the sentence being read gets the soft amber wash (lib/voice-reply/highlight.ts),
+   and the strip's bars move. Reduced motion: the bars stand still (the drawer also leaves the moving class off). */
+::highlight(voice-reply) {
+  background-color: var(--amber-soft);
+}
+.voice-bar {
+  transform: scaleY(0.6);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .voice-bar-move { animation: voice-bar 900ms ease-in-out infinite; }
+  @keyframes voice-bar {
+    0%, 100% { transform: scaleY(0.3); }
+    50% { transform: scaleY(1); }
+  }
+}
