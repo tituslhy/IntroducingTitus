@@ -180,13 +180,17 @@ describe("stepDurationAt", () => {
     expect(stepDurationAt(tour([step("a"), step("b"), step("  ")]), 2)).toBe(2500);
   });
 
-  it("makes the shipped tour's closing step last about 3.5 s, not its reading time", () => {
+  it("times the shipped tour's closing step by typing, not by reading", () => {
     const i = SITE_TOUR.steps.length - 1;
-    expect(SITE_TOUR.steps[i].targets).toEqual([]);
+    const closing = SITE_TOUR.steps[i];
+    expect(closing.targets).toEqual([]);
     const d = stepDurationAt(SITE_TOUR, i);
-    expect(d).toBeGreaterThan(3000);
-    expect(d).toBeLessThan(4000);
-    expect(d).toBeLessThan(stepDurationMs(SITE_TOUR.steps[i]));
+    // The typing formula for its own word count: typing time plus the 1200 ms final hold (3200 ms for 24 words, above).
+    const wordCount = closing.say.trim().split(/\s+/).filter(Boolean).length;
+    expect(d).toBe(Math.round((wordCount / TYPE_WORDS_PER_SECOND) * 1000 + 1200));
+    expect(d).toBeGreaterThan(2500);
+    expect(d).toBeLessThan(8000);
+    expect(d).toBeLessThan(stepDurationMs(closing));
   });
 });
 
