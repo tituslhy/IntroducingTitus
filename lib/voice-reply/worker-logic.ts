@@ -13,7 +13,10 @@ export function sumProgress(
   loaded: number | undefined,
   total: number | undefined,
 ): { loaded: number; total: number } {
-  files[file] = { loaded: loaded ?? 0, total: total ?? 0 };
+  // A file's numbers only ever go up (an event may arrive without them), and loaded never passes total.
+  const before = files[file] ?? { loaded: 0, total: 0 };
+  const newTotal = Math.max(before.total, total ?? 0);
+  files[file] = { loaded: Math.min(Math.max(before.loaded, loaded ?? 0), newTotal), total: newTotal };
   let sumLoaded = 0;
   let sumTotal = 0;
   for (const f of Object.values(files)) {

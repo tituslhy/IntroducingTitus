@@ -17,6 +17,18 @@ describe("sumProgress", () => {
     const files: FileProgress = {};
     expect(sumProgress(files, "a", undefined, undefined)).toEqual({ loaded: 0, total: 0 });
   });
+
+  it("never lets a file's numbers go down, even when a later event is missing them", () => {
+    const files: FileProgress = {};
+    sumProgress(files, "model.onnx", 60, 100);
+    expect(sumProgress(files, "model.onnx", undefined, undefined)).toEqual({ loaded: 60, total: 100 });
+    expect(sumProgress(files, "model.onnx", 20, 50)).toEqual({ loaded: 60, total: 100 });
+  });
+
+  it("clamps loaded to at most total", () => {
+    const files: FileProgress = {};
+    expect(sumProgress(files, "model.onnx", 150, 100)).toEqual({ loaded: 100, total: 100 });
+  });
 });
 
 describe("dropCancelled", () => {
