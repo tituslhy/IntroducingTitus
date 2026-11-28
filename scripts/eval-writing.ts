@@ -222,7 +222,7 @@ async function main() {
       console.log(`  ✗ record: the reply doesn't name ${missing.join(", ")}\n${agent.text.replace(/^/gm, "    │ ")}`);
     }
     // Spoken rows: what would sound wrong read aloud. Shown with the reply, counted below, never a failure.
-    const spokenProblems = row.spoken ? spokenStyleProblems(agent.text) : null;
+    const spokenProblems = row.spoken ? spokenStyleProblems(agent.text, agent.card.shown) : null;
     if (spokenProblems?.length) {
       console.log(`  ! spoken style: ${spokenProblems.join(", ")}\n${agent.text.replace(/^/gm, "    │ ")}`);
     }

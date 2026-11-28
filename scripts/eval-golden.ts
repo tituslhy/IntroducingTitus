@@ -105,7 +105,7 @@ export const GOLDEN: GoldenRow[] = [
   // Evaluative: evidence from the record in the prompt, never a search.
   { question: "How do you stand out against other candidates?", expect: { kind: "no-search" } },
   // Asked by voice: the reply is also read aloud, so it must be plain sentences (spokenStyleProblems; reported, never failing).
-  { question: "Tell me about your time at Illumina.", expect: { kind: "no-search" }, spoken: true },
+  { question: "How do you build agents that hold up in production?", expect: { kind: "articles", titles: PRODUCTION_AGENTS }, retrieval: false, card: "evidence", pick: false, spoken: true },
   { question: "What did you write about GRPO?", expect: { kind: "articles", titles: ["GRPO"] }, card: "none", pick: true, spoken: true },
   { question: "What is fictional-bassoon?", expect: { kind: "no-search" }, spoken: true },
 ];
@@ -139,13 +139,16 @@ export const expectedCard = (row: GoldenRow): CardExpect | null =>
 /**
  * What in a reply would sound wrong read aloud: a list, a heading, bold, a URL, or more than two paragraphs.
  * `[n]` citations are fine (shown, not spoken). Empty when the reply is clean.
+ * With `cardShown`, a reply that never says it put something on screen is a problem too: a heuristic, just a
+ * case-insensitive look for "on screen" or "on the screen" (a card is announced in one plain line, not read out).
  */
-export const spokenStyleProblems = (reply: string): string[] => {
+export const spokenStyleProblems = (reply: string, cardShown = false): string[] => {
   const problems: string[] = [];
   if (/^\s*(?:[-*+•]|\d+[.)])\s/m.test(reply)) problems.push("list");
   if (/^\s{0,3}#{1,6}\s/m.test(reply)) problems.push("heading");
   if (/\*\*|__/.test(reply)) problems.push("bold");
   if (/https?:\/\/|www\./i.test(reply)) problems.push("url");
   if (reply.split(/\n\s*\n/).filter((p) => p.trim() !== "").length > 2) problems.push("more than two paragraphs");
+  if (cardShown && !/\bon (?:the )?screen\b/i.test(reply)) problems.push("card not mentioned");
   return problems;
 };

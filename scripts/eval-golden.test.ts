@@ -45,7 +45,7 @@ describe("GOLDEN retrieval rows", () => {
   });
 
   it("every other row is retrieval-scored with its question as the one query", () => {
-    const rows = GOLDEN.filter((r) => !ABSTRACT.test(r.question) && !r.topics);
+    const rows = GOLDEN.filter((r) => !ABSTRACT.test(r.question) && !r.topics && r.retrieval !== false);
 
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) {
@@ -310,6 +310,22 @@ describe("spokenStyleProblems", () => {
     expect(spokenStyleProblems("One.\n\n\n\nTwo.")).toEqual([]);
   });
 
+  describe("when a card was shown", () => {
+    it("is clean when the reply says it put something on screen", () => {
+      expect(spokenStyleProblems("I've put the timeline on screen.\n\nIt starts at Illumina.", true)).toEqual([]);
+      expect(spokenStyleProblems("I've put it on the screen.", true)).toEqual([]);
+    });
+
+    it("names a reply that never says so", () => {
+      expect(spokenStyleProblems("It starts at Illumina.", true)).toEqual(["card not mentioned"]);
+    });
+
+    it("is not checked when no card was shown", () => {
+      expect(spokenStyleProblems("It starts at Illumina.")).toEqual([]);
+      expect(spokenStyleProblems("It starts at Illumina.", false)).toEqual([]);
+    });
+  });
+
   it("lists every problem a reply has", () => {
     expect(spokenStyleProblems("# Title\n- **a**\nhttps://x.com")).toEqual(["list", "heading", "bold", "url"]);
   });
@@ -321,6 +337,10 @@ describe("the spoken golden rows", () => {
   it("are three, each with its own question", () => {
     expect(spoken).toHaveLength(3);
     expect(new Set(spoken.map((r) => r.question)).size).toBe(3);
+  });
+
+  it("include one that expects the evidence card", () => {
+    expect(spoken.some((r) => r.card === "evidence")).toBe(true);
   });
 
   it("include one that cites an article", () => {
