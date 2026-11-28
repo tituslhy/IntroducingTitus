@@ -31,6 +31,30 @@ const STOPS = CHAPTERS.map((c) => MONTHS.indexOf(c.at))
 const holdFor = (chapter: number) => (CHAPTERS[chapter].photo ? CHAPTER_MS.holdPhoto : CHAPTER_MS.hold)
 
 /**
+ * Every chapter's story and photo caption, laid invisibly under the current one so each takes the height of
+ * its tallest version: scrubbing between chapters never moves the slider. The text lives in a data attribute
+ * shown by CSS, so it is neither read out nor in the page's text.
+ */
+const SIZER = 'invisible before:content-[attr(data-text)]'
+const STORY_SIZERS = CHAPTERS.map((c) => <span key={c.at} aria-hidden="true" data-text={c.text} className={SIZER} />)
+const CAPTION_SIZERS = CHAPTERS.flatMap((c) =>
+  c.photo
+    ? [
+        <span
+          key={c.at}
+          aria-hidden="true"
+          data-text={c.photo.link ? `${c.photo.caption} · ${c.photo.link.label} ↗` : c.photo.caption}
+          className={SIZER}
+        />,
+      ]
+    : [],
+)
+/** Where the photo sits: a fixed column on desktop, beside the date on phones. Kept, empty, when a chapter has none. */
+const PHOTO_SLOT =
+  'm-0 flex flex-col justify-end max-[820px]:col-start-2 max-[820px]:row-span-2 max-[820px]:row-start-1 max-[820px]:justify-start'
+const CAPTION = 'mt-1.5 grid font-mono text-[10.5px] leading-[1.4] text-[oklch(0.8_0.02_78)] [&>*]:[grid-area:1/1]'
+
+/**
  * Every tool I've used as a periodic table. It plays once, chapter by chapter, when it comes into view: each
  * chapter's logos light up in the order I picked them up, then it holds so its story line (and photo) can be
  * read; hovering the dark tile holds it longer. An amber ring marks what I used every day at that point. The
@@ -194,16 +218,20 @@ export default function PeriodicTable({ articleCounts }: { articleCounts: number
           onPointerLeave={() => setHeld(false)}
           onFocus={() => setHeld(true)}
           onBlur={() => setHeld(false)}
-          className="glow-tile col-[3/13] row-[1/4] mb-2 mx-2 grid grid-cols-[minmax(0,1fr)_auto] gap-[18px] rounded-[22px] bg-ink px-5 py-4 text-paper max-[820px]:col-span-full max-[820px]:row-auto max-[820px]:mx-0 max-[820px]:grid-cols-[minmax(0,1fr)_40%] max-[820px]:gap-x-3 max-[820px]:gap-y-0">
+          className="glow-tile col-[3/13] row-[1/4] mb-2 mx-2 grid grid-cols-[minmax(0,1fr)_clamp(140px,15vw,220px)] gap-[18px] rounded-[22px] bg-ink px-5 py-4 text-paper max-[820px]:col-span-full max-[820px]:row-auto max-[820px]:mx-0 max-[820px]:grid-cols-[minmax(0,1fr)_40%] max-[820px]:grid-rows-[auto_1fr] max-[820px]:gap-x-3 max-[820px]:gap-y-0">
           {/* On phones this wrapper dissolves so the photo can sit beside the date instead of under everything */}
-          <div className="min-w-0 max-[820px]:contents">
+          {/* On desktop the controls sit on the tile's bottom edge, wherever the text above them ends */}
+          <div className="flex min-w-0 flex-col max-[820px]:contents">
             <p className="m-0 self-start font-serif text-[clamp(30px,3.4vw,46px)] font-medium leading-none tracking-[-0.03em] text-amber-hi">
               {formatMonth(month)}
             </p>
             <p className="m-0 mt-1.5 self-start font-mono text-[11.5px] text-[oklch(0.8_0.02_78)] max-[820px]:col-start-1">
               {step >= LAST ? journeyLine() : `${litCount} of ${TOOLS.length} tools`}
             </p>
-            <p className="m-0 mt-2 min-h-[2.9em] max-w-[46ch] font-serif text-[16px] leading-[1.42] text-paper max-[820px]:col-span-full max-[820px]:mt-3">{storyAt(month)}</p>
+            <div className="mt-2 grid max-w-[46ch] font-serif text-[16px] leading-[1.42] text-paper max-[820px]:col-span-full max-[820px]:mt-3 [&>*]:[grid-area:1/1]">
+              {STORY_SIZERS}
+              <p className="m-0">{storyAt(month)}</p>
+            </div>
             <p aria-live="polite" className="m-0 mt-1.5 min-h-[1.5em] font-mono text-[11.5px] leading-[1.5] text-[oklch(0.85_0.02_78)] max-[820px]:col-span-full">
               {tool && picked !== null && (
                 <>
@@ -215,11 +243,11 @@ export default function PeriodicTable({ articleCounts }: { articleCounts: number
                 </>
               )}
             </p>
-            <div className="mt-2.5 flex items-center gap-3 max-[820px]:col-span-full">
+            <div className="mt-auto flex items-center gap-3 pt-2.5 max-[820px]:col-span-full">
               <button
                 type="button"
                 onClick={togglePlay}
-                className="rounded-full border border-[oklch(1_0_0/0.3)] px-3 py-1.5 font-mono text-[12px] text-paper transition-colors hover:bg-paper hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
+                className="min-w-[76px] rounded-full border border-[oklch(1_0_0/0.3)] px-3 py-1.5 font-mono text-[12px] text-paper transition-colors hover:bg-paper hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
               >
                 {playLabel}
               </button>
@@ -252,8 +280,8 @@ export default function PeriodicTable({ articleCounts }: { articleCounts: number
               )}
             </div>
           </div>
-          {photo && (
-            <figure className="m-0 flex w-[clamp(140px,15vw,220px)] flex-col justify-end max-[820px]:col-start-2 max-[820px]:row-span-2 max-[820px]:row-start-1 max-[820px]:w-full max-[820px]:justify-start">
+          {photo ? (
+            <figure className={PHOTO_SLOT}>
               {/* eslint-disable-next-line @next/next/no-img-element -- images are unoptimised site-wide */}
               <img
                 key={photo.src}
@@ -262,18 +290,27 @@ export default function PeriodicTable({ articleCounts }: { articleCounts: number
                 style={{ objectPosition: photo.position }}
                 className="pt-photo block aspect-[4/3] w-full rounded object-cover [border:1px_solid_oklch(1_0_0/0.4)] [filter:saturate(0.85)_contrast(1.03)]"
               />
-              <figcaption className="mt-1.5 min-h-[2.8em] font-mono text-[10.5px] leading-[1.4] text-[oklch(0.8_0.02_78)]">
-                {photo.caption}
-                {photo.link && (
-                  <>
-                    {' · '}
-                    <a href={photo.link.href} target="_blank" rel="noopener noreferrer" className="text-amber-hi underline underline-offset-2 hover:text-paper">
-                      {photo.link.label} <span aria-hidden="true">↗</span>
-                    </a>
-                  </>
-                )}
+              <figcaption className={CAPTION}>
+                {CAPTION_SIZERS}
+                <span>
+                  {photo.caption}
+                  {photo.link && (
+                    <>
+                      {' · '}
+                      <a href={photo.link.href} target="_blank" rel="noopener noreferrer" className="text-amber-hi underline underline-offset-2 hover:text-paper">
+                        {photo.link.label} <span aria-hidden="true">↗</span>
+                      </a>
+                    </>
+                  )}
+                </span>
               </figcaption>
             </figure>
+          ) : (
+            // No photo this stretch: its space stays, empty, so nothing else in the tile moves
+            <div aria-hidden="true" data-testid="photo-slot" className={PHOTO_SLOT}>
+              <div className="aspect-[4/3] w-full" />
+              <div className={CAPTION}>{CAPTION_SIZERS}</div>
+            </div>
           )}
         </div>
 
