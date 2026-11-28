@@ -137,7 +137,7 @@ export const expectedCard = (row: GoldenRow): CardExpect | null =>
   row.card ?? (row.expect.kind === "none" || row.expect.kind === "no-search" ? "none" : null);
 
 /**
- * What in a reply would sound wrong read aloud: a list, a heading, bold, a URL, or more than two paragraphs.
+ * What in a reply would sound wrong read aloud: a list, a heading, bold, a URL, more than two paragraphs, or over 120 words (`[n]` markers don't count).
  * `[n]` citations are fine (shown, not spoken). Empty when the reply is clean.
  * With `cardShown`, a reply that never says it put something on screen is a problem too: a heuristic, just a
  * case-insensitive look for "on screen" or "on the screen" (a card is announced in one plain line, not read out).
@@ -150,5 +150,7 @@ export const spokenStyleProblems = (reply: string, cardShown = false): string[] 
   if (/https?:\/\/|www\./i.test(reply)) problems.push("url");
   if (reply.split(/\n\s*\n/).filter((p) => p.trim() !== "").length > 2) problems.push("more than two paragraphs");
   if (cardShown && !/\bon (?:the )?screen\b/i.test(reply)) problems.push("card not mentioned");
+  const words = reply.replace(/\[\d+\]/g, "").split(/\s+/).filter(Boolean).length;
+  if (words > 120) problems.push("over 120 words");
   return problems;
 };

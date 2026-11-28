@@ -326,6 +326,24 @@ describe("spokenStyleProblems", () => {
     });
   });
 
+  describe("the word budget", () => {
+    const words = (n: number) => Array.from({ length: n }, () => "word").join(" ");
+
+    it("accepts 120 words and flags 121", () => {
+      expect(spokenStyleProblems(`${words(119)}.`)).toEqual([]);
+      expect(spokenStyleProblems(`${words(120)}.`)).toEqual([]);
+      expect(spokenStyleProblems(`${words(121)}.`)).toEqual(["over 120 words"]);
+    });
+
+    it("does not count [n] citation markers", () => {
+      expect(spokenStyleProblems(`${words(118)} [1] [1][1][1] [3][4] [1][1][1][1][1].`)).toEqual([]);
+    });
+
+    it("comes after the other problems", () => {
+      expect(spokenStyleProblems(`- ${words(125)}`)).toEqual(["list", "over 120 words"]);
+    });
+  });
+
   it("lists every problem a reply has", () => {
     expect(spokenStyleProblems("# Title\n- **a**\nhttps://x.com")).toEqual(["list", "heading", "bold", "url"]);
   });

@@ -49,7 +49,7 @@ export const LIBRARY_UNAVAILABLE = "(The library tree isn't available right now.
  * reply is read aloud as well as shown. Kept out of the cached prompt: most requests are typed.
  */
 export const SPOKEN_REPLY_RULES =
-  `This question was spoken, and your reply will be read aloud by a voice in the visitor's browser as well as shown. Write it to be heard: plain sentences; no lists, tables, headings, bold or code; no URLs (say "my Medium" or the article's name). At most two short paragraphs, story questions included. When you show a card or move the page, say so in one plain line ("I've put the timeline on screen") instead of reading it out. Cite as usual: the [n] markers are shown, not spoken.`
+  `This question was spoken, and your reply will be read aloud by a voice in the visitor's browser as well as shown. Write it to be heard: plain sentences; no lists, tables, headings, bold or code; no URLs (say "my Medium" or the article's name). Keep it short, about 80 words: at most two short paragraphs, story questions included. When you show a card or move the page, say so in one plain line at the end of your last paragraph ("I've put the timeline on screen") instead of reading it out. If an article's date matters, say it in a few words. Cite as usual: the [n] markers are shown, not spoken.`
 
 const TOKEN_PATTERN =/\{\{([A-Z0-9_]+)\}\}/g
 
