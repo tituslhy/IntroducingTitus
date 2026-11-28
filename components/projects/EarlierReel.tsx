@@ -51,7 +51,7 @@ export default function EarlierReel({ projects, footer }: { projects: EarlierPro
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`${e.title} on GitHub`}
-              className="mt-4 inline-block rounded-full border border-latte-accent px-3 py-1.5 font-mono text-[12px] text-latte-accent transition-colors hover:bg-latte-accent hover:text-paper"
+              className="mt-4 inline-block rounded-full border border-latte-accent px-3 py-1.5 font-mono text-[12px] text-latte-accent hover:bg-latte-accent hover:text-paper"
             >
               GitHub ↗
             </a>

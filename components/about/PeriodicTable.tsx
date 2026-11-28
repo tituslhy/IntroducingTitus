@@ -247,7 +247,7 @@ export default function PeriodicTable({ articleCounts }: { articleCounts: number
               <button
                 type="button"
                 onClick={togglePlay}
-                className="min-w-[76px] rounded-full border border-[oklch(1_0_0/0.3)] px-3 py-1.5 font-mono text-[12px] text-paper transition-colors hover:bg-paper hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
+                className="min-w-[76px] rounded-full border border-[oklch(1_0_0/0.3)] px-3 py-1.5 font-mono text-[12px] text-paper hover:bg-paper hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
               >
                 {playLabel}
               </button>
