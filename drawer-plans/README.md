@@ -41,7 +41,7 @@ The plan's version (a "Listen" button, my cloned voice via ElevenLabs, or no voi
 - **If you speak your question, the reply is spoken back. If you type, it stays silent.** Only for that one question.
 - The voice is **Kokoro**, an open model that runs **in the visitor's browser** (WebGPU): free per reply, nothing
   sent anywhere. Not my voice; a stock voice I pick by ear.
-- Spec: `docs/superpowers/specs/2026-11-28-voice-reply-design.md`. Build plan (9 tasks):
+- Spec: `docs/superpowers/specs/2026-11-28-voice-reply-design.md`. Build plan (10 tasks):
   `docs/superpowers/plans/2026-11-28-voice-reply.md`. Mock: the "Ask Titus · voice reply states" canvas.
 
 **Done so far (the spike, a test page at `/voice-lab` on previews only):**
@@ -56,8 +56,10 @@ The plan's version (a "Listen" button, my cloned voice via ElevenLabs, or no voi
 **Not done yet:**
 - [ ] **Upload the patched model to my Hugging Face** (tonight; the folder is `voice-model-upload/`, kept out of git)
 - [ ] Test it on my iPhone, and **pick the voice** by ear
-- [ ] Build it for real (the 9-task plan, with subagents)
-- [ ] Update the privacy line and the colophon (the voice is kept in the browser's cache)
+- [ ] Build it for real (the 10-task plan, with subagents), including the first spoken question while the voice
+      downloads (approved 2026-11-28: a real progress step, the reply never waits, "Hear this reply" if it's late)
+- [ ] Update the privacy line, and elaborate the colophon's Voice section with how it works and the engineering story
+- [ ] Re-record the tour so it mentions speaking to Ask Titus (needs my OpenAI key: `npm run tour:record`)
 
 ---
 
