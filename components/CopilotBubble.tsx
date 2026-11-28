@@ -1701,7 +1701,7 @@ function PickLine({
       <button
         type="button"
         onClick={onOpen}
-        className="mt-3 flex min-h-[48px] w-full items-center justify-between gap-3 rounded-full bg-latte px-4 py-2.5 text-left font-mono text-[12px] leading-snug text-ink transition-colors hover:bg-ink hover:text-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
+        className="mt-3 flex min-h-[48px] w-full items-center justify-between gap-3 rounded-full bg-latte px-4 py-2.5 text-left font-mono text-[12px] leading-snug text-ink hover:bg-ink hover:text-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
       >
         <span>
           <b className="font-medium">See {these}</b> on the Writing page

@@ -134,7 +134,7 @@ const Button = createComponentImplementation(ButtonApi, ({ props, buildChild }) 
     <button
       type="button"
       onClick={onClick}
-      className="group mt-1 inline-flex items-center gap-1.5 self-start rounded-full border border-ink px-3.5 py-2 text-left font-mono text-[12px] text-ink transition-colors hover:bg-ink hover:text-paper"
+      className="group mt-1 inline-flex items-center gap-1.5 self-start rounded-full border border-ink px-3.5 py-2 text-left font-mono text-[12px] text-ink hover:bg-ink hover:text-paper"
     >
       {label}
       <span aria-hidden="true" className="font-semibold text-amber group-hover:text-amber-hi">
@@ -281,7 +281,7 @@ const Place = createComponentImplementation(PlaceApi, ({ props }) => {
     <button
       type="button"
       onClick={() => void props.action?.()}
-      className="flex min-h-[64px] min-w-0 flex-col gap-1 rounded-[14px] bg-latte px-2.5 py-2 text-left transition-colors hover:bg-ink hover:text-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber [&:hover_.place-line]:text-paper/80"
+      className="flex min-h-[64px] min-w-0 flex-col gap-1 rounded-[14px] bg-latte px-2.5 py-2 text-left hover:bg-ink hover:text-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber [&:hover_.place-line]:text-paper/80"
     >
       <span className="flex min-w-0 items-center gap-1.5 font-mono text-[11px] font-medium leading-snug">
         {props.mark === "project" ? (

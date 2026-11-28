@@ -38,7 +38,7 @@ export default function AskDoor() {
             <button
               type="button"
               onClick={() => openCopilot('chat', p)}
-              className="flex w-full items-baseline justify-between gap-3 rounded-2xl bg-paper px-4 py-3 text-left italic transition-colors hover:bg-ink hover:text-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
+              className="flex w-full items-baseline justify-between gap-3 rounded-2xl bg-paper px-4 py-3 text-left italic hover:bg-ink hover:text-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber"
             >
               {p}
               <span aria-hidden="true" className="shrink-0 whitespace-nowrap font-mono text-[11px] not-italic text-amber">
