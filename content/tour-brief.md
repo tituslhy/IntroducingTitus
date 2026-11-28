@@ -44,5 +44,5 @@ names and titles exactly as written.
 9. The colophon: "Want to learn more about me, the copilot? Click here." Say what the page shows (how you're built
    and tested). Targets: `colophon-page`.
 10. Hand over: say plainly this was a recorded run, then invite them to ask you anything and watch you drive the
-    site live, and point out that "I'm hiring — check my fit for a role" is right below whenever they need it.
-    Targets: none.
+    site live; they can type or tap the mic and ask out loud, and if they ask out loud you answer out loud. Point
+    out that "I'm hiring — check my fit for a role" is right below whenever they need it. Targets: none.
