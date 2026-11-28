@@ -58,6 +58,11 @@ export interface VoiceReply {
   noteInteraction(): void;
   /** Whether this browser may speak at all (WebGPU, and the voice hasn't failed this visit). */
   supported: boolean;
+  /**
+   * Whether this device has WebGPU, so the voice may be downloaded: unlike `supported`, a failure never turns it
+   * off (the model may already be in the browser's cache), which is what the privacy line needs.
+   */
+  deviceCanSpeak: boolean;
 }
 
 /** What the drawer shows, minus the download numbers (kept apart so progress doesn't rebuild everything). */
@@ -483,6 +488,7 @@ export function useVoiceReply(): VoiceReply {
       noteInteraction: ctl.noteInteraction,
       status,
       supported: gpu && !noVoice,
+      deviceCanSpeak: gpu,
     }),
     [ctl, status, gpu, noVoice]
   );

@@ -295,6 +295,10 @@ export default function CopilotBubble({
   // A new question makes the late strip ("My voice is ready.") stale; "hear again" on a reply already read stays.
   const voiceLateRef = useRef(false);
   voiceLateRef.current = voiceReply.status?.phase === "late";
+  // The privacy line's voice wording, once shown, stays for the visit: a failed load can leave the model in the
+  // browser's cache, so "Nothing is stored in your browser" must never come back.
+  const [voicePrivacy, setVoicePrivacy] = useState(false);
+  if (!voicePrivacy && voice.supported && voiceReply.deviceCanSpeak) setVoicePrivacy(true);
   // Keyboard focus follows the mic, so it never falls out of the drawer: to Stop while recording, to the
   // "Transcribing…" line while it works, then back to the box (cursor after the words) once it's done.
   const stopVoiceRef = useRef<HTMLButtonElement>(null);
@@ -1748,7 +1752,7 @@ export default function CopilotBubble({
             </p>
           ) : (
             <p className="mt-2 font-mono text-[10px] leading-snug text-ink-faint">
-              {voice.supported && voiceReply.supported ? (
+              {voicePrivacy ? (
                 // The voice model stays in the browser's cache, so "nothing is stored" would no longer be true.
                 "Messages go to OpenAI to generate a reply and are logged so I can improve answers. Your messages aren’t stored in your browser. Voice clips go to OpenAI to be transcribed; I don’t keep them. Spoken replies are made on your device, with a voice downloaded once from Hugging Face and kept in your browser’s cache."
               ) : (

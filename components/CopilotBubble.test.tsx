@@ -6799,7 +6799,23 @@ describe("CopilotBubble: voice reply", () => {
       expect(screen.queryByText(/Hugging Face/)).not.toBeInTheDocument();
     });
 
-    it("once WebGPU turns out to give no adapter, goes back to today's line", async () => {
+    it("keeps the voice wording after the voice fails to load: it never goes back to “Nothing is stored”", async () => {
+      Object.defineProperty(navigator, "gpu", { value: { requestAdapter: async () => ({}) }, configurable: true });
+      await openDrawer();
+      expect(line().textContent).toBe(WITH_VOICE);
+
+      // A computer: the download starts at the first mic tap, then fails (it may have cached files first).
+      await speakIntoBox();
+      await flush();
+      expect(engine().load).toHaveBeenCalled();
+      await act(async () => engine().failToLoad());
+      await flush();
+
+      expect(line().textContent).toBe(WITH_VOICE);
+      expect(screen.queryByText(/Nothing is stored in your browser/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the voice wording for the visit once shown, even when WebGPU turns out to give no adapter", async () => {
       Object.defineProperty(navigator, "gpu", { value: { requestAdapter: async () => null }, configurable: true });
       mockVoiceSupport.speak = false;
       await openDrawer();
@@ -6808,7 +6824,7 @@ describe("CopilotBubble: voice reply", () => {
       await speakIntoBox();
       await flush();
 
-      expect(line().textContent).toBe(MIC_ONLY);
+      expect(line().textContent).toBe(WITH_VOICE);
     });
   });
 
