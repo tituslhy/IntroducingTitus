@@ -8,10 +8,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // q4f16 made a silent sentence; q8 (WebGPU or WASM) ran at 0.6×, too slow to keep up.
 const ENGINES = [
   { id: "webgpu-fp16", label: "WebGPU · fp16 (≈163 MB)", device: "webgpu", dtype: "fp16" },
-  // The official fp16 with every ReduceMean/ReduceSum in fp32 (scripts/kokoro/patch-fp16.py), loaded with "basic"
-  // graph optimization: the official one makes NaN on ONNX Runtime 1.31's WebGPU. Served from public/voice-models/
-  // (not committed; built by the script), so only where that folder exists.
-  { id: "webgpu-fp16-patched", label: "WebGPU · fp16 patched (≈163 MB)", device: "webgpu", dtype: "fp16", model: "kokoro-patched" },
+  // The official fp16 with every ReduceMean/ReduceSum in fp32 (scripts/kokoro/patch-fp16.py) and the generator's
+  // later layers in fp32 (scripts/kokoro/promote-fp32.py, the crackle fix), loaded with "basic" graph optimization:
+  // the official one makes NaN on ONNX Runtime 1.31's WebGPU. Hosted on Titus's Hugging Face.
+  { id: "webgpu-fp16-patched", label: "WebGPU · fp16 patched, Titus's HF (≈172 MB)", device: "webgpu", dtype: "fp16", model: "tituslhy/Kokoro-82M-v1.0-ONNX-webgpu" },
   { id: "webgpu-fp32", label: "WebGPU · fp32 (≈326 MB)", device: "webgpu", dtype: "fp32" },
   { id: "wasm-q8", label: "No GPU · WASM q8 (≈92 MB)", device: "wasm", dtype: "q8" },
 ] as const;
@@ -63,7 +63,7 @@ export default function VoiceLab() {
   const runRef = useRef(0);
   const filesRef = useRef<Record<string, { loaded: number; total: number }>>({});
 
-  const [engine, setEngine] = useState<EngineId>("webgpu-fp16");
+  const [engine, setEngine] = useState<EngineId>("webgpu-fp16-patched");
   const [voice, setVoice] = useState("am_michael");
   const [text, setText] = useState(SAMPLE);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
