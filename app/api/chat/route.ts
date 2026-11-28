@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { Client as LangSmithClient } from "langsmith";
-import { buildSystemPrompt } from "@/lib/copilot-prompt";
+import { buildSystemPrompt, SPOKEN_REPLY_RULES } from "@/lib/copilot-prompt";
 import { MAX_PAGE_TARGETS, createCopilotTools, type CopilotEvent } from "@/lib/copilot-tools";
 import { copilotStream, type CopilotChunk, type InputMessage, type LoopStats } from "@/lib/copilot-loop";
 import { ChatTrace } from "@/lib/copilot-tracing";
@@ -199,10 +199,16 @@ export async function POST(request: NextRequest) {
 
   let messages: { role: string; content: string }[];
   let rawCitations: unknown;
+  let spoken: unknown;
   try {
-    ({ messages, citations: rawCitations } = await request.json());
+    ({ messages, citations: rawCitations, spoken } = await request.json());
   } catch {
     return new Response("Invalid request body", { status: 400 });
+  }
+
+  // Optional boolean: true when the visitor asked by voice, so the reply is written to be heard.
+  if (spoken !== undefined && typeof spoken !== "boolean") {
+    return new Response("Invalid spoken flag", { status: 400 });
   }
 
   // Articles cited earlier in the conversation, so numbering stays stable.
@@ -264,6 +270,8 @@ export async function POST(request: NextRequest) {
     // Per request, after the cached prompt: today's date and the citation ledger.
     // Server-built and capped, so it doesn't count against the visitor's budget.
     { role: "system", content: renderConversationContext(priorCitations, new Date()) },
+    // Only for a spoken question; part of `input`, so the trace records it with the rest.
+    ...(spoken === true ? [{ role: "system" as const, content: SPOKEN_REPLY_RULES }] : []),
     ...trimmedMessages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
 

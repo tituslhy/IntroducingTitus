@@ -29,6 +29,8 @@ export type GoldenRow = {
    * that span the site don't). Unset: not scored.
    */
   pick?: boolean;
+  /** Asked by voice: runs with the spoken-reply rules added, as /api/chat does, and its reply is checked by spokenStyleProblems. */
+  spoken?: true;
 };
 
 export type CardExpect = "evidence" | "compare" | "none";
@@ -102,6 +104,10 @@ export const GOLDEN: GoldenRow[] = [
   { question: "What do you do at Mastercard?", expect: { kind: "no-search" } },
   // Evaluative: evidence from the record in the prompt, never a search.
   { question: "How do you stand out against other candidates?", expect: { kind: "no-search" } },
+  // Asked by voice: the reply is also read aloud, so it must be plain sentences (spokenStyleProblems; reported, never failing).
+  { question: "How do you build agents that hold up in production?", expect: { kind: "articles", titles: PRODUCTION_AGENTS }, retrieval: false, card: "evidence", pick: false, spoken: true },
+  { question: "What did you write about GRPO?", expect: { kind: "articles", titles: ["GRPO"] }, card: "none", pick: true, spoken: true },
+  { question: "What is fictional-bassoon?", expect: { kind: "no-search" }, spoken: true },
 ];
 
 /** What the retrieval pass searches: one query per topic, or the question itself. */
@@ -129,3 +135,22 @@ export const expectedPick = (row: GoldenRow): boolean | null => row.pick ?? null
 /** The card a row expects: its own `card`, else none for rows that shouldn't search; null when not scored. */
 export const expectedCard = (row: GoldenRow): CardExpect | null =>
   row.card ?? (row.expect.kind === "none" || row.expect.kind === "no-search" ? "none" : null);
+
+/**
+ * What in a reply would sound wrong read aloud: a list, a heading, bold, a URL, more than two paragraphs, or over 120 words (`[n]` markers don't count).
+ * `[n]` citations are fine (shown, not spoken). Empty when the reply is clean.
+ * With `cardShown`, a reply that never says it put something on screen is a problem too: a heuristic, just a
+ * case-insensitive look for "on screen" or "on the screen" (a card is announced in one plain line, not read out).
+ */
+export const spokenStyleProblems = (reply: string, cardShown = false): string[] => {
+  const problems: string[] = [];
+  if (/^\s*(?:[-*+•]|\d+[.)])\s/m.test(reply)) problems.push("list");
+  if (/^\s{0,3}#{1,6}\s/m.test(reply)) problems.push("heading");
+  if (/\*\*|__/.test(reply)) problems.push("bold");
+  if (/https?:\/\/|www\./i.test(reply)) problems.push("url");
+  if (reply.split(/\n\s*\n/).filter((p) => p.trim() !== "").length > 2) problems.push("more than two paragraphs");
+  if (cardShown && !/\bon (?:the )?screen\b/i.test(reply)) problems.push("card not mentioned");
+  const words = reply.replace(/\[\d+\]/g, "").split(/\s+/).filter(Boolean).length;
+  if (words > 120) problems.push("over 120 words");
+  return problems;
+};

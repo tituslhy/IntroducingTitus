@@ -16,7 +16,7 @@ import { join } from "node:path";
 import OpenAI from "openai";
 import { TypeSafeClient } from "@typesafe-ai/sdk";
 import { ARTICLES, type Article } from "../lib/articles";
-import { buildSystemPrompt } from "../lib/copilot-prompt";
+import { buildSystemPrompt, SPOKEN_REPLY_RULES } from "../lib/copilot-prompt";
 import { copilotStream, MODEL as GPT_MODEL } from "../lib/copilot-loop";
 import { createCopilotTools, mergeByTopic, type CopilotTool } from "../lib/copilot-tools";
 import { JEV_MODEL, PAGE_SIZE, searchMyWriting, type SearchTrace } from "../lib/writing-search";
@@ -29,6 +29,7 @@ import {
   expectedPick,
   missingRecord,
   retrievalQueries,
+  spokenStyleProblems,
   usedRecord,
   type Expect,
 } from "./eval-golden";
@@ -76,7 +77,7 @@ type AgentRun = {
   showOnPage: { targets: unknown; articles: unknown } | null;
 };
 
-async function runAgent(openai: OpenAI, systemPrompt: string, question: string): Promise<AgentRun> {
+async function runAgent(openai: OpenAI, systemPrompt: string, question: string, spoken = false): Promise<AgentRun> {
   let queries = 0;
   let reads = 0;
   let cardArgs: ShowCardArgs | null = null;
@@ -113,6 +114,8 @@ async function runAgent(openai: OpenAI, systemPrompt: string, question: string):
   try {
     const input = [
       { role: "system" as const, content: systemPrompt },
+      // As /api/chat adds it for a spoken question: right after the system prompt (the eval has no date message).
+      ...(spoken ? [{ role: "system" as const, content: SPOKEN_REPLY_RULES }] : []),
       { role: "user" as const, content: question },
     ];
     for await (const chunk of copilotStream(openai, input, tools, controller.signal)) {
@@ -212,11 +215,16 @@ async function main() {
     const totalMs = traces.length ? Math.max(...traces.map((tr) => tr.totalMs)) : null;
     const fallback = traces.find((tr) => tr.fallback !== "none")?.fallback ?? traces[0]?.fallback ?? null;
 
-    const agent = await runAgent(openai, systemPrompt, question);
+    const agent = await runAgent(openai, systemPrompt, question, row.spoken === true);
     // A record miss says which words were missing and shows the reply, so the cause is visible (it isn't saved).
     const missing = missingRecord(row, agent.text);
     if (missing?.length) {
       console.log(`  ✗ record: the reply doesn't name ${missing.join(", ")}\n${agent.text.replace(/^/gm, "    │ ")}`);
+    }
+    // Spoken rows: what would sound wrong read aloud. Shown with the reply, counted below, never a failure.
+    const spokenProblems = row.spoken ? spokenStyleProblems(agent.text, agent.card.shown) : null;
+    if (spokenProblems?.length) {
+      console.log(`  ! spoken style: ${spokenProblems.join(", ")}\n${agent.text.replace(/^/gm, "    │ ")}`);
     }
     const invented = [...new Set((agent.text.match(URL_RE) ?? []).map(trimUrl))].filter((u) => !allowedUrls.has(u));
     const citedNumbers = [...agent.text.matchAll(/(?<![\w[])\[(\d{1,2})\](?![(\]])/g)].map((m) => Number(m[1]));
@@ -250,6 +258,8 @@ async function main() {
         danglingCitations: dangling,
         // Experience-with rows: the reply named when and where from my record.
         usedRecord: usedRecord(row, agent.text),
+        // Spoken rows: the problems found in the reply (empty: clean); null for typed rows.
+        spokenProblems,
         card: { expected: expectedCard(row), ...agent.card },
         // Questions only about my articles: the Writing page was filtered to them (and not for the others).
         pick: { expected: expectedPick(row), picked: agent.picked, called: agent.showOnPage },
@@ -308,6 +318,13 @@ async function main() {
     // Precision is measured on the first page; the scorecard labels it with this.
     pageSize: PAGE_SIZE,
   };
+
+  // Reported, not scored: it never fails the run and isn't one of the metrics /colophon reads.
+  const spokenRows = results.filter((r) => r.agent.spokenProblems !== null);
+  if (spokenRows.length > 0) {
+    const clean = spokenRows.filter((r) => r.agent.spokenProblems?.length === 0).length;
+    console.log(`\nspoken style: ${clean}/${spokenRows.length} clean`);
+  }
 
   const output = { runAt: new Date().toISOString(), model: { jev: jevModel, gpt: GPT_MODEL }, questions: results, metrics };
   console.log(JSON.stringify(metrics, null, 2));

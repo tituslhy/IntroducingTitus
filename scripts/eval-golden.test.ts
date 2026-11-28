@@ -12,6 +12,7 @@ import {
   expectedPick,
   missingRecord,
   retrievalQueries,
+  spokenStyleProblems,
   usedRecord,
   type GoldenRow,
 } from "./eval-golden";
@@ -44,7 +45,7 @@ describe("GOLDEN retrieval rows", () => {
   });
 
   it("every other row is retrieval-scored with its question as the one query", () => {
-    const rows = GOLDEN.filter((r) => !ABSTRACT.test(r.question) && !r.topics);
+    const rows = GOLDEN.filter((r) => !ABSTRACT.test(r.question) && !r.topics && r.retrieval !== false);
 
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) {
@@ -283,5 +284,84 @@ describe("expectedPick", () => {
   it("leaves a plain retrieval row unscored", () => {
     const litellm = GOLDEN.find((r) => /What do you think about LiteLLM/.test(r.question));
     expect(expectedPick(litellm!)).toBeNull();
+  });
+});
+
+describe("spokenStyleProblems", () => {
+  it("finds nothing wrong with two plain paragraphs and [n] citations", () => {
+    const reply = "I wrote about RAFT in a piece on fine-tuning [1].\n\nIt trains on documents plus distractors, which is the part I liked [2].";
+
+    expect(spokenStyleProblems(reply)).toEqual([]);
+  });
+
+  it.each([
+    ["a dash list", "- one\n- two", "list"],
+    ["a star list", "* one\n* two", "list"],
+    ["a numbered list", "1. one\n2. two", "list"],
+    ["a heading", "## My roles\nI built things.", "heading"],
+    ["bold text", "I used **LangGraph** a lot.", "bold"],
+    ["a URL", "It is at https://medium.com/@tituslhy today.", "url"],
+  ])("names %s", (_label, reply, problem) => {
+    expect(spokenStyleProblems(reply)).toEqual([problem]);
+  });
+
+  it("flags three paragraphs, and counts a blank run as one break", () => {
+    expect(spokenStyleProblems("One.\n\nTwo.\n\nThree.")).toEqual(["more than two paragraphs"]);
+    expect(spokenStyleProblems("One.\n\n\n\nTwo.")).toEqual([]);
+  });
+
+  describe("when a card was shown", () => {
+    it("is clean when the reply says it put something on screen", () => {
+      expect(spokenStyleProblems("I've put the timeline on screen.\n\nIt starts at Illumina.", true)).toEqual([]);
+      expect(spokenStyleProblems("I've put it on the screen.", true)).toEqual([]);
+    });
+
+    it("names a reply that never says so", () => {
+      expect(spokenStyleProblems("It starts at Illumina.", true)).toEqual(["card not mentioned"]);
+    });
+
+    it("is not checked when no card was shown", () => {
+      expect(spokenStyleProblems("It starts at Illumina.")).toEqual([]);
+      expect(spokenStyleProblems("It starts at Illumina.", false)).toEqual([]);
+    });
+  });
+
+  describe("the word budget", () => {
+    const words = (n: number) => Array.from({ length: n }, () => "word").join(" ");
+
+    it("accepts 120 words and flags 121", () => {
+      expect(spokenStyleProblems(`${words(119)}.`)).toEqual([]);
+      expect(spokenStyleProblems(`${words(120)}.`)).toEqual([]);
+      expect(spokenStyleProblems(`${words(121)}.`)).toEqual(["over 120 words"]);
+    });
+
+    it("does not count [n] citation markers", () => {
+      expect(spokenStyleProblems(`${words(118)} [1] [1][1][1] [3][4] [1][1][1][1][1].`)).toEqual([]);
+    });
+
+    it("comes after the other problems", () => {
+      expect(spokenStyleProblems(`- ${words(125)}`)).toEqual(["list", "over 120 words"]);
+    });
+  });
+
+  it("lists every problem a reply has", () => {
+    expect(spokenStyleProblems("# Title\n- **a**\nhttps://x.com")).toEqual(["list", "heading", "bold", "url"]);
+  });
+});
+
+describe("the spoken golden rows", () => {
+  const spoken = GOLDEN.filter((r) => r.spoken);
+
+  it("are three, each with its own question", () => {
+    expect(spoken).toHaveLength(3);
+    expect(new Set(spoken.map((r) => r.question)).size).toBe(3);
+  });
+
+  it("include one that expects the evidence card", () => {
+    expect(spoken.some((r) => r.card === "evidence")).toBe(true);
+  });
+
+  it("include one that cites an article", () => {
+    expect(spoken.some((r) => r.expect.kind === "articles")).toBe(true);
   });
 });
