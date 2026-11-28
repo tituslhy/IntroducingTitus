@@ -141,6 +141,10 @@ export default function VoiceLab() {
 
   const speak = () => {
     stop();
+    // iPhone Safari plays Web Audio as "ambient" sound, which the silent switch mutes. "playback" plays it like a
+    // video would, whatever the switch says (Audio Session API, Safari 16.4+; ignored elsewhere).
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session) session.type = "playback";
     // Made inside the tap: Safari only lets a page play audio that a tap started.
     const ctx = new AudioContext();
     void ctx.resume();
