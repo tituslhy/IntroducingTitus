@@ -62,3 +62,6 @@ handoffs/
 
 # Voice-reply spike: a patched Kokoro model served locally only (163 MB; never committed)
 /public/voice-models/
+
+# The patched Kokoro model to upload to Hugging Face (172 MB; never committed)
+/voice-model-upload/
