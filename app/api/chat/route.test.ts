@@ -69,6 +69,7 @@ import { PAGE_TARGET_IDS } from "@/lib/profile";
 import { MAX_PAGE_TARGETS } from "@/lib/copilot-tools";
 import { ARTICLES } from "@/lib/articles";
 import { formatPublished, mediumPostId } from "@/lib/citation-ledger";
+import { SPOKEN_REPLY_RULES } from "@/lib/copilot-prompt";
 import type { NextRequest } from "next/server";
 
 // next/jest loads .env files, and tracing turns on whenever a LangSmith key is set.
@@ -566,6 +567,54 @@ describe("POST", () => {
     expect(callArgs.input[0]).toEqual({
       role: "system",
       content: "You are Titus's copilot.",
+    });
+  });
+
+  describe("the spoken flag", () => {
+    async function postSpoken(extra: Record<string, unknown>) {
+      mockCreate.mockResolvedValue(
+        await makeStream([{ type: "response.output_text.delta", delta: "Hi" }, { type: "response.done" }])
+      );
+      const response = await POST(
+        createPostRequest(
+          JSON.stringify({ messages: [{ role: "user", content: "Hello" }], ...extra })
+        ) as unknown as NextRequest
+      );
+      await drainResponse(response);
+      return response;
+    }
+
+    it("adds the spoken-reply rules as a system message after the conversation context when spoken is true", async () => {
+      await postSpoken({ spoken: true });
+
+      const input = mockCreate.mock.calls[0][0].input;
+      expect(input).toHaveLength(4);
+      expect(input[1].content).toMatch(/^Today's date:/);
+      expect(input[2]).toEqual({ role: "system", content: SPOKEN_REPLY_RULES });
+      expect(input[3]).toEqual({ role: "user", content: "Hello" });
+    });
+
+    it.each([
+      ["absent", {}],
+      ["false", { spoken: false }],
+    ])("adds nothing when spoken is %s", async (_label, extra) => {
+      await postSpoken(extra);
+
+      const input = mockCreate.mock.calls[0][0].input;
+      expect(input).toHaveLength(3);
+      expect(input.some((m: { content: string }) => m.content === SPOKEN_REPLY_RULES)).toBe(false);
+    });
+
+    it.each([
+      ["a string", "yes"],
+      ["a number", 1],
+      ["null", null],
+      ["an object", { on: true }],
+    ])("rejects spoken as %s with 400 before calling OpenAI", async (_label, spoken) => {
+      const response = await postSpoken({ spoken });
+
+      expect(response.status).toBe(400);
+      expect(mockCreate).not.toHaveBeenCalled();
     });
   });
 

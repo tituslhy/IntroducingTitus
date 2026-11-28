@@ -12,6 +12,7 @@ import {
   expectedPick,
   missingRecord,
   retrievalQueries,
+  spokenStyleProblems,
   usedRecord,
   type GoldenRow,
 } from "./eval-golden";
@@ -283,5 +284,46 @@ describe("expectedPick", () => {
   it("leaves a plain retrieval row unscored", () => {
     const litellm = GOLDEN.find((r) => /What do you think about LiteLLM/.test(r.question));
     expect(expectedPick(litellm!)).toBeNull();
+  });
+});
+
+describe("spokenStyleProblems", () => {
+  it("finds nothing wrong with two plain paragraphs and [n] citations", () => {
+    const reply = "I wrote about RAFT in a piece on fine-tuning [1].\n\nIt trains on documents plus distractors, which is the part I liked [2].";
+
+    expect(spokenStyleProblems(reply)).toEqual([]);
+  });
+
+  it.each([
+    ["a dash list", "- one\n- two", "list"],
+    ["a star list", "* one\n* two", "list"],
+    ["a numbered list", "1. one\n2. two", "list"],
+    ["a heading", "## My roles\nI built things.", "heading"],
+    ["bold text", "I used **LangGraph** a lot.", "bold"],
+    ["a URL", "It is at https://medium.com/@tituslhy today.", "url"],
+  ])("names %s", (_label, reply, problem) => {
+    expect(spokenStyleProblems(reply)).toEqual([problem]);
+  });
+
+  it("flags three paragraphs, and counts a blank run as one break", () => {
+    expect(spokenStyleProblems("One.\n\nTwo.\n\nThree.")).toEqual(["more than two paragraphs"]);
+    expect(spokenStyleProblems("One.\n\n\n\nTwo.")).toEqual([]);
+  });
+
+  it("lists every problem a reply has", () => {
+    expect(spokenStyleProblems("# Title\n- **a**\nhttps://x.com")).toEqual(["list", "heading", "bold", "url"]);
+  });
+});
+
+describe("the spoken golden rows", () => {
+  const spoken = GOLDEN.filter((r) => r.spoken);
+
+  it("are three, each with its own question", () => {
+    expect(spoken).toHaveLength(3);
+    expect(new Set(spoken.map((r) => r.question)).size).toBe(3);
+  });
+
+  it("include one that cites an article", () => {
+    expect(spoken.some((r) => r.expect.kind === "articles")).toBe(true);
   });
 });
