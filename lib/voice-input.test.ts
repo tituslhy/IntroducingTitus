@@ -8,9 +8,9 @@ import {
   MAX_TRANSCRIPT_CHARS,
   MIN_SPEECH_MS,
   NO_SPEECH_MS,
-  QUIET_OF_SPEECH,
+  PAUSE_POINT,
   RECORDING_TYPES,
-  SPEECH_LEVEL_HALF_LIFE_MS,
+  STANDS_OUT_OF_ROOM,
   VOICE_PROBLEMS,
   appendTranscript,
   audioExtension,
@@ -349,12 +349,12 @@ describe("createHearing", () => {
     const h = createHearing(0);
     // Levels of 0.08 to 0.15 from the start: the first frame sets the floor at 0.08, but the room bar never passes 0.04.
     let last: ReturnType<typeof h.hear> = "waiting";
-    for (let t = 50; t <= 400; t += 50) last = h.hear(t % 100 === 0 ? 0.08 : 0.15, t);
+    for (let t = 50; t <= 350; t += 50) last = h.hear(t % 100 === 0 ? 0.08 : 0.15, t);
     expect(last).toBe("speaking");
     expect(h.heard()).toBe(true);
 
-    expect(h.hear(0.001, 400 + END_PAUSE_MS - 50)).toBe("pause");
-    expect(h.hear(0.001, 400 + END_PAUSE_MS)).toBe("done");
+    expect(h.hear(0.001, 350 + END_PAUSE_MS - 50)).toBe("pause");
+    expect(h.hear(0.001, 350 + END_PAUSE_MS)).toBe("done");
   });
 
   it("in a very loud room, still needs only LOUD_RMS (0.04) to count as speech", () => {
@@ -403,8 +403,8 @@ describe("createHearing: hearing the end of a question over steady noise", () =>
   const firstDone = (answers: { t: number; answer: string }[]) => answers.find((a) => a.answer === "done")?.t;
 
   it("holds the numbers the pause is measured against", () => {
-    expect(QUIET_OF_SPEECH).toBe(0.5);
-    expect(SPEECH_LEVEL_HALF_LIFE_MS).toBe(3_000);
+    expect(PAUSE_POINT).toBe(0.35);
+    expect(STANDS_OUT_OF_ROOM).toBe(1.25);
   });
 
   it("with a loud fan (0.06), ends END_PAUSE_MS after the speech does, not never", () => {
@@ -449,5 +449,112 @@ describe("createHearing: hearing the end of a question over steady noise", () =>
     const shout = feedAll(h, 0.6, before.end, 100);
     const after = feedAll(h, 0.15, shout.end, 2_000);
     expect(after.answers.map((a) => a.answer)).not.toContain("done");
+  });
+});
+
+describe("createHearing: a pause is closer to the room than to your voice", () => {
+  /** A fan at the mic: steady, with a little jitter, never under 0.055 and never over 0.064. */
+  const FAN = [0.06, 0.064, 0.057, 0.062, 0.055, 0.063];
+  const fanAt = (t: number) => FAN[(t / 50) % FAN.length];
+
+  /** Runs a frame every 50 ms from 50 to `until`, the level at each time given by `levelAt`. */
+  function run(h: ReturnType<typeof createHearing>, until: number, levelAt: (t: number) => number) {
+    const answers: { t: number; answer: ReturnType<typeof h.hear> }[] = [];
+    for (let t = 50; t <= until; t += 50) answers.push({ t, answer: h.hear(levelAt(t), t) });
+    return answers;
+  }
+  const firstAt = (answers: { t: number; answer: string }[], what: string) => answers.find((a) => a.answer === what)?.t;
+  const lastAt = (answers: { t: number; answer: string }[], what: string) =>
+    [...answers].reverse().find((a) => a.answer === what)?.t;
+
+  it("holds the numbers the pause is measured against", () => {
+    expect(STANDS_OUT_OF_ROOM).toBeGreaterThan(1);
+    expect(PAUSE_POINT).toBe(0.35);
+  });
+
+  it("a loud fan alone for 8 s is never speech: nothing, right at NO_SPEECH_MS", () => {
+    const h = createHearing(0);
+    const answers = run(h, 8_000, fanAt);
+    expect(h.heard()).toBe(false);
+    expect(answers.filter((a) => a.answer === "speaking").length * 50).toBeLessThan(MIN_SPEECH_MS);
+    expect(answers.map((a) => a.answer)).not.toContain("done");
+    const nothing = firstAt(answers, "nothing");
+    expect(nothing).toBeDefined();
+    expect(nothing!).toBeGreaterThanOrEqual(NO_SPEECH_MS);
+    expect(nothing!).toBeLessThanOrEqual(NO_SPEECH_MS + 100);
+  });
+
+  it.each([0.1, 0.2])("a fan, then a 2 s question at %s over it, is done END_PAUSE_MS after the question ends", (voice) => {
+    const h = createHearing(0);
+    const speechEnd = 3_000;
+    const answers = run(h, speechEnd + 4_000, (t) => (t > 1_000 && t <= speechEnd ? voice : fanAt(t)));
+    expect(h.heard()).toBe(true);
+    const done = firstAt(answers, "done");
+    expect(done).toBeDefined();
+    expect(done!).toBeGreaterThanOrEqual(speechEnd + END_PAUSE_MS - 50);
+    expect(done!).toBeLessThanOrEqual(speechEnd + END_PAUSE_MS + 150);
+    // Never done while they were still talking.
+    expect(answers.filter((a) => a.t <= speechEnd).map((a) => a.answer)).not.toContain("done");
+  });
+
+  it("talking the instant the mic opens, with a 100 ms dip every 600 ms, still counts and ends after the pause", () => {
+    const h = createHearing(0);
+    const talkingUntil = 3_000;
+    const answers = run(h, talkingUntil + 3_000, (t) =>
+      t > talkingUntil ? 0.002 : (t - 50) % 600 >= 500 ? 0.002 : 0.15,
+    );
+    expect(h.heard()).toBe(true);
+    const lastSpoke = lastAt(answers, "speaking")!;
+    expect(lastSpoke).toBeGreaterThan(talkingUntil - 700);
+    expect(answers.filter((a) => a.t <= lastSpoke).map((a) => a.answer)).not.toContain("done");
+    const done = firstAt(answers, "done");
+    expect(done).toBeDefined();
+    expect(done!).toBeGreaterThanOrEqual(lastSpoke + END_PAUSE_MS - 50);
+    expect(done!).toBeLessThanOrEqual(lastSpoke + END_PAUSE_MS + 150);
+  });
+
+  it("once they have spoken, a frame between the room and the pause point to their voice is a pause, not speech", () => {
+    const h = createHearing(0);
+    run(h, 500, () => 0.01);
+    // Room 0.01, voice 0.2 for a second: the pause point is about 0.0765.
+    for (let t = 550; t <= 1_550; t += 50) h.hear(0.2, t);
+    expect(h.hear(0.05, 1_600)).toBe("pause");
+    expect(h.hear(0.07, 1_650)).toBe("pause");
+    expect(h.hear(0.09, 1_700)).toBe("speaking");
+  });
+
+  it("a 600 ms laugh at 0.45 inside 0.15 speech does not make normal speech look like a pause", () => {
+    const h = createHearing(0);
+    const laughStart = 1_500;
+    const laughEnd = 2_100;
+    const speechEnd = 5_100;
+    const answers = run(h, speechEnd + 3_000, (t) => {
+      if (t <= 500 || t > speechEnd) return 0.001;
+      return t > laughStart && t <= laughEnd ? 0.45 : 0.15;
+    });
+    expect(h.heard()).toBe(true);
+    // Every frame of speech after the laugh is still speech: no pause, so never done, until they stop.
+    expect(answers.filter((a) => a.t > laughEnd && a.t <= speechEnd).map((a) => a.answer)).toEqual(
+      Array(Math.round((speechEnd - laughEnd) / 50)).fill("speaking"),
+    );
+    const done = firstAt(answers, "done");
+    expect(done).toBeDefined();
+    expect(done!).toBeGreaterThanOrEqual(speechEnd + END_PAUSE_MS - 50);
+    expect(done!).toBeLessThanOrEqual(speechEnd + END_PAUSE_MS + 150);
+  });
+
+  it("the pause point does not sink during a pause: a frame under it stays a pause seconds later", () => {
+    const h = createHearing(0);
+    for (let t = 50; t <= 500; t += 50) h.hear(0.01, t);
+    for (let t = 550; t <= 1_550; t += 50) h.hear(0.2, t);
+    // The voice halved every 3 s would put the pause point near 0.05 after 5 s; it stays near 0.0765.
+    expect(h.hear(0.07, 6_600)).toBe("done");
+    expect(h.hear(0.07, 6_650)).toBe("done");
+  });
+
+  it("before anyone has spoken, the pause-point rule is not in play: a frame over the room bar is speech", () => {
+    const h = createHearing(0);
+    for (let t = 50; t <= 500; t += 50) h.hear(0.01, t);
+    expect(h.hear(0.05, 550)).toBe("speaking");
   });
 });
