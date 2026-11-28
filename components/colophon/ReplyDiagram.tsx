@@ -81,10 +81,12 @@ type BoxProps = {
   title: string
   sub?: string
   accent?: boolean
+  /** A dashed outline: something fed in (the prompt), not a step the reply passes through. */
+  dashed?: boolean
   k?: DiagramKey
 }
 
-function Box({ x, y, w, h = 46, title, sub, accent = false, k }: BoxProps) {
+function Box({ x, y, w, h = 46, title, sub, accent = false, dashed = false, k }: BoxProps) {
   const st = useContext(StateCtx)(k as DiagramKey)
   const { measured } = useContext(PickCtx)
   const pick = usePickable(k)
@@ -95,7 +97,7 @@ function Box({ x, y, w, h = 46, title, sub, accent = false, k }: BoxProps) {
   const ink = st === 'lit' ? 'var(--dg-lit-ink, var(--ink))' : 'var(--ink)'
   return (
     <g data-k={k} data-state={k ? st : undefined} opacity={paint.opacity} className={FADE} {...pick}>
-      <rect x={x} y={y} width={w} height={h} fill={paint.fill} stroke={paint.stroke} strokeWidth={paint.strokeWidth} className={FADE} />
+      <rect x={x} y={y} width={w} height={h} fill={paint.fill} stroke={paint.stroke} strokeWidth={paint.strokeWidth} strokeDasharray={dashed ? '4 3' : undefined} className={FADE} />
       <text
         x={x + w / 2}
         y={shownSub ? y + h / 2 - 4 : y + h / 2 + 4}
@@ -156,7 +158,7 @@ function ArrowHead({ id }: { id: string }) {
 }
 
 /** An arrow; turns amber once its key has run. */
-function Arrow({ d, k, marker }: { d: string; k?: DiagramKey; marker: string }) {
+function Arrow({ d, k, marker, dashed = false }: { d: string; k?: DiagramKey; marker: string; dashed?: boolean }) {
   const st = useContext(StateCtx)(k as DiagramKey)
   const ran = k && (st === 'lit' || st === 'done')
   return (
@@ -167,6 +169,7 @@ function Arrow({ d, k, marker }: { d: string; k?: DiagramKey; marker: string }) 
       strokeWidth={ran ? 1.6 : 1}
       opacity={k && st === 'idle' ? 0.4 : 1}
       markerEnd={`url(#${marker})`}
+      strokeDasharray={dashed ? '4 3' : undefined}
       data-k={k}
       className={FADE}
     />
@@ -243,7 +246,27 @@ function ToolsBox({ x, y, w }: { x: number; y: number; w: number }) {
 
 /** Box for what GPT's prompt carries: my record and the library map. */
 function RecordBox({ x, y, w, title = 'my record + library map' }: { x: number; y: number; w: number; title?: string }) {
-  return <Box x={x} y={y} w={w} h={40} title={title} sub="in the prompt" k="record" />
+  return <Box x={x} y={y} w={w} h={40} title={title} sub="in the prompt" dashed k="record" />
+}
+
+/** Where a reply starts (a filled dot) and ends (a ringed dot), as in a state diagram, with its word beside it. */
+function Terminal({ cx, cy, kind, tx, ty, anchor = 'middle' }: { cx: number; cy: number; kind: 'start' | 'end'; tx: number; ty: number; anchor?: 'start' | 'middle' | 'end' }) {
+  const c = 'var(--dg-measure, var(--amber))'
+  return (
+    <g aria-hidden="true" data-terminal={kind}>
+      {kind === 'start' ? (
+        <circle cx={cx} cy={cy} r={6} fill={c} />
+      ) : (
+        <>
+          <circle cx={cx} cy={cy} r={7.5} fill="none" stroke={c} strokeWidth={1.4} />
+          <circle cx={cx} cy={cy} r={4} fill={c} />
+        </>
+      )}
+      <text x={tx} y={ty} textAnchor={anchor} fontFamily={MONO} fontSize={10.5} fontWeight={500} letterSpacing="0.06em" fill={c}>
+        {kind}
+      </text>
+    </g>
+  )
 }
 
 export default function ReplyDiagram({
@@ -301,11 +324,13 @@ export default function ReplyDiagram({
       <PickCtx.Provider value={{ measured, pickable, selected, onPick }}>
         <figure className={tone === 'stage' ? 'reply-stage m-0' : 'my-[clamp(20px,3vw,32px)] min-[1120px]:-mx-[100px]'}>
           {/* Desktop */}
-          <svg viewBox="0 0 760 568" role="img" aria-label={description} className="hidden h-auto w-full min-[760px]:block">
+          <svg viewBox="-46 0 816 568" role="img" aria-label={description} className="hidden h-auto w-full min-[760px]:block">
             <ArrowHead id="reply-arrow-h" />
             <RecordBox x={226} y={0} w={200} />
-            <Arrow d="M326,40 V92" k="record" marker="reply-arrow-h" />
+            <Arrow d="M326,40 V92" k="record" marker="reply-arrow-h" dashed />
             <g transform="translate(0,56)">
+              <Terminal kind="start" cx={-22} cy={61} tx={-22} ty={86} />
+              <Arrow d="M-15,61 H-2" k="visitor" marker="reply-arrow-h" />
               <Box x={0} y={38} w={84} title="visitor" k="visitor" />
               <Arrow d="M84,61 H106" k="guards" marker="reply-arrow-h" />
               <Box x={108} y={38} w={84} title="guards" k="guards" />
@@ -326,6 +351,8 @@ export default function ReplyDiagram({
               <Box x={488} y={38} w={84} title="checks" k="checks" />
               <Arrow d="M572,61 H594" k="drawer" marker="reply-arrow-h" />
               <Box x={596} y={38} w={84} title="drawer" k="drawer" />
+              <Arrow d="M680,61 H698" k="drawer" marker="reply-arrow-h" />
+              <Terminal kind="end" cx={708} cy={61} tx={708} ty={86} />
 
               {/* Route 1: search_writing splits the question into topics, each searched by Jev, merged round-robin */}
               <Arrow d="M270,238 V262 H50 V278" k="search" marker="reply-arrow-h" />
@@ -366,14 +393,16 @@ export default function ReplyDiagram({
           </svg>
 
           {/* Mobile */}
-          <svg viewBox="0 0 340 920" role="img" aria-label={description} className="mx-auto block h-auto w-full max-w-[400px] min-[760px]:hidden">
+          <svg viewBox="0 -40 340 1000" role="img" aria-label={description} className="mx-auto block h-auto w-full max-w-[400px] min-[760px]:hidden">
             <ArrowHead id="reply-arrow-v" />
+            <Terminal kind="start" cx={170} cy={-28} tx={182} ty={-24} anchor="start" />
+            <Arrow d="M170,-21 V-2" k="visitor" marker="reply-arrow-v" />
             <Box x={95} y={0} w={150} title="visitor" k="visitor" />
             <Arrow d="M170,46 V62" k="guards" marker="reply-arrow-v" />
             <Box x={95} y={64} w={150} title="guards" k="guards" />
             <Arrow d="M170,110 V214" k="guards" marker="reply-arrow-v" />
             <RecordBox x={4} y={124} w={156} title="record + library map" />
-            <Arrow d="M50,164 V239 H93" k="record" marker="reply-arrow-v" />
+            <Arrow d="M50,164 V239 H93" k="record" marker="reply-arrow-v" dashed />
 
             <g transform="translate(0,60)">
               <LoopFrame x={0} y={126} w={340} h={224} />
@@ -420,6 +449,8 @@ export default function ReplyDiagram({
               <Box x={95} y={748} w={150} title="checks" k="checks" />
               <Arrow d="M170,794 V814" k="drawer" marker="reply-arrow-v" />
               <Box x={95} y={816} w={150} title="drawer" k="drawer" />
+              <Arrow d="M170,862 V878" k="drawer" marker="reply-arrow-v" />
+              <Terminal kind="end" cx={170} cy={888} tx={184} ty={892} anchor="start" />
             </g>
           </svg>
         </figure>
