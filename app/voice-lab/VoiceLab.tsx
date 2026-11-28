@@ -42,6 +42,8 @@ type Row = {
   peak?: number;
   /** What the worker is doing with it now: "pronouncing" or "running the model". */
   stage?: string;
+  /** Share of samples that came back NaN. */
+  nanShare?: number;
 };
 
 function sentences(text: string): string[] {
@@ -103,10 +105,17 @@ export default function VoiceLab() {
     a.nextStart = start + buffer.duration;
     a.prevEnd = a.nextStart;
     const firstSoundSec = n === 0 ? (performance.now() - a.clickedAt) / 1000 : undefined;
+    // NaN ("not a number", e.g. fp16 overflowing on the GPU) plays as silence, like zeros: count them apart.
     let peak = 0;
-    for (const v of audio) peak = Math.max(peak, Math.abs(v));
+    let nans = 0;
+    for (const v of audio) {
+      if (Number.isNaN(v)) nans += 1;
+      else peak = Math.max(peak, Math.abs(v));
+    }
     setRows((prev) =>
-      prev.map((r) => (r.n === n ? { ...r, genMs, audioSec: buffer.duration, gapSec, firstSoundSec, peak } : r)),
+      prev.map((r) =>
+        r.n === n ? { ...r, genMs, audioSec: buffer.duration, gapSec, firstSoundSec, peak, nanShare: nans / audio.length } : r,
+      ),
     );
   }, []);
 
@@ -234,6 +243,7 @@ export default function VoiceLab() {
     `Downloaded: ${mb(downloaded.loaded)} MB · load ${loadMs !== null ? (loadMs / 1000).toFixed(1) + " s" : "?"}`,
     `First sound after tap: ${firstSound !== undefined ? firstSound.toFixed(1) + " s" : "?"}`,
     `Speed: ${totalGen > 0 ? (totalAudio / totalGen).toFixed(2) : "?"}× real time · gaps ${totalGaps.toFixed(1)} s`,
+    `Levels: ${rows.map((r) => (r.peak === undefined ? "?" : r.nanShare ? `NaN${Math.round(r.nanShare * 100)}%` : r.peak.toFixed(2))).join(", ")}`,
     ...(pending
       ? [
           `Still working: ${Math.max(0, Math.round((now - speakStartedAt) / 1000))} s since Speak, sentence ${
@@ -392,8 +402,14 @@ export default function VoiceLab() {
                     <td className={`py-1.5 pr-3 ${r.gapSec ? "text-amber" : ""}`}>
                       {r.gapSec !== undefined ? (r.gapSec ? `${r.gapSec.toFixed(1)} s` : "none") : ""}
                     </td>
-                    <td className={`py-1.5 ${r.peak !== undefined && !(r.peak > 0.01) ? "text-amber" : ""}`}>
-                      {r.peak !== undefined ? (r.peak > 0.01 ? r.peak.toFixed(2) : "silent") : ""}
+                    <td className={`py-1.5 ${r.peak !== undefined && (r.nanShare || !(r.peak > 0.01)) ? "text-amber" : ""}`}>
+                      {r.peak === undefined
+                        ? ""
+                        : r.nanShare
+                          ? `NaN ${Math.round(r.nanShare * 100)}%`
+                          : r.peak > 0.01
+                            ? r.peak.toFixed(2)
+                            : "zeros"}
                     </td>
                   </tr>
                 ))}
