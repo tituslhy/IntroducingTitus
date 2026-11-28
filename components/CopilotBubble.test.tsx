@@ -6260,7 +6260,9 @@ describe("CopilotBubble: voice in", () => {
       fireEvent.click(micButton()!);
       await flush();
 
-      expect(getUserMedia).toHaveBeenCalledWith({ audio: true });
+      expect(getUserMedia).toHaveBeenCalledWith({
+        audio: { autoGainControl: false, noiseSuppression: true, echoCancellation: true },
+      });
       expect(screen.getByRole("status")).toHaveTextContent("Listening");
       expect(box()).toBeNull();
       expect(screen.getByRole("button", { name: STOP })).toBeInTheDocument();
