@@ -158,6 +158,13 @@ First results (2026-11-28, Chrome on Titus's Mac, via Playwright):
 
 Still to measure: Safari on the Mac, and the iPhone (WebGPU needs HTTPS, so on a Vercel preview).
 
+Found on Titus's iPhone (Safari): the fp16 model downloaded and loaded (163 MB in 67 s), then the first sentence never
+came back. Cause: kokoro-js's phonemizer unpacks its espeak dictionary with `for await` over a `ReadableStream`, which
+Safari doesn't support. Fixed with `lib/voice-reply/stream-polyfill.ts`, imported by the worker before kokoro-js.
+Also: iPhone Safari mutes Web Audio on the silent switch unless `navigator.audioSession.type = "playback"`.
+Others report iOS reloading the tab under memory pressure with WebGPU fp32 and a failed WebGPU session leaving the
+runtime unusable in that page, so a WebGPU failure on a phone means text, not a WASM retry in the same page.
+
 Go if the iPhone keeps up with real time after loading and Titus likes a voice. No-go means we stop here; voice in
 keeps working as today.
 
