@@ -12,6 +12,7 @@ import { loadScorecard, type Scorecard } from '@/lib/eval-results'
 import { FIT_LEVEL_LABELS, NOT_ON_FILE_NOTE, type FitBrief } from '@/lib/fit-brief'
 import { PAGE_TARGETS, SITE_PAGES, SOCIAL } from '@/lib/profile'
 import { MAX_ARTICLES_PER_REPLY, MAX_READING_CALLS, SECTION_BUDGET_CHARS } from '@/lib/search-config'
+import { DOWNLOAD_MB, KOKORO_MODEL, KOKORO_VOICE } from '@/lib/voice-reply/config'
 
 const TITLE = 'How Ask Titus works | Titus Lim'
 const DESCRIPTION =
@@ -26,6 +27,8 @@ export const metadata: Metadata = {
 }
 
 const REPO_URL = 'https://github.com/tituslhy/IntroducingTitus'
+/** The patched voice model, with its card saying what changed and why. */
+const VOICE_MODEL_URL = `https://huggingface.co/${KOKORO_MODEL}`
 
 // ---------------------------------------------------------------------------
 // Content
@@ -68,6 +71,7 @@ const GUARDRAILS: [guardrail: string, prevents: string][] = [
   ['Fit briefs re-validated after the model writes them', '“Strong” claims without evidence'],
   ['Cards built by the server from my data, checked as A2UI before they’re sent', 'A card showing a role, article, link or date that doesn’t exist'],
   ['Voice clips transcribed into the box, never sent by themselves; I don’t keep them', 'A misheard question sent unchecked; recordings kept'],
+  ['Spoken replies made on your device; only a question you spoke is spoken back', 'Audio sent to a server; a typed question read aloud'],
   ['Origin check, rate limits, output caps, timeouts, tool-call limits', 'Abuse and runaway cost'],
   ['Scope rules', 'Salary, family or weakness talk'],
 ]
@@ -412,6 +416,35 @@ export default function ColophonPage() {
                   its size, format and timing, how many characters came back, and the IP the rate limit counts by, as
                   chat&rsquo;s does. Where the browser can hear your voice level, it stops when you pause and sends
                   nothing if it never heard you.
+                </p>
+                <p className={`${prose} mt-4`}>
+                  Ask out loud and I answer out loud. The drawer marks the question as spoken, and GPT is told its reply
+                  will be heard as well as read: plain sentences, no lists, tables or links, about 80 words, and one plain
+                  line at the end if it has put something on screen. The text streams in as usual, and each sentence is
+                  spoken as soon as it&rsquo;s finished. Only that question gets a voice: type the next one and it comes
+                  back as text.
+                </p>
+                <p className={`${prose} mt-4`}>
+                  Spoken replies are made on your device, so their audio never touches a server. Kokoro-82M, an open
+                  text-to-speech model (Apache-2.0), runs in your browser on WebGPU, in a background worker so the drawer
+                  never freezes. It speaks as {KOKORO_VOICE}, one of Kokoro&rsquo;s stock voices. The voice is downloaded
+                  once from Hugging Face ({DOWNLOAD_MB} MB) and kept in your browser&rsquo;s cache, so next time I answer straight away. On a
+                  computer the download starts at your first tap of the mic, so it runs while you talk and I think; on a
+                  phone I ask first. The reply never waits for it, and without WebGPU it stays as text.
+                </p>
+                <p className={`${prose} mt-4`}>
+                  Getting it to work on an iPhone took a patched model. Kokoro&rsquo;s official half-precision (16-bit)
+                  model, on the newer ONNX Runtime, filled the audio with NaN, which plays as silence, on the iPhone and in
+                  Chrome alike. Its normalising layers average thousands of 16-bit numbers, and the running sum overflows.
+                  My copy runs those averages in full precision (32-bit), and loads with the runtime&rsquo;s basic graph
+                  optimisations, because the fuller ones merge them back into 16-bit. Half precision also made the voice
+                  crackle like a bad phone line; that came from the later layers of its generator, the part that makes
+                  the sound, and they now run in full precision too. The full-precision model, at 326 MB, ran the iPhone
+                  out of memory, so the patched one, at {DOWNLOAD_MB} MB, is the middle path. It&rsquo;s on{' '}
+                  <a href={VOICE_MODEL_URL} target="_blank" rel="noopener noreferrer" className="text-amber underline underline-offset-2">
+                    Hugging Face
+                  </a>
+                  , with what changed and why.
                 </p>
                 </>,
               ],

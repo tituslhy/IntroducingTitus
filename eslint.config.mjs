@@ -23,6 +23,8 @@ const eslintConfig = defineConfig([
     'archive/**',
     'design_handoff_personal_site/**',
     'screenshots/**',
+    // Local, gitignored spike files (voice models and the runtime's own scripts).
+    'public/voice-models/**',
   ]),
 ])
 

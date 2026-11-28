@@ -199,6 +199,7 @@ drawer that opens upward). Visual shell follows the README; backend is unchanged
 - Empty state shows 3 starter prompts
 - Typing indicator (3 amber dots) while awaiting response, captioned with what is really happening: a plain waiting word (Thinking, Reasoning… changing every 3s) until the model's reasoning-summary headline arrives (bold title only, never the paragraph), then one line per tool step ("Searching my writing for …"). Steps fold into one line above the reply ("Searched my writing · read 3 articles"), opening to list them
 - Session-only memory (useState, no persistence)
+- Voice reply: a question asked through the mic gets its reply shown and spoken; typed questions stay silent. Kokoro-82M (`am_puck`) runs in the visitor's browser on WebGPU, in a Web Worker (`lib/voice-reply/`); no WebGPU, no voice. The patched model is on Titus's Hugging Face (`KOKORO_MODEL`, 172 MB, kept in the browser's cache), never in git. Where replies can be spoken, the drawer's privacy line says they're made on the device with a voice from Hugging Face; elsewhere it keeps "Nothing is stored in your browser."
 - Markdown rendered via `react-markdown`, restyled editorial (serif, amber `<a>`)
 - Mobile responsive
 

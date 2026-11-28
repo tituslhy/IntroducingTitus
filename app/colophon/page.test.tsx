@@ -325,6 +325,80 @@ describe("ColophonPage voice copy", () => {
   });
 });
 
+describe("ColophonPage spoken replies", () => {
+  const voiceEntry = () => {
+    const label = screen.getByText("Voice");
+    // The row's text sits in the element after its label (the Section's rows grid).
+    return label.nextElementSibling as HTMLElement;
+  };
+
+  it("the Voice entry says a spoken question is answered out loud, written to be heard, and a typed one stays text", () => {
+    render(<ColophonPage />);
+
+    const text = voiceEntry().textContent ?? "";
+    expect(text).toMatch(/Ask out loud and I answer out loud/);
+    expect(text).toMatch(/plain sentences, no lists, tables or links, about 80 words/);
+    expect(text).toMatch(/type the next one and it comes back as text/);
+  });
+
+  it("the Voice entry says spoken replies are made on your device and their audio never touches a server", () => {
+    render(<ColophonPage />);
+
+    const text = voiceEntry().textContent ?? "";
+    expect(text).toMatch(/Spoken replies are made on your device/);
+    expect(text).toMatch(/their audio never touches a server/);
+    expect(text).toMatch(/Kokoro-82M, an open text-to-speech model \(Apache-2\.0\), runs in your browser on WebGPU/);
+    expect(text).toMatch(/It speaks as am_puck, one of Kokoro’s stock voices/);
+  });
+
+  it("the Voice entry says the voice is downloaded once from Hugging Face, 172 MB, and kept in your browser’s cache", () => {
+    render(<ColophonPage />);
+
+    const text = voiceEntry().textContent ?? "";
+    expect(text).toMatch(/downloaded once from Hugging Face \(172 MB\) and kept in your browser’s cache/);
+    expect(text).toMatch(/on a phone I ask first/);
+    expect(text).toMatch(/without WebGPU it stays as text/);
+  });
+
+  it("the Voice entry tells the patch story: NaN silence from overflowing averages, the crackle, and 326 MB too big for the iPhone", () => {
+    render(<ColophonPage />);
+
+    const text = voiceEntry().textContent ?? "";
+    expect(text).toMatch(/filled the audio with NaN, which plays as silence/);
+    expect(text).toMatch(/My copy runs those averages in full precision/);
+    expect(text).toMatch(/crackle like a bad phone line/);
+    expect(text).toMatch(/326 MB, ran the iPhone out of memory/);
+    expect(text).toMatch(/the patched one, at 172 MB, is the middle path/);
+  });
+
+  it("the Voice entry links the patched model on Hugging Face, in a new tab", () => {
+    render(<ColophonPage />);
+
+    const link = within(voiceEntry()).getByRole("link", { name: "Hugging Face" });
+    expect(link).toHaveAttribute("href", "https://huggingface.co/tituslhy/Kokoro-82M-v1.0-ONNX-webgpu");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("the Voice entry claims no speed and no percentage", () => {
+    render(<ColophonPage />);
+
+    const text = voiceEntry().textContent ?? "";
+    expect(text).not.toMatch(/\d\s*×|real time|%/);
+  });
+
+  it("guardrails has a row saying spoken replies are made on your device, and only a spoken question is spoken back", () => {
+    render(<ColophonPage />);
+
+    const section = screen.getByRole("heading", { level: 2, name: /guardrails/i }).closest("section")!;
+    const rows = within(within(section).getByRole("table")).getAllByRole("row").map((r) => Array.from((r as HTMLTableRowElement).cells).map((c) => c.textContent));
+    expect(rows).toContainEqual([
+      "Spoken replies made on your device; only a question you spoke is spoken back",
+      "Audio sent to a server; a typed question read aloud",
+    ]);
+  });
+});
+
 describe("ColophonPage topics copy", () => {
   it("walkthrough calls search_writing with a list of topics", () => {
     render(<ColophonPage />);

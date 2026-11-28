@@ -1072,6 +1072,22 @@ describe("CopilotBubble", () => {
     expect(screen.queryByText(/does not save your chat history/i)).not.toBeInTheDocument();
   });
 
+  it("keeps the voice sentences out of the footer where there is no mic, even with WebGPU", async () => {
+    Object.defineProperty(navigator, "gpu", { value: { requestAdapter: async () => ({}) }, configurable: true });
+    try {
+      const user = userEvent.setup();
+      render(<CopilotBubble />);
+      await user.click(screen.getByRole("button", { name: /open ask titus/i }));
+
+      expect(screen.getByText(/^Messages go to OpenAI to generate a reply/).textContent).toBe(
+        "Messages go to OpenAI to generate a reply and are logged so I can improve answers. Nothing is stored in your browser."
+      );
+      expect(screen.queryByText(/Voice clips|Spoken replies/)).not.toBeInTheDocument();
+    } finally {
+      delete (navigator as unknown as { gpu?: unknown }).gpu;
+    }
+  });
+
   it("should have close button in drawer header that closes the drawer", async () => {
     // Arrange
     const user = userEvent.setup();
@@ -6756,6 +6772,44 @@ describe("CopilotBubble: voice reply", () => {
     delete (navigator as unknown as { mediaDevices?: unknown }).mediaDevices;
     delete (window as unknown as { AudioContext?: unknown }).AudioContext;
     window.matchMedia = originalMatchMedia;
+  });
+
+  describe("the privacy line", () => {
+    const WITH_VOICE =
+      "Messages go to OpenAI to generate a reply and are logged so I can improve answers. Your messages aren’t stored in your browser. Voice clips go to OpenAI to be transcribed; I don’t keep them. Spoken replies are made on your device, with a voice downloaded once from Hugging Face and kept in your browser’s cache.";
+    const MIC_ONLY =
+      "Messages go to OpenAI to generate a reply and are logged so I can improve answers. Nothing is stored in your browser. Voice clips go to OpenAI to be transcribed; I don’t keep them.";
+    const line = () => screen.getByText(/^Messages go to OpenAI to generate a reply/);
+
+    afterEach(() => {
+      delete (navigator as unknown as { gpu?: unknown }).gpu;
+    });
+
+    it("where replies can be spoken (WebGPU and the mic), reads the spec's text exactly", async () => {
+      Object.defineProperty(navigator, "gpu", { value: { requestAdapter: async () => ({}) }, configurable: true });
+      await openDrawer();
+
+      expect(line().textContent).toBe(WITH_VOICE);
+    });
+
+    it("without WebGPU, keeps today's line: nothing stored in your browser, and the clip sentence only", async () => {
+      await openDrawer();
+
+      expect(line().textContent).toBe(MIC_ONLY);
+      expect(screen.queryByText(/Hugging Face/)).not.toBeInTheDocument();
+    });
+
+    it("once WebGPU turns out to give no adapter, goes back to today's line", async () => {
+      Object.defineProperty(navigator, "gpu", { value: { requestAdapter: async () => null }, configurable: true });
+      mockVoiceSupport.speak = false;
+      await openDrawer();
+      expect(line().textContent).toBe(WITH_VOICE);
+
+      await speakIntoBox();
+      await flush();
+
+      expect(line().textContent).toBe(MIC_ONLY);
+    });
   });
 
   describe("which questions are spoken", () => {

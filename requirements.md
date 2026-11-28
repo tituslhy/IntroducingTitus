@@ -233,6 +233,7 @@ A floating "Ask me anything" chat bubble fixed to the bottom-right of every page
 - Typing indicator (3 amber dots) while awaiting response, captioned with what is really happening: a plain waiting word (Thinking, Reasoning… changing every 3s) until the model's reasoning-summary headline arrives (bold title only, never the paragraph), then one line per tool step ("Searching my writing for …"). Steps fold into one line above the reply ("Searched my writing · read 3 articles"), opening to list them
 - Close button on drawer
 - Session-only memory via `useState` — no persistence, no DB
+- Voice reply: a spoken (mic) question's reply is shown and read aloud by Kokoro-82M on WebGPU in the visitor's browser; typed questions stay silent. Model: patched Kokoro on Hugging Face (172 MB, downloaded once, kept in the browser's cache). Where it's supported, the privacy line says spoken replies are made on the device
 - Markdown rendered via `react-markdown`, restyled editorial (serif, amber `<a>`)
 - Mobile responsive
 

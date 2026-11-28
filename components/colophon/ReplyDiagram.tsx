@@ -5,7 +5,9 @@
  * theme tokens only. GPT's prompt carries my record and the library map; two
  * routes to my articles leave the tools box: a per-topic search (concrete and
  * multi-part questions) and read_writing from the library map (broad ones);
- * both end at Jev's section pick. A row on desktop, a column on mobile: two
+ * both end at Jev's section pick. After the drawer, a dashed voice step: a
+ * spoken question's reply is also read aloud on the visitor's device (a typed
+ * one ends at the drawer). A row on desktop, a column on mobile: two
  * SVGs, one hidden per breakpoint (display:none also drops it from the a11y tree).
  * Thresholds and page size come from lib/search-config.ts, so they can't drift.
  *
@@ -23,7 +25,7 @@ const MONO = 'var(--font-ibm-plex-mono), ui-monospace, monospace'
 
 export type DiagramKey =
   | 'record' | 'visitor' | 'guards' | 'gpt' | 'calls' | 'results' | 'tools' | 'show' | 'card' | 'search'
-  | 'filter' | 'rank' | 'merge' | 'read' | 'sections' | 'answer' | 'checks' | 'drawer'
+  | 'filter' | 'rank' | 'merge' | 'read' | 'sections' | 'answer' | 'checks' | 'drawer' | 'voice'
 export type BoxState = 'lit' | 'done' | 'idle'
 type StateOf = (k: DiagramKey) => BoxState | undefined
 
@@ -81,7 +83,7 @@ type BoxProps = {
   title: string
   sub?: string
   accent?: boolean
-  /** A dashed outline: something fed in (the prompt), not a step the reply passes through. */
+  /** A dashed outline: something fed in (the prompt), or a step only some replies take (the voice). */
   dashed?: boolean
   k?: DiagramKey
 }
@@ -314,7 +316,8 @@ export default function ReplyDiagram({
     `read_writing involves no search: for broad questions, GPT splits the question into parts, picks articles for each part from the library map of themes in its prompt, and opens them by id, one call per part, up to 3 articles a call. ` +
     `Both routes end at Jev sections (score again, on each section's heading and one-line note), which keeps each article's best sections, up to ${SECTION_BUDGET_CHARS.toLocaleString('en-GB')} characters an article, ` +
     `and that article text goes back to GPT. Each tool can be called at most ${MAX_READING_CALLS} times per reply, and a reply reads at most ${MAX_ARTICLES_PER_REPLY} articles. ` +
-    `GPT's answer then passes output checks and streams to the drawer.`
+    `GPT's answer then passes output checks and streams to the drawer. ` +
+    `If the question was spoken, the reply is also read aloud by a voice made on the visitor's device (Kokoro, in the browser on WebGPU); a typed question ends at the drawer.`
 
   const stateOf: StateOf = (k) => (state ? (state[k] ?? 'idle') : undefined)
 
@@ -351,8 +354,11 @@ export default function ReplyDiagram({
               <Box x={488} y={38} w={84} title="checks" k="checks" />
               <Arrow d="M572,61 H594" k="drawer" marker="reply-arrow-h" />
               <Box x={596} y={38} w={84} title="drawer" k="drawer" />
-              <Arrow d="M680,61 H698" k="drawer" marker="reply-arrow-h" />
-              <Terminal kind="end" cx={708} cy={61} tx={708} ty={86} />
+              {/* Spoken questions only: the reply is also read aloud, on the visitor's device */}
+              <Arrow d="M638,84 V104" k="voice" marker="reply-arrow-h" dashed />
+              <Box x={548} y={106} w={180} title="voice, on your device" sub="spoken questions only" dashed k="voice" />
+              <Arrow d="M728,129 H738" k="voice" marker="reply-arrow-h" />
+              <Terminal kind="end" cx={748} cy={129} tx={748} ty={154} />
 
               {/* Route 1: search_writing splits the question into topics, each searched by Jev, merged round-robin */}
               <Arrow d="M270,238 V262 H50 V278" k="search" marker="reply-arrow-h" />
@@ -393,7 +399,7 @@ export default function ReplyDiagram({
           </svg>
 
           {/* Mobile */}
-          <svg viewBox="0 -40 340 1000" role="img" aria-label={description} className="mx-auto block h-auto w-full max-w-[400px] min-[760px]:hidden">
+          <svg viewBox="0 -40 340 1090" role="img" aria-label={description} className="mx-auto block h-auto w-full max-w-[400px] min-[760px]:hidden">
             <ArrowHead id="reply-arrow-v" />
             <Terminal kind="start" cx={170} cy={-28} tx={182} ty={-24} anchor="start" />
             <Arrow d="M170,-21 V-2" k="visitor" marker="reply-arrow-v" />
@@ -449,8 +455,11 @@ export default function ReplyDiagram({
               <Box x={95} y={748} w={150} title="checks" k="checks" />
               <Arrow d="M170,794 V814" k="drawer" marker="reply-arrow-v" />
               <Box x={95} y={816} w={150} title="drawer" k="drawer" />
-              <Arrow d="M170,862 V878" k="drawer" marker="reply-arrow-v" />
-              <Terminal kind="end" cx={170} cy={888} tx={184} ty={892} anchor="start" />
+              {/* Spoken questions only: the reply is also read aloud, on the visitor's device */}
+              <Arrow d="M170,862 V882" k="voice" marker="reply-arrow-v" dashed />
+              <Box x={80} y={884} w={180} title="voice, on your device" sub="spoken questions only" dashed k="voice" />
+              <Arrow d="M170,930 V946" k="voice" marker="reply-arrow-v" />
+              <Terminal kind="end" cx={170} cy={956} tx={184} ty={960} anchor="start" />
             </g>
           </svg>
         </figure>

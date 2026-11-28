@@ -445,3 +445,91 @@ describe("ReplyDiagram tool rows carry the replay state", () => {
     container.querySelectorAll("text[data-k]").forEach((t) => expect(t).not.toHaveAttribute("data-state"));
   });
 });
+
+describe("ReplyDiagram voice step", () => {
+  const svgs = (container: HTMLElement) => Array.from(container.querySelectorAll('svg[role="img"]')) as SVGElement[];
+  const desktopSvg = (container: HTMLElement) => svgs(container).find((s) => s.classList.contains("hidden"))!;
+  const mobileSvg = (container: HTMLElement) => svgs(container).find((s) => !s.classList.contains("hidden"))!;
+  const num = (el: Element | null, attr: string) => Number(el?.getAttribute(attr));
+
+  it("draws a dashed voice box, made on your device for spoken questions only, in both SVGs", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of svgs(container)) {
+      const voice = svg.querySelector('g[data-k="voice"]');
+      expect(voice).not.toBeNull();
+      expect(voice!.querySelector("rect")).toHaveAttribute("stroke-dasharray", "4 3");
+      expect(voice!.textContent).toContain("voice, on your device");
+      expect(voice!.textContent).toContain("spoken questions only");
+    }
+  });
+
+  it("puts the voice step after the drawer, with a dashed arrow into it, in both SVGs", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of svgs(container)) {
+      const drawer = svg.querySelector('g[data-k="drawer"]')!;
+      const voice = svg.querySelector('g[data-k="voice"]')!;
+      expect(drawer.compareDocumentPosition(voice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const arrows = svg.querySelectorAll('path[data-k="voice"]');
+      expect(arrows.length).toBeGreaterThan(0);
+      expect(arrows[0]).toHaveAttribute("stroke-dasharray", "4 3");
+    }
+  });
+
+  it("keeps the end marker last: after the voice box, on desktop to its right and on mobile below it", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of svgs(container)) {
+      const ends = svg.querySelectorAll('[data-terminal="end"]');
+      expect(ends).toHaveLength(1);
+      const voice = svg.querySelector('g[data-k="voice"]')!;
+      expect(voice.compareDocumentPosition(ends[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+
+    const dRect = desktopSvg(container).querySelector('g[data-k="voice"] rect')!;
+    const dEnd = desktopSvg(container).querySelector('[data-terminal="end"] circle')!;
+    expect(num(dEnd, "cx")).toBeGreaterThan(num(dRect, "x") + num(dRect, "width"));
+
+    const mRect = mobileSvg(container).querySelector('g[data-k="voice"] rect')!;
+    const mEnd = mobileSvg(container).querySelector('[data-terminal="end"] circle')!;
+    expect(num(mEnd, "cy")).toBeGreaterThan(num(mRect, "y") + num(mRect, "height"));
+  });
+
+  it("keeps the end marker inside each SVG's view box", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of svgs(container)) {
+      const [minX, minY, w, h] = (svg.getAttribute("viewBox") ?? "").split(" ").map(Number);
+      const g = svg.querySelector('[data-terminal="end"]')!;
+      // The end marker sits inside the translated group in both layouts.
+      const t = /translate\(([-\d.]+),\s*([-\d.]+)\)/.exec(g.closest("g[transform]")?.getAttribute("transform") ?? "") ?? ["", "0", "0"];
+      const circle = g.querySelector("circle")!;
+      const cx = num(circle, "cx") + Number(t[1]);
+      const cy = num(circle, "cy") + Number(t[2]);
+      expect(cx + 8).toBeLessThanOrEqual(minX + w);
+      expect(cy + 30).toBeLessThanOrEqual(minY + h);
+    }
+  });
+
+  it("the description says a spoken question's reply is also read aloud on the visitor's device, and a typed one ends at the drawer", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} />);
+
+    for (const svg of svgs(container)) {
+      const label = svg.getAttribute("aria-label") ?? "";
+      expect(label).toMatch(/If the question was spoken, the reply is also read aloud by a voice made on the visitor's device/);
+      expect(label).toMatch(/a typed question ends at the drawer/);
+    }
+  });
+
+  it("stays idle and faded during a replay, since a recorded reply is typed", () => {
+    const { container } = render(<ReplyDiagram articleCount={65} state={{ answer: "done", checks: "done", drawer: "done" }} />);
+
+    const voice = container.querySelectorAll('g[data-k="voice"]');
+    expect(voice).toHaveLength(2);
+    voice.forEach((g) => {
+      expect(g).toHaveAttribute("data-state", "idle");
+      expect(g).toHaveAttribute("opacity", "0.45");
+    });
+  });
+});
